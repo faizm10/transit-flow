@@ -297,6 +297,31 @@ export default function MapPage() {
   const ensureUnionPearsonLayers = useCallback(() => {
     if (!map.current) return;
 
+    // Add source for Union Pearson Express route line
+    if (!map.current.getSource("union-pearson-express")) {
+      map.current.addSource("union-pearson-express", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      console.log("[UPX] Route line source added");
+    }
+
+    // Add layer for Union Pearson Express route line
+    if (!map.current.getLayer("union-pearson-express-layer")) {
+      map.current.addLayer({
+        id: "union-pearson-express-layer",
+        type: "line",
+        source: "union-pearson-express",
+        paint: {
+          "line-color": "#0ea5e9",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 2, 12, 4, 15, 6],
+          "line-opacity": 0.8,
+        },
+      });
+      console.log("[UPX] Route line layer added");
+    }
+
+    // Add source for stops
     if (!map.current.getSource("union-pearson-stops")) {
       map.current.addSource("union-pearson-stops", {
         type: "geojson",
@@ -305,6 +330,7 @@ export default function MapPage() {
       console.log("[UPX] Stops source added");
     }
 
+    // Add layer for stops (rendered on top of the line)
     if (!map.current.getLayer("union-pearson-stops-layer")) {
       map.current.addLayer({
         id: "union-pearson-stops-layer",
@@ -321,6 +347,7 @@ export default function MapPage() {
       console.log("[UPX] Stops layer added");
     }
 
+    // Add labels for stops
     if (!map.current.getLayer("union-pearson-stops-labels")) {
       map.current.addLayer({
         id: "union-pearson-stops-labels",
@@ -1766,6 +1793,14 @@ export default function MapPage() {
   // Update Union Pearson Express layer visibility
   useEffect(() => {
     if (map.current && map.current.isStyleLoaded()) {
+      if (map.current.getLayer("union-pearson-express-layer")) {
+        map.current.setLayoutProperty(
+          "union-pearson-express-layer",
+          "visibility",
+          showUnionPearson ? "visible" : "none"
+        );
+      }
+
       if (map.current.getLayer("union-pearson-stops-layer")) {
         map.current.setLayoutProperty(
           "union-pearson-stops-layer",
@@ -1784,12 +1819,26 @@ export default function MapPage() {
     }
   }, [showUnionPearson, map.current]);
 
-  // Update Union Pearson Express data
+  // Update Union Pearson Express route line data
   useEffect(() => {
-    if (map.current && map.current.isStyleLoaded() && unionPearsonShapes && map.current.getSource("union-pearson-express")) {
-      (map.current.getSource("union-pearson-express") as mapboxgl.GeoJSONSource).setData(unionPearsonShapes);
+    if (!mapReady || !map.current || !unionPearsonShapes) {
+      console.log("[UPX] Route line update blocked - mapReady:", mapReady, "map.current:", !!map.current, "unionPearsonShapes:", !!unionPearsonShapes);
+      return;
     }
-  }, [unionPearsonShapes, map.current]);
+
+    console.log("[UPX] Updating route line with shapes data");
+
+    // Ensure the source exists
+    ensureUnionPearsonLayers();
+
+    const source = map.current.getSource("union-pearson-express");
+    if (source) {
+      (source as mapboxgl.GeoJSONSource).setData(unionPearsonShapes);
+      console.log("[UPX] Route line updated with", unionPearsonShapes.features.length, "features");
+    } else {
+      console.warn("[UPX] Route line source not found");
+    }
+  }, [mapReady, unionPearsonShapes, ensureUnionPearsonLayers]);
 
   useEffect(() => {
     if (!mapReady || !map.current || !unionPearsonStops) {
