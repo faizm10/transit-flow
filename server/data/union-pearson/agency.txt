@@ -1,0 +1,2 @@
+﻿agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone,agency_fare_url
+UPExpress,UP Express,https://www.upexpress.com,America/Toronto,en,Local: 416-869-3300; 1-844-GET-ON-UP (438-6687),https://www.upexpress.com/ways-to-pay/up-express-fares
