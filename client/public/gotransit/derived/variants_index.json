@@ -1,0 +1,2728 @@
+{
+  "11": [
+    {
+      "variant_id": "11A",
+      "label": "11 - Aldershot GO",
+      "route_id": "01260426-11",
+      "direction_id": 0,
+      "shape_id": "421253",
+      "trip_count": 616,
+      "representative_trip_id": "20260106-11-11440",
+      "route_variant": "11"
+    },
+    {
+      "variant_id": "11B",
+      "label": "11 - Brock University",
+      "route_id": "01260426-11",
+      "direction_id": 1,
+      "shape_id": "421252",
+      "trip_count": 616,
+      "representative_trip_id": "20260106-11-11061",
+      "route_variant": "11"
+    }
+  ],
+  "12": [
+    {
+      "variant_id": "12A",
+      "label": "12 - Burlington Carpool",
+      "route_id": "01260426-12",
+      "direction_id": 0,
+      "shape_id": "421255",
+      "trip_count": 1930,
+      "representative_trip_id": "20260106-12-12080",
+      "route_variant": "12"
+    },
+    {
+      "variant_id": "12B",
+      "label": "12 - Niagara Falls",
+      "route_id": "01260426-12",
+      "direction_id": 1,
+      "shape_id": "421254",
+      "trip_count": 1930,
+      "representative_trip_id": "20260106-12-12121",
+      "route_variant": "12"
+    },
+    {
+      "variant_id": "12C",
+      "label": "12B - Burlington GO",
+      "route_id": "01260426-12",
+      "direction_id": 0,
+      "shape_id": "421258",
+      "trip_count": 1263,
+      "representative_trip_id": "20260106-12-12402",
+      "route_variant": "12B"
+    },
+    {
+      "variant_id": "12D",
+      "label": "12B - Niagara Falls",
+      "route_id": "01260426-12",
+      "direction_id": 1,
+      "shape_id": "421257",
+      "trip_count": 1077,
+      "representative_trip_id": "20260106-12-12283",
+      "route_variant": "12B"
+    },
+    {
+      "variant_id": "12E",
+      "label": "12D - Niagara Falls",
+      "route_id": "01260426-12",
+      "direction_id": 1,
+      "shape_id": "421260",
+      "trip_count": 173,
+      "representative_trip_id": "20260106-12-12651",
+      "route_variant": "12D"
+    },
+    {
+      "variant_id": "12F",
+      "label": "12D - Burlington GO",
+      "route_id": "01260426-12",
+      "direction_id": 0,
+      "shape_id": "421259",
+      "trip_count": 160,
+      "representative_trip_id": "20260110-12-12324",
+      "route_variant": "12D"
+    },
+    {
+      "variant_id": "12G",
+      "label": "12A - Burlington Carpool",
+      "route_id": "01260426-12",
+      "direction_id": 0,
+      "shape_id": "421256",
+      "trip_count": 77,
+      "representative_trip_id": "20260106-12-12050",
+      "route_variant": "12A"
+    }
+  ],
+  "15": [
+    {
+      "variant_id": "15A",
+      "label": "15 - Aldershot GO",
+      "route_id": "01260426-15",
+      "direction_id": 0,
+      "shape_id": "421262",
+      "trip_count": 1039,
+      "representative_trip_id": "20260106-15-15160",
+      "route_variant": "15"
+    },
+    {
+      "variant_id": "15B",
+      "label": "15 - Brantford Term",
+      "route_id": "01260426-15",
+      "direction_id": 1,
+      "shape_id": "421261",
+      "trip_count": 962,
+      "representative_trip_id": "20260106-15-15091",
+      "route_variant": "15"
+    },
+    {
+      "variant_id": "15C",
+      "label": "15B - Aldershot GO",
+      "route_id": "01260426-15",
+      "direction_id": 0,
+      "shape_id": "421264",
+      "trip_count": 327,
+      "representative_trip_id": "20260106-15-15292",
+      "route_variant": "15B"
+    },
+    {
+      "variant_id": "15D",
+      "label": "15B - SNGR/MCFN",
+      "route_id": "01260426-15",
+      "direction_id": 1,
+      "shape_id": "421265",
+      "trip_count": 327,
+      "representative_trip_id": "20260106-15-15043",
+      "route_variant": "15B"
+    },
+    {
+      "variant_id": "15E",
+      "label": "15A - Aldershot GO",
+      "route_id": "01260426-15",
+      "direction_id": 0,
+      "shape_id": "421263",
+      "trip_count": 120,
+      "representative_trip_id": "20260109-15-15504",
+      "route_variant": "15A"
+    },
+    {
+      "variant_id": "15F",
+      "label": "15A - McMaster U",
+      "route_id": "01260426-15",
+      "direction_id": 1,
+      "shape_id": "421266",
+      "trip_count": 109,
+      "representative_trip_id": "20260106-15-15115",
+      "route_variant": "15A"
+    }
+  ],
+  "16": [
+    {
+      "variant_id": "16A",
+      "label": "16 - Union Station",
+      "route_id": "01260426-16",
+      "direction_id": 0,
+      "shape_id": "421268",
+      "trip_count": 1961,
+      "representative_trip_id": "20260106-16-16090",
+      "route_variant": "16"
+    },
+    {
+      "variant_id": "16B",
+      "label": "16 - Hamilton GO",
+      "route_id": "01260426-16",
+      "direction_id": 1,
+      "shape_id": "421267",
+      "trip_count": 1897,
+      "representative_trip_id": "20260106-16-16051",
+      "route_variant": "16"
+    }
+  ],
+  "17": [
+    {
+      "variant_id": "17A",
+      "label": "17 - U of Waterloo",
+      "route_id": "01260426-17",
+      "direction_id": 0,
+      "shape_id": "421269",
+      "trip_count": 1078,
+      "representative_trip_id": "20260106-17-17071",
+      "route_variant": "17"
+    },
+    {
+      "variant_id": "17B",
+      "label": "17 - Hamilton GO",
+      "route_id": "01260426-17",
+      "direction_id": 1,
+      "shape_id": "421270",
+      "trip_count": 1078,
+      "representative_trip_id": "20260106-17-17030",
+      "route_variant": "17"
+    }
+  ],
+  "18": [
+    {
+      "variant_id": "18A",
+      "label": "18 - Hamilton GO",
+      "route_id": "01260426-18",
+      "direction_id": 1,
+      "shape_id": "421278",
+      "trip_count": 827,
+      "representative_trip_id": "20260106-18-18121",
+      "route_variant": "18"
+    },
+    {
+      "variant_id": "18B",
+      "label": "18 - Aldershot GO",
+      "route_id": "01260426-18",
+      "direction_id": 0,
+      "shape_id": "421277",
+      "trip_count": 455,
+      "representative_trip_id": "20260106-18-18340",
+      "route_variant": "18"
+    },
+    {
+      "variant_id": "18C",
+      "label": "18L - Oakville GO",
+      "route_id": "01260426-18",
+      "direction_id": 1,
+      "shape_id": "421292",
+      "trip_count": 250,
+      "representative_trip_id": "20260117-18-18211",
+      "route_variant": "18L"
+    },
+    {
+      "variant_id": "18D",
+      "label": "18L - Union Station",
+      "route_id": "01260426-18",
+      "direction_id": 0,
+      "shape_id": "421289",
+      "trip_count": 242,
+      "representative_trip_id": "20260117-18-18232",
+      "route_variant": "18L"
+    },
+    {
+      "variant_id": "18E",
+      "label": "18J - West Harbour GO",
+      "route_id": "01260426-18",
+      "direction_id": 1,
+      "shape_id": "421286",
+      "trip_count": 173,
+      "representative_trip_id": "20260106-18-18951",
+      "route_variant": "18J"
+    },
+    {
+      "variant_id": "18F",
+      "label": "18C - Hamilton GO",
+      "route_id": "01260426-18",
+      "direction_id": 1,
+      "shape_id": "421285",
+      "trip_count": 169,
+      "representative_trip_id": "20260106-18-18051",
+      "route_variant": "18C"
+    },
+    {
+      "variant_id": "18G",
+      "label": "18N - Oakville GO",
+      "route_id": "01260426-18",
+      "direction_id": 1,
+      "shape_id": "421275",
+      "trip_count": 156,
+      "representative_trip_id": "20260116-18-18873",
+      "route_variant": "18N"
+    },
+    {
+      "variant_id": "18H",
+      "label": "18R - Union Station",
+      "route_id": "01260426-18",
+      "direction_id": 0,
+      "shape_id": "421288",
+      "trip_count": 150,
+      "representative_trip_id": "20260117-18-18230",
+      "route_variant": "18R"
+    },
+    {
+      "variant_id": "18I",
+      "label": "18E - Union Station",
+      "route_id": "01260426-18",
+      "direction_id": 0,
+      "shape_id": "421276",
+      "trip_count": 139,
+      "representative_trip_id": "20260106-18-18880",
+      "route_variant": "18E"
+    },
+    {
+      "variant_id": "18J",
+      "label": "18F - Hamilton GO",
+      "route_id": "01260426-18",
+      "direction_id": 1,
+      "shape_id": "421280",
+      "trip_count": 111,
+      "representative_trip_id": "20260106-18-18931",
+      "route_variant": "18F"
+    },
+    {
+      "variant_id": "18K",
+      "label": "18H - Oakville GO",
+      "route_id": "01260426-18",
+      "direction_id": 1,
+      "shape_id": "421287",
+      "trip_count": 109,
+      "representative_trip_id": "20260106-18-18921",
+      "route_variant": "18H"
+    },
+    {
+      "variant_id": "18L",
+      "label": "18J - Union Station",
+      "route_id": "01260426-18",
+      "direction_id": 0,
+      "shape_id": "421281",
+      "trip_count": 96,
+      "representative_trip_id": "20260110-18-18060",
+      "route_variant": "18J"
+    },
+    {
+      "variant_id": "18M",
+      "label": "18H - Union Station",
+      "route_id": "01260426-18",
+      "direction_id": 0,
+      "shape_id": "421271",
+      "trip_count": 79,
+      "representative_trip_id": "20260106-18-18022",
+      "route_variant": "18H"
+    },
+    {
+      "variant_id": "18N",
+      "label": "18G - Union Station",
+      "route_id": "01260426-18",
+      "direction_id": 0,
+      "shape_id": "421279",
+      "trip_count": 77,
+      "representative_trip_id": "20260106-18-18020",
+      "route_variant": "18G"
+    },
+    {
+      "variant_id": "18O",
+      "label": "18D - Clarkson GO",
+      "route_id": "01260426-18",
+      "direction_id": 1,
+      "shape_id": "421272",
+      "trip_count": 34,
+      "representative_trip_id": "20260110-18-18983",
+      "route_variant": "18D"
+    },
+    {
+      "variant_id": "18P",
+      "label": "18B - Union Station",
+      "route_id": "01260426-18",
+      "direction_id": 0,
+      "shape_id": "421282",
+      "trip_count": 32,
+      "representative_trip_id": "20260110-18-18050",
+      "route_variant": "18B"
+    },
+    {
+      "variant_id": "18Q",
+      "label": "18A - Union Station",
+      "route_id": "01260426-18",
+      "direction_id": 0,
+      "shape_id": "421284",
+      "trip_count": 32,
+      "representative_trip_id": "20260110-18-18090",
+      "route_variant": "18A"
+    },
+    {
+      "variant_id": "18R",
+      "label": "18A - West Harbour GO",
+      "route_id": "01260426-18",
+      "direction_id": 1,
+      "shape_id": "421283",
+      "trip_count": 32,
+      "representative_trip_id": "20260110-18-18111",
+      "route_variant": "18A"
+    },
+    {
+      "variant_id": "18S",
+      "label": "18M - Port Credit GO",
+      "route_id": "01260426-18",
+      "direction_id": 1,
+      "shape_id": "421273",
+      "trip_count": 6,
+      "representative_trip_id": "20260116-18-18879",
+      "route_variant": "18M"
+    },
+    {
+      "variant_id": "18T",
+      "label": "18L - Clarkson GO",
+      "route_id": "01260426-18",
+      "direction_id": 1,
+      "shape_id": "421274",
+      "trip_count": 6,
+      "representative_trip_id": "20260116-18-18877",
+      "route_variant": "18L"
+    }
+  ],
+  "19": [
+    {
+      "variant_id": "19A",
+      "label": "19 - Finch Terminal",
+      "route_id": "01260426-19",
+      "direction_id": 0,
+      "shape_id": "421293",
+      "trip_count": 3117,
+      "representative_trip_id": "20260106-19-19040",
+      "route_variant": "19"
+    },
+    {
+      "variant_id": "19B",
+      "label": "19 - Square One",
+      "route_id": "01260426-19",
+      "direction_id": 1,
+      "shape_id": "421294",
+      "trip_count": 3008,
+      "representative_trip_id": "20260106-19-19091",
+      "route_variant": "19"
+    },
+    {
+      "variant_id": "19C",
+      "label": "19 - Square One",
+      "route_id": "01260426-19",
+      "direction_id": 1,
+      "shape_id": "421976",
+      "trip_count": 77,
+      "representative_trip_id": "20260106-19-19351",
+      "route_variant": "19"
+    }
+  ],
+  "21": [
+    {
+      "variant_id": "21A",
+      "label": "21C - Union Station",
+      "route_id": "01260426-21",
+      "direction_id": 0,
+      "shape_id": "421299",
+      "trip_count": 1263,
+      "representative_trip_id": "20260106-21-21240",
+      "route_variant": "21C"
+    },
+    {
+      "variant_id": "21B",
+      "label": "21C - Square One",
+      "route_id": "01260426-21",
+      "direction_id": 1,
+      "shape_id": "421295",
+      "trip_count": 1199,
+      "representative_trip_id": "20260106-21-21381",
+      "route_variant": "21C"
+    },
+    {
+      "variant_id": "21C",
+      "label": "21A - Milton GO",
+      "route_id": "01260426-21",
+      "direction_id": 1,
+      "shape_id": "421304",
+      "trip_count": 1109,
+      "representative_trip_id": "20260106-21-21385",
+      "route_variant": "21A"
+    },
+    {
+      "variant_id": "21D",
+      "label": "21A - Union Station",
+      "route_id": "01260426-21",
+      "direction_id": 0,
+      "shape_id": "421296",
+      "trip_count": 1077,
+      "representative_trip_id": "20260106-21-21244",
+      "route_variant": "21A"
+    },
+    {
+      "variant_id": "21E",
+      "label": "21 - Union Station",
+      "route_id": "01260426-21",
+      "direction_id": 0,
+      "shape_id": "421300",
+      "trip_count": 924,
+      "representative_trip_id": "20260106-21-21000",
+      "route_variant": "21"
+    },
+    {
+      "variant_id": "21F",
+      "label": "21 - Milton GO",
+      "route_id": "01260426-21",
+      "direction_id": 1,
+      "shape_id": "421308",
+      "trip_count": 770,
+      "representative_trip_id": "20260106-21-21051",
+      "route_variant": "21"
+    },
+    {
+      "variant_id": "21G",
+      "label": "21E - Union Station",
+      "route_id": "01260426-21",
+      "direction_id": 0,
+      "shape_id": "421301",
+      "trip_count": 462,
+      "representative_trip_id": "20260106-21-21332",
+      "route_variant": "21E"
+    },
+    {
+      "variant_id": "21H",
+      "label": "21D - Meadowvale GO",
+      "route_id": "01260426-21",
+      "direction_id": 1,
+      "shape_id": "421297",
+      "trip_count": 416,
+      "representative_trip_id": "20260110-21-21233",
+      "route_variant": "21D"
+    },
+    {
+      "variant_id": "21I",
+      "label": "21B - Lisgar GO",
+      "route_id": "01260426-21",
+      "direction_id": 1,
+      "shape_id": "421307",
+      "trip_count": 385,
+      "representative_trip_id": "20260106-21-21433",
+      "route_variant": "21B"
+    },
+    {
+      "variant_id": "21J",
+      "label": "21D - Union Station",
+      "route_id": "01260426-21",
+      "direction_id": 0,
+      "shape_id": "421303",
+      "trip_count": 384,
+      "representative_trip_id": "20260110-21-21172",
+      "route_variant": "21D"
+    },
+    {
+      "variant_id": "21K",
+      "label": "21F - Union Station",
+      "route_id": "01260426-21",
+      "direction_id": 0,
+      "shape_id": "421302",
+      "trip_count": 288,
+      "representative_trip_id": "20260110-21-21020",
+      "route_variant": "21F"
+    },
+    {
+      "variant_id": "21L",
+      "label": "21E - Lisgar GO",
+      "route_id": "01260426-21",
+      "direction_id": 1,
+      "shape_id": "421306",
+      "trip_count": 231,
+      "representative_trip_id": "20260106-21-21393",
+      "route_variant": "21E"
+    },
+    {
+      "variant_id": "21M",
+      "label": "21F - Milton GO",
+      "route_id": "01260426-21",
+      "direction_id": 1,
+      "shape_id": "421305",
+      "trip_count": 224,
+      "representative_trip_id": "20260110-21-21151",
+      "route_variant": "21F"
+    },
+    {
+      "variant_id": "21N",
+      "label": "21B - Union Station",
+      "route_id": "01260426-21",
+      "direction_id": 0,
+      "shape_id": "421298",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-21-21242",
+      "route_variant": "21B"
+    }
+  ],
+  "22": [
+    {
+      "variant_id": "22A",
+      "label": "22 - Milton GO",
+      "route_id": "01260426-22",
+      "direction_id": 0,
+      "shape_id": "421309",
+      "trip_count": 539,
+      "representative_trip_id": "20260106-22-22191",
+      "route_variant": "22"
+    },
+    {
+      "variant_id": "22B",
+      "label": "22 - Oakville GO",
+      "route_id": "01260426-22",
+      "direction_id": 1,
+      "shape_id": "421310",
+      "trip_count": 539,
+      "representative_trip_id": "20260106-22-22130",
+      "route_variant": "22"
+    }
+  ],
+  "25": [
+    {
+      "variant_id": "25A",
+      "label": "25 - U of Waterloo",
+      "route_id": "01260426-25",
+      "direction_id": 1,
+      "shape_id": "421316",
+      "trip_count": 1764,
+      "representative_trip_id": "20260106-25-25061",
+      "route_variant": "25"
+    },
+    {
+      "variant_id": "25B",
+      "label": "25 - Square One",
+      "route_id": "01260426-25",
+      "direction_id": 0,
+      "shape_id": "421311",
+      "trip_count": 1686,
+      "representative_trip_id": "20260106-25-25040",
+      "route_variant": "25"
+    },
+    {
+      "variant_id": "25C",
+      "label": "25C - Square One",
+      "route_id": "01260426-25",
+      "direction_id": 0,
+      "shape_id": "421312",
+      "trip_count": 1102,
+      "representative_trip_id": "20260106-25-25532",
+      "route_variant": "25C"
+    },
+    {
+      "variant_id": "25D",
+      "label": "25C - U of Waterloo",
+      "route_id": "01260426-25",
+      "direction_id": 1,
+      "shape_id": "421313",
+      "trip_count": 1041,
+      "representative_trip_id": "20260106-25-25513",
+      "route_variant": "25C"
+    },
+    {
+      "variant_id": "25E",
+      "label": "25A - Square One",
+      "route_id": "01260426-25",
+      "direction_id": 0,
+      "shape_id": "421315",
+      "trip_count": 417,
+      "representative_trip_id": "20260106-25-25482",
+      "route_variant": "25A"
+    },
+    {
+      "variant_id": "25F",
+      "label": "25A - U of Waterloo",
+      "route_id": "01260426-25",
+      "direction_id": 1,
+      "shape_id": "421318",
+      "trip_count": 385,
+      "representative_trip_id": "20260106-25-25133",
+      "route_variant": "25A"
+    },
+    {
+      "variant_id": "25G",
+      "label": "25L - Square One",
+      "route_id": "01260426-25",
+      "direction_id": 0,
+      "shape_id": "421314",
+      "trip_count": 384,
+      "representative_trip_id": "20260110-25-25230",
+      "route_variant": "25L"
+    },
+    {
+      "variant_id": "25H",
+      "label": "25L - U of Waterloo",
+      "route_id": "01260426-25",
+      "direction_id": 1,
+      "shape_id": "421317",
+      "trip_count": 384,
+      "representative_trip_id": "20260110-25-25241",
+      "route_variant": "25L"
+    }
+  ],
+  "27": [
+    {
+      "variant_id": "27A",
+      "label": "27A - Finch Terminal",
+      "route_id": "01260426-27",
+      "direction_id": 0,
+      "shape_id": "421320",
+      "trip_count": 1341,
+      "representative_trip_id": "20260106-27-27060",
+      "route_variant": "27A"
+    },
+    {
+      "variant_id": "27B",
+      "label": "27B - Meadowvale GO",
+      "route_id": "01260426-27",
+      "direction_id": 1,
+      "shape_id": "421321",
+      "trip_count": 1297,
+      "representative_trip_id": "20260106-27-27161",
+      "route_variant": "27B"
+    },
+    {
+      "variant_id": "27C",
+      "label": "27A - Milton GO",
+      "route_id": "01260426-27",
+      "direction_id": 1,
+      "shape_id": "421322",
+      "trip_count": 1187,
+      "representative_trip_id": "20260106-27-27051",
+      "route_variant": "27A"
+    },
+    {
+      "variant_id": "27D",
+      "label": "27B - Finch Terminal",
+      "route_id": "01260426-27",
+      "direction_id": 0,
+      "shape_id": "421319",
+      "trip_count": 1175,
+      "representative_trip_id": "20260106-27-27080",
+      "route_variant": "27B"
+    }
+  ],
+  "29": [
+    {
+      "variant_id": "29A",
+      "label": "29 - Guelph Central GO",
+      "route_id": "01260426-29",
+      "direction_id": 1,
+      "shape_id": "421325",
+      "trip_count": 1744,
+      "representative_trip_id": "20260106-29-29121",
+      "route_variant": "29"
+    },
+    {
+      "variant_id": "29B",
+      "label": "29 - Kipling Bus Terminal",
+      "route_id": "01260426-29",
+      "direction_id": 0,
+      "shape_id": "421324",
+      "trip_count": 1667,
+      "representative_trip_id": "20260106-29-29130",
+      "route_variant": "29"
+    },
+    {
+      "variant_id": "29C",
+      "label": "29A - U of Guelph",
+      "route_id": "01260426-29",
+      "direction_id": 1,
+      "shape_id": "421326",
+      "trip_count": 462,
+      "representative_trip_id": "20260106-29-29103",
+      "route_variant": "29A"
+    },
+    {
+      "variant_id": "29D",
+      "label": "29A - Square One",
+      "route_id": "01260426-29",
+      "direction_id": 0,
+      "shape_id": "421323",
+      "trip_count": 308,
+      "representative_trip_id": "20260106-29-29632",
+      "route_variant": "29A"
+    }
+  ],
+  "30": [
+    {
+      "variant_id": "30A",
+      "label": "30 - U of Waterloo",
+      "route_id": "01260426-30",
+      "direction_id": 1,
+      "shape_id": "421332",
+      "trip_count": 1943,
+      "representative_trip_id": "20260106-30-30101",
+      "route_variant": "30"
+    },
+    {
+      "variant_id": "30B",
+      "label": "30 - Hwy. 407 Bus Term",
+      "route_id": "01260426-30",
+      "direction_id": 0,
+      "shape_id": "421330",
+      "trip_count": 1804,
+      "representative_trip_id": "20260106-30-30020",
+      "route_variant": "30"
+    },
+    {
+      "variant_id": "30C",
+      "label": "30A - U of Waterloo",
+      "route_id": "01260426-30",
+      "direction_id": 1,
+      "shape_id": "421328",
+      "trip_count": 1079,
+      "representative_trip_id": "20260106-30-30093",
+      "route_variant": "30A"
+    },
+    {
+      "variant_id": "30D",
+      "label": "30A - Bramalea GO",
+      "route_id": "01260426-30",
+      "direction_id": 0,
+      "shape_id": "421327",
+      "trip_count": 888,
+      "representative_trip_id": "20260106-30-30472",
+      "route_variant": "30A"
+    },
+    {
+      "variant_id": "30E",
+      "label": "30E - Bramalea GO",
+      "route_id": "01260426-30",
+      "direction_id": 0,
+      "shape_id": "421331",
+      "trip_count": 145,
+      "representative_trip_id": "20260109-30-30304",
+      "route_variant": "30E"
+    },
+    {
+      "variant_id": "30F",
+      "label": "30E - U of Waterloo",
+      "route_id": "01260426-30",
+      "direction_id": 1,
+      "shape_id": "421329",
+      "trip_count": 107,
+      "representative_trip_id": "20260108-30-30425",
+      "route_variant": "30E"
+    }
+  ],
+  "31": [
+    {
+      "variant_id": "31A",
+      "label": "31E - Union Station",
+      "route_id": "01260426-31",
+      "direction_id": 0,
+      "shape_id": "421345",
+      "trip_count": 327,
+      "representative_trip_id": "20260106-31-31020",
+      "route_variant": "31E"
+    },
+    {
+      "variant_id": "31B",
+      "label": "31E - Georgetown GO",
+      "route_id": "01260426-31",
+      "direction_id": 1,
+      "shape_id": "421334",
+      "trip_count": 250,
+      "representative_trip_id": "20260106-31-31951",
+      "route_variant": "31E"
+    },
+    {
+      "variant_id": "31C",
+      "label": "31B - Bramalea GO",
+      "route_id": "01260426-31",
+      "direction_id": 0,
+      "shape_id": "421344",
+      "trip_count": 231,
+      "representative_trip_id": "20260106-31-31570",
+      "route_variant": "31B"
+    },
+    {
+      "variant_id": "31D",
+      "label": "31M - U of Guelph",
+      "route_id": "01260426-31",
+      "direction_id": 1,
+      "shape_id": "421335",
+      "trip_count": 231,
+      "representative_trip_id": "20260106-31-31081",
+      "route_variant": "31M"
+    },
+    {
+      "variant_id": "31E",
+      "label": "31L - Bramalea GO",
+      "route_id": "01260426-31",
+      "direction_id": 1,
+      "shape_id": "421333",
+      "trip_count": 218,
+      "representative_trip_id": "20260106-31-31881",
+      "route_variant": "31L"
+    },
+    {
+      "variant_id": "31F",
+      "label": "31B - U of Guelph",
+      "route_id": "01260426-31",
+      "direction_id": 1,
+      "shape_id": "421336",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-31-31131",
+      "route_variant": "31B"
+    },
+    {
+      "variant_id": "31G",
+      "label": "31L - Union Station",
+      "route_id": "01260426-31",
+      "direction_id": 0,
+      "shape_id": "421338",
+      "trip_count": 109,
+      "representative_trip_id": "20260106-31-31040",
+      "route_variant": "31L"
+    },
+    {
+      "variant_id": "31H",
+      "label": "31F - Union Station",
+      "route_id": "01260426-31",
+      "direction_id": 0,
+      "shape_id": "421346",
+      "trip_count": 109,
+      "representative_trip_id": "20260106-31-31030",
+      "route_variant": "31F"
+    },
+    {
+      "variant_id": "31I",
+      "label": "31A - U of Guelph",
+      "route_id": "01260426-31",
+      "direction_id": 1,
+      "shape_id": "421339",
+      "trip_count": 109,
+      "representative_trip_id": "20260106-31-31923",
+      "route_variant": "31A"
+    },
+    {
+      "variant_id": "31J",
+      "label": "31K - Mount Pleasant GO",
+      "route_id": "01260426-31",
+      "direction_id": 1,
+      "shape_id": "421342",
+      "trip_count": 109,
+      "representative_trip_id": "20260106-31-31883",
+      "route_variant": "31K"
+    },
+    {
+      "variant_id": "31K",
+      "label": "31K - Union Station",
+      "route_id": "01260426-31",
+      "direction_id": 0,
+      "shape_id": "421341",
+      "trip_count": 96,
+      "representative_trip_id": "20260110-31-31020",
+      "route_variant": "31K"
+    },
+    {
+      "variant_id": "31L",
+      "label": "31 - U of Guelph",
+      "route_id": "01260426-31",
+      "direction_id": 1,
+      "shape_id": "421337",
+      "trip_count": 77,
+      "representative_trip_id": "20260106-31-31101",
+      "route_variant": "31"
+    },
+    {
+      "variant_id": "31M",
+      "label": "31X - Union Station",
+      "route_id": "01260426-31",
+      "direction_id": 0,
+      "shape_id": "421343",
+      "trip_count": 32,
+      "representative_trip_id": "20260110-31-31030",
+      "route_variant": "31X"
+    },
+    {
+      "variant_id": "31N",
+      "label": "31X - Mount Pleasant GO",
+      "route_id": "01260426-31",
+      "direction_id": 1,
+      "shape_id": "421340",
+      "trip_count": 32,
+      "representative_trip_id": "20260110-31-31931",
+      "route_variant": "31X"
+    }
+  ],
+  "32": [
+    {
+      "variant_id": "32A",
+      "label": "32 - Finch Terminal",
+      "route_id": "01260426-32",
+      "direction_id": 0,
+      "shape_id": "421349",
+      "trip_count": 1694,
+      "representative_trip_id": "20260106-32-32060",
+      "route_variant": "32"
+    },
+    {
+      "variant_id": "32B",
+      "label": "32 - Trinity Common",
+      "route_id": "01260426-32",
+      "direction_id": 1,
+      "shape_id": "421347",
+      "trip_count": 1463,
+      "representative_trip_id": "20260106-32-32261",
+      "route_variant": "32"
+    },
+    {
+      "variant_id": "32C",
+      "label": "32B - Finch Terminal",
+      "route_id": "01260426-32",
+      "direction_id": 0,
+      "shape_id": "421350",
+      "trip_count": 308,
+      "representative_trip_id": "20260106-32-32132",
+      "route_variant": "32B"
+    },
+    {
+      "variant_id": "32D",
+      "label": "32B - Bramalea Term",
+      "route_id": "01260426-32",
+      "direction_id": 1,
+      "shape_id": "421348",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-32-32453",
+      "route_variant": "32B"
+    }
+  ],
+  "33": [
+    {
+      "variant_id": "33A",
+      "label": "33 - U of Guelph",
+      "route_id": "01260426-33",
+      "direction_id": 1,
+      "shape_id": "421354",
+      "trip_count": 1257,
+      "representative_trip_id": "20260106-33-33261",
+      "route_variant": "33"
+    },
+    {
+      "variant_id": "33B",
+      "label": "33B - York Mills Term",
+      "route_id": "01260426-33",
+      "direction_id": 0,
+      "shape_id": "421355",
+      "trip_count": 1078,
+      "representative_trip_id": "20260106-33-33090",
+      "route_variant": "33B"
+    },
+    {
+      "variant_id": "33C",
+      "label": "33B - Mount Pleasant GO",
+      "route_id": "01260426-33",
+      "direction_id": 1,
+      "shape_id": "421356",
+      "trip_count": 770,
+      "representative_trip_id": "20260106-33-33481",
+      "route_variant": "33B"
+    },
+    {
+      "variant_id": "33D",
+      "label": "33E - Georgetown GO",
+      "route_id": "01260426-33",
+      "direction_id": 1,
+      "shape_id": "421357",
+      "trip_count": 616,
+      "representative_trip_id": "20260106-33-33541",
+      "route_variant": "33E"
+    },
+    {
+      "variant_id": "33E",
+      "label": "33 - York Mills Term",
+      "route_id": "01260426-33",
+      "direction_id": 0,
+      "shape_id": "421358",
+      "trip_count": 487,
+      "representative_trip_id": "20260106-33-33150",
+      "route_variant": "33"
+    },
+    {
+      "variant_id": "33F",
+      "label": "33A - York Mills Term",
+      "route_id": "01260426-33",
+      "direction_id": 0,
+      "shape_id": "421351",
+      "trip_count": 462,
+      "representative_trip_id": "20260106-33-33100",
+      "route_variant": "33A"
+    },
+    {
+      "variant_id": "33G",
+      "label": "33E - York Mills Term",
+      "route_id": "01260426-33",
+      "direction_id": 0,
+      "shape_id": "421359",
+      "trip_count": 462,
+      "representative_trip_id": "20260106-33-33050",
+      "route_variant": "33E"
+    },
+    {
+      "variant_id": "33H",
+      "label": "33F - Mount Pleasant GO",
+      "route_id": "01260426-33",
+      "direction_id": 0,
+      "shape_id": "421360",
+      "trip_count": 462,
+      "representative_trip_id": "20260106-33-33320",
+      "route_variant": "33F"
+    },
+    {
+      "variant_id": "33I",
+      "label": "33A - Brampton Term",
+      "route_id": "01260426-33",
+      "direction_id": 1,
+      "shape_id": "421352",
+      "trip_count": 231,
+      "representative_trip_id": "20260106-33-33151",
+      "route_variant": "33A"
+    },
+    {
+      "variant_id": "33J",
+      "label": "33G - Mount Pleasant GO",
+      "route_id": "01260426-33",
+      "direction_id": 0,
+      "shape_id": "421362",
+      "trip_count": 141,
+      "representative_trip_id": "20260106-33-33780",
+      "route_variant": "33G"
+    },
+    {
+      "variant_id": "33K",
+      "label": "33G - Georgetown GO",
+      "route_id": "01260426-33",
+      "direction_id": 1,
+      "shape_id": "421353",
+      "trip_count": 128,
+      "representative_trip_id": "20260110-33-33251",
+      "route_variant": "33G"
+    },
+    {
+      "variant_id": "33L",
+      "label": "33H - Bramalea GO",
+      "route_id": "01260426-33",
+      "direction_id": 0,
+      "shape_id": "421361",
+      "trip_count": 77,
+      "representative_trip_id": "20260106-33-33850",
+      "route_variant": "33H"
+    }
+  ],
+  "36": [
+    {
+      "variant_id": "36A",
+      "label": "36B - York Mills Term",
+      "route_id": "01260426-36",
+      "direction_id": 0,
+      "shape_id": "421363",
+      "trip_count": 2143,
+      "representative_trip_id": "20260106-36-36040",
+      "route_variant": "36B"
+    },
+    {
+      "variant_id": "36B",
+      "label": "36B - Bramalea Term",
+      "route_id": "01260426-36",
+      "direction_id": 1,
+      "shape_id": "421364",
+      "trip_count": 2113,
+      "representative_trip_id": "20260106-36-36061",
+      "route_variant": "36B"
+    }
+  ],
+  "37": [
+    {
+      "variant_id": "37A",
+      "label": "37 - Orangeville",
+      "route_id": "01260426-37",
+      "direction_id": 0,
+      "shape_id": "421366",
+      "trip_count": 385,
+      "representative_trip_id": "20260106-37-37371",
+      "route_variant": "37"
+    },
+    {
+      "variant_id": "37B",
+      "label": "37 - Brampton Term",
+      "route_id": "01260426-37",
+      "direction_id": 1,
+      "shape_id": "421365",
+      "trip_count": 308,
+      "representative_trip_id": "20260106-37-37150",
+      "route_variant": "37"
+    },
+    {
+      "variant_id": "37C",
+      "label": "37B - Brampton Term",
+      "route_id": "01260426-37",
+      "direction_id": 1,
+      "shape_id": "421368",
+      "trip_count": 231,
+      "representative_trip_id": "20260106-37-37740",
+      "route_variant": "37B"
+    },
+    {
+      "variant_id": "37D",
+      "label": "37A - Orangeville Mall",
+      "route_id": "01260426-37",
+      "direction_id": 0,
+      "shape_id": "421367",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-37-37031",
+      "route_variant": "37A"
+    }
+  ],
+  "38": [
+    {
+      "variant_id": "38A",
+      "label": "38 - Bolton",
+      "route_id": "01260426-38",
+      "direction_id": 0,
+      "shape_id": "421369",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-38-38631",
+      "route_variant": "38"
+    },
+    {
+      "variant_id": "38B",
+      "label": "38 - Malton GO",
+      "route_id": "01260426-38",
+      "direction_id": 1,
+      "shape_id": "421370",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-38-38170",
+      "route_variant": "38"
+    }
+  ],
+  "40": [
+    {
+      "variant_id": "40A",
+      "label": "40 - Richmond Hill Ctr",
+      "route_id": "01260426-40",
+      "direction_id": 0,
+      "shape_id": "421371",
+      "trip_count": 3969,
+      "representative_trip_id": "20260106-40-40010",
+      "route_variant": "40"
+    },
+    {
+      "variant_id": "40B",
+      "label": "40 - Hamilton GO",
+      "route_id": "01260426-40",
+      "direction_id": 1,
+      "shape_id": "421372",
+      "trip_count": 3969,
+      "representative_trip_id": "20260106-40-40021",
+      "route_variant": "40"
+    },
+    {
+      "variant_id": "40C",
+      "label": "40M - Unionville GO",
+      "route_id": "01260426-40",
+      "direction_id": 0,
+      "shape_id": "421375",
+      "trip_count": 616,
+      "representative_trip_id": "20260106-40-40084",
+      "route_variant": "40M"
+    },
+    {
+      "variant_id": "40D",
+      "label": "40M - Hamilton GO",
+      "route_id": "01260426-40",
+      "direction_id": 1,
+      "shape_id": "421376",
+      "trip_count": 539,
+      "representative_trip_id": "20260106-40-40175",
+      "route_variant": "40M"
+    },
+    {
+      "variant_id": "40E",
+      "label": "40H - Hamilton GO",
+      "route_id": "01260426-40",
+      "direction_id": 1,
+      "shape_id": "421373",
+      "trip_count": 231,
+      "representative_trip_id": "20260106-40-40333",
+      "route_variant": "40H"
+    },
+    {
+      "variant_id": "40F",
+      "label": "40H - Richmond Hill Ctr",
+      "route_id": "01260426-40",
+      "direction_id": 0,
+      "shape_id": "421374",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-40-40262",
+      "route_variant": "40H"
+    }
+  ],
+  "41": [
+    {
+      "variant_id": "41A",
+      "label": "41 - Pickering GO",
+      "route_id": "01260426-41",
+      "direction_id": 0,
+      "shape_id": "421382",
+      "trip_count": 2541,
+      "representative_trip_id": "20260106-41-41000",
+      "route_variant": "41"
+    },
+    {
+      "variant_id": "41B",
+      "label": "41 - Hamilton GO",
+      "route_id": "01260426-41",
+      "direction_id": 1,
+      "shape_id": "421383",
+      "trip_count": 2541,
+      "representative_trip_id": "20260106-41-41031",
+      "route_variant": "41"
+    },
+    {
+      "variant_id": "41C",
+      "label": "41C - Centennial College",
+      "route_id": "01260426-41",
+      "direction_id": 0,
+      "shape_id": "421381",
+      "trip_count": 1567,
+      "representative_trip_id": "20260106-41-41014",
+      "route_variant": "41C"
+    },
+    {
+      "variant_id": "41D",
+      "label": "41A - Square One",
+      "route_id": "01260426-41",
+      "direction_id": 1,
+      "shape_id": "421377",
+      "trip_count": 1463,
+      "representative_trip_id": "20260106-41-41313",
+      "route_variant": "41A"
+    },
+    {
+      "variant_id": "41E",
+      "label": "41B - Centennial College",
+      "route_id": "01260426-41",
+      "direction_id": 0,
+      "shape_id": "421379",
+      "trip_count": 1078,
+      "representative_trip_id": "20260106-41-41342",
+      "route_variant": "41B"
+    },
+    {
+      "variant_id": "41F",
+      "label": "41A - Pickering GO",
+      "route_id": "01260426-41",
+      "direction_id": 0,
+      "shape_id": "421380",
+      "trip_count": 1078,
+      "representative_trip_id": "20260106-41-41002",
+      "route_variant": "41A"
+    },
+    {
+      "variant_id": "41G",
+      "label": "41C - Square One",
+      "route_id": "01260426-41",
+      "direction_id": 1,
+      "shape_id": "421378",
+      "trip_count": 817,
+      "representative_trip_id": "20260106-41-41375",
+      "route_variant": "41C"
+    },
+    {
+      "variant_id": "41H",
+      "label": "41F - U of T Scarborough",
+      "route_id": "01260426-41",
+      "direction_id": 0,
+      "shape_id": "421385",
+      "trip_count": 385,
+      "representative_trip_id": "20260106-41-41038",
+      "route_variant": "41F"
+    },
+    {
+      "variant_id": "41I",
+      "label": "41F - Square One",
+      "route_id": "01260426-41",
+      "direction_id": 1,
+      "shape_id": "421384",
+      "trip_count": 231,
+      "representative_trip_id": "20260106-41-41507",
+      "route_variant": "41F"
+    }
+  ],
+  "47": [
+    {
+      "variant_id": "47A",
+      "label": "47 - Hamilton GO",
+      "route_id": "01260426-47",
+      "direction_id": 1,
+      "shape_id": "421391",
+      "trip_count": 1582,
+      "representative_trip_id": "20260106-47-47001",
+      "route_variant": "47"
+    },
+    {
+      "variant_id": "47B",
+      "label": "47G - Erin Mills",
+      "route_id": "01260426-47",
+      "direction_id": 0,
+      "shape_id": "421387",
+      "trip_count": 1527,
+      "representative_trip_id": "20260106-47-47374",
+      "route_variant": "47G"
+    },
+    {
+      "variant_id": "47C",
+      "label": "47 - Hwy. 407 Bus Term",
+      "route_id": "01260426-47",
+      "direction_id": 0,
+      "shape_id": "421390",
+      "trip_count": 1505,
+      "representative_trip_id": "20260106-47-47740",
+      "route_variant": "47"
+    },
+    {
+      "variant_id": "47D",
+      "label": "47D - Hwy. 407 Bus Term",
+      "route_id": "01260426-47",
+      "direction_id": 0,
+      "shape_id": "421389",
+      "trip_count": 1376,
+      "representative_trip_id": "20260106-47-47416",
+      "route_variant": "47D"
+    },
+    {
+      "variant_id": "47E",
+      "label": "47G - McMaster U",
+      "route_id": "01260426-47",
+      "direction_id": 1,
+      "shape_id": "421386",
+      "trip_count": 1336,
+      "representative_trip_id": "20260106-47-47025",
+      "route_variant": "47G"
+    },
+    {
+      "variant_id": "47F",
+      "label": "47D - McMaster U",
+      "route_id": "01260426-47",
+      "direction_id": 1,
+      "shape_id": "421388",
+      "trip_count": 1078,
+      "representative_trip_id": "20260106-47-47033",
+      "route_variant": "47D"
+    },
+    {
+      "variant_id": "47G",
+      "label": "47A - Square One",
+      "route_id": "01260426-47",
+      "direction_id": 0,
+      "shape_id": "421392",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-47-47162",
+      "route_variant": "47A"
+    },
+    {
+      "variant_id": "47H",
+      "label": "47A - Hamilton GO",
+      "route_id": "01260426-47",
+      "direction_id": 1,
+      "shape_id": "421393",
+      "trip_count": 77,
+      "representative_trip_id": "20260106-47-47463",
+      "route_variant": "47A"
+    }
+  ],
+  "48": [
+    {
+      "variant_id": "48A",
+      "label": "48 - Hwy. 407 Bus Term",
+      "route_id": "01260426-48",
+      "direction_id": 0,
+      "shape_id": "421394",
+      "trip_count": 1309,
+      "representative_trip_id": "20260106-48-48100",
+      "route_variant": "48"
+    },
+    {
+      "variant_id": "48B",
+      "label": "48 - U of Guelph",
+      "route_id": "01260426-48",
+      "direction_id": 1,
+      "shape_id": "421395",
+      "trip_count": 1232,
+      "representative_trip_id": "20260106-48-48061",
+      "route_variant": "48"
+    }
+  ],
+  "52": [
+    {
+      "variant_id": "52A",
+      "label": "52 - DC Oshawa GO",
+      "route_id": "01260426-52",
+      "direction_id": 0,
+      "shape_id": "421397",
+      "trip_count": 416,
+      "representative_trip_id": "20260110-52-52151",
+      "route_variant": "52"
+    },
+    {
+      "variant_id": "52B",
+      "label": "52 - Hwy. 407 Bus Term",
+      "route_id": "01260426-52",
+      "direction_id": 1,
+      "shape_id": "421396",
+      "trip_count": 416,
+      "representative_trip_id": "20260110-52-52210",
+      "route_variant": "52"
+    },
+    {
+      "variant_id": "52C",
+      "label": "52A - Hwy. 407 Bus Term",
+      "route_id": "01260426-52",
+      "direction_id": 1,
+      "shape_id": "421398",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-52-52122",
+      "route_variant": "52A"
+    },
+    {
+      "variant_id": "52D",
+      "label": "52A - DC Oshawa GO",
+      "route_id": "01260426-52",
+      "direction_id": 0,
+      "shape_id": "421399",
+      "trip_count": 77,
+      "representative_trip_id": "20260106-52-52033",
+      "route_variant": "52A"
+    }
+  ],
+  "56": [
+    {
+      "variant_id": "56A",
+      "label": "56 - DC Oshawa GO",
+      "route_id": "01260426-56",
+      "direction_id": 0,
+      "shape_id": "421402",
+      "trip_count": 2541,
+      "representative_trip_id": "20260106-56-56041",
+      "route_variant": "56"
+    },
+    {
+      "variant_id": "56B",
+      "label": "56 - Oakville GO",
+      "route_id": "01260426-56",
+      "direction_id": 1,
+      "shape_id": "421403",
+      "trip_count": 2541,
+      "representative_trip_id": "20260106-56-56000",
+      "route_variant": "56"
+    },
+    {
+      "variant_id": "56C",
+      "label": "56A - DC Oshawa GO",
+      "route_id": "01260426-56",
+      "direction_id": 0,
+      "shape_id": "421404",
+      "trip_count": 231,
+      "representative_trip_id": "20260106-56-56053",
+      "route_variant": "56A"
+    },
+    {
+      "variant_id": "56D",
+      "label": "56B - Oakville GO",
+      "route_id": "01260426-56",
+      "direction_id": 1,
+      "shape_id": "421400",
+      "trip_count": 231,
+      "representative_trip_id": "20260106-56-56004",
+      "route_variant": "56B"
+    },
+    {
+      "variant_id": "56E",
+      "label": "56A - Square One",
+      "route_id": "01260426-56",
+      "direction_id": 1,
+      "shape_id": "421405",
+      "trip_count": 231,
+      "representative_trip_id": "20260106-56-56422",
+      "route_variant": "56A"
+    },
+    {
+      "variant_id": "56F",
+      "label": "56C - Unionville GO",
+      "route_id": "01260426-56",
+      "direction_id": 0,
+      "shape_id": "421401",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-56-56527",
+      "route_variant": "56C"
+    },
+    {
+      "variant_id": "56G",
+      "label": "56B - Hwy. 407 Bus Term",
+      "route_id": "01260426-56",
+      "direction_id": 0,
+      "shape_id": "421406",
+      "trip_count": 77,
+      "representative_trip_id": "20260106-56-56665",
+      "route_variant": "56B"
+    }
+  ],
+  "61": [
+    {
+      "variant_id": "61A",
+      "label": "61 - Bloomington GO",
+      "route_id": "01260426-61",
+      "direction_id": 0,
+      "shape_id": "421407",
+      "trip_count": 770,
+      "representative_trip_id": "20260106-61-61341",
+      "route_variant": "61"
+    },
+    {
+      "variant_id": "61B",
+      "label": "61 - Union Station",
+      "route_id": "01260426-61",
+      "direction_id": 1,
+      "shape_id": "421408",
+      "trip_count": 462,
+      "representative_trip_id": "20260106-61-61050",
+      "route_variant": "61"
+    }
+  ],
+  "65": [
+    {
+      "variant_id": "65A",
+      "label": "65 - Union Station",
+      "route_id": "01260426-65",
+      "direction_id": 1,
+      "shape_id": "421411",
+      "trip_count": 494,
+      "representative_trip_id": "20260106-65-65060",
+      "route_variant": "65"
+    },
+    {
+      "variant_id": "65B",
+      "label": "65E - East Gwillimbury GO",
+      "route_id": "01260426-65",
+      "direction_id": 0,
+      "shape_id": "421410",
+      "trip_count": 267,
+      "representative_trip_id": "20260106-65-65881",
+      "route_variant": "65E"
+    },
+    {
+      "variant_id": "65C",
+      "label": "65 - East Gwillimbury GO",
+      "route_id": "01260426-65",
+      "direction_id": 0,
+      "shape_id": "421409",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-65-65031",
+      "route_variant": "65"
+    },
+    {
+      "variant_id": "65D",
+      "label": "65E - Union Station",
+      "route_id": "01260426-65",
+      "direction_id": 1,
+      "shape_id": "421414",
+      "trip_count": 141,
+      "representative_trip_id": "20260106-65-65910",
+      "route_variant": "65E"
+    },
+    {
+      "variant_id": "65E",
+      "label": "65A - Union Station",
+      "route_id": "01260426-65",
+      "direction_id": 1,
+      "shape_id": "421413",
+      "trip_count": 77,
+      "representative_trip_id": "20260106-65-65062",
+      "route_variant": "65A"
+    },
+    {
+      "variant_id": "65F",
+      "label": "65C - Aurora GO",
+      "route_id": "01260426-65",
+      "direction_id": 0,
+      "shape_id": "421412",
+      "trip_count": 32,
+      "representative_trip_id": "20260110-65-65141",
+      "route_variant": "65C"
+    }
+  ],
+  "67": [
+    {
+      "variant_id": "67A",
+      "label": "67 - Finch Terminal",
+      "route_id": "01260426-67",
+      "direction_id": 1,
+      "shape_id": "421415",
+      "trip_count": 308,
+      "representative_trip_id": "20260106-67-67110",
+      "route_variant": "67"
+    },
+    {
+      "variant_id": "67B",
+      "label": "67 - Woodbine/404",
+      "route_id": "01260426-67",
+      "direction_id": 0,
+      "shape_id": "421416",
+      "trip_count": 231,
+      "representative_trip_id": "20260106-67-67481",
+      "route_variant": "67"
+    }
+  ],
+  "68": [
+    {
+      "variant_id": "68A",
+      "label": "68 - Allandale Waterfront GO",
+      "route_id": "01260426-68",
+      "direction_id": 0,
+      "shape_id": "421419",
+      "trip_count": 622,
+      "representative_trip_id": "20260106-68-68021",
+      "route_variant": "68"
+    },
+    {
+      "variant_id": "68B",
+      "label": "68 - Aurora GO",
+      "route_id": "01260426-68",
+      "direction_id": 1,
+      "shape_id": "421420",
+      "trip_count": 436,
+      "representative_trip_id": "20260106-68-68500",
+      "route_variant": "68"
+    },
+    {
+      "variant_id": "68C",
+      "label": "68B - East Gwillimbury GO",
+      "route_id": "01260426-68",
+      "direction_id": 1,
+      "shape_id": "421421",
+      "trip_count": 340,
+      "representative_trip_id": "20260106-68-68130",
+      "route_variant": "68B"
+    },
+    {
+      "variant_id": "68D",
+      "label": "68B - Allandale Waterfront GO",
+      "route_id": "01260426-68",
+      "direction_id": 0,
+      "shape_id": "421418",
+      "trip_count": 263,
+      "representative_trip_id": "20260106-68-68031",
+      "route_variant": "68B"
+    },
+    {
+      "variant_id": "68E",
+      "label": "68E - East Gwillimbury GO",
+      "route_id": "01260426-68",
+      "direction_id": 0,
+      "shape_id": "421417",
+      "trip_count": 77,
+      "representative_trip_id": "20260106-68-68711",
+      "route_variant": "68E"
+    }
+  ],
+  "70": [
+    {
+      "variant_id": "70A",
+      "label": "70D - Uxbridge",
+      "route_id": "01260426-70",
+      "direction_id": 0,
+      "shape_id": "421425",
+      "trip_count": 808,
+      "representative_trip_id": "20260106-70-70261",
+      "route_variant": "70D"
+    },
+    {
+      "variant_id": "70B",
+      "label": "70D - Mount Joy GO",
+      "route_id": "01260426-70",
+      "direction_id": 1,
+      "shape_id": "421423",
+      "trip_count": 577,
+      "representative_trip_id": "20260106-70-70300",
+      "route_variant": "70D"
+    },
+    {
+      "variant_id": "70C",
+      "label": "70B - Old Elm GO",
+      "route_id": "01260426-70",
+      "direction_id": 1,
+      "shape_id": "421422",
+      "trip_count": 263,
+      "representative_trip_id": "20260106-70-70060",
+      "route_variant": "70B"
+    },
+    {
+      "variant_id": "70D",
+      "label": "70B - Uxbridge",
+      "route_id": "01260426-70",
+      "direction_id": 0,
+      "shape_id": "421424",
+      "trip_count": 141,
+      "representative_trip_id": "20260106-70-70651",
+      "route_variant": "70B"
+    },
+    {
+      "variant_id": "70E",
+      "label": "70 - Unionville GO",
+      "route_id": "01260426-70",
+      "direction_id": 1,
+      "shape_id": "421426",
+      "trip_count": 77,
+      "representative_trip_id": "20260106-70-70650",
+      "route_variant": "70"
+    }
+  ],
+  "71": [
+    {
+      "variant_id": "71A",
+      "label": "71C - Old Elm GO",
+      "route_id": "01260426-71",
+      "direction_id": 0,
+      "shape_id": "421428",
+      "trip_count": 327,
+      "representative_trip_id": "20260106-71-71111",
+      "route_variant": "71C"
+    },
+    {
+      "variant_id": "71B",
+      "label": "71 - Union Station",
+      "route_id": "01260426-71",
+      "direction_id": 1,
+      "shape_id": "421430",
+      "trip_count": 295,
+      "representative_trip_id": "20260106-71-71050",
+      "route_variant": "71"
+    },
+    {
+      "variant_id": "71C",
+      "label": "71C - Union Station",
+      "route_id": "01260426-71",
+      "direction_id": 1,
+      "shape_id": "421429",
+      "trip_count": 218,
+      "representative_trip_id": "20260106-71-71630",
+      "route_variant": "71C"
+    },
+    {
+      "variant_id": "71D",
+      "label": "71 - Uxbridge",
+      "route_id": "01260426-71",
+      "direction_id": 0,
+      "shape_id": "421431",
+      "trip_count": 109,
+      "representative_trip_id": "20260106-71-71171",
+      "route_variant": "71"
+    },
+    {
+      "variant_id": "71E",
+      "label": "71E - Union Station",
+      "route_id": "01260426-71",
+      "direction_id": 1,
+      "shape_id": "421427",
+      "trip_count": 77,
+      "representative_trip_id": "20260106-71-71620",
+      "route_variant": "71E"
+    }
+  ],
+  "88": [
+    {
+      "variant_id": "88A",
+      "label": "88 - Trent U",
+      "route_id": "01260426-88",
+      "direction_id": 0,
+      "shape_id": "421962",
+      "trip_count": 1026,
+      "representative_trip_id": "20260106-88-88070",
+      "route_variant": "88"
+    },
+    {
+      "variant_id": "88B",
+      "label": "88 - DC Oshawa GO",
+      "route_id": "01260426-88",
+      "direction_id": 1,
+      "shape_id": "421964",
+      "trip_count": 949,
+      "representative_trip_id": "20260106-88-88111",
+      "route_variant": "88"
+    },
+    {
+      "variant_id": "88C",
+      "label": "88B - Trent U",
+      "route_id": "01260426-88",
+      "direction_id": 0,
+      "shape_id": "421965",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-88-88720",
+      "route_variant": "88B"
+    },
+    {
+      "variant_id": "88D",
+      "label": "88B - DC Oshawa GO",
+      "route_id": "01260426-88",
+      "direction_id": 1,
+      "shape_id": "421963",
+      "trip_count": 154,
+      "representative_trip_id": "20260106-88-88021",
+      "route_variant": "88B"
+    },
+    {
+      "variant_id": "88E",
+      "label": "88C - Trent U",
+      "route_id": "01260426-88",
+      "direction_id": 0,
+      "shape_id": "421960",
+      "trip_count": 141,
+      "representative_trip_id": "20260109-88-88380",
+      "route_variant": "88C"
+    },
+    {
+      "variant_id": "88F",
+      "label": "88C - DC Oshawa GO",
+      "route_id": "01260426-88",
+      "direction_id": 1,
+      "shape_id": "421961",
+      "trip_count": 141,
+      "representative_trip_id": "20260109-88-88361",
+      "route_variant": "88C"
+    }
+  ],
+  "90": [
+    {
+      "variant_id": "90A",
+      "label": "90B - DC Oshawa GO",
+      "route_id": "01260426-90",
+      "direction_id": 0,
+      "shape_id": "421967",
+      "trip_count": 440,
+      "representative_trip_id": "20260106-90-90052",
+      "route_variant": "90B"
+    },
+    {
+      "variant_id": "90B",
+      "label": "90B - Union Station",
+      "route_id": "01260426-90",
+      "direction_id": 1,
+      "shape_id": "421966",
+      "trip_count": 314,
+      "representative_trip_id": "20260106-90-90001",
+      "route_variant": "90B"
+    }
+  ],
+  "92": [
+    {
+      "variant_id": "92A",
+      "label": "92 - DC Oshawa GO",
+      "route_id": "01260426-92",
+      "direction_id": 0,
+      "shape_id": "421971",
+      "trip_count": 2039,
+      "representative_trip_id": "20260106-92-92021",
+      "route_variant": "92"
+    },
+    {
+      "variant_id": "92B",
+      "label": "92 - Yorkdale Term",
+      "route_id": "01260426-92",
+      "direction_id": 1,
+      "shape_id": "421970",
+      "trip_count": 2007,
+      "representative_trip_id": "20260106-92-92010",
+      "route_variant": "92"
+    },
+    {
+      "variant_id": "92C",
+      "label": "92A - Dundas/Hwy 412 P+R",
+      "route_id": "01260426-92",
+      "direction_id": 0,
+      "shape_id": "421968",
+      "trip_count": 308,
+      "representative_trip_id": "20260106-92-92523",
+      "route_variant": "92A"
+    },
+    {
+      "variant_id": "92D",
+      "label": "92A - Yorkdale Term",
+      "route_id": "01260426-92",
+      "direction_id": 1,
+      "shape_id": "421969",
+      "trip_count": 231,
+      "representative_trip_id": "20260106-92-92052",
+      "route_variant": "92A"
+    }
+  ],
+  "94": [
+    {
+      "variant_id": "94A",
+      "label": "94 - Square One",
+      "route_id": "01260426-94",
+      "direction_id": 1,
+      "shape_id": "421973",
+      "trip_count": 2103,
+      "representative_trip_id": "20260106-94-94020",
+      "route_variant": "94"
+    },
+    {
+      "variant_id": "94B",
+      "label": "94 - Pickering GO",
+      "route_id": "01260426-94",
+      "direction_id": 0,
+      "shape_id": "421972",
+      "trip_count": 2058,
+      "representative_trip_id": "20260106-94-94001",
+      "route_variant": "94"
+    }
+  ],
+  "96": [
+    {
+      "variant_id": "96A",
+      "label": "96B - DC Oshawa GO",
+      "route_id": "01260426-96",
+      "direction_id": 0,
+      "shape_id": "421975",
+      "trip_count": 1678,
+      "representative_trip_id": "20260106-96-96071",
+      "route_variant": "96B"
+    },
+    {
+      "variant_id": "96B",
+      "label": "96B - Finch Terminal",
+      "route_id": "01260426-96",
+      "direction_id": 1,
+      "shape_id": "421974",
+      "trip_count": 1601,
+      "representative_trip_id": "20260106-96-96030",
+      "route_variant": "96B"
+    }
+  ],
+  "BR": [
+    {
+      "variant_id": "BRA",
+      "label": "BR - Allandale Waterfront GO",
+      "route_id": "01260426-BR",
+      "direction_id": 0,
+      "shape_id": "UNAD",
+      "trip_count": 891,
+      "representative_trip_id": "20260106-BR-6627",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "BRB",
+      "label": "BR - Union Station GO",
+      "route_id": "01260426-BR",
+      "direction_id": 1,
+      "shape_id": "ADUN",
+      "trip_count": 891,
+      "representative_trip_id": "20260106-BR-6606",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "BRC",
+      "label": "BR - Union Station GO",
+      "route_id": "01260426-BR",
+      "direction_id": 1,
+      "shape_id": "AUUN",
+      "trip_count": 823,
+      "representative_trip_id": "20260106-BR-6108",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "BRD",
+      "label": "BR - Aurora GO",
+      "route_id": "01260426-BR",
+      "direction_id": 0,
+      "shape_id": "UNAU",
+      "trip_count": 793,
+      "representative_trip_id": "20260106-BR-6313",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "BRE",
+      "label": "BR - Bradford GO",
+      "route_id": "01260426-BR",
+      "direction_id": 0,
+      "shape_id": "UNBD",
+      "trip_count": 109,
+      "representative_trip_id": "20260106-BR-6521",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "BRF",
+      "label": "BR - Union Station GO",
+      "route_id": "01260426-BR",
+      "direction_id": 1,
+      "shape_id": "BDUN",
+      "trip_count": 79,
+      "representative_trip_id": "20260106-BR-6504",
+      "route_variant": ""
+    }
+  ],
+  "KI": [
+    {
+      "variant_id": "KIA",
+      "label": "KI - Bramalea GO",
+      "route_id": "01260426-GT",
+      "direction_id": 0,
+      "shape_id": "UNBE",
+      "trip_count": 1604,
+      "representative_trip_id": "20260106-GT-3007",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIB",
+      "label": "KI - Union Station GO",
+      "route_id": "01260426-GT",
+      "direction_id": 1,
+      "shape_id": "BEUN",
+      "trip_count": 1343,
+      "representative_trip_id": "20260106-GT-3008",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIC",
+      "label": "KI - Union Station GO",
+      "route_id": "01260426-GT",
+      "direction_id": 1,
+      "shape_id": "MOUN",
+      "trip_count": 894,
+      "representative_trip_id": "20260106-GT-3514",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KID",
+      "label": "KI - Mount Pleasant GO",
+      "route_id": "01260426-GT",
+      "direction_id": 0,
+      "shape_id": "UNMO",
+      "trip_count": 632,
+      "representative_trip_id": "20260106-GT-3513",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIE",
+      "label": "KI - Union Station GO",
+      "route_id": "01260426-GT",
+      "direction_id": 1,
+      "shape_id": "BEUN",
+      "trip_count": 577,
+      "representative_trip_id": "20260106-GT-3026",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIF",
+      "label": "KI - Union Station GO",
+      "route_id": "01260426-GT",
+      "direction_id": 1,
+      "shape_id": "KIUN",
+      "trip_count": 474,
+      "representative_trip_id": "20260106-GT-3858",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIG",
+      "label": "KI - Mount Pleasant GO",
+      "route_id": "01260426-GT",
+      "direction_id": 0,
+      "shape_id": "UNMO",
+      "trip_count": 420,
+      "representative_trip_id": "20260110-GT-3509",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIH",
+      "label": "KI - Kitchener GO",
+      "route_id": "01260426-GT",
+      "direction_id": 0,
+      "shape_id": "UNKI",
+      "trip_count": 395,
+      "representative_trip_id": "20260106-GT-3911",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KII",
+      "label": "KI - Kitchener GO",
+      "route_id": "01260426-GT",
+      "direction_id": 0,
+      "shape_id": "UNKI",
+      "trip_count": 316,
+      "representative_trip_id": "20260106-GT-3875",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIJ",
+      "label": "KI - Union Station GO",
+      "route_id": "01260426-GT",
+      "direction_id": 1,
+      "shape_id": "KIUN",
+      "trip_count": 297,
+      "representative_trip_id": "20260106-GT-3918",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIK",
+      "label": "KI - Bramalea GO",
+      "route_id": "01260426-GT",
+      "direction_id": 0,
+      "shape_id": "UNBE",
+      "trip_count": 158,
+      "representative_trip_id": "20260106-GT-3025",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIL",
+      "label": "KI - Georgetown GO",
+      "route_id": "01260426-GT",
+      "direction_id": 0,
+      "shape_id": "UNGE",
+      "trip_count": 158,
+      "representative_trip_id": "20260106-GT-3625",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIM",
+      "label": "KI - Kitchener GO",
+      "route_id": "01260426-GT",
+      "direction_id": 0,
+      "shape_id": "UNKI",
+      "trip_count": 79,
+      "representative_trip_id": "20260106-GT-3977",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIN",
+      "label": "KI - Union Station GO",
+      "route_id": "01260426-GT",
+      "direction_id": 1,
+      "shape_id": "GEUN",
+      "trip_count": 79,
+      "representative_trip_id": "20260106-GT-3704",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIO",
+      "label": "KI - Union Station GO",
+      "route_id": "01260426-GT",
+      "direction_id": 1,
+      "shape_id": "GEUN",
+      "trip_count": 79,
+      "representative_trip_id": "20260106-GT-3756",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIP",
+      "label": "KI - Union Station GO",
+      "route_id": "01260426-GT",
+      "direction_id": 1,
+      "shape_id": "KIUN",
+      "trip_count": 79,
+      "representative_trip_id": "20260106-GT-3806",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "KIQ",
+      "label": "KI - Kitchener GO",
+      "route_id": "01260426-GT",
+      "direction_id": 0,
+      "shape_id": "UNKI",
+      "trip_count": 60,
+      "representative_trip_id": "20260110-GT-3925",
+      "route_variant": ""
+    }
+  ],
+  "LE": [
+    {
+      "variant_id": "LEA",
+      "label": "LE - Durham College Oshawa GO",
+      "route_id": "01260426-LE",
+      "direction_id": 0,
+      "shape_id": "UNOS",
+      "trip_count": 4215,
+      "representative_trip_id": "20260106-LE-9004",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LEB",
+      "label": "LE - Union Station GO",
+      "route_id": "01260426-LE",
+      "direction_id": 1,
+      "shape_id": "OSUN",
+      "trip_count": 4215,
+      "representative_trip_id": "20260106-LE-9005",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LEC",
+      "label": "LE - Whitby GO",
+      "route_id": "01260426-LE",
+      "direction_id": 0,
+      "shape_id": "UNWH",
+      "trip_count": 237,
+      "representative_trip_id": "20260106-LE-9624",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LED",
+      "label": "LE - Union Station GO",
+      "route_id": "01260426-LE",
+      "direction_id": 1,
+      "shape_id": "WHUN",
+      "trip_count": 237,
+      "representative_trip_id": "20260106-LE-9609",
+      "route_variant": ""
+    }
+  ],
+  "LW": [
+    {
+      "variant_id": "LWA",
+      "label": "LW - Union Station GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": "ALUN",
+      "trip_count": 1743,
+      "representative_trip_id": "20260106-LW-1004",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWB",
+      "label": "LW - Aldershot GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNAL",
+      "trip_count": 1678,
+      "representative_trip_id": "20260106-LW-1005",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWC",
+      "label": "LW - West Harbour GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNWR",
+      "trip_count": 1502,
+      "representative_trip_id": "20260106-LW-1705",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWD",
+      "label": "LW - Union Station GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": "WRUN",
+      "trip_count": 1361,
+      "representative_trip_id": "20260106-LW-1704",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWE",
+      "label": "LW - Union Station GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": "APUN",
+      "trip_count": 395,
+      "representative_trip_id": "20260106-LW-1108",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWF",
+      "label": "LW - Hamilton GO Centre",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNHA",
+      "trip_count": 316,
+      "representative_trip_id": "20260106-LW-1873",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWG",
+      "label": "LW - Oakville GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNOA",
+      "trip_count": 316,
+      "representative_trip_id": "20260106-LW-1125",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWH",
+      "label": "LW - Union Station GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": "HAUN",
+      "trip_count": 316,
+      "representative_trip_id": "20260106-LW-1854",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWI",
+      "label": "LW - Union Station GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": "CFUN",
+      "trip_count": 284,
+      "representative_trip_id": "20260106-LW-1616",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWJ",
+      "label": "LW - Niagara Falls GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNNI",
+      "trip_count": 261,
+      "representative_trip_id": "20260106-LW-1961",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWK",
+      "label": "LW - Union Station GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": "NIUN",
+      "trip_count": 257,
+      "representative_trip_id": "20260106-LW-1972",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWL",
+      "label": "LW - Confederation GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNCF",
+      "trip_count": 204,
+      "representative_trip_id": "20260106-LW-1615",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWM",
+      "label": "LW - Aldershot GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNAL",
+      "trip_count": 158,
+      "representative_trip_id": "20260106-LW-1075",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWN",
+      "label": "LW - Union Station GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": "ALUN",
+      "trip_count": 158,
+      "representative_trip_id": "20260106-LW-1256",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWO",
+      "label": "LW - Union Station GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": "CFUN",
+      "trip_count": 158,
+      "representative_trip_id": "20260106-LW-1656",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWP",
+      "label": "LW - Appleby GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNAP",
+      "trip_count": 79,
+      "representative_trip_id": "20260106-LW-1327",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWQ",
+      "label": "LW - Confederation GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNCF",
+      "trip_count": 79,
+      "representative_trip_id": "20260106-LW-1675",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWR",
+      "label": "LW - Niagara Falls GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNNI",
+      "trip_count": 79,
+      "representative_trip_id": "20260106-LW-1977",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWS",
+      "label": "LW - West Harbour GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNWR",
+      "trip_count": 79,
+      "representative_trip_id": "20260106-LW-1775",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWT",
+      "label": "LW - Union Station GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": "NIUN",
+      "trip_count": 79,
+      "representative_trip_id": "20260106-LW-1960",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWU",
+      "label": "LW - Mimico GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNMI",
+      "trip_count": 68,
+      "representative_trip_id": "20260116-LW-1439",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWV",
+      "label": "LW - Union Station GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": "MIUN",
+      "trip_count": 68,
+      "representative_trip_id": "20260117-LW-1508",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWW",
+      "label": "LW - Aldershot GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": null,
+      "trip_count": 66,
+      "representative_trip_id": "20260116-LW-1041",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWX",
+      "label": "LW - Oakville GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": null,
+      "trip_count": 64,
+      "representative_trip_id": "20260117-LW-1010",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWY",
+      "label": "LW - West Harbour GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": null,
+      "trip_count": 62,
+      "representative_trip_id": "20260116-LW-1739",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWZ",
+      "label": "LW - Oakville GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": null,
+      "trip_count": 48,
+      "representative_trip_id": "20260116-LW-1740",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWV27",
+      "label": "LW - Oakville GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": null,
+      "trip_count": 20,
+      "representative_trip_id": "20260117-LW-1608",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWV28",
+      "label": "LW - Niagara Falls GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": null,
+      "trip_count": 16,
+      "representative_trip_id": "20260117-LW-1961",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWV29",
+      "label": "LW - Oakville GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": null,
+      "trip_count": 16,
+      "representative_trip_id": "20260117-LW-1970",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWV30",
+      "label": "LW - Confederation GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": null,
+      "trip_count": 8,
+      "representative_trip_id": "20260117-LW-1621",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWV31",
+      "label": "LW - Union Station GO",
+      "route_id": "01260426-LW",
+      "direction_id": 1,
+      "shape_id": "NIUN",
+      "trip_count": 5,
+      "representative_trip_id": "20260108-LW-1972",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "LWV32",
+      "label": "LW - Niagara Falls GO",
+      "route_id": "01260426-LW",
+      "direction_id": 0,
+      "shape_id": "UNNI",
+      "trip_count": 1,
+      "representative_trip_id": "20260110-LW-1965",
+      "route_variant": ""
+    }
+  ],
+  "MI": [
+    {
+      "variant_id": "MIA",
+      "label": "MI - Milton GO",
+      "route_id": "01260426-MI",
+      "direction_id": 0,
+      "shape_id": "UNML",
+      "trip_count": 790,
+      "representative_trip_id": "20260106-MI-2723",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "MIB",
+      "label": "MI - Union Station GO",
+      "route_id": "01260426-MI",
+      "direction_id": 1,
+      "shape_id": "MLUN",
+      "trip_count": 790,
+      "representative_trip_id": "20260106-MI-2706",
+      "route_variant": ""
+    }
+  ],
+  "RH": [
+    {
+      "variant_id": "RHA",
+      "label": "RH - Bloomington GO",
+      "route_id": "01260426-RH",
+      "direction_id": 0,
+      "shape_id": "UNBM",
+      "trip_count": 395,
+      "representative_trip_id": "20260106-RH-5127",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "RHB",
+      "label": "RH - Union Station GO",
+      "route_id": "01260426-RH",
+      "direction_id": 1,
+      "shape_id": "BMUN",
+      "trip_count": 316,
+      "representative_trip_id": "20260106-RH-5006",
+      "route_variant": ""
+    }
+  ],
+  "ST": [
+    {
+      "variant_id": "STA",
+      "label": "ST - Mount Joy GO",
+      "route_id": "01260426-ST",
+      "direction_id": 0,
+      "shape_id": "UNMJ",
+      "trip_count": 1229,
+      "representative_trip_id": "20260106-ST-7410",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "STB",
+      "label": "ST - Union Station GO",
+      "route_id": "01260426-ST",
+      "direction_id": 1,
+      "shape_id": "MJUN",
+      "trip_count": 1150,
+      "representative_trip_id": "20260106-ST-7415",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "STC",
+      "label": "ST - Old Elm GO",
+      "route_id": "01260426-ST",
+      "direction_id": 0,
+      "shape_id": "UNLI",
+      "trip_count": 643,
+      "representative_trip_id": "20260106-ST-7622",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "STD",
+      "label": "ST - Union Station GO",
+      "route_id": "01260426-ST",
+      "direction_id": 1,
+      "shape_id": "LIUN",
+      "trip_count": 643,
+      "representative_trip_id": "20260106-ST-7705",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "STE",
+      "label": "ST - Unionville GO",
+      "route_id": "01260426-ST",
+      "direction_id": 0,
+      "shape_id": "UNUI",
+      "trip_count": 158,
+      "representative_trip_id": "20260106-ST-7222",
+      "route_variant": ""
+    },
+    {
+      "variant_id": "STF",
+      "label": "ST - Union Station GO",
+      "route_id": "01260426-ST",
+      "direction_id": 1,
+      "shape_id": "UIUN",
+      "trip_count": 158,
+      "representative_trip_id": "20260106-ST-7129",
+      "route_variant": ""
+    }
+  ]
+}
