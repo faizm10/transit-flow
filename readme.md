@@ -6,3 +6,28 @@ problem
 
 solution
 - build your own system and see how it would play out with simulation style via machine learning
+
+## Getting Started
+
+### Installation
+
+1.  Navigate to the `client` directory:
+    ```bash
+    cd client
+    ```
+2.  Install the dependencies:
+    ```bash
+    npm install
+    ```
+
+### Running the application
+
+1.  Navigate to the `client` directory:
+    ```bash
+    cd client
+    ```
+2.  Start the development server:
+    ```bash
+    npm run dev
+    ```
+3. Open your browser and navigate to `http://localhost:3000/map` to see the application.

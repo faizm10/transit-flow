@@ -44,7 +44,7 @@ export async function GET() {
       routesHeaders[0] = routesHeaders[0].replace(/^\uFEFF/, "");
     }
 
-    const allRoutes = new Map<string, { color: string; name: string; shortName: string }>();
+    const allRoutes = new Map<string, { color: string; name: string; shortName: string; type: string }>();
     for (let i = 1; i < routesLines.length; i += 1) {
       const values = parseCsvLine(routesLines[i]);
       const route = routesHeaders.reduce<Record<string, string>>((obj, header, index) => {
@@ -56,6 +56,7 @@ export async function GET() {
         color: route.route_color || "10b981",
         name: route.route_long_name || "",
         shortName: route.route_short_name || "",
+        type: route.route_type || "",
       });
     }
 
@@ -66,7 +67,6 @@ export async function GET() {
     if (tripsHeaders[0]) {
       tripsHeaders[0] = tripsHeaders[0].replace(/^\uFEFF/, "");
     }
-
     const shapeToRoute = new Map<string, string>(); // shape_id -> route_id
     for (let i = 1; i < tripsLines.length; i += 1) {
       const values = parseCsvLine(tripsLines[i]);
@@ -74,12 +74,10 @@ export async function GET() {
         obj[header] = (values[index] || "").trim();
         return obj;
       }, {});
-
       if (allRoutes.has(trip.route_id) && trip.shape_id) {
         shapeToRoute.set(trip.shape_id, trip.route_id);
       }
     }
-
     // Read shapes.txt and build LineStrings
     const shapesContent = await fs.readFile(shapesPath, "utf8");
     const shapesLines = shapesContent.split("\n").filter(Boolean);
@@ -87,50 +85,38 @@ export async function GET() {
     if (shapesHeaders[0]) {
       shapesHeaders[0] = shapesHeaders[0].replace(/^\uFEFF/, "");
     }
-
     // Group shape points by shape_id
     const shapePoints = new Map<string, Array<[number, number, number]>>(); // shape_id -> [[lon, lat, sequence]]
-
     for (let i = 1; i < shapesLines.length; i += 1) {
       const values = parseCsvLine(shapesLines[i]);
       const shape = shapesHeaders.reduce<Record<string, string>>((obj, header, index) => {
         obj[header] = (values[index] || "").trim();
         return obj;
       }, {});
-
       const shapeId = shape.shape_id;
-      if (!shapeToRoute.has(shapeId)) continue; 
-
+      if (!shapeToRoute.has(shapeId)) continue;
       const lat = parseFloat(shape.shape_pt_lat);
       const lon = parseFloat(shape.shape_pt_lon);
       const sequence = parseInt(shape.shape_pt_sequence, 10);
-
       if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(sequence)) {
         continue;
       }
-
       if (!shapePoints.has(shapeId)) {
         shapePoints.set(shapeId, []);
       }
       shapePoints.get(shapeId)!.push([lon, lat, sequence]);
     }
-
     // Create GeoJSON features
     const features: GeoJSON.Feature[] = [];
-
     for (const [shapeId, points] of shapePoints.entries()) {
       const routeId = shapeToRoute.get(shapeId);
       if (!routeId) continue;
-
       const routeInfo = allRoutes.get(routeId);
       if (!routeInfo) continue;
-
       // Sort points by sequence
       points.sort((a, b) => a[2] - b[2]);
-
       // Convert to coordinate array (remove sequence)
       const coordinates: [number, number][] = points.map(([lon, lat]) => [lon, lat]);
-
       features.push({
         type: "Feature",
         properties: {
@@ -139,6 +125,7 @@ export async function GET() {
           route_color: `#${routeInfo.color}`,
           route_name: routeInfo.name,
           route_short_name: routeInfo.shortName,
+          route_type: routeInfo.type,
         },
         geometry: {
           type: "LineString",
