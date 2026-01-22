@@ -181,6 +181,7 @@ export default function MapPage() {
   const [mapReady, setMapReady] = useState(false);
   const unionPearsonStopsRef = useRef<GeoJSON.FeatureCollection | null>(null);
   const [goTransitStops, setGoTransitStops] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [goTransitShapes, setGoTransitShapes] = useState<GeoJSON.FeatureCollection | null>(null);
   const [showGoTransit, setShowGoTransit] = useState(true);
   const goTransitStopsRef = useRef<GeoJSON.FeatureCollection | null>(null);
 
@@ -210,6 +211,25 @@ export default function MapPage() {
       }
     };
     fetchUnionPearsonShapes();
+  }, []);
+
+  // Fetch GO Transit shapes
+  useEffect(() => {
+    const fetchGoTransitShapes = async () => {
+      try {
+        console.log("[GO] Fetching shapes from /api/gotransit/shapes");
+        const response = await fetch("/api/gotransit/shapes");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data: GeoJSON.FeatureCollection = await response.json();
+        console.log("[GO] Shapes loaded from API:", data.features.length);
+        setGoTransitShapes(data);
+      } catch (error) {
+        console.error("Failed to fetch GO Transit shapes:", error);
+      }
+    };
+    fetchGoTransitShapes();
   }, []);
 
   // Fetch Union Pearson Express stops
@@ -458,6 +478,30 @@ export default function MapPage() {
 
   const ensureGOTransitLayers = useCallback(() => {
     if (!map.current) return;
+
+    // Add source for GO Transit routes
+    if (!map.current.getSource("go-transit-routes")) {
+      map.current.addSource("go-transit-routes", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      console.log("[GO] Routes source added");
+    }
+
+    // Add layer for GO Transit routes
+    if (!map.current.getLayer("go-transit-routes-layer")) {
+      map.current.addLayer({
+        id: "go-transit-routes-layer",
+        type: "line",
+        source: "go-transit-routes",
+        paint: {
+          "line-color": ["get", "route_color"],
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 2, 12, 4, 15, 6],
+          "line-opacity": 0.85,
+        },
+      });
+      console.log("[GO] Routes layer added");
+    }
 
     // Add source for GO Transit stops
     if (!map.current.getSource("go-transit-stops")) {
@@ -1966,6 +2010,35 @@ export default function MapPage() {
     }
   }, [showUnionPearson, map.current]);
 
+  // Update GO Transit layer visibility
+  useEffect(() => {
+    if (map.current && map.current.isStyleLoaded()) {
+      const visibility = showGoTransit ? "visible" : "none";
+      if (map.current.getLayer("go-transit-routes-layer")) {
+        map.current.setLayoutProperty(
+          "go-transit-routes-layer",
+          "visibility",
+          visibility
+        );
+      }
+      if (map.current.getLayer("go-transit-stops-layer")) {
+        map.current.setLayoutProperty(
+          "go-transit-stops-layer",
+          "visibility",
+          visibility
+        );
+      }
+      if (map.current.getLayer("go-transit-stops-labels")) {
+        map.current.setLayoutProperty(
+          "go-transit-stops-labels",
+          "visibility",
+          visibility
+        );
+      }
+    }
+  }, [showGoTransit, map.current]);
+  
+
   // Update Union Pearson Express route line data
   useEffect(() => {
     if (!mapReady || !map.current || !unionPearsonShapes) {
@@ -1986,6 +2059,18 @@ export default function MapPage() {
       console.warn("[UPX] Route line source not found");
     }
   }, [mapReady, unionPearsonShapes, ensureUnionPearsonLayers]);
+
+  // Update GO Transit shapes data
+  useEffect(() => {
+    if (!mapReady || !map.current || !goTransitShapes) {
+      return;
+    }
+    ensureGOTransitLayers();
+    const source = map.current.getSource("go-transit-routes") as mapboxgl.GeoJSONSource;
+    if (source) {
+      source.setData(goTransitShapes);
+    }
+  }, [mapReady, goTransitShapes, ensureGOTransitLayers]);
 
   useEffect(() => {
     if (!mapReady || !map.current || !unionPearsonStops) {
