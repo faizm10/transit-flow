@@ -44,20 +44,16 @@ export default function MapPage() {
   const map = useRef<mapboxgl.Map | null>(null);
   const [unionPearsonShapes, setUnionPearsonShapes] =
     useState<GeoJSON.FeatureCollection | null>(null);
-  const [unionPearsonStops, setUnionPearsonStops] =
-    useState<GeoJSON.FeatureCollection | null>(null);
   const [showUnionPearson, setShowUnionPearson] = useState(true);
   const hasFitUnionPearson = useRef(false);
   const [mapReady, setMapReady] = useState(false);
-  const unionPearsonStopsRef = useRef<GeoJSON.FeatureCollection | null>(null);
-  const [goTransitStops, setGoTransitStops] =
-    useState<GeoJSON.FeatureCollection | null>(null);
   const [goTransitShapes, setGoTransitShapes] =
     useState<GeoJSON.FeatureCollection | null>(null);
   const [showGoBuses, setShowGoBuses] = useState(true);
   const [showGoTrains, setShowGoTrains] = useState(true);
   const [showGoTransit, setShowGoTransit] = useState(true);
-  const goTransitStopsRef = useRef<GeoJSON.FeatureCollection | null>(null);
+  const [goTransitStops, setGoTransitStops] =
+    useState<GeoJSON.FeatureCollection | null>(null);
   const [goRouteOptions, setGoRouteOptions] = useState<
     Array<{
       id: string;
@@ -68,6 +64,7 @@ export default function MapPage() {
     }>
   >([]);
   const [selectedGoRouteIds, setSelectedGoRouteIds] = useState<string[]>([]);
+  const [goRouteFilterText, setGoRouteFilterText] = useState("");
   const hasInitializedGoRoutes = useRef(false);
   // Update GO Transit layer visibility and filters
   useEffect(() => {
@@ -80,33 +77,18 @@ export default function MapPage() {
     const routeTypeFilter: mapboxgl.Expression =
       visibleRouteTypes.length > 0
         ? ["in", ["get", "route_type"], ["literal", visibleRouteTypes]]
-        : ["in", ["get", "route_type"], ""]; // Empty set to hide all
+        : ["in", ["get", "route_type"], ""];
 
     const hasRouteSelection = hasInitializedGoRoutes.current;
-    const routeIdFilter: mapboxgl.Expression =
-      !hasRouteSelection
-        ? ["has", "route_id"]
-        : selectedGoRouteIds.length > 0
-          ? ["in", ["get", "route_id"], ["literal", selectedGoRouteIds]]
-          : ["in", ["get", "route_id"], ""];
-
     const routesFilter: mapboxgl.Expression = [
       "all",
       routeTypeFilter,
-      routeIdFilter,
+      hasRouteSelection
+        ? selectedGoRouteIds.length > 0
+          ? ["in", ["get", "route_id"], ["literal", selectedGoRouteIds]]
+          : ["in", ["get", "route_id"], ""]
+        : ["has", "route_id"],
     ];
-
-    const selectedShortNames = goRouteOptions
-      .filter((route) => selectedGoRouteIds.includes(route.id))
-      .map((route) => route.shortName)
-      .filter(Boolean);
-
-    const stopsFilter: mapboxgl.Expression =
-      !hasRouteSelection
-        ? ["has", "route_short_name"]
-        : showGoTrains && selectedShortNames.length > 0
-          ? ["in", ["get", "route_short_name"], ["literal", selectedShortNames]]
-          : ["in", ["get", "route_short_name"], ""];
 
     // Filter routes layer
     const routesLayer = "go-transit-routes-layer";
@@ -114,15 +96,6 @@ export default function MapPage() {
       map.current.setFilter(routesLayer, routesFilter);
     }
 
-    // Filter stops layers
-    const stopsLayer = "go-transit-stops-layer";
-    const stopsLabelsLayer = "go-transit-stops-labels";
-    if (map.current.getLayer(stopsLayer)) {
-      map.current.setFilter(stopsLayer, stopsFilter);
-    }
-    if (map.current.getLayer(stopsLabelsLayer)) {
-      map.current.setFilter(stopsLabelsLayer, stopsFilter);
-    }
   }, [
     showGoBuses,
     showGoTrains,
@@ -167,6 +140,83 @@ export default function MapPage() {
     fetchGoTransitShapes();
   }, []);
 
+  // Fetch GO Transit stops (train stops only)
+  useEffect(() => {
+    const fetchGoTransitStops = async () => {
+      try {
+        const response = await fetch("/api/gotransit/stops");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data: GeoJSON.FeatureCollection = await response.json();
+        setGoTransitStops(data);
+      } catch (error) {
+        console.warn("[GO] API stops fetch failed, trying fallback", error);
+        try {
+          const fallbackResponse = await fetch("/gotransit/stops.txt");
+          if (!fallbackResponse.ok) {
+            throw new Error(
+              `Fallback HTTP error! status: ${fallbackResponse.status}`,
+            );
+          }
+          const text = await fallbackResponse.text();
+          const lines = text.split("\n").filter(Boolean);
+          if (lines.length <= 1) {
+            throw new Error("Fallback file empty");
+          }
+
+          const headers = parseCsvLine(lines[0]).map((header) =>
+            header.trim(),
+          );
+          if (headers[0]) {
+            headers[0] = headers[0].replace(/^\uFEFF/, "");
+          }
+
+          const features: GeoJSON.Feature[] = lines
+            .slice(1)
+            .map((line) => {
+              const values = parseCsvLine(line);
+              const row = headers.reduce<Record<string, string>>(
+                (obj, header, index) => {
+                  obj[header] = (values[index] || "").trim();
+                  return obj;
+                },
+                {},
+              );
+
+              const lat = parseFloat(row.stop_lat);
+              const lon = parseFloat(row.stop_lon);
+              if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+                return null;
+              }
+
+              return {
+                type: "Feature",
+                properties: {
+                  stop_id: row.stop_id,
+                  stop_name: row.stop_name,
+                },
+                geometry: {
+                  type: "Point",
+                  coordinates: [lon, lat],
+                },
+              } as GeoJSON.Feature;
+            })
+            .filter(Boolean) as GeoJSON.Feature[];
+
+          setGoTransitStops({
+            type: "FeatureCollection",
+            features,
+          });
+        } catch (fallbackError) {
+          console.error("Failed to fetch GO Transit stops:", error);
+          console.error("Failed fallback stops load:", fallbackError);
+        }
+      }
+    };
+    fetchGoTransitStops();
+  }, []);
+
   useEffect(() => {
     if (!goTransitShapes) return;
 
@@ -201,12 +251,30 @@ export default function MapPage() {
     }
   }, [goTransitShapes]);
 
-  const goRoutesByType = useMemo(() => {
-    return {
-      trains: goRouteOptions.filter((route) => route.type === "2"),
-      buses: goRouteOptions.filter((route) => route.type === "3"),
-    };
-  }, [goRouteOptions]);
+  const groupedGoRoutes = useMemo(() => {
+    const term = goRouteFilterText.trim().toLowerCase();
+    const grouped = new Map<string, typeof goRouteOptions>();
+
+    goRouteOptions.forEach((route) => {
+      const haystack = `${route.shortName} ${route.name} ${route.id}`
+        .trim()
+        .toLowerCase();
+      if (term && !haystack.includes(term)) return;
+
+      const key = route.name || "Other";
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key)!.push(route);
+    });
+
+    return Array.from(grouped.entries()).map(([name, routes]) => ({
+      name,
+      routes: routes.sort((a, b) =>
+        (a.shortName || a.id).localeCompare(b.shortName || b.id),
+      ),
+    }));
+  }, [goRouteOptions, goRouteFilterText]);
 
   const toggleGoRoute = (routeId: string) => {
     setSelectedGoRouteIds((prev) =>
@@ -216,191 +284,14 @@ export default function MapPage() {
     );
   };
 
-  // Fetch Union Pearson Express stops
-  useEffect(() => {
-    const fetchUnionPearsonStops = async () => {
-      try {
-        console.log("[UPX] Fetching stops from /api/union-pearson/stops");
-        const response = await fetch("/api/union-pearson/stops");
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data: GeoJSON.FeatureCollection = await response.json();
-        if (!data.features || data.features.length === 0) {
-          throw new Error("Empty stops response");
-        }
-        console.log("[UPX] Stops loaded from API:", data.features.length);
-        setUnionPearsonStops(data);
-      } catch (error) {
-        console.warn("[UPX] API stops fetch failed, trying fallback", error);
-        try {
-          console.log("[UPX] Fetching stops from /union-pearson/stops.txt");
-          const fallbackResponse = await fetch("/union-pearson/stops.txt");
-          if (!fallbackResponse.ok) {
-            throw new Error(
-              `Fallback HTTP error! status: ${fallbackResponse.status}`,
-            );
-          }
-          const text = await fallbackResponse.text();
-          const lines = text.split("\n").filter(Boolean);
-          if (lines.length <= 1) {
-            throw new Error("Fallback file empty");
-          }
-
-          const headers = parseCsvLine(lines[0]).map((header) => header.trim());
-          if (headers[0]) {
-            headers[0] = headers[0].replace(/^\uFEFF/, "");
-          }
-
-          const features: GeoJSON.Feature[] = lines
-            .slice(1)
-            .map((line) => {
-              const values = parseCsvLine(line);
-              const row = headers.reduce<Record<string, string>>(
-                (obj, header, index) => {
-                  obj[header] = (values[index] || "").trim();
-                  return obj;
-                },
-                {},
-              );
-
-              const lat = parseFloat(row.stop_lat);
-              const lon = parseFloat(row.stop_lon);
-              if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-                return null;
-              }
-
-              return {
-                type: "Feature",
-                properties: {
-                  stop_id: row.stop_id,
-                  stop_name: row.stop_name,
-                },
-                geometry: {
-                  type: "Point",
-                  coordinates: [lon, lat],
-                },
-              } as GeoJSON.Feature;
-            })
-            .filter(Boolean) as GeoJSON.Feature[];
-
-          console.log("[UPX] Stops loaded from fallback:", features.length);
-          setUnionPearsonStops({
-            type: "FeatureCollection",
-            features,
-          });
-        } catch (fallbackError) {
-          console.error("Failed to fetch Union Pearson stops:", error);
-          console.error("Failed fallback stops load:", fallbackError);
-        }
+  const setGoRouteGroup = (routeIds: string[], enabled: boolean) => {
+    setSelectedGoRouteIds((prev) => {
+      if (enabled) {
+        return Array.from(new Set([...prev, ...routeIds]));
       }
-    };
-    fetchUnionPearsonStops();
-  }, []);
-
-  useEffect(() => {
-    unionPearsonStopsRef.current = unionPearsonStops;
-    if (unionPearsonStops) {
-      console.log(
-        "[UPX] unionPearsonStops state updated with",
-        unionPearsonStops.features.length,
-        "stops",
-      );
-    }
-  }, [unionPearsonStops]);
-
-  // Fetch GO Transit stops
-  useEffect(() => {
-    const fetchGoTransitStops = async () => {
-      try {
-        console.log("[GO] Fetching stops from /api/gotransit/stops");
-        const response = await fetch("/api/gotransit/stops");
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data: GeoJSON.FeatureCollection = await response.json();
-        if (!data.features || data.features.length === 0) {
-          throw new Error("Empty stops response");
-        }
-        console.log("[GO] Stops loaded from API:", data.features.length);
-        setGoTransitStops(data);
-      } catch (error) {
-        console.warn("[GO] API stops fetch failed, trying fallback", error);
-        try {
-          console.log("[GO] Fetching stops from /gotransit/stops.txt");
-          const fallbackResponse = await fetch("/gotransit/stops.txt");
-          if (!fallbackResponse.ok) {
-            throw new Error(
-              `Fallback HTTP error! status: ${fallbackResponse.status}`,
-            );
-          }
-          const text = await fallbackResponse.text();
-          const lines = text.split("\n").filter(Boolean);
-          if (lines.length <= 1) {
-            throw new Error("Fallback file empty");
-          }
-
-          const headers = parseCsvLine(lines[0]).map((header) => header.trim());
-          if (headers[0]) {
-            headers[0] = headers[0].replace(/^\uFEFF/, "");
-          }
-
-          const features: GeoJSON.Feature[] = lines
-            .slice(1)
-            .map((line) => {
-              const values = parseCsvLine(line);
-              const row = headers.reduce<Record<string, string>>(
-                (obj, header, index) => {
-                  obj[header] = (values[index] || "").trim();
-                  return obj;
-                },
-                {},
-              );
-
-              const lat = parseFloat(row.stop_lat);
-              const lon = parseFloat(row.stop_lon);
-              if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-                return null;
-              }
-
-              return {
-                type: "Feature",
-                properties: {
-                  stop_id: row.stop_id,
-                  stop_name: row.stop_name,
-                },
-                geometry: {
-                  type: "Point",
-                  coordinates: [lon, lat],
-                },
-              } as GeoJSON.Feature;
-            })
-            .filter(Boolean) as GeoJSON.Feature[];
-
-          console.log("[GO] Stops loaded from fallback:", features.length);
-          setGoTransitStops({
-            type: "FeatureCollection",
-            features,
-          });
-        } catch (fallbackError) {
-          console.error("Failed to fetch GO Transit stops:", error);
-          console.error("Failed fallback stops load:", fallbackError);
-        }
-      }
-    };
-    fetchGoTransitStops();
-  }, []);
-
-  useEffect(() => {
-    goTransitStopsRef.current = goTransitStops;
-    if (goTransitStops) {
-      console.log(
-        "[GO] goTransitStops state updated with",
-        goTransitStops.features.length,
-        "stops",
-      );
-    }
-  }, [goTransitStops]);
+      return prev.filter((id) => !routeIds.includes(id));
+    });
+  };
 
   const ensureUnionPearsonLayers = useCallback(() => {
     if (!map.current) return;
@@ -439,63 +330,6 @@ export default function MapPage() {
       console.log("[UPX] Route line layer added");
     }
 
-    // Add source for stops
-    if (!map.current.getSource("union-pearson-stops")) {
-      map.current.addSource("union-pearson-stops", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-      console.log("[UPX] Stops source added");
-    }
-
-    // Add layer for stops (rendered on top of the line)
-    if (!map.current.getLayer("union-pearson-stops-layer")) {
-      map.current.addLayer({
-        id: "union-pearson-stops-layer",
-        type: "circle",
-        source: "union-pearson-stops",
-        paint: {
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            8,
-            4,
-            12,
-            8,
-            15,
-            10,
-          ],
-          "circle-color": "#0ea5e9",
-          "circle-stroke-color": "#0f172a",
-          "circle-stroke-width": 2,
-          "circle-opacity": 1,
-        },
-      });
-      console.log("[UPX] Stops layer added");
-    }
-
-    // Add labels for stops
-    if (!map.current.getLayer("union-pearson-stops-labels")) {
-      map.current.addLayer({
-        id: "union-pearson-stops-labels",
-        type: "symbol",
-        source: "union-pearson-stops",
-        layout: {
-          "text-field": ["get", "stop_name"],
-          "text-size": 12,
-          "text-offset": [0, 1.2],
-          "text-anchor": "top",
-        },
-        paint: {
-          "text-color": "#0f172a",
-          "text-halo-color": "#ffffff",
-          "text-halo-width": 1.5,
-        },
-        minzoom: 10,
-      });
-      console.log("[UPX] Stops labels layer added");
-    }
   }, []);
 
   const ensureGOTransitLayers = useCallback(() => {
@@ -535,16 +369,13 @@ export default function MapPage() {
       console.log("[GO] Routes layer added");
     }
 
-    // Add source for GO Transit stops
     if (!map.current.getSource("go-transit-stops")) {
       map.current.addSource("go-transit-stops", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
-      console.log("[GO] Stops source added");
     }
 
-    // Add layer for GO Transit stops
     if (!map.current.getLayer("go-transit-stops-layer")) {
       map.current.addLayer({
         id: "go-transit-stops-layer",
@@ -562,42 +393,14 @@ export default function MapPage() {
             15,
             8,
           ],
-          "circle-color": ["get", "route_color"],
+          "circle-color": "#0f172a",
           "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": 2,
-          "circle-opacity": 1,
+          "circle-stroke-width": 1.5,
+          "circle-opacity": 0.9,
         },
       });
-      console.log("[GO] Stops layer added");
     }
 
-    // Add labels for GO Transit stops
-    if (!map.current.getLayer("go-transit-stops-labels")) {
-      map.current.addLayer({
-        id: "go-transit-stops-labels",
-        type: "symbol",
-        source: "go-transit-stops",
-        layout: {
-          "text-field": [
-            "concat",
-            ["get", "stop_name"],
-            " (",
-            ["get", "route_short_name"],
-            ")",
-          ],
-          "text-size": 11,
-          "text-offset": [0, 1.2],
-          "text-anchor": "top",
-        },
-        paint: {
-          "text-color": "#0f172a",
-          "text-halo-color": "#ffffff",
-          "text-halo-width": 1.5,
-        },
-        minzoom: 11,
-      });
-      console.log("[GO] Stops labels layer added");
-    }
   }, []);
 
   useEffect(() => {
@@ -653,21 +456,6 @@ export default function MapPage() {
         );
       }
 
-      if (map.current.getLayer("union-pearson-stops-layer")) {
-        map.current.setLayoutProperty(
-          "union-pearson-stops-layer",
-          "visibility",
-          showUnionPearson ? "visible" : "none",
-        );
-      }
-
-      if (map.current.getLayer("union-pearson-stops-labels")) {
-        map.current.setLayoutProperty(
-          "union-pearson-stops-labels",
-          "visibility",
-          showUnionPearson ? "visible" : "none",
-        );
-      }
     }
   }, [showUnionPearson, map.current]);
 
@@ -686,18 +474,24 @@ export default function MapPage() {
         map.current.setLayoutProperty(
           "go-transit-stops-layer",
           "visibility",
-          visibility,
-        );
-      }
-      if (map.current.getLayer("go-transit-stops-labels")) {
-        map.current.setLayoutProperty(
-          "go-transit-stops-labels",
-          "visibility",
-          visibility,
+          showGoTrains && showGoTransit ? "visible" : "none",
         );
       }
     }
-  }, [showGoTransit, map.current]);
+  }, [showGoTransit, showGoTrains, map.current]);
+
+  useEffect(() => {
+    if (!map.current || !map.current.isStyleLoaded()) return;
+    if (!map.current.getLayer("go-transit-stops-layer")) return;
+
+    const trainStopsFilter: mapboxgl.Expression = [
+      "in",
+      "2",
+      ["get", "route_types"],
+    ];
+
+    map.current.setFilter("go-transit-stops-layer", trainStopsFilter);
+  }, [mapReady, showGoTrains]);
 
   // Update Union Pearson Express route line data
   useEffect(() => {
@@ -746,132 +540,17 @@ export default function MapPage() {
   }, [mapReady, goTransitShapes, ensureGOTransitLayers]);
 
   useEffect(() => {
-    if (!mapReady || !map.current || !unionPearsonStops) {
-      console.log(
-        "[UPX] useEffect blocked - mapReady:",
-        mapReady,
-        "map.current:",
-        !!map.current,
-        "unionPearsonStops:",
-        !!unionPearsonStops,
-      );
-      return;
-    }
-
-    console.log(
-      "[UPX] useEffect triggered with stops data, mapReady =",
-      mapReady,
-    );
-
-    const updateStops = () => {
-      if (!map.current) return;
-
-      console.log("[UPX] Attempting to update stops source...");
-
-      // Ensure layers exist (they should already exist from style.load)
-      ensureUnionPearsonLayers();
-
-      // Get the source and update data
-      const source = map.current.getSource("union-pearson-stops");
-      if (source) {
-        (source as mapboxgl.GeoJSONSource).setData(unionPearsonStops);
-        console.log(
-          "[UPX] Stops source updated successfully:",
-          unionPearsonStops.features.length,
-        );
-
-        // Verify rendering
-        setTimeout(() => {
-          if (!map.current) return;
-          const rendered = map.current.queryRenderedFeatures({
-            layers: ["union-pearson-stops-layer"],
-          });
-          console.log("[UPX] Rendered stops after update:", rendered.length);
-        }, 100);
-      } else {
-        console.warn("[UPX] Source not found when trying to update");
-      }
-    };
-
-    // Since mapReady is true, the map has loaded and style.load has already fired
-    // The layers were created during style.load, so we can update immediately
-    console.log("[UPX] Map is ready, updating stops immediately");
-    updateStops();
-  }, [mapReady, unionPearsonStops, ensureUnionPearsonLayers]);
-
-  // Update GO Transit stops when data is loaded
-  useEffect(() => {
     if (!mapReady || !map.current || !goTransitStops) {
-      console.log(
-        "[GO] useEffect blocked - mapReady:",
-        mapReady,
-        "map.current:",
-        !!map.current,
-        "goTransitStops:",
-        !!goTransitStops,
-      );
       return;
     }
-
-    console.log(
-      "[GO] useEffect triggered with stops data, mapReady =",
-      mapReady,
-    );
-
-    const updateStops = () => {
-      if (!map.current) return;
-
-      console.log("[GO] Attempting to update stops source...");
-
-      // Ensure layers exist
-      ensureGOTransitLayers();
-
-      // Get the source and update data
-      const source = map.current.getSource("go-transit-stops");
-      if (source) {
-        (source as mapboxgl.GeoJSONSource).setData(goTransitStops);
-        console.log(
-          "[GO] Stops source updated successfully:",
-          goTransitStops.features.length,
-        );
-
-        // Verify rendering
-        setTimeout(() => {
-          if (!map.current) return;
-          const rendered = map.current.queryRenderedFeatures({
-            layers: ["go-transit-stops-layer"],
-          });
-          console.log("[GO] Rendered stops after update:", rendered.length);
-        }, 100);
-      } else {
-        console.warn("[GO] Source not found when trying to update");
-      }
-    };
-
-    console.log("[GO] Map is ready, updating stops immediately");
-    updateStops();
-  }, [mapReady, goTransitStops, ensureGOTransitLayers]);
-
-  // Update GO Transit layer visibility
-  useEffect(() => {
-    if (map.current && map.current.isStyleLoaded()) {
-      if (map.current.getLayer("go-transit-stops-layer")) {
-        map.current.setLayoutProperty(
-          "go-transit-stops-layer",
-          "visibility",
-          showGoTransit ? "visible" : "none",
-        );
-      }
-
-      if (map.current.getLayer("go-transit-stops-labels")) {
-        map.current.setLayoutProperty(
-          "go-transit-stops-labels",
-          "visibility",
-          showGoTransit ? "visible" : "none",
-        );
-      }
+    ensureGOTransitLayers();
+    const source = map.current.getSource(
+      "go-transit-stops",
+    ) as mapboxgl.GeoJSONSource;
+    if (source) {
+      source.setData(goTransitStops);
     }
-  }, [showGoTransit, map.current]);
+  }, [mapReady, goTransitStops, ensureGOTransitLayers]);
 
   useEffect(() => {
     if (!map.current || !unionPearsonShapes || hasFitUnionPearson.current)
@@ -891,51 +570,6 @@ export default function MapPage() {
       hasFitUnionPearson.current = true;
     }
   }, [unionPearsonShapes]);
-
-  useEffect(() => {
-    if (
-      !mapReady ||
-      !map.current ||
-      !unionPearsonStops ||
-      hasFitUnionPearson.current
-    )
-      return;
-
-    const fitToStops = () => {
-      if (!map.current) return;
-      if (!map.current.getSource("union-pearson-stops")) return;
-
-      const bounds = new mapboxgl.LngLatBounds();
-      for (const feature of unionPearsonStops.features) {
-        if (feature.geometry.type !== "Point") continue;
-        bounds.extend(feature.geometry.coordinates as [number, number]);
-      }
-
-      if (!bounds.isEmpty()) {
-        map.current.fitBounds(bounds, {
-          padding: 80,
-          maxZoom: 13,
-          duration: 0,
-        });
-        hasFitUnionPearson.current = true;
-        console.log("[UPX] Fit to stops bounds");
-      }
-    };
-
-    if (map.current.isStyleLoaded()) {
-      fitToStops();
-      return;
-    }
-
-    const handleStyleLoad = () => {
-      fitToStops();
-    };
-    map.current.once("style.load", handleStyleLoad);
-
-    return () => {
-      map.current?.off("style.load", handleStyleLoad);
-    };
-  }, [mapReady, unionPearsonStops]);
 
   return (
     <div className="relative h-screen w-full">
@@ -1008,59 +642,76 @@ export default function MapPage() {
             </label>
           </div>
 
-          <div className="mt-3 text-[11px] text-white/40">Trains</div>
-          <div className="mt-2 space-y-2">
-            {goRoutesByType.trains.length === 0 && (
-              <div className="text-xs text-white/40">No train routes</div>
-            )}
-            {goRoutesByType.trains.map((route) => (
-              <label
-                key={route.id}
-                className="flex items-center gap-2 text-sm text-white/70"
-              >
-                <input
-                  type="checkbox"
-                  className="accent-emerald-400"
-                  checked={selectedGoRouteIds.includes(route.id)}
-                  onChange={() => toggleGoRoute(route.id)}
-                />
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: route.color }}
-                />
-                <span className="truncate">
-                  {route.shortName || route.name || route.id}
-                </span>
-              </label>
-            ))}
-          </div>
+          <input
+            type="text"
+            value={goRouteFilterText}
+            onChange={(event) => setGoRouteFilterText(event.target.value)}
+            placeholder="Filter sub-routes (e.g., 31A)"
+            className="mt-3 w-full rounded-lg bg-black/50 border border-white/10 px-3 py-2 text-xs text-white/80 placeholder:text-white/40"
+          />
 
-          <div className="mt-4 text-[11px] text-white/40">Buses</div>
-          <div className="mt-2 space-y-2">
-            {goRoutesByType.buses.length === 0 && (
-              <div className="text-xs text-white/40">No bus routes</div>
-            )}
-            {goRoutesByType.buses.map((route) => (
-              <label
-                key={route.id}
-                className="flex items-center gap-2 text-sm text-white/70"
-              >
-                <input
-                  type="checkbox"
-                  className="accent-emerald-400"
-                  checked={selectedGoRouteIds.includes(route.id)}
-                  onChange={() => toggleGoRoute(route.id)}
-                />
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: route.color }}
-                />
-                <span className="truncate">
-                  {route.shortName || route.name || route.id}
-                </span>
-              </label>
-            ))}
-          </div>
+          {groupedGoRoutes.length === 0 && (
+            <div className="mt-3 text-xs text-white/40">
+              No routes match this filter.
+            </div>
+          )}
+
+          {groupedGoRoutes.map((group) => {
+            const routeIds = group.routes.map((route) => route.id);
+            const selectedCount = routeIds.filter((id) =>
+              selectedGoRouteIds.includes(id),
+            ).length;
+
+            return (
+              <div key={group.name} className="mt-4">
+                <div className="flex items-center justify-between text-[11px] text-white/40">
+                  <span className="truncate">{group.name}</span>
+                  <div className="flex gap-2">
+                    <button
+                      className="text-white/60 hover:text-white transition"
+                      onClick={() => setGoRouteGroup(routeIds, true)}
+                    >
+                      All
+                    </button>
+                    <button
+                      className="text-white/60 hover:text-white transition"
+                      onClick={() => setGoRouteGroup(routeIds, false)}
+                    >
+                      None
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2 space-y-2">
+                  {group.routes.map((route) => (
+                    <label
+                      key={route.id}
+                      className="flex items-center gap-2 text-sm text-white/70"
+                    >
+                      <input
+                        type="checkbox"
+                        className="accent-emerald-400"
+                        checked={selectedGoRouteIds.includes(route.id)}
+                        onChange={() => toggleGoRoute(route.id)}
+                      />
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: route.color }}
+                      />
+                      <span className="truncate">
+                        {route.shortName || route.name || route.id}
+                      </span>
+                      <span className="ml-auto text-[10px] uppercase text-white/40">
+                        {route.type === "2" ? "Train" : "Bus"}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-1 text-[10px] text-white/30">
+                  {selectedCount}/{routeIds.length} selected
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
