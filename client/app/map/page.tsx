@@ -7,38 +7,6 @@ import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
 
-function parseCsvLine(line: string): string[] {
-  const values: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    const next = line[i + 1];
-
-    if (char === '"') {
-      if (inQuotes && next === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (char === "," && !inQuotes) {
-      values.push(current);
-      current = "";
-      continue;
-    }
-
-    current += char;
-  }
-
-  values.push(current);
-  return values;
-}
-
 export default function MapPage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -47,25 +15,49 @@ export default function MapPage() {
   const [showUnionPearson, setShowUnionPearson] = useState(true);
   const hasFitUnionPearson = useRef(false);
   const [mapReady, setMapReady] = useState(false);
-  const [goTransitShapes, setGoTransitShapes] =
+  const [goRoutes, setGoRoutes] = useState<
+    Array<{
+      route_id: string;
+      route_short_name: string;
+      route_long_name: string;
+      route_type: number | string;
+    }>
+  >([]);
+  const [goVariantsIndex, setGoVariantsIndex] = useState<
+    Record<
+      string,
+      Array<{
+        variant_id: string;
+        label: string;
+        route_id: string;
+        direction_id: number;
+        shape_id: string | null;
+        trip_count: number;
+        representative_trip_id: string;
+        route_variant: string;
+      }>
+    >
+  >({});
+  const [goVariantLines, setGoVariantLines] =
     useState<GeoJSON.FeatureCollection | null>(null);
+  const [goVariantStops, setGoVariantStops] = useState<
+    Record<
+      string,
+      Array<{
+        stop_id: string;
+        stop_name: string;
+        stop_lat: number | null;
+        stop_lon: number | null;
+        stop_sequence: number;
+      }>
+    > | null
+  >(null);
   const [showGoBuses, setShowGoBuses] = useState(true);
   const [showGoTrains, setShowGoTrains] = useState(true);
   const [showGoTransit, setShowGoTransit] = useState(true);
-  const [goTransitStops, setGoTransitStops] =
-    useState<GeoJSON.FeatureCollection | null>(null);
-  const [goRouteOptions, setGoRouteOptions] = useState<
-    Array<{
-      id: string;
-      name: string;
-      shortName: string;
-      type: string;
-      color: string;
-    }>
-  >([]);
-  const [selectedGoRouteIds, setSelectedGoRouteIds] = useState<string[]>([]);
-  const [goRouteFilterText, setGoRouteFilterText] = useState("");
-  const hasInitializedGoRoutes = useRef(false);
+  const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
+  const [goVariantFilterText, setGoVariantFilterText] = useState("");
+  const hasInitializedGoVariants = useRef(false);
   // Update GO Transit layer visibility and filters
   useEffect(() => {
     if (!map.current || !map.current.isStyleLoaded()) return;
@@ -79,30 +71,26 @@ export default function MapPage() {
         ? ["in", ["get", "route_type"], ["literal", visibleRouteTypes]]
         : ["in", ["get", "route_type"], ""];
 
-    const hasRouteSelection = hasInitializedGoRoutes.current;
-    const routesFilter: mapboxgl.Expression = [
+    const hasVariantSelection = hasInitializedGoVariants.current;
+    const variantFilter: mapboxgl.Expression = [
       "all",
       routeTypeFilter,
-      hasRouteSelection
-        ? selectedGoRouteIds.length > 0
-          ? ["in", ["get", "route_id"], ["literal", selectedGoRouteIds]]
-          : ["in", ["get", "route_id"], ""]
-        : ["has", "route_id"],
+      hasVariantSelection
+        ? selectedVariantIds.length > 0
+          ? ["in", ["get", "variant_id"], ["literal", selectedVariantIds]]
+          : ["in", ["get", "variant_id"], ""]
+        : ["has", "variant_id"],
     ];
 
-    // Filter routes layer
     const routesLayer = "go-transit-routes-layer";
     if (map.current.getLayer(routesLayer)) {
-      map.current.setFilter(routesLayer, routesFilter);
+      map.current.setFilter(routesLayer, variantFilter);
     }
 
-  }, [
-    showGoBuses,
-    showGoTrains,
-    mapReady,
-    selectedGoRouteIds,
-    goRouteOptions,
-  ]);
+    if (map.current.getLayer("go-transit-stops-layer")) {
+      map.current.setFilter("go-transit-stops-layer", variantFilter);
+    }
+  }, [showGoBuses, showGoTrains, selectedVariantIds]);
 
   // Fetch Union Pearson Express shapes
   useEffect(() => {
@@ -121,175 +109,213 @@ export default function MapPage() {
     fetchUnionPearsonShapes();
   }, []);
 
-  // Fetch GO Transit shapes
   useEffect(() => {
-    const fetchGoTransitShapes = async () => {
+    const fetchRoutes = async () => {
       try {
-        console.log("[GO] Fetching shapes from /api/gotransit/shapes");
-        const response = await fetch("/api/gotransit/shapes");
+        const response = await fetch("/gotransit/derived/routes_index.json");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setGoRoutes(data);
+      } catch (error) {
+        console.error("Failed to fetch GO routes index:", error);
+      }
+    };
+    fetchRoutes();
+  }, []);
+
+  useEffect(() => {
+    const fetchVariants = async () => {
+      try {
+        const response = await fetch("/gotransit/derived/variants_index.json");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setGoVariantsIndex(data);
+      } catch (error) {
+        console.error("Failed to fetch GO variants index:", error);
+      }
+    };
+    fetchVariants();
+  }, []);
+
+  useEffect(() => {
+    const fetchVariantLines = async () => {
+      try {
+        const response = await fetch("/gotransit/derived/variant_lines.geojson");
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data: GeoJSON.FeatureCollection = await response.json();
-        console.log("[GO] Shapes loaded from API:", data.features.length);
-        setGoTransitShapes(data);
+        setGoVariantLines(data);
       } catch (error) {
-        console.error("Failed to fetch GO Transit shapes:", error);
+        console.error("Failed to fetch GO variant lines:", error);
       }
     };
-    fetchGoTransitShapes();
+    fetchVariantLines();
   }, []);
 
-  // Fetch GO Transit stops (train stops only)
   useEffect(() => {
-    const fetchGoTransitStops = async () => {
+    const fetchVariantStops = async () => {
       try {
-        const response = await fetch("/api/gotransit/stops");
+        const response = await fetch("/gotransit/derived/variant_stops.json");
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data: GeoJSON.FeatureCollection = await response.json();
-        setGoTransitStops(data);
+        const data = await response.json();
+        setGoVariantStops(data);
       } catch (error) {
-        console.warn("[GO] API stops fetch failed, trying fallback", error);
-        try {
-          const fallbackResponse = await fetch("/gotransit/stops.txt");
-          if (!fallbackResponse.ok) {
-            throw new Error(
-              `Fallback HTTP error! status: ${fallbackResponse.status}`,
-            );
-          }
-          const text = await fallbackResponse.text();
-          const lines = text.split("\n").filter(Boolean);
-          if (lines.length <= 1) {
-            throw new Error("Fallback file empty");
-          }
-
-          const headers = parseCsvLine(lines[0]).map((header) =>
-            header.trim(),
-          );
-          if (headers[0]) {
-            headers[0] = headers[0].replace(/^\uFEFF/, "");
-          }
-
-          const features: GeoJSON.Feature[] = lines
-            .slice(1)
-            .map((line) => {
-              const values = parseCsvLine(line);
-              const row = headers.reduce<Record<string, string>>(
-                (obj, header, index) => {
-                  obj[header] = (values[index] || "").trim();
-                  return obj;
-                },
-                {},
-              );
-
-              const lat = parseFloat(row.stop_lat);
-              const lon = parseFloat(row.stop_lon);
-              if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-                return null;
-              }
-
-              return {
-                type: "Feature",
-                properties: {
-                  stop_id: row.stop_id,
-                  stop_name: row.stop_name,
-                },
-                geometry: {
-                  type: "Point",
-                  coordinates: [lon, lat],
-                },
-              } as GeoJSON.Feature;
-            })
-            .filter(Boolean) as GeoJSON.Feature[];
-
-          setGoTransitStops({
-            type: "FeatureCollection",
-            features,
-          });
-        } catch (fallbackError) {
-          console.error("Failed to fetch GO Transit stops:", error);
-          console.error("Failed fallback stops load:", fallbackError);
-        }
+        console.error("Failed to fetch GO variant stops:", error);
       }
     };
-    fetchGoTransitStops();
+    fetchVariantStops();
   }, []);
 
-  useEffect(() => {
-    if (!goTransitShapes) return;
+  const routeById = useMemo(() => {
+    const map = new Map<string, (typeof goRoutes)[number]>();
+    goRoutes.forEach((route) => map.set(route.route_id, route));
+    return map;
+  }, [goRoutes]);
 
-    const optionsMap = new Map<
+  const routeByShortName = useMemo(() => {
+    const map = new Map<string, (typeof goRoutes)[number]>();
+    goRoutes.forEach((route) => {
+      if (!map.has(route.route_short_name)) {
+        map.set(route.route_short_name, route);
+      }
+    });
+    return map;
+  }, [goRoutes]);
+
+  const variantLookup = useMemo(() => {
+    const map = new Map<
       string,
-      { id: string; name: string; shortName: string; type: string; color: string }
-    >();
-
-    for (const feature of goTransitShapes.features) {
-      const props = feature.properties as Record<string, string>;
-      const id = props.route_id || "";
-      if (!id || optionsMap.has(id)) continue;
-
-      optionsMap.set(id, {
-        id,
-        name: props.route_name || "",
-        shortName: props.route_short_name || "",
-        type: props.route_type || "",
-        color: props.route_color || "#10b981",
-      });
-    }
-
-    const options = Array.from(optionsMap.values()).sort((a, b) => {
-      if (a.type !== b.type) return a.type.localeCompare(b.type);
-      return (a.shortName || a.name).localeCompare(b.shortName || b.name);
-    });
-
-    setGoRouteOptions(options);
-    if (!hasInitializedGoRoutes.current && options.length > 0) {
-      setSelectedGoRouteIds(options.map((route) => route.id));
-      hasInitializedGoRoutes.current = true;
-    }
-  }, [goTransitShapes]);
-
-  const groupedGoRoutes = useMemo(() => {
-    const term = goRouteFilterText.trim().toLowerCase();
-    const grouped = new Map<string, typeof goRouteOptions>();
-
-    goRouteOptions.forEach((route) => {
-      const haystack = `${route.shortName} ${route.name} ${route.id}`
-        .trim()
-        .toLowerCase();
-      if (term && !haystack.includes(term)) return;
-
-      const key = route.name || "Other";
-      if (!grouped.has(key)) {
-        grouped.set(key, []);
+      {
+        route_short_name: string;
+        route_id: string;
+        label: string;
+        route_variant: string;
       }
-      grouped.get(key)!.push(route);
+    >();
+    Object.entries(goVariantsIndex).forEach(([routeShortName, variants]) => {
+      variants.forEach((variant) => {
+        map.set(variant.variant_id, {
+          route_short_name: routeShortName,
+          route_id: variant.route_id,
+          label: variant.label,
+          route_variant: variant.route_variant,
+        });
+      });
     });
+    return map;
+  }, [goVariantsIndex]);
 
-    return Array.from(grouped.entries()).map(([name, routes]) => ({
-      name,
-      routes: routes.sort((a, b) =>
-        (a.shortName || a.id).localeCompare(b.shortName || b.id),
-      ),
-    }));
-  }, [goRouteOptions, goRouteFilterText]);
+  const colorForRoute = useCallback((routeShortName: string) => {
+    let hash = 0;
+    for (let i = 0; i < routeShortName.length; i += 1) {
+      hash = (hash * 31 + routeShortName.charCodeAt(i)) % 360;
+    }
+    return `hsl(${hash}, 70%, 45%)`;
+  }, []);
 
-  const toggleGoRoute = (routeId: string) => {
-    setSelectedGoRouteIds((prev) =>
-      prev.includes(routeId)
-        ? prev.filter((id) => id !== routeId)
-        : [...prev, routeId],
+  const displayVariantLines = useMemo(() => {
+    if (!goVariantLines) return null;
+    return {
+      type: "FeatureCollection",
+      features: goVariantLines.features.map((feature) => {
+        const props = feature.properties as Record<string, string>;
+        const routeId = props.route_id || "";
+        const routeShortName = props.route_short_name || "";
+        const routeInfo = routeById.get(routeId);
+        const routeType = routeInfo ? String(routeInfo.route_type) : "";
+        const routeColor = colorForRoute(routeShortName || routeId);
+        return {
+          ...feature,
+          properties: {
+            ...props,
+            route_type: routeType,
+            route_color: routeColor,
+          },
+        } as GeoJSON.Feature;
+      }),
+    } as GeoJSON.FeatureCollection;
+  }, [goVariantLines, routeById, colorForRoute]);
+
+  const allVariantIds = useMemo(() => {
+    const ids: string[] = [];
+    Object.values(goVariantsIndex).forEach((variants) => {
+      variants.forEach((variant) => ids.push(variant.variant_id));
+    });
+    return ids;
+  }, [goVariantsIndex]);
+
+  useEffect(() => {
+    if (!hasInitializedGoVariants.current && allVariantIds.length > 0) {
+      setSelectedVariantIds(allVariantIds);
+      hasInitializedGoVariants.current = true;
+    }
+  }, [allVariantIds]);
+
+  const groupedGoVariants = useMemo(() => {
+    const term = goVariantFilterText.trim().toLowerCase();
+    return Object.entries(goVariantsIndex)
+      .map(([routeShortName, variants]) => {
+        const grouped = new Map<
+          string,
+          {
+            displayKey: string;
+            variantIds: string[];
+            labels: string[];
+          }
+        >();
+
+        variants.forEach((variant) => {
+          const displayKey =
+            variant.route_variant || variant.variant_id || routeShortName;
+          const haystack = `${routeShortName} ${displayKey} ${variant.label}`
+            .trim()
+            .toLowerCase();
+          if (term && !haystack.includes(term)) return;
+
+          if (!grouped.has(displayKey)) {
+            grouped.set(displayKey, {
+              displayKey,
+              variantIds: [],
+              labels: [],
+            });
+          }
+          const entry = grouped.get(displayKey)!;
+          entry.variantIds.push(variant.variant_id);
+          if (variant.label) {
+            entry.labels.push(variant.label);
+          }
+        });
+
+        const items = Array.from(grouped.values()).sort((a, b) =>
+          a.displayKey.localeCompare(b.displayKey),
+        );
+        return { routeShortName, items };
+      })
+      .filter((group) => group.items.length > 0)
+      .sort((a, b) => a.routeShortName.localeCompare(b.routeShortName));
+  }, [goVariantsIndex, goVariantFilterText]);
+
+  const toggleVariant = (variantId: string) => {
+    setSelectedVariantIds((prev) =>
+      prev.includes(variantId)
+        ? prev.filter((id) => id !== variantId)
+        : [...prev, variantId],
     );
   };
 
-  const setGoRouteGroup = (routeIds: string[], enabled: boolean) => {
-    setSelectedGoRouteIds((prev) => {
+  const setVariantGroup = (variantIds: string[], enabled: boolean) => {
+    setSelectedVariantIds((prev) => {
       if (enabled) {
-        return Array.from(new Set([...prev, ...routeIds]));
+        return Array.from(new Set([...prev, ...variantIds]));
       }
-      return prev.filter((id) => !routeIds.includes(id));
+      return prev.filter((id) => !variantIds.includes(id));
     });
   };
 
@@ -474,24 +500,11 @@ export default function MapPage() {
         map.current.setLayoutProperty(
           "go-transit-stops-layer",
           "visibility",
-          showGoTrains && showGoTransit ? "visible" : "none",
+          showGoTransit ? "visible" : "none",
         );
       }
     }
-  }, [showGoTransit, showGoTrains, map.current]);
-
-  useEffect(() => {
-    if (!map.current || !map.current.isStyleLoaded()) return;
-    if (!map.current.getLayer("go-transit-stops-layer")) return;
-
-    const trainStopsFilter: mapboxgl.Expression = [
-      "in",
-      "2",
-      ["get", "route_types"],
-    ];
-
-    map.current.setFilter("go-transit-stops-layer", trainStopsFilter);
-  }, [mapReady, showGoTrains]);
+  }, [showGoTransit, map.current]);
 
   // Update Union Pearson Express route line data
   useEffect(() => {
@@ -525,9 +538,9 @@ export default function MapPage() {
     }
   }, [mapReady, unionPearsonShapes, ensureUnionPearsonLayers]);
 
-  // Update GO Transit shapes data
+  // Update GO Transit variant lines data
   useEffect(() => {
-    if (!mapReady || !map.current || !goTransitShapes) {
+    if (!mapReady || !map.current || !displayVariantLines) {
       return;
     }
     ensureGOTransitLayers();
@@ -535,12 +548,53 @@ export default function MapPage() {
       "go-transit-routes",
     ) as mapboxgl.GeoJSONSource;
     if (source) {
-      source.setData(goTransitShapes);
+      source.setData(displayVariantLines);
     }
-  }, [mapReady, goTransitShapes, ensureGOTransitLayers]);
+  }, [mapReady, displayVariantLines, ensureGOTransitLayers]);
+
+  const selectedVariantStops = useMemo(() => {
+    if (!goVariantStops) return null;
+    const features: GeoJSON.Feature[] = [];
+    selectedVariantIds.forEach((variantId) => {
+      const stops = goVariantStops[variantId] || [];
+      const lookup = variantLookup.get(variantId);
+      const routeInfo = lookup ? routeById.get(lookup.route_id) : null;
+      const routeType = routeInfo ? String(routeInfo.route_type) : "";
+
+      stops.forEach((stop) => {
+        if (
+          stop.stop_lat === null ||
+          stop.stop_lon === null ||
+          Number.isNaN(stop.stop_lat) ||
+          Number.isNaN(stop.stop_lon)
+        ) {
+          return;
+        }
+        features.push({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [stop.stop_lon, stop.stop_lat],
+          },
+          properties: {
+            variant_id: variantId,
+            stop_id: stop.stop_id,
+            stop_name: stop.stop_name,
+            stop_sequence: stop.stop_sequence,
+            route_short_name: lookup?.route_short_name || "",
+            route_type: routeType,
+          },
+        });
+      });
+    });
+    return {
+      type: "FeatureCollection",
+      features,
+    } as GeoJSON.FeatureCollection;
+  }, [goVariantStops, selectedVariantIds, variantLookup, routeById]);
 
   useEffect(() => {
-    if (!mapReady || !map.current || !goTransitStops) {
+    if (!mapReady || !map.current || !selectedVariantStops) {
       return;
     }
     ensureGOTransitLayers();
@@ -548,9 +602,9 @@ export default function MapPage() {
       "go-transit-stops",
     ) as mapboxgl.GeoJSONSource;
     if (source) {
-      source.setData(goTransitStops);
+      source.setData(selectedVariantStops);
     }
-  }, [mapReady, goTransitStops, ensureGOTransitLayers]);
+  }, [mapReady, selectedVariantStops, ensureGOTransitLayers]);
 
   useEffect(() => {
     if (!map.current || !unionPearsonShapes || hasFitUnionPearson.current)
@@ -602,19 +656,17 @@ export default function MapPage() {
 
         <div className="w-64 max-h-[60vh] overflow-auto rounded-xl bg-black/40 backdrop-blur-md border border-white/10 p-3 text-white/70">
           <div className="flex items-center justify-between text-xs uppercase tracking-wide text-white/50">
-            <span>GO Transit Routes</span>
+            <span>GO Transit Variants</span>
             <div className="flex gap-2">
               <button
                 className="text-white/60 hover:text-white transition"
-                onClick={() =>
-                  setSelectedGoRouteIds(goRouteOptions.map((route) => route.id))
-                }
+                onClick={() => setSelectedVariantIds(allVariantIds)}
               >
                 All
               </button>
               <button
                 className="text-white/60 hover:text-white transition"
-                onClick={() => setSelectedGoRouteIds([])}
+                onClick={() => setSelectedVariantIds([])}
               >
                 None
               </button>
@@ -644,70 +696,85 @@ export default function MapPage() {
 
           <input
             type="text"
-            value={goRouteFilterText}
-            onChange={(event) => setGoRouteFilterText(event.target.value)}
-            placeholder="Filter sub-routes (e.g., 31A)"
+            value={goVariantFilterText}
+            onChange={(event) => setGoVariantFilterText(event.target.value)}
+            placeholder="Filter variants (e.g., 31A or Union)"
             className="mt-3 w-full rounded-lg bg-black/50 border border-white/10 px-3 py-2 text-xs text-white/80 placeholder:text-white/40"
           />
 
-          {groupedGoRoutes.length === 0 && (
+          {groupedGoVariants.length === 0 && (
             <div className="mt-3 text-xs text-white/40">
               No routes match this filter.
             </div>
           )}
 
-          {groupedGoRoutes.map((group) => {
-            const routeIds = group.routes.map((route) => route.id);
-            const selectedCount = routeIds.filter((id) =>
-              selectedGoRouteIds.includes(id),
+          {groupedGoVariants.map((group) => {
+            const routeInfo = routeByShortName.get(group.routeShortName);
+            const variantIds = group.items.flatMap((item) => item.variantIds);
+            const selectedCount = variantIds.filter((id) =>
+              selectedVariantIds.includes(id),
             ).length;
 
             return (
-              <div key={group.name} className="mt-4">
+              <div key={group.routeShortName} className="mt-4">
                 <div className="flex items-center justify-between text-[11px] text-white/40">
-                  <span className="truncate">{group.name}</span>
+                  <span className="truncate">
+                    {group.routeShortName}
+                    {routeInfo?.route_long_name
+                      ? ` · ${routeInfo.route_long_name}`
+                      : ""}
+                  </span>
                   <div className="flex gap-2">
                     <button
                       className="text-white/60 hover:text-white transition"
-                      onClick={() => setGoRouteGroup(routeIds, true)}
+                      onClick={() => setVariantGroup(variantIds, true)}
                     >
                       All
                     </button>
                     <button
                       className="text-white/60 hover:text-white transition"
-                      onClick={() => setGoRouteGroup(routeIds, false)}
+                      onClick={() => setVariantGroup(variantIds, false)}
                     >
                       None
                     </button>
                   </div>
                 </div>
                 <div className="mt-2 space-y-2">
-                  {group.routes.map((route) => (
+                  {group.items.map((item) => {
+                    return (
                     <label
-                      key={route.id}
+                      key={item.displayKey}
                       className="flex items-center gap-2 text-sm text-white/70"
                     >
                       <input
                         type="checkbox"
                         className="accent-emerald-400"
-                        checked={selectedGoRouteIds.includes(route.id)}
-                        onChange={() => toggleGoRoute(route.id)}
+                        checked={item.variantIds.every((id) =>
+                          selectedVariantIds.includes(id),
+                        )}
+                        onChange={() => {
+                          const enabled = !item.variantIds.every((id) =>
+                            selectedVariantIds.includes(id),
+                          );
+                          setVariantGroup(item.variantIds, enabled);
+                        }}
                       />
                       <span
                         className="h-2 w-2 rounded-full"
-                        style={{ backgroundColor: route.color }}
+                        style={{
+                          backgroundColor: colorForRoute(group.routeShortName),
+                        }}
                       />
-                      <span className="truncate">
-                        {route.shortName || route.name || route.id}
-                      </span>
+                      <span className="truncate">{item.displayKey}</span>
                       <span className="ml-auto text-[10px] uppercase text-white/40">
-                        {route.type === "2" ? "Train" : "Bus"}
+                        {String(routeInfo?.route_type) === "2" ? "Train" : "Bus"}
                       </span>
                     </label>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="mt-1 text-[10px] text-white/30">
-                  {selectedCount}/{routeIds.length} selected
+                  {selectedCount}/{variantIds.length} selected
                 </div>
               </div>
             );
