@@ -14,7 +14,6 @@ import { InsertModelModal } from "@/components/InsertModelModal";
 import { AssetManagerPanel } from "@/components/AssetManagerPanel";
 import { Prompt3DGenerator } from "@/components/Prompt3DGenerator";
 import { TransformGizmo } from "@/components/TransformGizmo";
-import { SearchBar } from "@/components/SearchBar";
 import { SearchResultPopup } from "@/components/SearchResultPopup";
 import { MapControls } from "@/components/MapControls";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
@@ -313,7 +312,62 @@ export default function MapPage() {
         console.log("[GO] Stops loaded from API:", data.features.length);
         setGoTransitStops(data);
       } catch (error) {
-        console.error("Failed to fetch GO Transit stops:", error);
+        console.warn("[GO] API stops fetch failed, trying fallback", error);
+        try {
+          console.log("[GO] Fetching stops from /gotransit/stops.txt");
+          const fallbackResponse = await fetch("/gotransit/stops.txt");
+          if (!fallbackResponse.ok) {
+            throw new Error(`Fallback HTTP error! status: ${fallbackResponse.status}`);
+          }
+          const text = await fallbackResponse.text();
+          const lines = text.split("\n").filter(Boolean);
+          if (lines.length <= 1) {
+            throw new Error("Fallback file empty");
+          }
+
+          const headers = parseCsvLine(lines[0]).map((header) => header.trim());
+          if (headers[0]) {
+            headers[0] = headers[0].replace(/^\uFEFF/, "");
+          }
+
+          const features: GeoJSON.Feature[] = lines
+            .slice(1)
+            .map((line) => {
+              const values = parseCsvLine(line);
+              const row = headers.reduce<Record<string, string>>((obj, header, index) => {
+                obj[header] = (values[index] || "").trim();
+                return obj;
+              }, {});
+
+              const lat = parseFloat(row.stop_lat);
+              const lon = parseFloat(row.stop_lon);
+              if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+                return null;
+              }
+
+              return {
+                type: "Feature",
+                properties: {
+                  stop_id: row.stop_id,
+                  stop_name: row.stop_name,
+                },
+                geometry: {
+                  type: "Point",
+                  coordinates: [lon, lat],
+                },
+              } as GeoJSON.Feature;
+            })
+            .filter(Boolean) as GeoJSON.Feature[];
+
+          console.log("[GO] Stops loaded from fallback:", features.length);
+          setGoTransitStops({
+            type: "FeatureCollection",
+            features,
+          });
+        } catch (fallbackError) {
+          console.error("Failed to fetch GO Transit stops:", error);
+          console.error("Failed fallback stops load:", fallbackError);
+        }
       }
     };
     fetchGoTransitStops();
