@@ -181,6 +181,9 @@ export default function MapPage() {
   const hasFitUnionPearson = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   const unionPearsonStopsRef = useRef<GeoJSON.FeatureCollection | null>(null);
+  const [goTransitStops, setGoTransitStops] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [showGoTransit, setShowGoTransit] = useState(true);
+  const goTransitStopsRef = useRef<GeoJSON.FeatureCollection | null>(null);
 
   // Show tutorial on first visit
   useEffect(() => {
@@ -294,6 +297,35 @@ export default function MapPage() {
     }
   }, [unionPearsonStops]);
 
+  // Fetch GO Transit stops
+  useEffect(() => {
+    const fetchGoTransitStops = async () => {
+      try {
+        console.log("[GO] Fetching stops from /api/gotransit/stops");
+        const response = await fetch("/api/gotransit/stops");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data: GeoJSON.FeatureCollection = await response.json();
+        if (!data.features || data.features.length === 0) {
+          throw new Error("Empty stops response");
+        }
+        console.log("[GO] Stops loaded from API:", data.features.length);
+        setGoTransitStops(data);
+      } catch (error) {
+        console.error("Failed to fetch GO Transit stops:", error);
+      }
+    };
+    fetchGoTransitStops();
+  }, []);
+
+  useEffect(() => {
+    goTransitStopsRef.current = goTransitStops;
+    if (goTransitStops) {
+      console.log("[GO] goTransitStops state updated with", goTransitStops.features.length, "stops");
+    }
+  }, [goTransitStops]);
+
   const ensureUnionPearsonLayers = useCallback(() => {
     if (!map.current) return;
 
@@ -369,6 +401,65 @@ export default function MapPage() {
       console.log("[UPX] Stops labels layer added");
     }
   }, []);
+
+  const ensureGOTransitLayers = useCallback(() => {
+    if (!map.current) return;
+
+    // Add source for GO Transit stops
+    if (!map.current.getSource("go-transit-stops")) {
+      map.current.addSource("go-transit-stops", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      console.log("[GO] Stops source added");
+    }
+
+    // Add layer for GO Transit stops
+    if (!map.current.getLayer("go-transit-stops-layer")) {
+      map.current.addLayer({
+        id: "go-transit-stops-layer",
+        type: "circle",
+        source: "go-transit-stops",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 3, 12, 6, 15, 8],
+          "circle-color": ["get", "route_color"],
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
+          "circle-opacity": 1,
+        },
+      });
+      console.log("[GO] Stops layer added");
+    }
+
+    // Add labels for GO Transit stops
+    if (!map.current.getLayer("go-transit-stops-labels")) {
+      map.current.addLayer({
+        id: "go-transit-stops-labels",
+        type: "symbol",
+        source: "go-transit-stops",
+        layout: {
+          "text-field": [
+            "concat",
+            ["get", "stop_name"],
+            " (",
+            ["get", "route_short_name"],
+            ")"
+          ],
+          "text-size": 11,
+          "text-offset": [0, 1.2],
+          "text-anchor": "top",
+        },
+        paint: {
+          "text-color": "#0f172a",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 1.5,
+        },
+        minzoom: 11,
+      });
+      console.log("[GO] Stops labels layer added");
+    }
+  }, []);
+
   const [searchResult, setSearchResult] = useState<{
     intent: {
       action: string;
@@ -1496,6 +1587,7 @@ export default function MapPage() {
       map.current.once("load", () => {
         console.log("[UPX] map.load event - setting mapReady to true");
         ensureUnionPearsonLayers();
+        ensureGOTransitLayers();
         setMapReady(true);
         console.log("[UPX] mapReady set to true");
       });
@@ -1609,6 +1701,7 @@ export default function MapPage() {
         });
 
         ensureUnionPearsonLayers();
+        ensureGOTransitLayers();
 
         const stopsData = unionPearsonStopsRef.current;
         if (stopsData && map.current.getSource("union-pearson-stops")) {
@@ -1879,6 +1972,65 @@ export default function MapPage() {
     updateStops();
   }, [mapReady, unionPearsonStops, ensureUnionPearsonLayers]);
 
+  // Update GO Transit stops when data is loaded
+  useEffect(() => {
+    if (!mapReady || !map.current || !goTransitStops) {
+      console.log("[GO] useEffect blocked - mapReady:", mapReady, "map.current:", !!map.current, "goTransitStops:", !!goTransitStops);
+      return;
+    }
+
+    console.log("[GO] useEffect triggered with stops data, mapReady =", mapReady);
+
+    const updateStops = () => {
+      if (!map.current) return;
+
+      console.log("[GO] Attempting to update stops source...");
+
+      // Ensure layers exist
+      ensureGOTransitLayers();
+
+      // Get the source and update data
+      const source = map.current.getSource("go-transit-stops");
+      if (source) {
+        (source as mapboxgl.GeoJSONSource).setData(goTransitStops);
+        console.log("[GO] Stops source updated successfully:", goTransitStops.features.length);
+
+        // Verify rendering
+        setTimeout(() => {
+          if (!map.current) return;
+          const rendered = map.current.queryRenderedFeatures({ layers: ["go-transit-stops-layer"] });
+          console.log("[GO] Rendered stops after update:", rendered.length);
+        }, 100);
+      } else {
+        console.warn("[GO] Source not found when trying to update");
+      }
+    };
+
+    console.log("[GO] Map is ready, updating stops immediately");
+    updateStops();
+  }, [mapReady, goTransitStops, ensureGOTransitLayers]);
+
+  // Update GO Transit layer visibility
+  useEffect(() => {
+    if (map.current && map.current.isStyleLoaded()) {
+      if (map.current.getLayer("go-transit-stops-layer")) {
+        map.current.setLayoutProperty(
+          "go-transit-stops-layer",
+          "visibility",
+          showGoTransit ? "visible" : "none"
+        );
+      }
+
+      if (map.current.getLayer("go-transit-stops-labels")) {
+        map.current.setLayoutProperty(
+          "go-transit-stops-labels",
+          "visibility",
+          showGoTransit ? "visible" : "none"
+        );
+      }
+    }
+  }, [showGoTransit, map.current]);
+
   useEffect(() => {
     if (!map.current || !unionPearsonShapes || hasFitUnionPearson.current) return;
     if (!map.current.isStyleLoaded()) return;
@@ -1946,12 +2098,18 @@ export default function MapPage() {
       </a>
 
       {/* Union Pearson Toggle Button */}
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-10 flex gap-2">
         <button
           onClick={() => setShowUnionPearson(prev => !prev)}
           className="p-3 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 text-white/60 hover:text-white hover:bg-black/60 transition-all"
         >
           {showUnionPearson ? "Hide UPX" : "Show UPX"}
+        </button>
+        <button
+          onClick={() => setShowGoTransit(prev => !prev)}
+          className="p-3 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 text-white/60 hover:text-white hover:bg-black/60 transition-all"
+        >
+          {showGoTransit ? "Hide GO" : "Show GO"}
         </button>
       </div>
 
