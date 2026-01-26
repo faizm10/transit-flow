@@ -1527,6 +1527,19 @@ function FrequencyPageContent() {
                       {expandedRoutes.has(route.route_short_name) && (
                         <div className="mt-4 space-y-4">
                           {route.variantDetails.length > 0 ? (() => {
+                            // Filter out special service variants from display
+                            const regularVariants = route.variantDetails.filter(
+                              (variant) => !specialServiceRoutes.includes(variant.variant_id)
+                            );
+                            
+                            if (regularVariants.length === 0) {
+                              return (
+                                <div className="text-xs text-muted-foreground p-3 border border-dashed rounded-lg">
+                                  No regular service trips available for this route.
+                                </div>
+                              );
+                            }
+                            
                             // Group by hour, then by time
                             // Each unique time = one trip, regardless of how many variants serve it
                             // Different variants at the same time are just different route patterns serving the same trip
@@ -1550,7 +1563,7 @@ function FrequencyPageContent() {
                             >();
 
 
-                            route.variantDetails.forEach((variant) => {
+                            regularVariants.forEach((variant) => {
                               variant.tripDetails.forEach((trip) => {
                                 const timeKey = trip.departureTimeFormatted.substring(0, 5); // HH:MM
                                 const hour = Math.floor(trip.departureTime / 3600);
