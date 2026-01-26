@@ -1280,9 +1280,11 @@ function FrequencyPageContent() {
                             return Array.from(tripsByHour.entries())
                               .sort(([a], [b]) => a - b)
                               .map(([hour, timeEntries]) => {
-                                // Count total trips: sum all variants across all times in this hour
-                                // Each variant at a given time is a separate trip
-                                const totalDepartures = timeEntries.reduce((sum, entry) => sum + entry.variants.length, 0);
+                                // For trains: count unique times (1 trip per time, regardless of variants)
+                                // For buses: count all variants (each variant is a separate trip)
+                                const totalDepartures = route.route_type === "2" 
+                                  ? timeEntries.length 
+                                  : timeEntries.reduce((sum, entry) => sum + entry.variants.length, 0);
 
                                 return (
                                   <div
@@ -1298,8 +1300,9 @@ function FrequencyPageContent() {
                                         .sort((a, b) => a.time.localeCompare(b.time))
                                         .map((timeEntry) => {
                                           const hasBoth = timeEntry.weekdayCount > 0 && timeEntry.weekendCount > 0;
-                                          // Count total trips at this time (each variant is a separate trip)
-                                          const tripsAtThisTime = timeEntry.variants.length;
+                                          // For trains: always 1 trip per time (variants are grouped)
+                                          // For buses: count variants as separate trips
+                                          const tripsAtThisTime = route.route_type === "2" ? 1 : timeEntry.variants.length;
 
                                           return (
                                             <div
@@ -1309,7 +1312,7 @@ function FrequencyPageContent() {
                                               <div className="flex items-center justify-between mb-1.5">
                                                 <span className="text-xs font-medium font-mono">
                                                   {timeEntry.time}
-                                                  {tripsAtThisTime > 1 && (
+                                                  {route.route_type !== "2" && tripsAtThisTime > 1 && (
                                                     <span className="text-[10px] text-muted-foreground ml-1">
                                                       ({tripsAtThisTime} trips)
                                                     </span>
