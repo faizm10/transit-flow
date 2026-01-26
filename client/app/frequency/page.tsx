@@ -1061,16 +1061,32 @@ function FrequencyPageContent() {
                     />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "hsl(var(--background))",
-                        border: "1px dashed hsl(var(--border))",
+                        backgroundColor: "hsl(var(--popover))",
+                        border: "1px solid hsl(var(--border))",
                         borderRadius: "8px",
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                       }}
-                      formatter={(value: number | undefined) => [`${value || 0} trips`, "Trips per Hour"]}
+                      labelStyle={{
+                        color: "hsl(var(--foreground))",
+                        fontWeight: 600,
+                        marginBottom: "4px",
+                      }}
+                      itemStyle={{
+                        color: "hsl(var(--foreground))",
+                      }}
+                      cursor={{ fill: "hsl(var(--primary) / 0.1)", stroke: "hsl(var(--primary))", strokeWidth: 2 }}
+                      formatter={(value: number | undefined) => [
+                        <span key="value" style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>
+                          {value || 0} trips per hour
+                        </span>,
+                        "Trips per Hour"
+                      ]}
                     />
                     <Bar
                       dataKey="trips"
                       fill="hsl(var(--foreground))"
                       radius={[4, 4, 0, 0]}
+                      style={{ cursor: "pointer" }}
                     >
                       {Array.from({ length: 24 }, (_, hour) => {
                         const peakHour =
@@ -1087,6 +1103,25 @@ function FrequencyPageContent() {
                                 ? "hsl(142 76% 36%)"
                                 : "hsl(var(--foreground))"
                             }
+                            style={{
+                              transition: "opacity 0.2s ease",
+                            }}
+                            onMouseEnter={(e: any) => {
+                              if (e && e.target) {
+                                e.target.style.opacity = "0.7";
+                                e.target.style.fill = hour === peakHour 
+                                  ? "hsl(142 76% 42%)" 
+                                  : "hsl(var(--primary))";
+                              }
+                            }}
+                            onMouseLeave={(e: any) => {
+                              if (e && e.target) {
+                                e.target.style.opacity = "1";
+                                e.target.style.fill = hour === peakHour
+                                  ? "hsl(142 76% 36%)"
+                                  : "hsl(var(--foreground))";
+                              }
+                            }}
                           />
                         );
                       })}
@@ -1242,13 +1277,25 @@ function FrequencyPageContent() {
                               />
                               <Tooltip
                                 contentStyle={{
-                                  backgroundColor: "hsl(var(--background))",
-                                  border: "1px dashed hsl(var(--border))",
+                                  backgroundColor: "hsl(var(--popover))",
+                                  border: "1px solid hsl(var(--border))",
                                   borderRadius: "8px",
+                                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                                 }}
+                                labelStyle={{
+                                  color: "hsl(var(--foreground))",
+                                  fontWeight: 600,
+                                  marginBottom: "4px",
+                                }}
+                                itemStyle={{
+                                  color: "hsl(var(--foreground))",
+                                }}
+                                cursor={{ stroke: "hsl(var(--primary))", strokeWidth: 2, strokeDasharray: "5 5" }}
                                 labelFormatter={(value) => `Hour: ${value}`}
                                 formatter={(value: number | undefined) => [
-                                  `${value || 0} trips per hour (sum across all service days, variants, and directions)`,
+                                  <span key="value" style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>
+                                    {value || 0} trips per hour
+                                  </span>,
                                   "Trips per Hour",
                                 ]}
                               />
@@ -1257,9 +1304,15 @@ function FrequencyPageContent() {
                                 dataKey="trips"
                                 stroke="hsl(var(--foreground))"
                                 strokeWidth={2}
-                                dot={{ r: 3, fill: "hsl(var(--foreground))" }}
-                                activeDot={{ r: 5 }}
+                                dot={{ r: 3, fill: "hsl(var(--foreground))", strokeWidth: 0 }}
+                                activeDot={{ 
+                                  r: 6, 
+                                  fill: "hsl(var(--primary))",
+                                  stroke: "hsl(var(--background))",
+                                  strokeWidth: 2,
+                                }}
                                 connectNulls={false}
+                                style={{ cursor: "pointer" }}
                               />
                               </LineChart>
                             </ResponsiveContainer>
