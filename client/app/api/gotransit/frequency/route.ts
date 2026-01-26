@@ -212,7 +212,7 @@ export async function GET() {
       });
     });
 
-    // Read calendar_dates.txt to map service_id to weekday/weekend
+    // Read calendar_dates.txt to map service_id to weekday/weekend and count actual service days
     const calendarDatesContent = await fs.readFile(calendarDatesPath, "utf8");
     const calendarDatesLines = calendarDatesContent.split("\n").filter(Boolean);
     const calendarDatesHeaders = parseCsvLine(calendarDatesLines[0]).map((h) => h.trim());
@@ -221,6 +221,11 @@ export async function GET() {
     }
 
     const serviceIdToDayType = new Map<string, "weekday" | "weekend">();
+    const serviceIdToDayCount = new Map<string, number>(); // Count actual service days per service_id
+    
+    // Check if exception_type column exists
+    const hasExceptionType = calendarDatesHeaders.includes("exception_type");
+    
     for (let i = 1; i < calendarDatesLines.length; i += 1) {
       const values = parseCsvLine(calendarDatesLines[i]);
       const row = calendarDatesHeaders.reduce<Record<string, string>>(
@@ -232,8 +237,31 @@ export async function GET() {
       );
       const serviceId = row.service_id;
       const date = row.date;
+      
       if (serviceId && date) {
-        serviceIdToDayType.set(serviceId, isWeekend(date) ? "weekend" : "weekday");
+        // Determine day type (use first occurrence or most common)
+        if (!serviceIdToDayType.has(serviceId)) {
+          serviceIdToDayType.set(serviceId, isWeekend(date) ? "weekend" : "weekday");
+        }
+        
+        // Count actual service days
+        if (hasExceptionType) {
+          const exceptionType = row.exception_type;
+          // exception_type: 1 = service added, 2 = service removed
+          if (exceptionType === "1") {
+            const currentCount = serviceIdToDayCount.get(serviceId) || 0;
+            serviceIdToDayCount.set(serviceId, currentCount + 1);
+          } else if (exceptionType === "2") {
+            // Service removed - subtract if it was previously counted
+            const currentCount = serviceIdToDayCount.get(serviceId) || 0;
+            serviceIdToDayCount.set(serviceId, Math.max(0, currentCount - 1));
+          }
+          // If exception_type is missing, don't count (might be invalid row)
+        } else {
+          // No exception_type column - assume all rows are service days
+          const currentCount = serviceIdToDayCount.get(serviceId) || 0;
+          serviceIdToDayCount.set(serviceId, currentCount + 1);
+        }
       }
     }
 
@@ -530,25 +558,36 @@ export async function GET() {
       // Convert to trip details array
       const tripDetails: TripDetail[] = Array.from(tripsByTime.values())
         .map((group) => {
-          const weekdayCount = Array.from(group.serviceIds).filter((sid) => {
-            const dayType = serviceIdToDayType.get(sid);
-            return dayType === "weekday";
-          }).length;
-          const weekendCount = Array.from(group.serviceIds).filter((sid) => {
-            const dayType = serviceIdToDayType.get(sid);
-            return dayType === "weekend";
-          }).length;
-          const timesPerWeek = weekdayCount * 5 + weekendCount * 2; // 5 weekdays + 2 weekend days
+          // Count actual service days for each service_id
+          let totalDays = 0;
+          let weekdayDays = 0;
+          let weekendDays = 0;
+          
+          group.serviceIds.forEach((serviceId) => {
+            const dayCount = serviceIdToDayCount.get(serviceId) || 0;
+            const dayType = serviceIdToDayType.get(serviceId);
+            
+            totalDays += dayCount;
+            
+            if (dayType === "weekday") {
+              weekdayDays += dayCount;
+            } else if (dayType === "weekend") {
+              weekendDays += dayCount;
+            }
+          });
+          
+          // Use actual day count instead of formula
+          const timesPerWeek = totalDays;
 
-          // Determine primary day type
+          // Determine primary day type based on actual days
           let primaryDayType: "weekday" | "weekend" | "unknown" = "unknown";
-          if (weekdayCount > 0 && weekendCount === 0) {
+          if (weekdayDays > 0 && weekendDays === 0) {
             primaryDayType = "weekday";
-          } else if (weekendCount > 0 && weekdayCount === 0) {
+          } else if (weekendDays > 0 && weekdayDays === 0) {
             primaryDayType = "weekend";
-          } else if (weekdayCount > weekendCount) {
+          } else if (weekdayDays > weekendDays) {
             primaryDayType = "weekday";
-          } else if (weekendCount > weekdayCount) {
+          } else if (weekendDays > weekdayDays) {
             primaryDayType = "weekend";
           }
 
