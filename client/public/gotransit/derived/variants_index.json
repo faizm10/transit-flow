@@ -222,26 +222,6 @@
     },
     {
       "variant_id": "18C",
-      "label": "18L - Oakville GO",
-      "route_id": "01260426-18",
-      "direction_id": 1,
-      "shape_id": "421292",
-      "trip_count": 250,
-      "representative_trip_id": "20260117-18-18211",
-      "route_variant": "18L"
-    },
-    {
-      "variant_id": "18D",
-      "label": "18L - Union Station",
-      "route_id": "01260426-18",
-      "direction_id": 0,
-      "shape_id": "421289",
-      "trip_count": 242,
-      "representative_trip_id": "20260117-18-18232",
-      "route_variant": "18L"
-    },
-    {
-      "variant_id": "18E",
       "label": "18J - West Harbour GO",
       "route_id": "01260426-18",
       "direction_id": 1,
@@ -251,7 +231,7 @@
       "route_variant": "18J"
     },
     {
-      "variant_id": "18F",
+      "variant_id": "18D",
       "label": "18C - Hamilton GO",
       "route_id": "01260426-18",
       "direction_id": 1,
@@ -261,27 +241,7 @@
       "route_variant": "18C"
     },
     {
-      "variant_id": "18G",
-      "label": "18N - Oakville GO",
-      "route_id": "01260426-18",
-      "direction_id": 1,
-      "shape_id": "421275",
-      "trip_count": 156,
-      "representative_trip_id": "20260116-18-18873",
-      "route_variant": "18N"
-    },
-    {
-      "variant_id": "18H",
-      "label": "18R - Union Station",
-      "route_id": "01260426-18",
-      "direction_id": 0,
-      "shape_id": "421288",
-      "trip_count": 150,
-      "representative_trip_id": "20260117-18-18230",
-      "route_variant": "18R"
-    },
-    {
-      "variant_id": "18I",
+      "variant_id": "18E",
       "label": "18E - Union Station",
       "route_id": "01260426-18",
       "direction_id": 0,
@@ -291,7 +251,7 @@
       "route_variant": "18E"
     },
     {
-      "variant_id": "18J",
+      "variant_id": "18F",
       "label": "18F - Hamilton GO",
       "route_id": "01260426-18",
       "direction_id": 1,
@@ -301,7 +261,7 @@
       "route_variant": "18F"
     },
     {
-      "variant_id": "18K",
+      "variant_id": "18G",
       "label": "18H - Oakville GO",
       "route_id": "01260426-18",
       "direction_id": 1,
@@ -311,7 +271,7 @@
       "route_variant": "18H"
     },
     {
-      "variant_id": "18L",
+      "variant_id": "18H",
       "label": "18J - Union Station",
       "route_id": "01260426-18",
       "direction_id": 0,
@@ -321,7 +281,7 @@
       "route_variant": "18J"
     },
     {
-      "variant_id": "18M",
+      "variant_id": "18I",
       "label": "18H - Union Station",
       "route_id": "01260426-18",
       "direction_id": 0,
@@ -331,7 +291,7 @@
       "route_variant": "18H"
     },
     {
-      "variant_id": "18N",
+      "variant_id": "18J",
       "label": "18G - Union Station",
       "route_id": "01260426-18",
       "direction_id": 0,
@@ -341,7 +301,7 @@
       "route_variant": "18G"
     },
     {
-      "variant_id": "18O",
+      "variant_id": "18K",
       "label": "18D - Clarkson GO",
       "route_id": "01260426-18",
       "direction_id": 1,
@@ -351,7 +311,7 @@
       "route_variant": "18D"
     },
     {
-      "variant_id": "18P",
+      "variant_id": "18L",
       "label": "18B - Union Station",
       "route_id": "01260426-18",
       "direction_id": 0,
@@ -361,7 +321,7 @@
       "route_variant": "18B"
     },
     {
-      "variant_id": "18Q",
+      "variant_id": "18M",
       "label": "18A - Union Station",
       "route_id": "01260426-18",
       "direction_id": 0,
@@ -371,7 +331,7 @@
       "route_variant": "18A"
     },
     {
-      "variant_id": "18R",
+      "variant_id": "18N",
       "label": "18A - West Harbour GO",
       "route_id": "01260426-18",
       "direction_id": 1,
@@ -379,26 +339,6 @@
       "trip_count": 32,
       "representative_trip_id": "20260110-18-18111",
       "route_variant": "18A"
-    },
-    {
-      "variant_id": "18S",
-      "label": "18M - Port Credit GO",
-      "route_id": "01260426-18",
-      "direction_id": 1,
-      "shape_id": "421273",
-      "trip_count": 6,
-      "representative_trip_id": "20260116-18-18879",
-      "route_variant": "18M"
-    },
-    {
-      "variant_id": "18T",
-      "label": "18L - Clarkson GO",
-      "route_id": "01260426-18",
-      "direction_id": 1,
-      "shape_id": "421274",
-      "trip_count": 6,
-      "representative_trip_id": "20260116-18-18877",
-      "route_variant": "18L"
     }
   ],
   "19": [

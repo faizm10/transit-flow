@@ -1604,52 +1604,6 @@
       "stop_sequence": 1
     },
     {
-      "stop_id": "00181",
-      "stop_name": "Clarkson GO Bus",
-      "stop_lat": 43.512831,
-      "stop_lon": -79.633109,
-      "stop_sequence": 2
-    },
-    {
-      "stop_id": "00137",
-      "stop_name": "Oakville GO Bus",
-      "stop_lat": 43.455966,
-      "stop_lon": -79.681676,
-      "stop_sequence": 3
-    }
-  ],
-  "18D": [
-    {
-      "stop_id": "00137",
-      "stop_name": "Oakville GO Bus",
-      "stop_lat": 43.455966,
-      "stop_lon": -79.681676,
-      "stop_sequence": 1
-    },
-    {
-      "stop_id": "00181",
-      "stop_name": "Clarkson GO Bus",
-      "stop_lat": 43.512831,
-      "stop_lon": -79.633109,
-      "stop_sequence": 2
-    },
-    {
-      "stop_id": "02300",
-      "stop_name": "Union Station Bus Terminal",
-      "stop_lat": 43.644042,
-      "stop_lon": -79.376939,
-      "stop_sequence": 3
-    }
-  ],
-  "18E": [
-    {
-      "stop_id": "02300",
-      "stop_name": "Union Station Bus Terminal",
-      "stop_lat": 43.644042,
-      "stop_lon": -79.376939,
-      "stop_sequence": 1
-    },
-    {
       "stop_id": "02775",
       "stop_name": "Port Credit GO Bus",
       "stop_lat": 43.555598,
@@ -1825,7 +1779,7 @@
       "stop_sequence": 26
     }
   ],
-  "18F": [
+  "18D": [
     {
       "stop_id": "02300",
       "stop_name": "Union Station Bus Terminal",
@@ -2002,39 +1956,7 @@
       "stop_sequence": 25
     }
   ],
-  "18G": [
-    {
-      "stop_id": "02300",
-      "stop_name": "Union Station Bus Terminal",
-      "stop_lat": 43.644042,
-      "stop_lon": -79.376939,
-      "stop_sequence": 1
-    },
-    {
-      "stop_id": "00137",
-      "stop_name": "Oakville GO Bus",
-      "stop_lat": 43.455966,
-      "stop_lon": -79.681676,
-      "stop_sequence": 2
-    }
-  ],
-  "18H": [
-    {
-      "stop_id": "00137",
-      "stop_name": "Oakville GO Bus",
-      "stop_lat": 43.455966,
-      "stop_lon": -79.681676,
-      "stop_sequence": 1
-    },
-    {
-      "stop_id": "02300",
-      "stop_name": "Union Station Bus Terminal",
-      "stop_lat": 43.644042,
-      "stop_lon": -79.376939,
-      "stop_sequence": 2
-    }
-  ],
-  "18I": [
+  "18E": [
     {
       "stop_id": "02652",
       "stop_name": "West Harbour GO Bus",
@@ -2155,7 +2077,7 @@
       "stop_sequence": 17
     }
   ],
-  "18J": [
+  "18F": [
     {
       "stop_id": "02300",
       "stop_name": "Union Station Bus Terminal",
@@ -2316,6 +2238,371 @@
       "stop_lat": 43.252945,
       "stop_lon": -79.869586,
       "stop_sequence": 23
+    }
+  ],
+  "18G": [
+    {
+      "stop_id": "02300",
+      "stop_name": "Union Station Bus Terminal",
+      "stop_lat": 43.644042,
+      "stop_lon": -79.376939,
+      "stop_sequence": 1
+    },
+    {
+      "stop_id": "02775",
+      "stop_name": "Port Credit GO Bus",
+      "stop_lat": 43.555598,
+      "stop_lon": -79.587457,
+      "stop_sequence": 2
+    },
+    {
+      "stop_id": "00181",
+      "stop_name": "Clarkson GO Bus",
+      "stop_lat": 43.512831,
+      "stop_lon": -79.633109,
+      "stop_sequence": 3
+    },
+    {
+      "stop_id": "00137",
+      "stop_name": "Oakville GO Bus",
+      "stop_lat": 43.455966,
+      "stop_lon": -79.681676,
+      "stop_sequence": 4
+    }
+  ],
+  "18H": [
+    {
+      "stop_id": "02652",
+      "stop_name": "West Harbour GO Bus",
+      "stop_lat": 43.2660685497468,
+      "stop_lon": -79.8659978056508,
+      "stop_sequence": 1
+    },
+    {
+      "stop_id": "00141",
+      "stop_name": "Hamilton GO Centre Bus",
+      "stop_lat": 43.252945,
+      "stop_lon": -79.869586,
+      "stop_sequence": 2
+    },
+    {
+      "stop_id": "01002",
+      "stop_name": "King St. E. @ Hughson St. N.",
+      "stop_lat": 43.2562103,
+      "stop_lon": -79.8672409,
+      "stop_sequence": 3
+    },
+    {
+      "stop_id": "01006",
+      "stop_name": "King St. W. @ Summers Ln. (Hamilton Place)",
+      "stop_lat": 43.2576485,
+      "stop_lon": -79.8717346,
+      "stop_sequence": 4
+    },
+    {
+      "stop_id": "02759",
+      "stop_name": "King St. W. @ Queen St. N.",
+      "stop_lat": 43.25943,
+      "stop_lon": -79.878547,
+      "stop_sequence": 5
+    },
+    {
+      "stop_id": "01004",
+      "stop_name": "King St. W. @ Pearl St. N.",
+      "stop_lat": 43.2602654,
+      "stop_lon": -79.8814011,
+      "stop_sequence": 6
+    },
+    {
+      "stop_id": "01005",
+      "stop_name": "King St. W. @ Strathcona Ave. N.",
+      "stop_lat": 43.2614555,
+      "stop_lon": -79.8850708,
+      "stop_sequence": 7
+    },
+    {
+      "stop_id": "00178",
+      "stop_name": "King St. W. @ Dundurn St. N.",
+      "stop_lat": 43.2622643,
+      "stop_lon": -79.8875809,
+      "stop_sequence": 8
+    },
+    {
+      "stop_id": "00180",
+      "stop_name": "Aldershot GO Bus",
+      "stop_lat": 43.313036,
+      "stop_lon": -79.855903,
+      "stop_sequence": 9
+    },
+    {
+      "stop_id": "00912",
+      "stop_name": "Waterdown Rd. @ Masonry Crt.",
+      "stop_lat": 43.3087234,
+      "stop_lon": -79.8554382,
+      "stop_sequence": 10
+    },
+    {
+      "stop_id": "00883",
+      "stop_name": "Plains Rd. E. @ Lasalle Park Rd.",
+      "stop_lat": 43.3069458,
+      "stop_lon": -79.8521805,
+      "stop_sequence": 11
+    },
+    {
+      "stop_id": "00870",
+      "stop_name": "Plains Rd. E. @ Gallagher Rd.",
+      "stop_lat": 43.3126945,
+      "stop_lon": -79.8447876,
+      "stop_sequence": 12
+    },
+    {
+      "stop_id": "00875",
+      "stop_name": "Plains Rd. E. @ Falcon Blvd.",
+      "stop_lat": 43.316925,
+      "stop_lon": -79.8392181,
+      "stop_sequence": 13
+    },
+    {
+      "stop_id": "00880",
+      "stop_name": "Plains Rd. E. @ King Rd.",
+      "stop_lat": 43.3211784,
+      "stop_lon": -79.833252,
+      "stop_sequence": 14
+    },
+    {
+      "stop_id": "00876",
+      "stop_name": "Plains Rd. E. @ Francis Rd.",
+      "stop_lat": 43.3239784,
+      "stop_lon": -79.8296585,
+      "stop_sequence": 15
+    },
+    {
+      "stop_id": "00820",
+      "stop_name": "Fairview St. @ Maple Ave.",
+      "stop_lat": 43.3287392,
+      "stop_lon": -79.8214798,
+      "stop_sequence": 16
+    },
+    {
+      "stop_id": "00177",
+      "stop_name": "Burlington GO Bus",
+      "stop_lat": 43.3404415392208,
+      "stop_lon": -79.8094994945172,
+      "stop_sequence": 17
+    },
+    {
+      "stop_id": "00804",
+      "stop_name": "Brant St. @ Leighland Rd.",
+      "stop_lat": 43.3391037,
+      "stop_lon": -79.8182068,
+      "stop_sequence": 18
+    },
+    {
+      "stop_id": "00263",
+      "stop_name": "Appleby GO Bus",
+      "stop_lat": 43.379261,
+      "stop_lon": -79.760483,
+      "stop_sequence": 19
+    },
+    {
+      "stop_id": "00264",
+      "stop_name": "Bronte GO Bus",
+      "stop_lat": 43.416275,
+      "stop_lon": -79.724009,
+      "stop_sequence": 20
+    },
+    {
+      "stop_id": "00137",
+      "stop_name": "Oakville GO Bus",
+      "stop_lat": 43.455966,
+      "stop_lon": -79.681676,
+      "stop_sequence": 21
+    },
+    {
+      "stop_id": "00181",
+      "stop_name": "Clarkson GO Bus",
+      "stop_lat": 43.512831,
+      "stop_lon": -79.633109,
+      "stop_sequence": 22
+    },
+    {
+      "stop_id": "02775",
+      "stop_name": "Port Credit GO Bus",
+      "stop_lat": 43.555598,
+      "stop_lon": -79.587457,
+      "stop_sequence": 23
+    },
+    {
+      "stop_id": "02300",
+      "stop_name": "Union Station Bus Terminal",
+      "stop_lat": 43.644042,
+      "stop_lon": -79.376939,
+      "stop_sequence": 24
+    }
+  ],
+  "18I": [
+    {
+      "stop_id": "00137",
+      "stop_name": "Oakville GO Bus",
+      "stop_lat": 43.455966,
+      "stop_lon": -79.681676,
+      "stop_sequence": 1
+    },
+    {
+      "stop_id": "00181",
+      "stop_name": "Clarkson GO Bus",
+      "stop_lat": 43.512831,
+      "stop_lon": -79.633109,
+      "stop_sequence": 2
+    },
+    {
+      "stop_id": "02775",
+      "stop_name": "Port Credit GO Bus",
+      "stop_lat": 43.555598,
+      "stop_lon": -79.587457,
+      "stop_sequence": 3
+    },
+    {
+      "stop_id": "02300",
+      "stop_name": "Union Station Bus Terminal",
+      "stop_lat": 43.644042,
+      "stop_lon": -79.376939,
+      "stop_sequence": 4
+    }
+  ],
+  "18J": [
+    {
+      "stop_id": "00141",
+      "stop_name": "Hamilton GO Centre Bus",
+      "stop_lat": 43.252945,
+      "stop_lon": -79.869586,
+      "stop_sequence": 1
+    },
+    {
+      "stop_id": "01002",
+      "stop_name": "King St. E. @ Hughson St. N.",
+      "stop_lat": 43.2562103,
+      "stop_lon": -79.8672409,
+      "stop_sequence": 2
+    },
+    {
+      "stop_id": "01006",
+      "stop_name": "King St. W. @ Summers Ln. (Hamilton Place)",
+      "stop_lat": 43.2576485,
+      "stop_lon": -79.8717346,
+      "stop_sequence": 3
+    },
+    {
+      "stop_id": "02759",
+      "stop_name": "King St. W. @ Queen St. N.",
+      "stop_lat": 43.25943,
+      "stop_lon": -79.878547,
+      "stop_sequence": 4
+    },
+    {
+      "stop_id": "01004",
+      "stop_name": "King St. W. @ Pearl St. N.",
+      "stop_lat": 43.2602654,
+      "stop_lon": -79.8814011,
+      "stop_sequence": 5
+    },
+    {
+      "stop_id": "01005",
+      "stop_name": "King St. W. @ Strathcona Ave. N.",
+      "stop_lat": 43.2614555,
+      "stop_lon": -79.8850708,
+      "stop_sequence": 6
+    },
+    {
+      "stop_id": "00178",
+      "stop_name": "King St. W. @ Dundurn St. N.",
+      "stop_lat": 43.2622643,
+      "stop_lon": -79.8875809,
+      "stop_sequence": 7
+    },
+    {
+      "stop_id": "00180",
+      "stop_name": "Aldershot GO Bus",
+      "stop_lat": 43.313036,
+      "stop_lon": -79.855903,
+      "stop_sequence": 8
+    },
+    {
+      "stop_id": "00912",
+      "stop_name": "Waterdown Rd. @ Masonry Crt.",
+      "stop_lat": 43.3087234,
+      "stop_lon": -79.8554382,
+      "stop_sequence": 9
+    },
+    {
+      "stop_id": "00883",
+      "stop_name": "Plains Rd. E. @ Lasalle Park Rd.",
+      "stop_lat": 43.3069458,
+      "stop_lon": -79.8521805,
+      "stop_sequence": 10
+    },
+    {
+      "stop_id": "00870",
+      "stop_name": "Plains Rd. E. @ Gallagher Rd.",
+      "stop_lat": 43.3126945,
+      "stop_lon": -79.8447876,
+      "stop_sequence": 11
+    },
+    {
+      "stop_id": "00875",
+      "stop_name": "Plains Rd. E. @ Falcon Blvd.",
+      "stop_lat": 43.316925,
+      "stop_lon": -79.8392181,
+      "stop_sequence": 12
+    },
+    {
+      "stop_id": "00880",
+      "stop_name": "Plains Rd. E. @ King Rd.",
+      "stop_lat": 43.3211784,
+      "stop_lon": -79.833252,
+      "stop_sequence": 13
+    },
+    {
+      "stop_id": "00876",
+      "stop_name": "Plains Rd. E. @ Francis Rd.",
+      "stop_lat": 43.3239784,
+      "stop_lon": -79.8296585,
+      "stop_sequence": 14
+    },
+    {
+      "stop_id": "00820",
+      "stop_name": "Fairview St. @ Maple Ave.",
+      "stop_lat": 43.3287392,
+      "stop_lon": -79.8214798,
+      "stop_sequence": 15
+    },
+    {
+      "stop_id": "00177",
+      "stop_name": "Burlington GO Bus",
+      "stop_lat": 43.3404415392208,
+      "stop_lon": -79.8094994945172,
+      "stop_sequence": 16
+    },
+    {
+      "stop_id": "00804",
+      "stop_name": "Brant St. @ Leighland Rd.",
+      "stop_lat": 43.3391037,
+      "stop_lon": -79.8182068,
+      "stop_sequence": 17
+    },
+    {
+      "stop_id": "00137",
+      "stop_name": "Oakville GO Bus",
+      "stop_lat": 43.455966,
+      "stop_lon": -79.681676,
+      "stop_sequence": 18
+    },
+    {
+      "stop_id": "02300",
+      "stop_name": "Union Station Bus Terminal",
+      "stop_lat": 43.644042,
+      "stop_lon": -79.376939,
+      "stop_sequence": 19
     }
   ],
   "18K": [
@@ -2339,524 +2626,159 @@
       "stop_lat": 43.512831,
       "stop_lon": -79.633109,
       "stop_sequence": 3
-    },
-    {
-      "stop_id": "00137",
-      "stop_name": "Oakville GO Bus",
-      "stop_lat": 43.455966,
-      "stop_lon": -79.681676,
-      "stop_sequence": 4
     }
   ],
   "18L": [
     {
-      "stop_id": "02652",
-      "stop_name": "West Harbour GO Bus",
-      "stop_lat": 43.2660685497468,
-      "stop_lon": -79.8659978056508,
-      "stop_sequence": 1
-    },
-    {
       "stop_id": "00141",
       "stop_name": "Hamilton GO Centre Bus",
       "stop_lat": 43.252945,
       "stop_lon": -79.869586,
-      "stop_sequence": 2
+      "stop_sequence": 1
     },
     {
       "stop_id": "01002",
       "stop_name": "King St. E. @ Hughson St. N.",
       "stop_lat": 43.2562103,
       "stop_lon": -79.8672409,
-      "stop_sequence": 3
+      "stop_sequence": 2
     },
     {
       "stop_id": "01006",
       "stop_name": "King St. W. @ Summers Ln. (Hamilton Place)",
       "stop_lat": 43.2576485,
       "stop_lon": -79.8717346,
-      "stop_sequence": 4
+      "stop_sequence": 3
     },
     {
       "stop_id": "02759",
       "stop_name": "King St. W. @ Queen St. N.",
       "stop_lat": 43.25943,
       "stop_lon": -79.878547,
-      "stop_sequence": 5
+      "stop_sequence": 4
     },
     {
       "stop_id": "01004",
       "stop_name": "King St. W. @ Pearl St. N.",
       "stop_lat": 43.2602654,
       "stop_lon": -79.8814011,
-      "stop_sequence": 6
+      "stop_sequence": 5
     },
     {
       "stop_id": "01005",
       "stop_name": "King St. W. @ Strathcona Ave. N.",
       "stop_lat": 43.2614555,
       "stop_lon": -79.8850708,
-      "stop_sequence": 7
+      "stop_sequence": 6
     },
     {
       "stop_id": "00178",
       "stop_name": "King St. W. @ Dundurn St. N.",
       "stop_lat": 43.2622643,
       "stop_lon": -79.8875809,
-      "stop_sequence": 8
+      "stop_sequence": 7
     },
     {
       "stop_id": "00180",
       "stop_name": "Aldershot GO Bus",
       "stop_lat": 43.313036,
       "stop_lon": -79.855903,
-      "stop_sequence": 9
+      "stop_sequence": 8
     },
     {
       "stop_id": "00912",
       "stop_name": "Waterdown Rd. @ Masonry Crt.",
       "stop_lat": 43.3087234,
       "stop_lon": -79.8554382,
-      "stop_sequence": 10
+      "stop_sequence": 9
     },
     {
       "stop_id": "00883",
       "stop_name": "Plains Rd. E. @ Lasalle Park Rd.",
       "stop_lat": 43.3069458,
       "stop_lon": -79.8521805,
-      "stop_sequence": 11
+      "stop_sequence": 10
     },
     {
       "stop_id": "00870",
       "stop_name": "Plains Rd. E. @ Gallagher Rd.",
       "stop_lat": 43.3126945,
       "stop_lon": -79.8447876,
-      "stop_sequence": 12
+      "stop_sequence": 11
     },
     {
       "stop_id": "00875",
       "stop_name": "Plains Rd. E. @ Falcon Blvd.",
       "stop_lat": 43.316925,
       "stop_lon": -79.8392181,
-      "stop_sequence": 13
+      "stop_sequence": 12
     },
     {
       "stop_id": "00880",
       "stop_name": "Plains Rd. E. @ King Rd.",
       "stop_lat": 43.3211784,
       "stop_lon": -79.833252,
-      "stop_sequence": 14
+      "stop_sequence": 13
     },
     {
       "stop_id": "00876",
       "stop_name": "Plains Rd. E. @ Francis Rd.",
       "stop_lat": 43.3239784,
       "stop_lon": -79.8296585,
-      "stop_sequence": 15
+      "stop_sequence": 14
     },
     {
       "stop_id": "00820",
       "stop_name": "Fairview St. @ Maple Ave.",
       "stop_lat": 43.3287392,
       "stop_lon": -79.8214798,
-      "stop_sequence": 16
+      "stop_sequence": 15
     },
     {
       "stop_id": "00177",
       "stop_name": "Burlington GO Bus",
       "stop_lat": 43.3404415392208,
       "stop_lon": -79.8094994945172,
-      "stop_sequence": 17
+      "stop_sequence": 16
     },
     {
       "stop_id": "00804",
       "stop_name": "Brant St. @ Leighland Rd.",
       "stop_lat": 43.3391037,
       "stop_lon": -79.8182068,
-      "stop_sequence": 18
-    },
-    {
-      "stop_id": "00263",
-      "stop_name": "Appleby GO Bus",
-      "stop_lat": 43.379261,
-      "stop_lon": -79.760483,
-      "stop_sequence": 19
-    },
-    {
-      "stop_id": "00264",
-      "stop_name": "Bronte GO Bus",
-      "stop_lat": 43.416275,
-      "stop_lon": -79.724009,
-      "stop_sequence": 20
+      "stop_sequence": 17
     },
     {
       "stop_id": "00137",
       "stop_name": "Oakville GO Bus",
       "stop_lat": 43.455966,
       "stop_lon": -79.681676,
-      "stop_sequence": 21
+      "stop_sequence": 18
     },
     {
       "stop_id": "00181",
       "stop_name": "Clarkson GO Bus",
       "stop_lat": 43.512831,
       "stop_lon": -79.633109,
-      "stop_sequence": 22
+      "stop_sequence": 19
     },
     {
       "stop_id": "02775",
       "stop_name": "Port Credit GO Bus",
       "stop_lat": 43.555598,
       "stop_lon": -79.587457,
-      "stop_sequence": 23
+      "stop_sequence": 20
     },
     {
       "stop_id": "02300",
       "stop_name": "Union Station Bus Terminal",
       "stop_lat": 43.644042,
       "stop_lon": -79.376939,
-      "stop_sequence": 24
+      "stop_sequence": 21
     }
   ],
   "18M": [
     {
-      "stop_id": "00137",
-      "stop_name": "Oakville GO Bus",
-      "stop_lat": 43.455966,
-      "stop_lon": -79.681676,
-      "stop_sequence": 1
-    },
-    {
-      "stop_id": "00181",
-      "stop_name": "Clarkson GO Bus",
-      "stop_lat": 43.512831,
-      "stop_lon": -79.633109,
-      "stop_sequence": 2
-    },
-    {
-      "stop_id": "02775",
-      "stop_name": "Port Credit GO Bus",
-      "stop_lat": 43.555598,
-      "stop_lon": -79.587457,
-      "stop_sequence": 3
-    },
-    {
-      "stop_id": "02300",
-      "stop_name": "Union Station Bus Terminal",
-      "stop_lat": 43.644042,
-      "stop_lon": -79.376939,
-      "stop_sequence": 4
-    }
-  ],
-  "18N": [
-    {
-      "stop_id": "00141",
-      "stop_name": "Hamilton GO Centre Bus",
-      "stop_lat": 43.252945,
-      "stop_lon": -79.869586,
-      "stop_sequence": 1
-    },
-    {
-      "stop_id": "01002",
-      "stop_name": "King St. E. @ Hughson St. N.",
-      "stop_lat": 43.2562103,
-      "stop_lon": -79.8672409,
-      "stop_sequence": 2
-    },
-    {
-      "stop_id": "01006",
-      "stop_name": "King St. W. @ Summers Ln. (Hamilton Place)",
-      "stop_lat": 43.2576485,
-      "stop_lon": -79.8717346,
-      "stop_sequence": 3
-    },
-    {
-      "stop_id": "02759",
-      "stop_name": "King St. W. @ Queen St. N.",
-      "stop_lat": 43.25943,
-      "stop_lon": -79.878547,
-      "stop_sequence": 4
-    },
-    {
-      "stop_id": "01004",
-      "stop_name": "King St. W. @ Pearl St. N.",
-      "stop_lat": 43.2602654,
-      "stop_lon": -79.8814011,
-      "stop_sequence": 5
-    },
-    {
-      "stop_id": "01005",
-      "stop_name": "King St. W. @ Strathcona Ave. N.",
-      "stop_lat": 43.2614555,
-      "stop_lon": -79.8850708,
-      "stop_sequence": 6
-    },
-    {
-      "stop_id": "00178",
-      "stop_name": "King St. W. @ Dundurn St. N.",
-      "stop_lat": 43.2622643,
-      "stop_lon": -79.8875809,
-      "stop_sequence": 7
-    },
-    {
-      "stop_id": "00180",
-      "stop_name": "Aldershot GO Bus",
-      "stop_lat": 43.313036,
-      "stop_lon": -79.855903,
-      "stop_sequence": 8
-    },
-    {
-      "stop_id": "00912",
-      "stop_name": "Waterdown Rd. @ Masonry Crt.",
-      "stop_lat": 43.3087234,
-      "stop_lon": -79.8554382,
-      "stop_sequence": 9
-    },
-    {
-      "stop_id": "00883",
-      "stop_name": "Plains Rd. E. @ Lasalle Park Rd.",
-      "stop_lat": 43.3069458,
-      "stop_lon": -79.8521805,
-      "stop_sequence": 10
-    },
-    {
-      "stop_id": "00870",
-      "stop_name": "Plains Rd. E. @ Gallagher Rd.",
-      "stop_lat": 43.3126945,
-      "stop_lon": -79.8447876,
-      "stop_sequence": 11
-    },
-    {
-      "stop_id": "00875",
-      "stop_name": "Plains Rd. E. @ Falcon Blvd.",
-      "stop_lat": 43.316925,
-      "stop_lon": -79.8392181,
-      "stop_sequence": 12
-    },
-    {
-      "stop_id": "00880",
-      "stop_name": "Plains Rd. E. @ King Rd.",
-      "stop_lat": 43.3211784,
-      "stop_lon": -79.833252,
-      "stop_sequence": 13
-    },
-    {
-      "stop_id": "00876",
-      "stop_name": "Plains Rd. E. @ Francis Rd.",
-      "stop_lat": 43.3239784,
-      "stop_lon": -79.8296585,
-      "stop_sequence": 14
-    },
-    {
-      "stop_id": "00820",
-      "stop_name": "Fairview St. @ Maple Ave.",
-      "stop_lat": 43.3287392,
-      "stop_lon": -79.8214798,
-      "stop_sequence": 15
-    },
-    {
-      "stop_id": "00177",
-      "stop_name": "Burlington GO Bus",
-      "stop_lat": 43.3404415392208,
-      "stop_lon": -79.8094994945172,
-      "stop_sequence": 16
-    },
-    {
-      "stop_id": "00804",
-      "stop_name": "Brant St. @ Leighland Rd.",
-      "stop_lat": 43.3391037,
-      "stop_lon": -79.8182068,
-      "stop_sequence": 17
-    },
-    {
-      "stop_id": "00137",
-      "stop_name": "Oakville GO Bus",
-      "stop_lat": 43.455966,
-      "stop_lon": -79.681676,
-      "stop_sequence": 18
-    },
-    {
-      "stop_id": "02300",
-      "stop_name": "Union Station Bus Terminal",
-      "stop_lat": 43.644042,
-      "stop_lon": -79.376939,
-      "stop_sequence": 19
-    }
-  ],
-  "18O": [
-    {
-      "stop_id": "02300",
-      "stop_name": "Union Station Bus Terminal",
-      "stop_lat": 43.644042,
-      "stop_lon": -79.376939,
-      "stop_sequence": 1
-    },
-    {
-      "stop_id": "02775",
-      "stop_name": "Port Credit GO Bus",
-      "stop_lat": 43.555598,
-      "stop_lon": -79.587457,
-      "stop_sequence": 2
-    },
-    {
-      "stop_id": "00181",
-      "stop_name": "Clarkson GO Bus",
-      "stop_lat": 43.512831,
-      "stop_lon": -79.633109,
-      "stop_sequence": 3
-    }
-  ],
-  "18P": [
-    {
-      "stop_id": "00141",
-      "stop_name": "Hamilton GO Centre Bus",
-      "stop_lat": 43.252945,
-      "stop_lon": -79.869586,
-      "stop_sequence": 1
-    },
-    {
-      "stop_id": "01002",
-      "stop_name": "King St. E. @ Hughson St. N.",
-      "stop_lat": 43.2562103,
-      "stop_lon": -79.8672409,
-      "stop_sequence": 2
-    },
-    {
-      "stop_id": "01006",
-      "stop_name": "King St. W. @ Summers Ln. (Hamilton Place)",
-      "stop_lat": 43.2576485,
-      "stop_lon": -79.8717346,
-      "stop_sequence": 3
-    },
-    {
-      "stop_id": "02759",
-      "stop_name": "King St. W. @ Queen St. N.",
-      "stop_lat": 43.25943,
-      "stop_lon": -79.878547,
-      "stop_sequence": 4
-    },
-    {
-      "stop_id": "01004",
-      "stop_name": "King St. W. @ Pearl St. N.",
-      "stop_lat": 43.2602654,
-      "stop_lon": -79.8814011,
-      "stop_sequence": 5
-    },
-    {
-      "stop_id": "01005",
-      "stop_name": "King St. W. @ Strathcona Ave. N.",
-      "stop_lat": 43.2614555,
-      "stop_lon": -79.8850708,
-      "stop_sequence": 6
-    },
-    {
-      "stop_id": "00178",
-      "stop_name": "King St. W. @ Dundurn St. N.",
-      "stop_lat": 43.2622643,
-      "stop_lon": -79.8875809,
-      "stop_sequence": 7
-    },
-    {
-      "stop_id": "00180",
-      "stop_name": "Aldershot GO Bus",
-      "stop_lat": 43.313036,
-      "stop_lon": -79.855903,
-      "stop_sequence": 8
-    },
-    {
-      "stop_id": "00912",
-      "stop_name": "Waterdown Rd. @ Masonry Crt.",
-      "stop_lat": 43.3087234,
-      "stop_lon": -79.8554382,
-      "stop_sequence": 9
-    },
-    {
-      "stop_id": "00883",
-      "stop_name": "Plains Rd. E. @ Lasalle Park Rd.",
-      "stop_lat": 43.3069458,
-      "stop_lon": -79.8521805,
-      "stop_sequence": 10
-    },
-    {
-      "stop_id": "00870",
-      "stop_name": "Plains Rd. E. @ Gallagher Rd.",
-      "stop_lat": 43.3126945,
-      "stop_lon": -79.8447876,
-      "stop_sequence": 11
-    },
-    {
-      "stop_id": "00875",
-      "stop_name": "Plains Rd. E. @ Falcon Blvd.",
-      "stop_lat": 43.316925,
-      "stop_lon": -79.8392181,
-      "stop_sequence": 12
-    },
-    {
-      "stop_id": "00880",
-      "stop_name": "Plains Rd. E. @ King Rd.",
-      "stop_lat": 43.3211784,
-      "stop_lon": -79.833252,
-      "stop_sequence": 13
-    },
-    {
-      "stop_id": "00876",
-      "stop_name": "Plains Rd. E. @ Francis Rd.",
-      "stop_lat": 43.3239784,
-      "stop_lon": -79.8296585,
-      "stop_sequence": 14
-    },
-    {
-      "stop_id": "00820",
-      "stop_name": "Fairview St. @ Maple Ave.",
-      "stop_lat": 43.3287392,
-      "stop_lon": -79.8214798,
-      "stop_sequence": 15
-    },
-    {
-      "stop_id": "00177",
-      "stop_name": "Burlington GO Bus",
-      "stop_lat": 43.3404415392208,
-      "stop_lon": -79.8094994945172,
-      "stop_sequence": 16
-    },
-    {
-      "stop_id": "00804",
-      "stop_name": "Brant St. @ Leighland Rd.",
-      "stop_lat": 43.3391037,
-      "stop_lon": -79.8182068,
-      "stop_sequence": 17
-    },
-    {
-      "stop_id": "00137",
-      "stop_name": "Oakville GO Bus",
-      "stop_lat": 43.455966,
-      "stop_lon": -79.681676,
-      "stop_sequence": 18
-    },
-    {
-      "stop_id": "00181",
-      "stop_name": "Clarkson GO Bus",
-      "stop_lat": 43.512831,
-      "stop_lon": -79.633109,
-      "stop_sequence": 19
-    },
-    {
-      "stop_id": "02775",
-      "stop_name": "Port Credit GO Bus",
-      "stop_lat": 43.555598,
-      "stop_lon": -79.587457,
-      "stop_sequence": 20
-    },
-    {
-      "stop_id": "02300",
-      "stop_name": "Union Station Bus Terminal",
-      "stop_lat": 43.644042,
-      "stop_lon": -79.376939,
-      "stop_sequence": 21
-    }
-  ],
-  "18Q": [
-    {
       "stop_id": "02652",
       "stop_name": "West Harbour GO Bus",
       "stop_lat": 43.2660685497468,
@@ -3011,7 +2933,7 @@
       "stop_sequence": 22
     }
   ],
-  "18R": [
+  "18N": [
     {
       "stop_id": "02300",
       "stop_name": "Union Station Bus Terminal",
@@ -3179,38 +3101,6 @@
       "stop_lat": 43.2660685497468,
       "stop_lon": -79.8659978056508,
       "stop_sequence": 24
-    }
-  ],
-  "18S": [
-    {
-      "stop_id": "02300",
-      "stop_name": "Union Station Bus Terminal",
-      "stop_lat": 43.644042,
-      "stop_lon": -79.376939,
-      "stop_sequence": 1
-    },
-    {
-      "stop_id": "02775",
-      "stop_name": "Port Credit GO Bus",
-      "stop_lat": 43.555598,
-      "stop_lon": -79.587457,
-      "stop_sequence": 2
-    }
-  ],
-  "18T": [
-    {
-      "stop_id": "02300",
-      "stop_name": "Union Station Bus Terminal",
-      "stop_lat": 43.644042,
-      "stop_lon": -79.376939,
-      "stop_sequence": 1
-    },
-    {
-      "stop_id": "00181",
-      "stop_name": "Clarkson GO Bus",
-      "stop_lat": 43.512831,
-      "stop_lon": -79.633109,
-      "stop_sequence": 2
     }
   ],
   "19A": [
