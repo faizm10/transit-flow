@@ -1075,23 +1075,18 @@ function FrequencyPageContent() {
                       {expandedRoutes.has(route.route_short_name) && (
                         <div className="mt-4 space-y-4">
                           {route.variantDetails.length > 0 ? (() => {
-                            // Collect all unique departure times across all variants
-                            // Group by hour, then by exact time (HH:MM)
-                            const tripsByHourAndTime = new Map<
+                            // Group by hour, then by time AND variant
+                            // Different variants at the same time = different trips (e.g., express vs local)
+                            const tripsByHourAndTimeVariant = new Map<
                               number,
                               Map<
                                 string,
-                                {
+                                Array<{
                                   time: string;
                                   hour: number;
-                                  totalPerWeek: number;
-                                  weekdayCount: number;
-                                  weekendCount: number;
-                                  variants: Array<{
-                                    variant: typeof route.variantDetails[0];
-                                    trip: TripDetail;
-                                  }>;
-                                }
+                                  variant: typeof route.variantDetails[0];
+                                  trip: TripDetail;
+                                }>
                               >
                             >();
 
@@ -1101,44 +1096,101 @@ function FrequencyPageContent() {
                                 const hour = Math.floor(trip.departureTime / 3600);
                                 const normalizedHour = hour >= 24 ? hour - 24 : hour;
 
-                                if (!tripsByHourAndTime.has(normalizedHour)) {
-                                  tripsByHourAndTime.set(normalizedHour, new Map());
-                                }
-                                const hourMap = tripsByHourAndTime.get(normalizedHour)!;
+                                // Create a unique key combining time and variant_id
+                                // This ensures different variants at the same time are separate trips
+                                const timeVariantKey = `${timeKey}-${variant.variant_id}`;
 
-                                if (!hourMap.has(timeKey)) {
-                                  hourMap.set(timeKey, {
-                                    time: timeKey,
-                                    hour: normalizedHour,
+                                if (!tripsByHourAndTimeVariant.has(normalizedHour)) {
+                                  tripsByHourAndTimeVariant.set(normalizedHour, new Map());
+                                }
+                                const hourMap = tripsByHourAndTimeVariant.get(normalizedHour)!;
+
+                                if (!hourMap.has(timeVariantKey)) {
+                                  hourMap.set(timeVariantKey, []);
+                                }
+
+                                hourMap.get(timeVariantKey)!.push({
+                                  time: timeKey,
+                                  hour: normalizedHour,
+                                  variant,
+                                  trip,
+                                });
+                              });
+                            });
+
+                            // Now group by time, collecting all variants that share the same time
+                            // But keep them as separate entries if they're different variants
+                            const tripsByHour = new Map<
+                              number,
+                              Array<{
+                                time: string;
+                                hour: number;
+                                totalPerWeek: number;
+                                weekdayCount: number;
+                                weekendCount: number;
+                                variants: Array<{
+                                  variant: typeof route.variantDetails[0];
+                                  trip: TripDetail;
+                                }>;
+                              }>
+                            >();
+
+                            tripsByHourAndTimeVariant.forEach((hourMap, hour) => {
+                              hourMap.forEach((tripInfos) => {
+                                // Each entry in hourMap represents a unique time-variant combination
+                                // Group by time to show variants together if they share the same time
+                                const time = tripInfos[0].time;
+                                
+                                if (!tripsByHour.has(hour)) {
+                                  tripsByHour.set(hour, []);
+                                }
+                                
+                                // Check if we already have an entry for this exact time
+                                const hourEntries = tripsByHour.get(hour)!;
+                                let timeEntry = hourEntries.find(e => e.time === time);
+                                
+                                if (!timeEntry) {
+                                  timeEntry = {
+                                    time,
+                                    hour,
                                     totalPerWeek: 0,
                                     weekdayCount: 0,
                                     weekendCount: 0,
                                     variants: [],
+                                  };
+                                  hourEntries.push(timeEntry);
+                                }
+                                
+                                // Add this variant's trip to the time entry
+                                tripInfos.forEach(tripInfo => {
+                                  timeEntry.variants.push({
+                                    variant: tripInfo.variant,
+                                    trip: tripInfo.trip,
                                   });
-                                }
-
-                                const timeEntry = hourMap.get(timeKey)!;
-                                timeEntry.variants.push({ variant, trip });
-                                
-                                // Update counts - use the trip's timesPerWeek (already calculated per week)
-                                // For each unique time, we want the max timesPerWeek across variants
-                                if (trip.timesPerWeek > timeEntry.totalPerWeek) {
-                                  timeEntry.totalPerWeek = trip.timesPerWeek;
-                                }
-                                
-                                if (trip.dayType === "weekday") {
-                                  timeEntry.weekdayCount = Math.max(timeEntry.weekdayCount, trip.timesPerWeek);
-                                } else if (trip.dayType === "weekend") {
-                                  timeEntry.weekendCount = Math.max(timeEntry.weekendCount, trip.timesPerWeek);
-                                }
+                                  
+                                  // Update counts - sum up timesPerWeek for different variants
+                                  // Different variants = different trips, so we add them
+                                  timeEntry.totalPerWeek += tripInfo.trip.timesPerWeek;
+                                  
+                                  if (tripInfo.trip.dayType === "weekday") {
+                                    timeEntry.weekdayCount += tripInfo.trip.timesPerWeek;
+                                  } else if (tripInfo.trip.dayType === "weekend") {
+                                    timeEntry.weekendCount += tripInfo.trip.timesPerWeek;
+                                  }
+                                });
                               });
                             });
 
-                            return Array.from(tripsByHourAndTime.entries())
+                            return Array.from(tripsByHour.entries())
                               .sort(([a], [b]) => a - b)
-                              .map(([hour, timeMap]) => {
-                                const uniqueTimes = Array.from(timeMap.values());
-                                const totalDepartures = uniqueTimes.length;
+                              .map(([hour, timeEntries]) => {
+                                // Count unique trips: each time entry represents one or more variants
+                                // If multiple variants share the same time, they're still separate trips
+                                const totalDepartures = timeEntries.reduce((sum, entry) => {
+                                  // Count unique variants at this time as separate trips
+                                  const uniqueVariants = new Set(entry.variants.map(v => v.variant.variant_id));
+                                  return sum + uniqueVariants.size;
+                                }, 0);
 
                                 return (
                                   <div
@@ -1147,13 +1199,15 @@ function FrequencyPageContent() {
                                   >
                                     <p className="text-xs font-semibold mb-3">
                                       {formatHour(hour)} ({totalDepartures}{" "}
-                                      {totalDepartures === 1 ? "departure" : "departures"})
+                                      {totalDepartures === 1 ? "trip" : "trips"})
                                     </p>
                                     <div className="space-y-2 max-h-96 overflow-y-auto">
-                                      {uniqueTimes
+                                      {timeEntries
                                         .sort((a, b) => a.time.localeCompare(b.time))
                                         .map((timeEntry) => {
                                           const hasBoth = timeEntry.weekdayCount > 0 && timeEntry.weekendCount > 0;
+                                          // Count unique variants at this time
+                                          const uniqueVariantsAtTime = new Set(timeEntry.variants.map(v => v.variant.variant_id)).size;
 
                                           return (
                                             <div
@@ -1163,6 +1217,11 @@ function FrequencyPageContent() {
                                               <div className="flex items-center justify-between mb-1.5">
                                                 <span className="text-xs font-medium font-mono">
                                                   {timeEntry.time}
+                                                  {uniqueVariantsAtTime > 1 && (
+                                                    <span className="text-[10px] text-muted-foreground ml-1">
+                                                      ({uniqueVariantsAtTime} trips)
+                                                    </span>
+                                                  )}
                                                 </span>
                                                 <span className="text-[10px] font-medium text-foreground">
                                                   {timeEntry.totalPerWeek > 0
