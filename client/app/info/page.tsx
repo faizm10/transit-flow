@@ -204,6 +204,19 @@ export default function InfoPage() {
                       </div>
                     </div>
 
+                    {isTrain && (
+                      <div className="mt-4 space-y-3">
+                        <StopsRow
+                          title="Stops: start to end"
+                          stops={forwardStops}
+                        />
+                        <StopsRow
+                          title="Stops: end to start"
+                          stops={reverseStops}
+                        />
+                      </div>
+                    )}
+
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div className="rounded-lg border border-dashed p-3">
                         <p className="text-xs uppercase text-muted-foreground">
@@ -232,19 +245,6 @@ export default function InfoPage() {
                         </p>
                       </div>
                     </div>
-
-                    {isTrain && (
-                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <StopsRow
-                          title="Stops: start to end"
-                          stops={forwardStops}
-                        />
-                        <StopsRow
-                          title="Stops: end to start"
-                          stops={reverseStops}
-                        />
-                      </div>
-                    )}
                   </div>
                 );
               })}
