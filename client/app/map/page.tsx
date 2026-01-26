@@ -258,10 +258,183 @@ export default function MapPage() {
     }
   }, [allVariantIds]);
 
+  // Helper function to check if two stop sequences are reversed
+  const areStopsReversed = useCallback(
+    (stops1: Array<{ stop_id: string }>, stops2: Array<{ stop_id: string }>) => {
+      if (!stops1 || !stops2 || stops1.length !== stops2.length || stops1.length === 0) {
+        return false;
+      }
+      // Check if stops1 reversed equals stops2
+      for (let i = 0; i < stops1.length; i += 1) {
+        if (stops1[i].stop_id !== stops2[stops2.length - 1 - i].stop_id) {
+          return false;
+        }
+      }
+      return true;
+    },
+    [],
+  );
+
+  // Helper function to create a better name for merged bidirectional routes
+  const createMergedRouteName = useCallback(
+    (
+      stops1: Array<{ stop_name: string }>,
+      stops2: Array<{ stop_name: string }>,
+    ) => {
+      if (!stops1 || !stops2 || stops1.length === 0 || stops2.length === 0) {
+        return "";
+      }
+
+      const getStopShortName = (fullName: string): string => {
+        if (!fullName) return "";
+        // Extract key parts of stop names
+        // e.g., "Union Station" -> "Union", "Mount Pleasant GO" -> "Mount Pleasant"
+        const name = fullName.toLowerCase().trim();
+        
+        // Common stop name patterns
+        if (name.includes("union")) return "Union";
+        if (name.includes("mount pleasant")) return "Mount Pleasant";
+        if (name.includes("bramalea")) return "Bramalea";
+        if (name.includes("brampton")) return "Brampton";
+        if (name.includes("kitchener")) return "Kitchener";
+        if (name.includes("guelph")) return "Guelph";
+        if (name.includes("georgetown")) return "Georgetown";
+        if (name.includes("acton")) return "Acton";
+        if (name.includes("milton")) return "Milton";
+        if (name.includes("oakville")) return "Oakville";
+        if (name.includes("burlington")) return "Burlington";
+        if (name.includes("hamilton")) return "Hamilton";
+        if (name.includes("stouffville")) return "Stouffville";
+        if (name.includes("richmond hill")) return "Richmond Hill";
+        if (name.includes("barrie")) return "Barrie";
+        if (name.includes("allandale")) return "Allandale";
+        
+        // Remove common suffixes
+        let cleaned = fullName
+          .replace(/\s+GO\s*$/i, "")
+          .replace(/\s+Station\s*$/i, "")
+          .replace(/\s+Stop\s*$/i, "")
+          .trim();
+        
+        // If still long, take first 2 words max
+        const words = cleaned.split(/\s+/);
+        if (words.length > 2) {
+          return words.slice(0, 2).join(" ");
+        }
+        return cleaned || fullName;
+      };
+
+      const start1 = getStopShortName(stops1[0]?.stop_name || "");
+      const end1 = getStopShortName(stops1[stops1.length - 1]?.stop_name || "");
+      const start2 = getStopShortName(stops2[0]?.stop_name || "");
+      const end2 = getStopShortName(stops2[stops2.length - 1]?.stop_name || "");
+
+      // Use the first direction's stops for naming (stops1)
+      // Format: "Start - End"
+      const name = `${start1} - ${end1}`;
+
+      // Check if it's an express route (fewer stops than typical)
+      // Typical routes have 6+ stops, express routes have 5 or fewer
+      const isExpress = stops1.length <= 5 || stops2.length <= 5;
+      const expressSuffix = isExpress ? " (Express)" : "";
+
+      return name + expressSuffix;
+    },
+    [],
+  );
+
   const groupedGoVariants = useMemo(() => {
     const term = goVariantFilterText.trim().toLowerCase();
     return Object.entries(goVariantsIndex)
       .map(([routeShortName, variants]) => {
+        const routeInfo = routeByShortName.get(routeShortName);
+        const isTrain = routeInfo && String(routeInfo.route_type) === "2";
+
+        // For trains, try to merge bidirectional routes
+        if (isTrain && goVariantStops) {
+          const merged = new Map<
+            string,
+            {
+              displayKey: string;
+              variantIds: string[];
+              labels: string[];
+            }
+          >();
+          const processed = new Set<string>();
+
+          // Try to find and merge bidirectional pairs across all variants
+          // Look for pairs with different direction_ids that have reversed stops
+          const dir0 = variants.filter((v) => v.direction_id === 0);
+          const dir1 = variants.filter((v) => v.direction_id === 1);
+
+          // Try to find matching pairs
+          for (const v0 of dir0) {
+            if (processed.has(v0.variant_id)) continue;
+
+            for (const v1 of dir1) {
+              if (processed.has(v1.variant_id)) continue;
+
+              const stops0 = goVariantStops[v0.variant_id] || [];
+              const stops1 = goVariantStops[v1.variant_id] || [];
+
+              if (areStopsReversed(stops0, stops1)) {
+                // Found a bidirectional match - merge them
+                const mergedName = createMergedRouteName(stops0, stops1);
+                const displayKey = mergedName || routeShortName;
+
+                const haystack = `${routeShortName} ${displayKey} ${v0.label} ${v1.label}`
+                  .trim()
+                  .toLowerCase();
+                if (term && !haystack.includes(term)) {
+                  processed.add(v0.variant_id);
+                  processed.add(v1.variant_id);
+                  continue;
+                }
+
+                merged.set(displayKey, {
+                  displayKey,
+                  variantIds: [v0.variant_id, v1.variant_id],
+                  labels: [v0.label, v1.label].filter(Boolean),
+                });
+                processed.add(v0.variant_id);
+                processed.add(v1.variant_id);
+                break; // Found a match for v0, move to next
+              }
+            }
+          }
+
+          // Add unmerged variants
+          variants.forEach((variant) => {
+            if (processed.has(variant.variant_id)) return;
+
+            const displayKey =
+              variant.route_variant || variant.variant_id || routeShortName;
+            const haystack = `${routeShortName} ${displayKey} ${variant.label}`
+              .trim()
+              .toLowerCase();
+            if (term && !haystack.includes(term)) return;
+
+            if (!merged.has(displayKey)) {
+              merged.set(displayKey, {
+                displayKey,
+                variantIds: [],
+                labels: [],
+              });
+            }
+            const entry = merged.get(displayKey)!;
+            entry.variantIds.push(variant.variant_id);
+            if (variant.label) {
+              entry.labels.push(variant.label);
+            }
+          });
+
+          const items = Array.from(merged.values()).sort((a, b) =>
+            a.displayKey.localeCompare(b.displayKey),
+          );
+          return { routeShortName, items };
+        }
+
+        // For non-trains or when stops data isn't available, use original logic
         const grouped = new Map<
           string,
           {
@@ -300,7 +473,14 @@ export default function MapPage() {
       })
       .filter((group) => group.items.length > 0)
       .sort((a, b) => a.routeShortName.localeCompare(b.routeShortName));
-  }, [goVariantsIndex, goVariantFilterText]);
+  }, [
+    goVariantsIndex,
+    goVariantFilterText,
+    goVariantStops,
+    routeByShortName,
+    areStopsReversed,
+    createMergedRouteName,
+  ]);
 
   const toggleVariant = (variantId: string) => {
     setSelectedVariantIds((prev) =>
@@ -786,7 +966,7 @@ export default function MapPage() {
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <span
-                              className="h-3 w-3 rounded-full flex-shrink-0"
+                              className="h-3 w-3 rounded-full shrink-0"
                               style={{
                                 backgroundColor: colorForRoute(group.routeShortName),
                               }}
@@ -802,7 +982,7 @@ export default function MapPage() {
                               )}
                             </div>
                           </div>
-                          <div className="flex gap-1.5 flex-shrink-0">
+                          <div className="flex gap-1.5 shrink-0">
                             <button
                               className={`px-2 py-1 text-xs rounded border transition-all ${
                                 isAllSelected
