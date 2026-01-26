@@ -255,6 +255,10 @@ function FrequencyPageContent() {
     return routeShortName;
   };
 
+  // Special service routes that should be displayed separately
+  // Only the special variants (18L, 18R, 18M, 18N) - route 18 itself has regular service
+  const specialServiceRoutes = ["18L", "18R", "18M", "18N"];
+
   // Group data by route code (KI, LW, LE for trains) or route_short_name (for buses)
   const routesByLine = useMemo(() => {
     const routeMap = new Map<string, RouteAggregate>();
@@ -309,7 +313,10 @@ function FrequencyPageContent() {
 
       const route = routeMap.get(key)!;
       
-      // Store variant details for later use
+      // Check if this is a special service variant (18M, 18N, 18L, 18R)
+      const isSpecialServiceVariant = specialServiceRoutes.includes(item.variant_id);
+      
+      // Store variant details for later use (store all variants, but exclude special ones from stats)
       route.variantDetails.push({
         variant_id: item.variant_id,
         route_variant: item.route_variant,
@@ -320,8 +327,8 @@ function FrequencyPageContent() {
       });
       
       // For trains: we'll recalculate from tripDetails after all variants are collected
-      // For buses: aggregate hourly frequency from variants
-      if (item.route_type !== "2") {
+      // For buses: aggregate hourly frequency from variants (excluding special service)
+      if (item.route_type !== "2" && !isSpecialServiceVariant) {
         // Aggregate hourly frequency - all days
         if (item.hourlyFrequency && Array.isArray(item.hourlyFrequency)) {
           item.hourlyFrequency.forEach((freq) => {
@@ -350,8 +357,8 @@ function FrequencyPageContent() {
         }
       }
 
-      // Aggregate headways - only valid positive headways
-      if (item.headways && Array.isArray(item.headways)) {
+      // Aggregate headways - only valid positive headways (excluding special service)
+      if (!isSpecialServiceVariant && item.headways && Array.isArray(item.headways)) {
         item.headways.forEach((headway) => {
           if (headway > 0 && headway < 10000) { // Filter out invalid headways
             route.headways.push(headway);
@@ -377,6 +384,10 @@ function FrequencyPageContent() {
         const allTripTimesWeekend: number[] = [];
         
         route.variantDetails.forEach((variant) => {
+          // Exclude special service variants
+          if (specialServiceRoutes.includes(variant.variant_id)) {
+            return;
+          }
           variant.tripDetails.forEach((trip) => {
             const hour = Math.floor(trip.departureTime / 3600);
             const normalizedHour = hour >= 24 ? hour - 24 : hour;
@@ -452,6 +463,10 @@ function FrequencyPageContent() {
         const uniqueTimesMap = new Map<number, { weekday: boolean; weekend: boolean; timesPerWeek: number }>();
         
         route.variantDetails.forEach((variant) => {
+          // Exclude special service variants
+          if (specialServiceRoutes.includes(variant.variant_id)) {
+            return;
+          }
           variant.tripDetails.forEach((trip) => {
             const timeInMinutes = Math.floor(trip.departureTime / 60);
             if (!uniqueTimesMap.has(timeInMinutes)) {
@@ -489,9 +504,94 @@ function FrequencyPageContent() {
           .reduce((sum, entry) => sum + entry.timesPerWeek, 0);
       } else {
         // Buses: same calculation - count unique departure times and sum their weekly frequency
+        // Also need to recalculate hourly frequency excluding special service variants
+        const allTripTimes: number[] = [];
+        const allTripTimesWeekday: number[] = [];
+        const allTripTimesWeekend: number[] = [];
+        
+        route.variantDetails.forEach((variant) => {
+          // Exclude special service variants (18M, 18N, 18L, 18R)
+          if (specialServiceRoutes.includes(variant.variant_id)) {
+            return;
+          }
+          variant.tripDetails.forEach((trip) => {
+            const hour = Math.floor(trip.departureTime / 3600);
+            const normalizedHour = hour >= 24 ? hour - 24 : hour;
+            
+            if (normalizedHour >= 0 && normalizedHour < 24) {
+              allTripTimes.push(trip.departureTime);
+              
+              if (trip.dayType === "weekday") {
+                allTripTimesWeekday.push(trip.departureTime);
+              } else if (trip.dayType === "weekend") {
+                allTripTimesWeekend.push(trip.departureTime);
+              }
+            }
+          });
+        });
+        
+        // Count unique departure times per hour (rounded to minute) for buses
+        const tripsByHourAndTime = new Map<number, Set<number>>();
+        const tripsByHourAndTimeWeekday = new Map<number, Set<number>>();
+        const tripsByHourAndTimeWeekend = new Map<number, Set<number>>();
+        
+        allTripTimes.forEach((timeSeconds) => {
+          const hour = Math.floor(timeSeconds / 3600);
+          const normalizedHour = hour >= 24 ? hour - 24 : hour;
+          if (normalizedHour >= 0 && normalizedHour < 24) {
+            if (!tripsByHourAndTime.has(normalizedHour)) {
+              tripsByHourAndTime.set(normalizedHour, new Set());
+            }
+            const timeInMinutes = Math.floor(timeSeconds / 60);
+            tripsByHourAndTime.get(normalizedHour)!.add(timeInMinutes);
+          }
+        });
+        
+        allTripTimesWeekday.forEach((timeSeconds) => {
+          const hour = Math.floor(timeSeconds / 3600);
+          const normalizedHour = hour >= 24 ? hour - 24 : hour;
+          if (normalizedHour >= 0 && normalizedHour < 24) {
+            if (!tripsByHourAndTimeWeekday.has(normalizedHour)) {
+              tripsByHourAndTimeWeekday.set(normalizedHour, new Set());
+            }
+            const timeInMinutes = Math.floor(timeSeconds / 60);
+            tripsByHourAndTimeWeekday.get(normalizedHour)!.add(timeInMinutes);
+          }
+        });
+        
+        allTripTimesWeekend.forEach((timeSeconds) => {
+          const hour = Math.floor(timeSeconds / 3600);
+          const normalizedHour = hour >= 24 ? hour - 24 : hour;
+          if (normalizedHour >= 0 && normalizedHour < 24) {
+            if (!tripsByHourAndTimeWeekend.has(normalizedHour)) {
+              tripsByHourAndTimeWeekend.set(normalizedHour, new Set());
+            }
+            const timeInMinutes = Math.floor(timeSeconds / 60);
+            tripsByHourAndTimeWeekend.get(normalizedHour)!.add(timeInMinutes);
+          }
+        });
+        
+        // Set hourly frequency from unique times (excluding special service)
+        tripsByHourAndTime.forEach((uniqueTimes, hour) => {
+          route.hourlyFrequency[hour].trips = uniqueTimes.size;
+        });
+        
+        tripsByHourAndTimeWeekday.forEach((uniqueTimes, hour) => {
+          route.hourlyFrequencyWeekday[hour].trips = uniqueTimes.size;
+        });
+        
+        tripsByHourAndTimeWeekend.forEach((uniqueTimes, hour) => {
+          route.hourlyFrequencyWeekend[hour].trips = uniqueTimes.size;
+        });
+        
+        // Calculate total trips from unique departure times
         const uniqueTimesMap = new Map<number, { weekday: boolean; weekend: boolean; timesPerWeek: number }>();
         
         route.variantDetails.forEach((variant) => {
+          // Exclude special service variants (18M, 18N, 18L, 18R)
+          if (specialServiceRoutes.includes(variant.variant_id)) {
+            return;
+          }
           variant.tripDetails.forEach((trip) => {
             const timeInMinutes = Math.floor(trip.departureTime / 60);
             if (!uniqueTimesMap.has(timeInMinutes)) {
@@ -599,10 +699,6 @@ function FrequencyPageContent() {
       return a.localeCompare(b);
     });
   }, [routesByLine]);
-
-  // Special service routes that should be displayed separately
-  // Only the special variants (18L, 18R, 18M, 18N) - route 18 itself has regular service
-  const specialServiceRoutes = ["18L", "18R", "18M", "18N"];
 
   const filteredRoutes = useMemo(() => {
     return routesByLine.filter((route) => {
