@@ -1327,68 +1327,104 @@ function FrequencyPageContent() {
                                                           : "1x/week"}
                                                 </span>
                                               </div>
-                                              <div className="space-y-2">
-                                                {timeEntry.variants.map((variantInfo, idx) => {
-                                                  const stops = variantStops[variantInfo.variant.variant_id] || [];
-                                                  const sortedStops = [...stops].sort((a, b) => a.stop_sequence - b.stop_sequence);
-                                                  
-                                                  return (
-                                                    <div
-                                                      key={idx}
-                                                      className="rounded border border-dashed p-2 bg-muted/30"
-                                                    >
-                                                      <div className="mb-1.5">
-                                                        <span className="text-[11px] font-medium text-foreground">
-                                                          {getVariantDisplayName(
-                                                            variantInfo.variant.variant_id,
-                                                            variantInfo.variant.route_variant,
-                                                            route.route_type
-                                                          )}
+                                              {route.route_type === "2" ? (
+                                                // For trains, show aggregated info without individual variants
+                                                <div className="rounded border border-dashed p-2 bg-muted/30">
+                                                  <div className="mb-1.5">
+                                                    <span className="text-[11px] font-medium text-foreground">
+                                                      {route.route_short_name}
+                                                    </span>
+                                                    {timeEntry.variants.length > 0 && timeEntry.variants[0].variant.startStopName &&
+                                                      timeEntry.variants[0].variant.endStopName && (
+                                                        <span className="text-[10px] text-muted-foreground ml-1.5">
+                                                          {timeEntry.variants[0].variant.startStopName} →{" "}
+                                                          {timeEntry.variants[0].variant.endStopName}
                                                         </span>
-                                                        {variantInfo.variant.startStopName &&
-                                                          variantInfo.variant.endStopName && (
-                                                            <span className="text-[10px] text-muted-foreground ml-1.5">
-                                                              {variantInfo.variant.startStopName} →{" "}
-                                                              {variantInfo.variant.endStopName}
-                                                            </span>
-                                                          )}
-                                                      </div>
-                                                      {variantInfo.trip.daysOfWeek && variantInfo.trip.daysOfWeek.length > 0 && (
-                                                        <div className="mt-1.5">
-                                                          <p className="text-[10px] text-muted-foreground mb-1">
-                                                            Days:{" "}
-                                                            <span className="font-medium text-foreground">
-                                                              {formatDaysOfWeek(variantInfo.trip.daysOfWeek)}
-                                                            </span>
-                                                          </p>
-                                                        </div>
                                                       )}
-                                                      {sortedStops.length > 0 && (
-                                                        <div className="mt-1.5 pt-1.5 border-t border-dashed">
-                                                          <p className="text-[10px] text-muted-foreground mb-1.5">
-                                                            All stops ({sortedStops.length}):
-                                                          </p>
-                                                          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                                                            {sortedStops.map((stop, stopIdx) => (
-                                                              <span
-                                                                key={stop.stop_id}
-                                                                className="inline-flex items-center"
-                                                              >
-                                                                <span className="text-[10px] text-muted-foreground">
-                                                                  {stop.stop_name}
-                                                                </span>
-                                                                {stopIdx < sortedStops.length - 1 && (
-                                                                  <span className="mx-1.5 text-[8px] text-muted-foreground/40">→</span>
-                                                                )}
-                                                              </span>
-                                                            ))}
-                                                          </div>
-                                                        </div>
-                                                      )}
+                                                  </div>
+                                                  {timeEntry.daysOfWeek && timeEntry.daysOfWeek.length > 0 && (
+                                                    <div className="mt-1.5">
+                                                      <p className="text-[10px] text-muted-foreground mb-1">
+                                                        Days:{" "}
+                                                        <span className="font-medium text-foreground">
+                                                          {formatDaysOfWeek(timeEntry.daysOfWeek)}
+                                                        </span>
+                                                      </p>
                                                     </div>
-                                                  );
-                                                })}
-                                              </div>
+                                                  )}
+                                                  {timeEntry.variants.length > 0 && (
+                                                    <div className="mt-1.5">
+                                                      <p className="text-[10px] text-muted-foreground">
+                                                        {timeEntry.variants.length} variant{timeEntry.variants.length !== 1 ? "s" : ""} serving this trip
+                                                      </p>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ) : (
+                                                // For buses, show individual variants
+                                                <div className="space-y-2">
+                                                  {timeEntry.variants.map((variantInfo, idx) => {
+                                                    const stops = variantStops[variantInfo.variant.variant_id] || [];
+                                                    const sortedStops = [...stops].sort((a, b) => a.stop_sequence - b.stop_sequence);
+                                                    
+                                                    return (
+                                                      <div
+                                                        key={idx}
+                                                        className="rounded border border-dashed p-2 bg-muted/30"
+                                                      >
+                                                        <div className="mb-1.5">
+                                                          <span className="text-[11px] font-medium text-foreground">
+                                                            {getVariantDisplayName(
+                                                              variantInfo.variant.variant_id,
+                                                              variantInfo.variant.route_variant,
+                                                              route.route_type
+                                                            )}
+                                                          </span>
+                                                          {variantInfo.variant.startStopName &&
+                                                            variantInfo.variant.endStopName && (
+                                                              <span className="text-[10px] text-muted-foreground ml-1.5">
+                                                                {variantInfo.variant.startStopName} →{" "}
+                                                                {variantInfo.variant.endStopName}
+                                                              </span>
+                                                            )}
+                                                        </div>
+                                                        {variantInfo.trip.daysOfWeek && variantInfo.trip.daysOfWeek.length > 0 && (
+                                                          <div className="mt-1.5">
+                                                            <p className="text-[10px] text-muted-foreground mb-1">
+                                                              Days:{" "}
+                                                              <span className="font-medium text-foreground">
+                                                                {formatDaysOfWeek(variantInfo.trip.daysOfWeek)}
+                                                              </span>
+                                                            </p>
+                                                          </div>
+                                                        )}
+                                                        {sortedStops.length > 0 && (
+                                                          <div className="mt-1.5 pt-1.5 border-t border-dashed">
+                                                            <p className="text-[10px] text-muted-foreground mb-1.5">
+                                                              All stops ({sortedStops.length}):
+                                                            </p>
+                                                            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                                                              {sortedStops.map((stop, stopIdx) => (
+                                                                <span
+                                                                  key={stop.stop_id}
+                                                                  className="inline-flex items-center"
+                                                                >
+                                                                  <span className="text-[10px] text-muted-foreground">
+                                                                    {stop.stop_name}
+                                                                  </span>
+                                                                  {stopIdx < sortedStops.length - 1 && (
+                                                                    <span className="mx-1.5 text-[8px] text-muted-foreground/40">→</span>
+                                                                  )}
+                                                                </span>
+                                                              ))}
+                                                            </div>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    );
+                                                  })}
+                                                </div>
+                                              )}
                                             </div>
                                           );
                                         })}
