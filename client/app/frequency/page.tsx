@@ -476,21 +476,21 @@ function FrequencyPageContent() {
         <Section className="mb-6">
           <div className="space-y-3">
             <p className="text-xs uppercase tracking-widest text-muted-foreground">
-              TransitFlow Frequency Analysis
+              TransitFlow Trips per Hour Analysis
             </p>
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Service Frequency & Headways
+              Service Trips per Hour & Headways
             </h1>
             <p className="text-muted-foreground text-sm leading-6">
-              Analyze trip frequency, headways, and service patterns for GO
+              Analyze trips per hour, headways, and service patterns for GO
               Transit routes.
             </p>
             <div className="rounded-lg border border-dashed border-blue-500/30 bg-blue-500/5 p-3 mt-3">
               <p className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-1">
-                ℹ️ Frequency Calculation
+                ℹ️ Trips per Hour Calculation
               </p>
               <p className="text-xs text-muted-foreground leading-5">
-                Frequency is now separated by <strong>weekday</strong> (Monday-Friday) and <strong>weekend</strong> (Saturday-Sunday). 
+                Trips per hour is now separated by <strong>weekday</strong> (Monday-Friday) and <strong>weekend</strong> (Saturday-Sunday). 
                 Use the "Day Type" filter to view specific periods, or "All Days" to see combined totals across all service days, variants, and directions.
               </p>
             </div>
@@ -508,9 +508,9 @@ function FrequencyPageContent() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-lg border border-dashed p-3 bg-muted/30">
-              <p className="text-sm font-semibold mb-1.5">Frequency</p>
-              <p className="text-xs text-muted-foreground leading-5">
-                Number of trips per hour. Higher = more frequent service.
+              <p className="text-sm font-semibold mb-1.5">Trips per Hour</p>
+                <p className="text-xs text-muted-foreground leading-5">
+                Number of trips departing per hour. Higher = more frequent service.
                 <span className="block mt-1.5 font-medium text-foreground">
                   Example: 4 trips/hr = every 15 min
                 </span>
@@ -638,7 +638,7 @@ function FrequencyPageContent() {
               </div>
               <div className="rounded-lg border border-dashed p-3">
                 <p className="text-xs uppercase text-muted-foreground">
-                  Avg Frequency
+                  Avg Trips/Hour
                 </p>
                 <p className="mt-1 text-2xl font-semibold">
                   {overallStats.averageFrequency.toFixed(1)}
@@ -690,7 +690,7 @@ function FrequencyPageContent() {
               </div>
               <div className="rounded-lg border border-dashed p-3">
                 <p className="text-xs uppercase text-muted-foreground">
-                  Avg Frequency
+                  Avg Trips/Hour
                 </p>
                 <p className="mt-1 text-2xl font-semibold">
                   {(overallStats.averageFrequencyWeekday || 0).toFixed(1)}
@@ -736,7 +736,7 @@ function FrequencyPageContent() {
               </div>
               <div className="rounded-lg border border-dashed p-3">
                 <p className="text-xs uppercase text-muted-foreground">
-                  Avg Frequency
+                  Avg Trips/Hour
                 </p>
                 <p className="mt-1 text-2xl font-semibold">
                   {(overallStats.averageFrequencyWeekend || 0).toFixed(1)}
@@ -791,11 +791,11 @@ function FrequencyPageContent() {
 
         {!isLoading && filteredRoutes.length > 0 && (
           <>
-            {/* Overall Hourly Frequency Chart */}
+            {/* Overall Trips per Hour Chart */}
             <Section className="mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-semibold">
-                  Overall Hourly Trip Frequency
+                  Overall Trips per Hour
                 </h2>
                 <p className="text-xs text-muted-foreground">
                   {selectedDayType === "weekday"
@@ -848,7 +848,7 @@ function FrequencyPageContent() {
                         border: "1px dashed hsl(var(--border))",
                         borderRadius: "8px",
                       }}
-                      formatter={(value: number | undefined) => [`${value || 0} trips`, "Frequency"]}
+                      formatter={(value: number | undefined) => [`${value || 0} trips`, "Trips per Hour"]}
                     />
                     <Bar
                       dataKey="trips"
@@ -976,7 +976,7 @@ function FrequencyPageContent() {
 
                     <div className="mt-4">
                       <p className="text-xs uppercase text-muted-foreground mb-2">
-                        Hourly Frequency
+                        Trips per Hour
                         {selectedDayType === "weekday"
                           ? " (Weekday)"
                           : selectedDayType === "weekend"
@@ -1026,8 +1026,8 @@ function FrequencyPageContent() {
                                 }}
                                 labelFormatter={(value) => `Hour: ${value}`}
                                 formatter={(value: number | undefined) => [
-                                  `${value || 0} trips (sum across all service days, variants, and directions)`,
-                                  "Frequency",
+                                  `${value || 0} trips per hour (sum across all service days, variants, and directions)`,
+                                  "Trips per Hour",
                                 ]}
                               />
                               <Line
@@ -1044,7 +1044,7 @@ function FrequencyPageContent() {
                           </div>
                         ) : (
                           <div className="text-xs text-muted-foreground p-4 border border-dashed rounded-lg">
-                            No frequency data available for this route.
+                            No trips per hour data available for this route.
                           </div>
                         );
                       })()}
