@@ -1280,9 +1280,9 @@ function FrequencyPageContent() {
                             return Array.from(tripsByHour.entries())
                               .sort(([a], [b]) => a - b)
                               .map(([hour, timeEntries]) => {
-                                // Count unique trips: each unique time = one trip
-                                // Multiple variants at the same time are just different route patterns, not separate trips
-                                const totalDepartures = timeEntries.length;
+                                // Count total trips: sum all variants across all times in this hour
+                                // Each variant at a given time is a separate trip
+                                const totalDepartures = timeEntries.reduce((sum, entry) => sum + entry.variants.length, 0);
 
                                 return (
                                   <div
@@ -1298,8 +1298,8 @@ function FrequencyPageContent() {
                                         .sort((a, b) => a.time.localeCompare(b.time))
                                         .map((timeEntry) => {
                                           const hasBoth = timeEntry.weekdayCount > 0 && timeEntry.weekendCount > 0;
-                                          // Count unique variants at this time (for display purposes)
-                                          const uniqueVariantsAtTime = new Set(timeEntry.variants.map(v => v.variant.variant_id)).size;
+                                          // Count total trips at this time (each variant is a separate trip)
+                                          const tripsAtThisTime = timeEntry.variants.length;
 
                                           return (
                                             <div
@@ -1309,9 +1309,9 @@ function FrequencyPageContent() {
                                               <div className="flex items-center justify-between mb-1.5">
                                                 <span className="text-xs font-medium font-mono">
                                                   {timeEntry.time}
-                                                  {uniqueVariantsAtTime > 1 && (
+                                                  {tripsAtThisTime > 1 && (
                                                     <span className="text-[10px] text-muted-foreground ml-1">
-                                                      ({uniqueVariantsAtTime} trips)
+                                                      ({tripsAtThisTime} trips)
                                                     </span>
                                                   )}
                                                 </span>
@@ -1349,13 +1349,6 @@ function FrequencyPageContent() {
                                                         <span className="font-medium text-foreground">
                                                           {formatDaysOfWeek(timeEntry.daysOfWeek)}
                                                         </span>
-                                                      </p>
-                                                    </div>
-                                                  )}
-                                                  {timeEntry.variants.length > 0 && (
-                                                    <div className="mt-1.5">
-                                                      <p className="text-[10px] text-muted-foreground">
-                                                        {timeEntry.variants.length} variant{timeEntry.variants.length !== 1 ? "s" : ""} serving this trip
                                                       </p>
                                                     </div>
                                                   )}
