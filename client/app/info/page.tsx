@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { RouteGraph } from "@/components/RouteGraph";
 
 type VariantTime = {
   variant_id: string;
@@ -158,11 +159,14 @@ export default function InfoPage() {
 
         <Section>
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold">All routes</h2>
+            <h2 className="text-base font-semibold">Routes & subroutes</h2>
             <span className="text-xs text-muted-foreground">
               {isLoading ? "Loading..." : `${grouped.length} variants`}
             </span>
           </div>
+          <p className="text-muted-foreground text-sm mb-4">
+            One row per route; all variants merged into that row. Each variant is a different colored line (dots = stops). Legend on the right lists variants and durations.
+          </p>
 
           {isLoading && (
             <div className="text-sm text-muted-foreground">
@@ -177,7 +181,15 @@ export default function InfoPage() {
           )}
 
           {!isLoading && grouped.length > 0 && (
-            <div className="mt-4 space-y-4">
+            <>
+              <RouteGraph
+                grouped={grouped}
+                variantStops={variantStops}
+                className="mt-4"
+              />
+              <div className="mt-10 pt-6 border-t border-dashed">
+                <h3 className="text-sm font-semibold mb-4">All routes (detail)</h3>
+                <div className="space-y-4">
               {grouped.map((item) => {
                 const forward = item.directions[0];
                 const reverse = item.directions[1];
@@ -257,7 +269,9 @@ export default function InfoPage() {
                   </div>
                 );
               })}
-            </div>
+                </div>
+              </div>
+            </>
           )}
         </Section>
       </div>

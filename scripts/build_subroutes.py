@@ -236,10 +236,13 @@ def main():
 
     variants = build_variants(trips, trip_stop_times)
 
+    excluded_variants = {"18M", "18N", "18R", "18L"}
     variants_by_short = defaultdict(list)
     for _, group in variants.items():
         route_id = group["route_id"]
         route_short_name = route_id_to_short.get(route_id, "").strip() or route_id
+        if route_short_name == "18" and group["route_variant"] in excluded_variants:
+            continue
         variants_by_short[route_short_name].append(group)
 
     variants_index = {}
