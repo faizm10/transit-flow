@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 type VariantTime = {
@@ -144,6 +145,14 @@ export default function InfoPage() {
               Duration is based on representative trips for each route variant.
               Start-to-end and end-to-start directions are shown where available.
             </p>
+            <div className="pt-2">
+              <Link
+                href="/frequency"
+                className="text-sm text-muted-foreground hover:text-foreground underline"
+              >
+                View frequency analysis →
+              </Link>
+            </div>
           </div>
         </Section>
 
