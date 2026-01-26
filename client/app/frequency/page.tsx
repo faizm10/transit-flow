@@ -24,6 +24,7 @@ type TripDetail = {
   serviceId: string;
   timesPerWeek: number;
   firstStopName: string;
+  daysOfWeek: number[]; // 0=Sunday, 1=Monday, ..., 6=Saturday
 };
 
 type FrequencyData = {
@@ -90,6 +91,28 @@ type RouteAggregate = {
 
 function formatRouteType(value: string) {
   return value === "2" ? "Train" : "Bus";
+}
+
+function formatDaysOfWeek(days: number[]): string {
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const sortedDays = [...days].sort((a, b) => a - b);
+  
+  // Check for common patterns
+  if (sortedDays.length === 5 && sortedDays[0] === 1 && sortedDays[4] === 5) {
+    return "Mon-Fri";
+  }
+  if (sortedDays.length === 2 && sortedDays[0] === 0 && sortedDays[1] === 6) {
+    return "Sat-Sun";
+  }
+  if (sortedDays.length === 1 && sortedDays[0] === 6) {
+    return "Saturday";
+  }
+  if (sortedDays.length === 1 && sortedDays[0] === 0) {
+    return "Sunday";
+  }
+  
+  // Otherwise, list all days
+  return sortedDays.map((d) => dayNames[d]).join(", ");
 }
 
 function formatHour(hour: number): string {
@@ -1290,6 +1313,16 @@ function FrequencyPageContent() {
                                                             </span>
                                                           )}
                                                       </div>
+                                                      {variantInfo.trip.daysOfWeek && variantInfo.trip.daysOfWeek.length > 0 && (
+                                                        <div className="mt-1.5">
+                                                          <p className="text-[10px] text-muted-foreground mb-1">
+                                                            Days:{" "}
+                                                            <span className="font-medium text-foreground">
+                                                              {formatDaysOfWeek(variantInfo.trip.daysOfWeek)}
+                                                            </span>
+                                                          </p>
+                                                        </div>
+                                                      )}
                                                       {sortedStops.length > 0 && (
                                                         <div className="mt-1.5 pt-1.5 border-t border-dashed">
                                                           <p className="text-[10px] text-muted-foreground mb-1.5">

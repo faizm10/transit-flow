@@ -30,6 +30,7 @@ type TripDetail = {
   serviceId: string;
   timesPerWeek: number;
   firstStopName: string;
+  daysOfWeek: number[]; // Array of day numbers: 0=Sunday, 1=Monday, ..., 6=Saturday
 };
 
 type FrequencyData = {
@@ -628,6 +629,9 @@ export async function GET() {
           // Count weekday vs weekend days
           const weekdayDays = Array.from(daysOfWeek).filter((d) => d >= 1 && d <= 5).length;
           const weekendDays = Array.from(daysOfWeek).filter((d) => d === 0 || d === 6).length;
+          
+          // Convert Set to sorted array for display
+          const daysArray = Array.from(daysOfWeek).sort((a, b) => a - b);
 
           // Determine primary day type based on actual days
           let primaryDayType: "weekday" | "weekend" | "unknown" = "unknown";
@@ -649,6 +653,7 @@ export async function GET() {
             serviceId: Array.from(group.serviceIds)[0] || "",
             timesPerWeek,
             firstStopName,
+            daysOfWeek: daysArray,
           };
         })
         .sort((a, b) => a.departureTime - b.departureTime);
