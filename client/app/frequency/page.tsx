@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LineChart,
@@ -98,13 +99,59 @@ function formatHour(hour: number): string {
   return `${hour - 12} PM`;
 }
 
-export default function FrequencyPage() {
+function FrequencyPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [data, setData] = useState<FrequencyData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRoute, setSelectedRoute] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedDayType, setSelectedDayType] = useState<"all" | "weekday" | "weekend">("all");
+
+  // Update URL when filters change
+  const updateFilters = (
+    route: string,
+    type: string,
+    dayType: "all" | "weekday" | "weekend",
+  ) => {
+    const params = new URLSearchParams();
+    if (route && route !== "all") params.set("route", route);
+    if (type && type !== "all") params.set("type", type);
+    if (dayType && dayType !== "all") params.set("dayType", dayType);
+
+    const queryString = params.toString();
+    const newUrl = queryString ? `/frequency?${queryString}` : "/frequency";
+    router.push(newUrl, { scroll: false });
+  };
+
+  const handleRouteChange = (route: string) => {
+    setSelectedRoute(route);
+    updateFilters(route, selectedType, selectedDayType);
+  };
+
+  const handleTypeChange = (type: string) => {
+    setSelectedType(type);
+    updateFilters(selectedRoute, type, selectedDayType);
+  };
+
+  const handleDayTypeChange = (dayType: "all" | "weekday" | "weekend") => {
+    setSelectedDayType(dayType);
+    updateFilters(selectedRoute, selectedType, dayType);
+  };
   const [expandedRoutes, setExpandedRoutes] = useState<Set<string>>(new Set());
+
+  // Sync state with URL params when they change (e.g., browser back/forward)
+  useEffect(() => {
+    const routeParam = searchParams.get("route") || "all";
+    const typeParam = searchParams.get("type") || "all";
+    const dayTypeParam = (searchParams.get("dayType") || "all") as "all" | "weekday" | "weekend";
+
+    if (routeParam !== selectedRoute) setSelectedRoute(routeParam);
+    if (typeParam !== selectedType) setSelectedType(typeParam);
+    if (dayTypeParam !== selectedDayType && ["all", "weekday", "weekend"].includes(dayTypeParam)) {
+      setSelectedDayType(dayTypeParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -528,7 +575,7 @@ export default function FrequencyPage() {
               </label>
               <select
                 value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
+                onChange={(e) => handleTypeChange(e.target.value)}
                 className="w-full rounded-lg border border-dashed bg-background px-3 py-2 text-sm"
               >
                 <option value="all">All Types</option>
@@ -542,7 +589,7 @@ export default function FrequencyPage() {
               </label>
               <select
                 value={selectedRoute}
-                onChange={(e) => setSelectedRoute(e.target.value)}
+                onChange={(e) => handleRouteChange(e.target.value)}
                 className="w-full rounded-lg border border-dashed bg-background px-3 py-2 text-sm"
               >
                 <option value="all">All Routes</option>
@@ -560,7 +607,7 @@ export default function FrequencyPage() {
               <select
                 value={selectedDayType}
                 onChange={(e) =>
-                  setSelectedDayType(
+                  handleDayTypeChange(
                     e.target.value as "all" | "weekday" | "weekend",
                   )
                 }
@@ -1192,6 +1239,18 @@ export default function FrequencyPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function FrequencyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    }>
+      <FrequencyPageContent />
+    </Suspense>
   );
 }
 
