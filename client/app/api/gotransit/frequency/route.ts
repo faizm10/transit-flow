@@ -22,6 +22,16 @@ type RouteEntry = {
   route_type: number | string;
 };
 
+type TripDetail = {
+  tripId: string;
+  departureTime: number;
+  departureTimeFormatted: string;
+  dayType: "weekday" | "weekend" | "unknown";
+  serviceId: string;
+  timesPerWeek: number;
+  firstStopName: string;
+};
+
 type FrequencyData = {
   variant_id: string;
   route_short_name: string;
@@ -45,6 +55,7 @@ type FrequencyData = {
   averageHeadway: number;
   minHeadway: number;
   maxHeadway: number;
+  tripDetails: Array<TripDetail>; // Detailed trip information
 };
 
 function parseCsvLine(line: string): string[] {
@@ -100,6 +111,16 @@ function secondsToHour(seconds: number): number {
   return Math.floor(seconds / 3600);
 }
 
+function formatTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  const normalizedHours = hours >= 24 ? hours - 24 : hours;
+  return `${normalizedHours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
+
 function isWeekend(dateString: string): boolean {
   // dateString format: YYYYMMDD (e.g., "20260424")
   const year = Number.parseInt(dateString.substring(0, 4), 10);
@@ -120,6 +141,7 @@ export async function GET() {
     );
     const variantsPath = path.join(basePath, "variants_index.json");
     const routesPath = path.join(basePath, "routes_index.json");
+    const variantStopsPath = path.join(basePath, "variant_stops.json");
     const stopTimesPath = path.join(
       process.cwd(),
       "public",
@@ -139,9 +161,10 @@ export async function GET() {
       "calendar_dates.txt",
     );
 
-    const [variantsRaw, routesRaw] = await Promise.all([
+    const [variantsRaw, routesRaw, variantStopsRaw] = await Promise.all([
       fs.readFile(variantsPath, "utf8"),
       fs.readFile(routesPath, "utf8"),
+      fs.readFile(variantStopsPath, "utf8"),
     ]);
 
     const variantsIndex = JSON.parse(variantsRaw) as Record<
@@ -149,6 +172,16 @@ export async function GET() {
       VariantEntry[]
     >;
     const routesIndex = JSON.parse(routesRaw) as RouteEntry[];
+    const variantStops = JSON.parse(variantStopsRaw) as Record<
+      string,
+      Array<{
+        stop_id: string;
+        stop_name: string;
+        stop_lat: number | null;
+        stop_lon: number | null;
+        stop_sequence: number;
+      }>
+    >;
 
     const routeById = new Map<string, RouteEntry>();
     routesIndex.forEach((route) => routeById.set(route.route_id, route));
@@ -210,9 +243,10 @@ export async function GET() {
       tripsHeaders[0] = tripsHeaders[0].replace(/^\uFEFF/, "");
     }
 
-    // Map trip_id to variant_id and day type
+    // Map trip_id to variant_id, day type, and service_id
     const tripToVariant = new Map<string, string[]>();
     const tripToDayType = new Map<string, "weekday" | "weekend">();
+    const tripToServiceId = new Map<string, string>();
     for (let i = 1; i < tripsLines.length; i += 1) {
       const values = parseCsvLine(tripsLines[i]);
       const trip = tripsHeaders.reduce<Record<string, string>>((obj, header, index) => {
@@ -225,7 +259,12 @@ export async function GET() {
         ? Number.parseInt(trip.direction_id, 10)
         : 0;
       const routeVariant = trip.route_variant || "";
-      const serviceId = trip.service_id;
+      const serviceId = trip.service_id || "";
+
+      // Store service_id
+      if (serviceId) {
+        tripToServiceId.set(trip.trip_id, serviceId);
+      }
 
       // Determine day type
       if (serviceId) {
@@ -255,6 +294,15 @@ export async function GET() {
     const variantTripTimes = new Map<string, number[]>(); // variant_id -> departure_times[]
     const variantTripTimesWeekday = new Map<string, number[]>(); // variant_id -> weekday departure_times[]
     const variantTripTimesWeekend = new Map<string, number[]>(); // variant_id -> weekend departure_times[]
+    const variantTripDetails = new Map<
+      string,
+      Array<{
+        tripId: string;
+        departureTime: number;
+        dayType: "weekday" | "weekend" | "unknown";
+        serviceId: string;
+      }>
+    >(); // variant_id -> trip details
 
     const stream = createReadStream(stopTimesPath, { encoding: "utf8" });
     const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
@@ -284,7 +332,7 @@ export async function GET() {
       const variantIds = tripToVariant.get(tripId);
       if (!variantIds || variantIds.length === 0) continue;
 
-      const dayType = tripToDayType.get(tripId);
+      const dayType = tripToDayType.get(tripId) || "unknown";
 
       // Get first stop departure time
       const stopSequence = Number.parseInt(row.stop_sequence || "0", 10);
@@ -295,12 +343,26 @@ export async function GET() {
       );
       if (departureTime === null) continue;
 
+      // Get service_id from stored map
+      const serviceId = tripToServiceId.get(tripId) || "";
+
       variantIds.forEach((variantId) => {
         // All trips
         if (!variantTripTimes.has(variantId)) {
           variantTripTimes.set(variantId, []);
         }
         variantTripTimes.get(variantId)!.push(departureTime);
+
+        // Store trip details
+        if (!variantTripDetails.has(variantId)) {
+          variantTripDetails.set(variantId, []);
+        }
+        variantTripDetails.get(variantId)!.push({
+          tripId,
+          departureTime,
+          dayType: (dayType as "weekday" | "weekend" | "unknown") || "unknown",
+          serviceId,
+        });
 
         // Weekday trips
         if (dayType === "weekday") {
@@ -424,6 +486,79 @@ export async function GET() {
       const minHeadway = headways.length > 0 ? Math.min(...headways) : 0;
       const maxHeadway = headways.length > 0 ? Math.max(...headways) : 0;
 
+      // Process trip details - group by departure time and count occurrences
+      const tripDetailsRaw = variantTripDetails.get(variantId) || [];
+      
+      // Group trips by departure time (rounded to nearest minute for grouping)
+      const tripsByTime = new Map<
+        number,
+        {
+          departureTime: number;
+          dayTypes: Set<"weekday" | "weekend" | "unknown">;
+          serviceIds: Set<string>;
+          tripIds: string[];
+        }
+      >();
+
+      tripDetailsRaw.forEach((detail) => {
+        // Round to nearest minute for grouping
+        const timeKey = Math.floor(detail.departureTime / 60) * 60;
+        if (!tripsByTime.has(timeKey)) {
+          tripsByTime.set(timeKey, {
+            departureTime: detail.departureTime,
+            dayTypes: new Set(),
+            serviceIds: new Set(),
+            tripIds: [],
+          });
+        }
+        const group = tripsByTime.get(timeKey)!;
+        group.dayTypes.add(detail.dayType);
+        group.serviceIds.add(detail.serviceId);
+        group.tripIds.push(detail.tripId);
+      });
+
+      // Get first stop name for this variant
+      const stops = variantStops[variantId] || [];
+      const firstStop = stops.find((s) => s.stop_sequence === 1);
+      const firstStopName = firstStop?.stop_name || "";
+
+      // Convert to trip details array
+      const tripDetails: TripDetail[] = Array.from(tripsByTime.values())
+        .map((group) => {
+          const weekdayCount = Array.from(group.serviceIds).filter((sid) => {
+            const dayType = serviceIdToDayType.get(sid);
+            return dayType === "weekday";
+          }).length;
+          const weekendCount = Array.from(group.serviceIds).filter((sid) => {
+            const dayType = serviceIdToDayType.get(sid);
+            return dayType === "weekend";
+          }).length;
+          const timesPerWeek = weekdayCount * 5 + weekendCount * 2; // 5 weekdays + 2 weekend days
+
+          // Determine primary day type
+          let primaryDayType: "weekday" | "weekend" | "unknown" = "unknown";
+          if (weekdayCount > 0 && weekendCount === 0) {
+            primaryDayType = "weekday";
+          } else if (weekendCount > 0 && weekdayCount === 0) {
+            primaryDayType = "weekend";
+          } else if (weekdayCount > weekendCount) {
+            primaryDayType = "weekday";
+          } else if (weekendCount > weekdayCount) {
+            primaryDayType = "weekend";
+          }
+
+          return {
+            tripId: group.tripIds[0], // Use first trip ID as representative
+            departureTime: group.departureTime,
+            departureTimeFormatted: formatTime(group.departureTime),
+            dayType: primaryDayType,
+            serviceId: Array.from(group.serviceIds)[0] || "",
+            timesPerWeek,
+            firstStopName,
+          };
+        })
+        .sort((a, b) => a.departureTime - b.departureTime);
+
       const route = routeById.get(info.route_id);
 
       frequencyResults.push({
@@ -449,6 +584,7 @@ export async function GET() {
         averageHeadway: Math.round(averageHeadway * 10) / 10,
         minHeadway: Math.round(minHeadway * 10) / 10,
         maxHeadway: Math.round(maxHeadway * 10) / 10,
+        tripDetails,
       });
     });
 
