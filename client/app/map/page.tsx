@@ -261,12 +261,34 @@ export default function MapPage() {
   // Helper function to check if two stop sequences are reversed
   const areStopsReversed = useCallback(
     (stops1: Array<{ stop_id: string }>, stops2: Array<{ stop_id: string }>) => {
-      if (!stops1 || !stops2 || stops1.length !== stops2.length || stops1.length === 0) {
+      if (!stops1 || !stops2 || stops1.length === 0 || stops2.length === 0) {
         return false;
       }
-      // Check if stops1 reversed equals stops2
+      
+      // If lengths don't match, they can't be exact reverses, but check if one is contained in the reverse of the other
+      if (stops1.length !== stops2.length) {
+        // Check if the shorter sequence matches the reverse of the longer one
+        const shorter = stops1.length < stops2.length ? stops1 : stops2;
+        const longer = stops1.length >= stops2.length ? stops1 : stops2;
+        const reversedLonger = [...longer].reverse();
+        
+        // Check if shorter sequence matches the start or end of reversed longer sequence
+        let matchesStart = true;
+        let matchesEnd = true;
+        for (let i = 0; i < shorter.length; i += 1) {
+          if (shorter[i].stop_id !== reversedLonger[i]?.stop_id) {
+            matchesStart = false;
+          }
+          if (shorter[i].stop_id !== reversedLonger[reversedLonger.length - shorter.length + i]?.stop_id) {
+            matchesEnd = false;
+          }
+        }
+        return matchesStart || matchesEnd;
+      }
+      
+      // Check if stops1 reversed equals stops2 (exact match)
       for (let i = 0; i < stops1.length; i += 1) {
-        if (stops1[i].stop_id !== stops2[stops2.length - 1 - i].stop_id) {
+        if (stops1[i]?.stop_id !== stops2[stops2.length - 1 - i]?.stop_id) {
           return false;
         }
       }
@@ -407,8 +429,54 @@ export default function MapPage() {
           variants.forEach((variant) => {
             if (processed.has(variant.variant_id)) return;
 
-            const displayKey =
-              variant.route_variant || variant.variant_id || routeShortName;
+            // For unmerged variants, create a display key based on stops if available
+            let displayKey = variant.route_variant || variant.variant_id || routeShortName;
+            
+            // Try to create a better name from stops if available
+            const stops = goVariantStops[variant.variant_id];
+            if (stops && stops.length > 0) {
+              const firstStop = stops[0]?.stop_name || "";
+              const lastStop = stops[stops.length - 1]?.stop_name || "";
+              if (firstStop && lastStop) {
+                const getStopShortName = (fullName: string): string => {
+                  if (!fullName) return "";
+                  const name = fullName.toLowerCase().trim();
+                  if (name.includes("union")) return "Union";
+                  if (name.includes("mount pleasant")) return "Mount Pleasant";
+                  if (name.includes("bramalea")) return "Bramalea";
+                  if (name.includes("brampton")) return "Brampton";
+                  if (name.includes("kitchener")) return "Kitchener";
+                  if (name.includes("guelph")) return "Guelph";
+                  if (name.includes("georgetown")) return "Georgetown";
+                  if (name.includes("acton")) return "Acton";
+                  if (name.includes("milton")) return "Milton";
+                  if (name.includes("oakville")) return "Oakville";
+                  if (name.includes("burlington")) return "Burlington";
+                  if (name.includes("hamilton")) return "Hamilton";
+                  if (name.includes("stouffville")) return "Stouffville";
+                  if (name.includes("richmond hill")) return "Richmond Hill";
+                  if (name.includes("barrie")) return "Barrie";
+                  if (name.includes("allandale")) return "Allandale";
+                  let cleaned = fullName
+                    .replace(/\s+GO\s*$/i, "")
+                    .replace(/\s+Station\s*$/i, "")
+                    .replace(/\s+Stop\s*$/i, "")
+                    .trim();
+                  const words = cleaned.split(/\s+/);
+                  if (words.length > 2) {
+                    return words.slice(0, 2).join(" ");
+                  }
+                  return cleaned || fullName;
+                };
+                const start = getStopShortName(firstStop);
+                const end = getStopShortName(lastStop);
+                if (start && end) {
+                  const isExpress = stops.length <= 5;
+                  displayKey = `${start} - ${end}${isExpress ? " (Express)" : ""}`;
+                }
+              }
+            }
+            
             const haystack = `${routeShortName} ${displayKey} ${variant.label}`
               .trim()
               .toLowerCase();
