@@ -32,6 +32,8 @@ type FrequencyData = {
   route_long_name: string;
   route_type: string;
   direction_id: number;
+  startStopName: string;
+  endStopName: string;
   hourlyFrequency: Array<{ hour: number; trips: number }>;
   hourlyFrequencyWeekday: Array<{ hour: number; trips: number }>;
   hourlyFrequencyWeekend: Array<{ hour: number; trips: number }>;
