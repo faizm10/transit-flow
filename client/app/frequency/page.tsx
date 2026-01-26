@@ -601,7 +601,8 @@ function FrequencyPageContent() {
   }, [routesByLine]);
 
   // Special service routes that should be displayed separately
-  const specialServiceRoutes = ["18L", "18R", "18M", "18N"];
+  // Include "18" itself and all variants (18L, 18R, 18M, 18N)
+  const specialServiceRoutes = ["18", "18L", "18R", "18M", "18N"];
 
   const filteredRoutes = useMemo(() => {
     return routesByLine.filter((route) => {
