@@ -442,42 +442,78 @@ export async function GET() {
       tripTimesWeekend.sort((a, b) => a - b);
 
       // Calculate hourly frequency (0-23 hours) - all days
+      // Count unique departure times per hour, not total trips across all days
       const hourlyFrequency = Array.from({ length: 24 }, (_, hour) => ({
         hour,
         trips: 0,
       }));
 
+      // Group trips by unique departure time (rounded to minute) per hour
+      const tripsByHourAndTime = new Map<number, Set<number>>(); // hour -> Set of unique departure times (in seconds)
+      
       tripTimes.forEach((timeSeconds) => {
         const hour = secondsToHour(timeSeconds);
         if (hour >= 0 && hour < 24) {
-          hourlyFrequency[hour].trips += 1;
+          if (!tripsByHourAndTime.has(hour)) {
+            tripsByHourAndTime.set(hour, new Set());
+          }
+          // Round to nearest minute to group similar times
+          const timeInMinutes = Math.floor(timeSeconds / 60);
+          tripsByHourAndTime.get(hour)!.add(timeInMinutes);
         }
       });
 
+      // Count unique departure times per hour
+      tripsByHourAndTime.forEach((uniqueTimes, hour) => {
+        hourlyFrequency[hour].trips = uniqueTimes.size;
+      });
+
       // Calculate hourly frequency - weekday
+      // Count unique departure times per hour for weekdays
       const hourlyFrequencyWeekday = Array.from({ length: 24 }, (_, hour) => ({
         hour,
         trips: 0,
       }));
 
+      const tripsByHourAndTimeWeekday = new Map<number, Set<number>>();
+      
       tripTimesWeekday.forEach((timeSeconds) => {
         const hour = secondsToHour(timeSeconds);
         if (hour >= 0 && hour < 24) {
-          hourlyFrequencyWeekday[hour].trips += 1;
+          if (!tripsByHourAndTimeWeekday.has(hour)) {
+            tripsByHourAndTimeWeekday.set(hour, new Set());
+          }
+          const timeInMinutes = Math.floor(timeSeconds / 60);
+          tripsByHourAndTimeWeekday.get(hour)!.add(timeInMinutes);
         }
       });
 
+      tripsByHourAndTimeWeekday.forEach((uniqueTimes, hour) => {
+        hourlyFrequencyWeekday[hour].trips = uniqueTimes.size;
+      });
+
       // Calculate hourly frequency - weekend
+      // Count unique departure times per hour for weekends
       const hourlyFrequencyWeekend = Array.from({ length: 24 }, (_, hour) => ({
         hour,
         trips: 0,
       }));
 
+      const tripsByHourAndTimeWeekend = new Map<number, Set<number>>();
+      
       tripTimesWeekend.forEach((timeSeconds) => {
         const hour = secondsToHour(timeSeconds);
         if (hour >= 0 && hour < 24) {
-          hourlyFrequencyWeekend[hour].trips += 1;
+          if (!tripsByHourAndTimeWeekend.has(hour)) {
+            tripsByHourAndTimeWeekend.set(hour, new Set());
+          }
+          const timeInMinutes = Math.floor(timeSeconds / 60);
+          tripsByHourAndTimeWeekend.get(hour)!.add(timeInMinutes);
         }
+      });
+
+      tripsByHourAndTimeWeekend.forEach((uniqueTimes, hour) => {
+        hourlyFrequencyWeekend[hour].trips = uniqueTimes.size;
       });
 
       // Calculate headways (time between consecutive trips)
@@ -618,6 +654,25 @@ export async function GET() {
         .sort((a, b) => a.departureTime - b.departureTime);
 
       const route = routeById.get(info.route_id);
+
+      // Debug logging for route 22
+      if (info.route_short_name === "22") {
+        console.log(`\n=== Route 22 Variant ${variantId} Debug ===`);
+        console.log(`Route variant: ${info.route_variant}, Direction: ${info.direction_id}`);
+        console.log(`Total trip times: ${tripTimes.length}`);
+        console.log(`Weekday trip times: ${tripTimesWeekday.length}`);
+        console.log(`Weekend trip times: ${tripTimesWeekend.length}`);
+        console.log(`Hour 8 trips (all): ${hourlyFrequency[8].trips}`);
+        console.log(`Hour 8 trips (weekday): ${hourlyFrequencyWeekday[8].trips}`);
+        console.log(`Hour 8 trips (weekend): ${hourlyFrequencyWeekend[8].trips}`);
+        // Show sample trip times for hour 8
+        const hour8Trips = tripTimes.filter((t) => secondsToHour(t) === 8).slice(0, 10);
+        console.log(`Sample hour 8 trip times (first 10):`, hour8Trips.map(t => {
+          const h = Math.floor(t / 3600);
+          const m = Math.floor((t % 3600) / 60);
+          return `${h}:${m.toString().padStart(2, '0')}`;
+        }));
+      }
 
       frequencyResults.push({
         variant_id: variantId,
