@@ -103,6 +103,18 @@ function FrequencyPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [data, setData] = useState<FrequencyData[]>([]);
+  const [variantStops, setVariantStops] = useState<
+    Record<
+      string,
+      Array<{
+        stop_id: string;
+        stop_name: string;
+        stop_lat: number | null;
+        stop_lon: number | null;
+        stop_sequence: number;
+      }>
+    >
+  >({});
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRoute, setSelectedRoute] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
@@ -156,14 +168,34 @@ function FrequencyPageContent() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("/api/gotransit/frequency");
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        const [frequencyResponse, variantStopsResponse] = await Promise.all([
+          fetch("/api/gotransit/frequency"),
+          fetch("/gotransit/derived/variant_stops.json"),
+        ]);
+
+        if (!frequencyResponse.ok) {
+          throw new Error(`HTTP error! status: ${frequencyResponse.status}`);
         }
-        const payload = (await response.json()) as FrequencyResponse;
+        if (!variantStopsResponse.ok) {
+          throw new Error(`HTTP error! status: ${variantStopsResponse.status}`);
+        }
+
+        const payload = (await frequencyResponse.json()) as FrequencyResponse;
         const results = payload.results || [];
         console.log("Loaded frequency data:", results.length, "variants");
         setData(results);
+
+        const stopsPayload = (await variantStopsResponse.json()) as Record<
+          string,
+          Array<{
+            stop_id: string;
+            stop_name: string;
+            stop_lat: number | null;
+            stop_lon: number | null;
+            stop_sequence: number;
+          }>
+        >;
+        setVariantStops(stopsPayload || {});
       } catch (error) {
         console.error("Failed to load frequency data:", error);
       } finally {
@@ -1235,38 +1267,54 @@ function FrequencyPageContent() {
                                                           : "1x/week"}
                                                 </span>
                                               </div>
-                                              <div className="space-y-1">
-                                                {timeEntry.variants.map((variantInfo, idx) => (
-                                                  <div
-                                                    key={idx}
-                                                    className="text-[11px] text-muted-foreground flex items-center justify-between py-0.5"
-                                                  >
-                                                    <span className="flex items-center gap-1.5">
-                                                      <span className="font-medium text-foreground">
-                                                        {variantInfo.variant.route_variant ||
-                                                          route.route_short_name}
-                                                      </span>
-                                                      {variantInfo.variant.startStopName &&
-                                                        variantInfo.variant.endStopName && (
-                                                          <>
-                                                            <span>•</span>
-                                                            <span className="text-[10px]">
+                                              <div className="space-y-2">
+                                                {timeEntry.variants.map((variantInfo, idx) => {
+                                                  const stops = variantStops[variantInfo.variant.variant_id] || [];
+                                                  const sortedStops = [...stops].sort((a, b) => a.stop_sequence - b.stop_sequence);
+                                                  
+                                                  return (
+                                                    <div
+                                                      key={idx}
+                                                      className="rounded border border-dashed p-2 bg-muted/30"
+                                                    >
+                                                      <div className="mb-1.5">
+                                                        <span className="text-[11px] font-medium text-foreground">
+                                                          {variantInfo.variant.route_variant ||
+                                                            route.route_short_name}
+                                                        </span>
+                                                        {variantInfo.variant.startStopName &&
+                                                          variantInfo.variant.endStopName && (
+                                                            <span className="text-[10px] text-muted-foreground ml-1.5">
                                                               {variantInfo.variant.startStopName} →{" "}
                                                               {variantInfo.variant.endStopName}
                                                             </span>
-                                                          </>
-                                                        )}
-                                                      {variantInfo.trip.firstStopName && !variantInfo.variant.startStopName && (
-                                                        <>
-                                                          <span>•</span>
-                                                          <span className="text-[10px]">
-                                                            from {variantInfo.trip.firstStopName}
-                                                          </span>
-                                                        </>
+                                                          )}
+                                                      </div>
+                                                      {sortedStops.length > 0 && (
+                                                        <div className="mt-1.5 pt-1.5 border-t border-dashed">
+                                                          <p className="text-[10px] text-muted-foreground mb-1.5">
+                                                            All stops ({sortedStops.length}):
+                                                          </p>
+                                                          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                                                            {sortedStops.map((stop, stopIdx) => (
+                                                              <span
+                                                                key={stop.stop_id}
+                                                                className="inline-flex items-center"
+                                                              >
+                                                                <span className="text-[10px] text-muted-foreground">
+                                                                  {stop.stop_name}
+                                                                </span>
+                                                                {stopIdx < sortedStops.length - 1 && (
+                                                                  <span className="mx-1.5 text-[8px] text-muted-foreground/40">→</span>
+                                                                )}
+                                                              </span>
+                                                            ))}
+                                                          </div>
+                                                        </div>
                                                       )}
-                                                    </span>
-                                                  </div>
-                                                ))}
+                                                    </div>
+                                                  );
+                                                })}
                                               </div>
                                             </div>
                                           );
