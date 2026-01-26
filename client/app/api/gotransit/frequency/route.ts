@@ -221,7 +221,8 @@ export async function GET() {
     }
 
     const serviceIdToDayType = new Map<string, "weekday" | "weekend">();
-    const serviceIdToDayCount = new Map<string, number>(); // Count actual service days per service_id
+    // Map service_id to set of days of week it runs (0=Sunday, 1=Monday, ..., 6=Saturday)
+    const serviceIdToDaysOfWeek = new Map<string, Set<number>>();
     
     // Check if exception_type column exists
     const hasExceptionType = calendarDatesHeaders.includes("exception_type");
@@ -239,31 +240,44 @@ export async function GET() {
       const date = row.date;
       
       if (serviceId && date) {
-        // Determine day type (use first occurrence or most common)
+        // Parse date and get day of week
+        const year = Number.parseInt(date.substring(0, 4), 10);
+        const month = Number.parseInt(date.substring(4, 6), 10) - 1;
+        const day = Number.parseInt(date.substring(6, 8), 10);
+        const dateObj = new Date(year, month, day);
+        const dayOfWeek = dateObj.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+        
+        // Determine day type
         if (!serviceIdToDayType.has(serviceId)) {
           serviceIdToDayType.set(serviceId, isWeekend(date) ? "weekend" : "weekday");
         }
         
-        // Count actual service days
+        // Track which days of week this service_id runs
+        if (!serviceIdToDaysOfWeek.has(serviceId)) {
+          serviceIdToDaysOfWeek.set(serviceId, new Set());
+        }
+        
         if (hasExceptionType) {
           const exceptionType = row.exception_type;
           // exception_type: 1 = service added, 2 = service removed
           if (exceptionType === "1") {
-            const currentCount = serviceIdToDayCount.get(serviceId) || 0;
-            serviceIdToDayCount.set(serviceId, currentCount + 1);
+            serviceIdToDaysOfWeek.get(serviceId)!.add(dayOfWeek);
           } else if (exceptionType === "2") {
-            // Service removed - subtract if it was previously counted
-            const currentCount = serviceIdToDayCount.get(serviceId) || 0;
-            serviceIdToDayCount.set(serviceId, Math.max(0, currentCount - 1));
+            // Service removed - remove from set
+            serviceIdToDaysOfWeek.get(serviceId)!.delete(dayOfWeek);
           }
-          // If exception_type is missing, don't count (might be invalid row)
         } else {
           // No exception_type column - assume all rows are service days
-          const currentCount = serviceIdToDayCount.get(serviceId) || 0;
-          serviceIdToDayCount.set(serviceId, currentCount + 1);
+          serviceIdToDaysOfWeek.get(serviceId)!.add(dayOfWeek);
         }
       }
     }
+    
+    // Convert days of week sets to weekly count
+    const serviceIdToWeeklyCount = new Map<string, number>();
+    serviceIdToDaysOfWeek.forEach((daysSet, serviceId) => {
+      serviceIdToWeeklyCount.set(serviceId, daysSet.size);
+    });
 
     // Read trips.txt to map variant_id to trip_ids and service_id
     const tripsContent = await fs.readFile(tripsPath, "utf8");
@@ -558,26 +572,26 @@ export async function GET() {
       // Convert to trip details array
       const tripDetails: TripDetail[] = Array.from(tripsByTime.values())
         .map((group) => {
-          // Count actual service days for each service_id
-          let totalDays = 0;
-          let weekdayDays = 0;
-          let weekendDays = 0;
+          // Count unique days of the week this departure time occurs
+          // Each service_id represents a specific date, so we track which days of week
+          const daysOfWeek = new Set<number>(); // 0=Sunday, 1=Monday, ..., 6=Saturday
           
+          // For each service_id, get the days of week it runs
           group.serviceIds.forEach((serviceId) => {
-            const dayCount = serviceIdToDayCount.get(serviceId) || 0;
-            const dayType = serviceIdToDayType.get(serviceId);
-            
-            totalDays += dayCount;
-            
-            if (dayType === "weekday") {
-              weekdayDays += dayCount;
-            } else if (dayType === "weekend") {
-              weekendDays += dayCount;
+            const daysSet = serviceIdToDaysOfWeek.get(serviceId);
+            if (daysSet) {
+              daysSet.forEach((dayOfWeek) => {
+                daysOfWeek.add(dayOfWeek);
+              });
             }
           });
           
-          // Use actual day count instead of formula
-          const timesPerWeek = totalDays;
+          // Count unique days of week = times per week
+          const timesPerWeek = daysOfWeek.size;
+          
+          // Count weekday vs weekend days
+          const weekdayDays = Array.from(daysOfWeek).filter((d) => d >= 1 && d <= 5).length;
+          const weekendDays = Array.from(daysOfWeek).filter((d) => d === 0 || d === 6).length;
 
           // Determine primary day type based on actual days
           let primaryDayType: "weekday" | "weekend" | "unknown" = "unknown";
