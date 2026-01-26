@@ -79,6 +79,8 @@ type RouteAggregate = {
     variant_id: string;
     route_variant: string;
     direction_id: number;
+    startStopName: string;
+    endStopName: string;
     tripDetails: TripDetail[];
   }>;
 };
@@ -173,6 +175,8 @@ export default function FrequencyPage() {
         variant_id: item.variant_id,
         route_variant: item.route_variant,
         direction_id: item.direction_id,
+        startStopName: item.startStopName || "",
+        endStopName: item.endStopName || "",
         tripDetails: item.tripDetails || [],
       });
       
@@ -1043,15 +1047,19 @@ export default function FrequencyPage() {
                                   key={variant.variant_id}
                                   className="rounded-lg border border-dashed p-3 bg-muted/20"
                                 >
-                                  <div className="mb-3">
-                                    <p className="text-xs font-semibold">
-                                      {variant.route_variant || route.route_short_name}
-                                    </p>
-                                    <p className="text-[10px] text-muted-foreground">
-                                      Direction {variant.direction_id} •{" "}
-                                      {variant.tripDetails.length} unique departure times
-                                    </p>
-                                  </div>
+                                <div className="mb-3">
+                                  <p className="text-xs font-semibold">
+                                    {variant.route_variant || route.route_short_name}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {variant.startStopName && variant.endStopName
+                                      ? `${variant.startStopName} → ${variant.endStopName}`
+                                      : variant.startStopName
+                                        ? `From ${variant.startStopName}`
+                                        : `Direction ${variant.direction_id}`}{" "}
+                                    • {variant.tripDetails.length} unique departure times
+                                  </p>
+                                </div>
 
                                   <div className="space-y-2 max-h-96 overflow-y-auto">
                                     {Array.from(tripsByHour.entries())
