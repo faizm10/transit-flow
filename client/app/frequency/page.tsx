@@ -505,6 +505,11 @@ function FrequencyPageContent() {
       } else {
         // Buses: same calculation - count unique departure times and sum their weekly frequency
         // Also need to recalculate hourly frequency excluding special service variants
+        // First, reset hourly frequency arrays
+        route.hourlyFrequency.forEach((freq) => { freq.trips = 0; });
+        route.hourlyFrequencyWeekday.forEach((freq) => { freq.trips = 0; });
+        route.hourlyFrequencyWeekend.forEach((freq) => { freq.trips = 0; });
+        
         const allTripTimes: number[] = [];
         const allTripTimesWeekday: number[] = [];
         const allTripTimesWeekend: number[] = [];
