@@ -306,31 +306,35 @@ function FrequencyPageContent() {
         tripDetails: item.tripDetails || [],
       });
       
-      // Aggregate hourly frequency - all days
-      if (item.hourlyFrequency && Array.isArray(item.hourlyFrequency)) {
-        item.hourlyFrequency.forEach((freq) => {
-          if (freq.hour >= 0 && freq.hour < 24 && freq.trips > 0) {
-            route.hourlyFrequency[freq.hour].trips += freq.trips;
-          }
-        });
-      }
+      // For trains: we'll recalculate from tripDetails after all variants are collected
+      // For buses: aggregate hourly frequency from variants
+      if (item.route_type !== "2") {
+        // Aggregate hourly frequency - all days
+        if (item.hourlyFrequency && Array.isArray(item.hourlyFrequency)) {
+          item.hourlyFrequency.forEach((freq) => {
+            if (freq.hour >= 0 && freq.hour < 24 && freq.trips > 0) {
+              route.hourlyFrequency[freq.hour].trips += freq.trips;
+            }
+          });
+        }
 
-      // Aggregate hourly frequency - weekday
-      if (item.hourlyFrequencyWeekday && Array.isArray(item.hourlyFrequencyWeekday)) {
-        item.hourlyFrequencyWeekday.forEach((freq) => {
-          if (freq.hour >= 0 && freq.hour < 24 && freq.trips > 0) {
-            route.hourlyFrequencyWeekday[freq.hour].trips += freq.trips;
-          }
-        });
-      }
+        // Aggregate hourly frequency - weekday
+        if (item.hourlyFrequencyWeekday && Array.isArray(item.hourlyFrequencyWeekday)) {
+          item.hourlyFrequencyWeekday.forEach((freq) => {
+            if (freq.hour >= 0 && freq.hour < 24 && freq.trips > 0) {
+              route.hourlyFrequencyWeekday[freq.hour].trips += freq.trips;
+            }
+          });
+        }
 
-      // Aggregate hourly frequency - weekend
-      if (item.hourlyFrequencyWeekend && Array.isArray(item.hourlyFrequencyWeekend)) {
-        item.hourlyFrequencyWeekend.forEach((freq) => {
-          if (freq.hour >= 0 && freq.hour < 24 && freq.trips > 0) {
-            route.hourlyFrequencyWeekend[freq.hour].trips += freq.trips;
-          }
-        });
+        // Aggregate hourly frequency - weekend
+        if (item.hourlyFrequencyWeekend && Array.isArray(item.hourlyFrequencyWeekend)) {
+          item.hourlyFrequencyWeekend.forEach((freq) => {
+            if (freq.hour >= 0 && freq.hour < 24 && freq.trips > 0) {
+              route.hourlyFrequencyWeekend[freq.hour].trips += freq.trips;
+            }
+          });
+        }
       }
 
       // Aggregate headways - only valid positive headways
@@ -346,6 +350,87 @@ function FrequencyPageContent() {
       route.totalTrips += item.totalTrips || 0;
       route.totalTripsWeekday += item.totalTripsWeekday || 0;
       route.totalTripsWeekend += item.totalTripsWeekend || 0;
+    });
+
+    // For trains: recalculate hourly frequency from tripDetails (count unique times, not variants)
+    routeMap.forEach((route) => {
+      if (route.route_type === "2") {
+        // Collect all trip departure times from all variants
+        const allTripTimes: number[] = [];
+        const allTripTimesWeekday: number[] = [];
+        const allTripTimesWeekend: number[] = [];
+        
+        route.variantDetails.forEach((variant) => {
+          variant.tripDetails.forEach((trip) => {
+            const hour = Math.floor(trip.departureTime / 3600);
+            const normalizedHour = hour >= 24 ? hour - 24 : hour;
+            
+            if (normalizedHour >= 0 && normalizedHour < 24) {
+              allTripTimes.push(trip.departureTime);
+              
+              if (trip.dayType === "weekday") {
+                allTripTimesWeekday.push(trip.departureTime);
+              } else if (trip.dayType === "weekend") {
+                allTripTimesWeekend.push(trip.departureTime);
+              }
+            }
+          });
+        });
+        
+        // Count unique departure times per hour (rounded to minute)
+        const tripsByHourAndTime = new Map<number, Set<number>>(); // hour -> Set of unique times (in minutes)
+        const tripsByHourAndTimeWeekday = new Map<number, Set<number>>();
+        const tripsByHourAndTimeWeekend = new Map<number, Set<number>>();
+        
+        allTripTimes.forEach((timeSeconds) => {
+          const hour = Math.floor(timeSeconds / 3600);
+          const normalizedHour = hour >= 24 ? hour - 24 : hour;
+          if (normalizedHour >= 0 && normalizedHour < 24) {
+            if (!tripsByHourAndTime.has(normalizedHour)) {
+              tripsByHourAndTime.set(normalizedHour, new Set());
+            }
+            const timeInMinutes = Math.floor(timeSeconds / 60);
+            tripsByHourAndTime.get(normalizedHour)!.add(timeInMinutes);
+          }
+        });
+        
+        allTripTimesWeekday.forEach((timeSeconds) => {
+          const hour = Math.floor(timeSeconds / 3600);
+          const normalizedHour = hour >= 24 ? hour - 24 : hour;
+          if (normalizedHour >= 0 && normalizedHour < 24) {
+            if (!tripsByHourAndTimeWeekday.has(normalizedHour)) {
+              tripsByHourAndTimeWeekday.set(normalizedHour, new Set());
+            }
+            const timeInMinutes = Math.floor(timeSeconds / 60);
+            tripsByHourAndTimeWeekday.get(normalizedHour)!.add(timeInMinutes);
+          }
+        });
+        
+        allTripTimesWeekend.forEach((timeSeconds) => {
+          const hour = Math.floor(timeSeconds / 3600);
+          const normalizedHour = hour >= 24 ? hour - 24 : hour;
+          if (normalizedHour >= 0 && normalizedHour < 24) {
+            if (!tripsByHourAndTimeWeekend.has(normalizedHour)) {
+              tripsByHourAndTimeWeekend.set(normalizedHour, new Set());
+            }
+            const timeInMinutes = Math.floor(timeSeconds / 60);
+            tripsByHourAndTimeWeekend.get(normalizedHour)!.add(timeInMinutes);
+          }
+        });
+        
+        // Set hourly frequency from unique times
+        tripsByHourAndTime.forEach((uniqueTimes, hour) => {
+          route.hourlyFrequency[hour].trips = uniqueTimes.size;
+        });
+        
+        tripsByHourAndTimeWeekday.forEach((uniqueTimes, hour) => {
+          route.hourlyFrequencyWeekday[hour].trips = uniqueTimes.size;
+        });
+        
+        tripsByHourAndTimeWeekend.forEach((uniqueTimes, hour) => {
+          route.hourlyFrequencyWeekend[hour].trips = uniqueTimes.size;
+        });
+      }
     });
 
     // Calculate stats for each route
