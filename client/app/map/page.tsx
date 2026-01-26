@@ -637,149 +637,238 @@ export default function MapPage() {
         <GitHubLogoIcon width={20} height={20} />
       </a>
 
-      {/* Union Pearson Toggle Button */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+      {/* Controls Panel */}
+      <div className="absolute top-4 right-4 z-10 flex flex-col gap-3">
+        {/* Quick Toggle Buttons */}
         <div className="flex gap-2">
           <button
             onClick={() => setShowUnionPearson((prev) => !prev)}
-            className="p-3 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 text-white/60 hover:text-white hover:bg-black/60 transition-all"
+            className={`px-4 py-2.5 rounded-lg backdrop-blur-md border transition-all text-sm font-medium ${
+              showUnionPearson
+                ? "bg-blue-500/60 border-blue-400/30 text-white"
+                : "bg-black/40 border-white/10 text-white/60 hover:text-white hover:bg-black/60"
+            }`}
           >
-            {showUnionPearson ? "Hide UPX" : "Show UPX"}
+            {showUnionPearson ? "✓ UPX" : "UPX"}
           </button>
           <button
             onClick={() => setShowGoTransit((prev) => !prev)}
-            className="p-3 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 text-white/60 hover:text-white hover:bg-black/60 transition-all"
+            className={`px-4 py-2.5 rounded-lg backdrop-blur-md border transition-all text-sm font-medium ${
+              showGoTransit
+                ? "bg-emerald-500/60 border-emerald-400/30 text-white"
+                : "bg-black/40 border-white/10 text-white/60 hover:text-white hover:bg-black/60"
+            }`}
           >
-            {showGoTransit ? "Hide GO" : "Show GO"}
+            {showGoTransit ? "✓ GO Transit" : "GO Transit"}
           </button>
         </div>
 
-        <div className="w-64 max-h-[60vh] overflow-auto rounded-xl bg-black/40 backdrop-blur-md border border-white/10 p-3 text-white/70">
-          <div className="flex items-center justify-between text-xs uppercase tracking-wide text-white/50">
-            <span>GO Transit Variants</span>
-            <div className="flex gap-2">
-              <button
-                className="text-white/60 hover:text-white transition"
-                onClick={() => setSelectedVariantIds(allVariantIds)}
-              >
-                All
-              </button>
-              <button
-                className="text-white/60 hover:text-white transition"
-                onClick={() => setSelectedVariantIds([])}
-              >
-                None
-              </button>
+        {/* Filter Panel */}
+        {showGoTransit && (
+          <div className="w-80 max-h-[70vh] overflow-hidden flex flex-col rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl">
+            {/* Header */}
+            <div className="px-4 py-3 border-b border-white/10 bg-black/40">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-white">Route Filters</h3>
+                <div className="flex gap-1.5">
+                  <button
+                    className="px-2.5 py-1 text-xs rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-all"
+                    onClick={() => setSelectedVariantIds(allVariantIds)}
+                  >
+                    Select All
+                  </button>
+                  <button
+                    className="px-2.5 py-1 text-xs rounded-md bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 transition-all"
+                    onClick={() => setSelectedVariantIds([])}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Search Input */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={goVariantFilterText}
+                  onChange={(event) => setGoVariantFilterText(event.target.value)}
+                  placeholder="Search routes (e.g., 31A, Union, Kitchener)..."
+                  className="w-full rounded-lg bg-black/50 border border-white/10 px-3 py-2 pl-9 text-sm text-white/90 placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                />
+                <svg
+                  className="absolute left-3 top-2.5 w-4 h-4 text-white/40"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                {goVariantFilterText && (
+                  <button
+                    onClick={() => setGoVariantFilterText("")}
+                    className="absolute right-3 top-2.5 w-4 h-4 text-white/40 hover:text-white/60 transition"
+                  >
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="mt-3 flex items-center gap-4 text-sm text-white/70">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                className="accent-emerald-400"
-                checked={showGoTrains}
-                onChange={() => setShowGoTrains((prev) => !prev)}
-              />
-              Trains
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                className="accent-emerald-400"
-                checked={showGoBuses}
-                onChange={() => setShowGoBuses((prev) => !prev)}
-              />
-              Buses
-            </label>
-          </div>
-
-          <input
-            type="text"
-            value={goVariantFilterText}
-            onChange={(event) => setGoVariantFilterText(event.target.value)}
-            placeholder="Filter variants (e.g., 31A or Union)"
-            className="mt-3 w-full rounded-lg bg-black/50 border border-white/10 px-3 py-2 text-xs text-white/80 placeholder:text-white/40"
-          />
-
-          {groupedGoVariants.length === 0 && (
-            <div className="mt-3 text-xs text-white/40">
-              No routes match this filter.
-            </div>
-          )}
-
-          {groupedGoVariants.map((group) => {
-            const routeInfo = routeByShortName.get(group.routeShortName);
-            const variantIds = group.items.flatMap((item) => item.variantIds);
-            const selectedCount = variantIds.filter((id) =>
-              selectedVariantIds.includes(id),
-            ).length;
-
-            return (
-              <div key={group.routeShortName} className="mt-4">
-                <div className="flex items-center justify-between text-[11px] text-white/40">
-                  <span className="truncate">
-                    {group.routeShortName}
-                    {routeInfo?.route_long_name
-                      ? ` · ${routeInfo.route_long_name}`
-                      : ""}
+            {/* Transport Type Filters */}
+            <div className="px-4 py-3 border-b border-white/10 bg-black/30">
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
+                  Show:
+                </span>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded accent-emerald-400 cursor-pointer"
+                    checked={showGoTrains}
+                    onChange={() => setShowGoTrains((prev) => !prev)}
+                  />
+                  <span className="text-sm text-white/80 group-hover:text-white transition">
+                    🚆 Trains
                   </span>
-                  <div className="flex gap-2">
-                    <button
-                      className="text-white/60 hover:text-white transition"
-                      onClick={() => setVariantGroup(variantIds, true)}
-                    >
-                      All
-                    </button>
-                    <button
-                      className="text-white/60 hover:text-white transition"
-                      onClick={() => setVariantGroup(variantIds, false)}
-                    >
-                      None
-                    </button>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded accent-emerald-400 cursor-pointer"
+                    checked={showGoBuses}
+                    onChange={() => setShowGoBuses((prev) => !prev)}
+                  />
+                  <span className="text-sm text-white/80 group-hover:text-white transition">
+                    🚌 Buses
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Variants List */}
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              {groupedGoVariants.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-white/40 text-sm mb-1">No routes found</div>
+                  <div className="text-white/30 text-xs">
+                    Try adjusting your search or filters
                   </div>
                 </div>
-                <div className="mt-2 space-y-2">
-                  {group.items.map((item) => {
+              ) : (
+                <div className="space-y-4">
+                  {groupedGoVariants.map((group) => {
+                    const routeInfo = routeByShortName.get(group.routeShortName);
+                    const variantIds = group.items.flatMap((item) => item.variantIds);
+                    const selectedCount = variantIds.filter((id) =>
+                      selectedVariantIds.includes(id),
+                    ).length;
+                    const isAllSelected = selectedCount === variantIds.length;
+                    const isPartiallySelected =
+                      selectedCount > 0 && selectedCount < variantIds.length;
+
                     return (
-                    <label
-                      key={item.displayKey}
-                      className="flex items-center gap-2 text-sm text-white/70"
-                    >
-                      <input
-                        type="checkbox"
-                        className="accent-emerald-400"
-                        checked={item.variantIds.every((id) =>
-                          selectedVariantIds.includes(id),
-                        )}
-                        onChange={() => {
-                          const enabled = !item.variantIds.every((id) =>
-                            selectedVariantIds.includes(id),
-                          );
-                          setVariantGroup(item.variantIds, enabled);
-                        }}
-                      />
-                      <span
-                        className="h-2 w-2 rounded-full"
-                        style={{
-                          backgroundColor: colorForRoute(group.routeShortName),
-                        }}
-                      />
-                      <span className="truncate">{item.displayKey}</span>
-                      <span className="ml-auto text-[10px] uppercase text-white/40">
-                        {String(routeInfo?.route_type) === "2" ? "Train" : "Bus"}
-                      </span>
-                    </label>
+                      <div
+                        key={group.routeShortName}
+                        className="border border-white/10 rounded-lg p-3 bg-black/20 hover:bg-black/30 transition-all"
+                      >
+                        {/* Route Header */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span
+                              className="h-3 w-3 rounded-full flex-shrink-0"
+                              style={{
+                                backgroundColor: colorForRoute(group.routeShortName),
+                              }}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-semibold text-white truncate">
+                                {group.routeShortName}
+                              </div>
+                              {routeInfo?.route_long_name && (
+                                <div className="text-xs text-white/50 truncate">
+                                  {routeInfo.route_long_name}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-1.5 flex-shrink-0">
+                            <button
+                              className={`px-2 py-1 text-xs rounded border transition-all ${
+                                isAllSelected
+                                  ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-300"
+                                  : "bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10"
+                              }`}
+                              onClick={() => setVariantGroup(variantIds, true)}
+                            >
+                              All
+                            </button>
+                            <button
+                              className="px-2 py-1 text-xs rounded bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all"
+                              onClick={() => setVariantGroup(variantIds, false)}
+                            >
+                              None
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Variants List */}
+                        <div className="space-y-1.5 mt-2">
+                          {group.items.map((item) => {
+                            const isItemSelected = item.variantIds.every((id) =>
+                              selectedVariantIds.includes(id),
+                            );
+                            return (
+                              <label
+                                key={item.displayKey}
+                                className="flex items-center gap-2 cursor-pointer group p-1.5 rounded hover:bg-white/5 transition-all"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="w-3.5 h-3.5 rounded accent-emerald-400 cursor-pointer"
+                                  checked={isItemSelected}
+                                  onChange={() => {
+                                    const enabled = !isItemSelected;
+                                    setVariantGroup(item.variantIds, enabled);
+                                  }}
+                                />
+                                <span className="text-sm text-white/80 group-hover:text-white flex-1 truncate">
+                                  {item.displayKey}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/50 uppercase">
+                                  {String(routeInfo?.route_type) === "2"
+                                    ? "Train"
+                                    : "Bus"}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+
+                        {/* Selection Count */}
+                        <div className="mt-2 pt-2 border-t border-white/5">
+                          <div className="text-xs text-white/40">
+                            {selectedCount} of {variantIds.length} variants selected
+                          </div>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
-                <div className="mt-1 text-[10px] text-white/30">
-                  {selectedCount}/{variantIds.length} selected
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div ref={mapContainer} className="h-full w-full" />
