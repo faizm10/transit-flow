@@ -346,15 +346,22 @@ function FrequencyPageContent() {
         });
       }
 
-      // Aggregate total trips
-      route.totalTrips += item.totalTrips || 0;
-      route.totalTripsWeekday += item.totalTripsWeekday || 0;
-      route.totalTripsWeekend += item.totalTripsWeekend || 0;
+      // For trains: we'll recalculate total trips from tripDetails after all variants are collected
+      // For buses: aggregate total trips from variants
+      if (item.route_type !== "2") {
+        route.totalTrips += item.totalTrips || 0;
+        route.totalTripsWeekday += item.totalTripsWeekday || 0;
+        route.totalTripsWeekend += item.totalTripsWeekend || 0;
+      }
     });
 
-    // For trains: recalculate hourly frequency from tripDetails (count unique times, not variants)
+    // For trains: recalculate hourly frequency and total trips from tripDetails (count unique times, not variants)
     routeMap.forEach((route) => {
       if (route.route_type === "2") {
+        // Reset totals for trains (we'll recalculate)
+        route.totalTrips = 0;
+        route.totalTripsWeekday = 0;
+        route.totalTripsWeekend = 0;
         // Collect all trip departure times from all variants
         const allTripTimes: number[] = [];
         const allTripTimesWeekday: number[] = [];
@@ -430,6 +437,47 @@ function FrequencyPageContent() {
         tripsByHourAndTimeWeekend.forEach((uniqueTimes, hour) => {
           route.hourlyFrequencyWeekend[hour].trips = uniqueTimes.size;
         });
+        
+        // Calculate total trips from unique departure times
+        // Count unique departure times (rounded to minute) and sum their weekly frequency
+        const uniqueTimesMap = new Map<number, { weekday: boolean; weekend: boolean; timesPerWeek: number }>();
+        
+        route.variantDetails.forEach((variant) => {
+          variant.tripDetails.forEach((trip) => {
+            const timeInMinutes = Math.floor(trip.departureTime / 60);
+            if (!uniqueTimesMap.has(timeInMinutes)) {
+              uniqueTimesMap.set(timeInMinutes, {
+                weekday: false,
+                weekend: false,
+                timesPerWeek: 0,
+              });
+            }
+            const entry = uniqueTimesMap.get(timeInMinutes)!;
+            if (trip.dayType === "weekday") {
+              entry.weekday = true;
+            } else if (trip.dayType === "weekend") {
+              entry.weekend = true;
+            }
+            // Use the trip's timesPerWeek (already calculated correctly)
+            entry.timesPerWeek = Math.max(entry.timesPerWeek, trip.timesPerWeek);
+          });
+        });
+        
+        // Total trips = sum of timesPerWeek for all unique departure times
+        // This represents the total number of trips per week
+        route.totalTrips = Array.from(uniqueTimesMap.values()).reduce(
+          (sum, entry) => sum + entry.timesPerWeek,
+          0
+        );
+        
+        // For weekday/weekend totals, only count trips that run on those days
+        route.totalTripsWeekday = Array.from(uniqueTimesMap.values())
+          .filter(entry => entry.weekday)
+          .reduce((sum, entry) => sum + entry.timesPerWeek, 0);
+        
+        route.totalTripsWeekend = Array.from(uniqueTimesMap.values())
+          .filter(entry => entry.weekend)
+          .reduce((sum, entry) => sum + entry.timesPerWeek, 0);
       }
     });
 
