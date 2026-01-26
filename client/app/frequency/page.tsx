@@ -1074,156 +1074,169 @@ function FrequencyPageContent() {
 
                       {expandedRoutes.has(route.route_short_name) && (
                         <div className="mt-4 space-y-4">
-                          {route.variantDetails.length > 0 ? (
-                            route.variantDetails.map((variant) => {
-                              // Group trip details by hour
-                              const tripsByHour = new Map<
-                                number,
-                                TripDetail[]
-                              >();
+                          {route.variantDetails.length > 0 ? (() => {
+                            // Collect all trips from all variants, organized by time
+                            const allTripsByTime = new Map<
+                              string,
+                              Array<{
+                                time: string;
+                                hour: number;
+                                variant: typeof route.variantDetails[0];
+                                trip: TripDetail;
+                              }>
+                            >();
 
+                            route.variantDetails.forEach((variant) => {
                               variant.tripDetails.forEach((trip) => {
+                                const timeKey = trip.departureTimeFormatted.substring(0, 5); // HH:MM
+                                if (!allTripsByTime.has(timeKey)) {
+                                  allTripsByTime.set(timeKey, []);
+                                }
                                 const hour = Math.floor(trip.departureTime / 3600);
                                 const normalizedHour = hour >= 24 ? hour - 24 : hour;
-                                if (!tripsByHour.has(normalizedHour)) {
-                                  tripsByHour.set(normalizedHour, []);
-                                }
-                                tripsByHour.get(normalizedHour)!.push(trip);
+                                allTripsByTime.get(timeKey)!.push({
+                                  time: timeKey,
+                                  hour: normalizedHour,
+                                  variant,
+                                  trip,
+                                });
                               });
+                            });
 
-                              return (
-                                <div
-                                  key={variant.variant_id}
-                                  className="rounded-lg border border-dashed p-3 bg-muted/20"
-                                >
-                                <div className="mb-3">
-                                  <p className="text-xs font-semibold">
-                                    {variant.route_variant || route.route_short_name}
-                                  </p>
-                                  <p className="text-[10px] text-muted-foreground">
-                                    {variant.startStopName && variant.endStopName
-                                      ? `${variant.startStopName} → ${variant.endStopName}`
-                                      : variant.startStopName
-                                        ? `From ${variant.startStopName}`
-                                        : `Direction ${variant.direction_id}`}{" "}
-                                    • {variant.tripDetails.length} unique departure times
-                                  </p>
-                                </div>
+                            // Group by hour, then by time
+                            const tripsByHour = new Map<
+                              number,
+                              Array<{
+                                time: string;
+                                hour: number;
+                                variant: typeof route.variantDetails[0];
+                                trip: TripDetail;
+                              }>
+                            >();
 
-                                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                                    {Array.from(tripsByHour.entries())
-                                      .sort(([a], [b]) => a - b)
-                                      .map(([hour, trips]) => {
-                                        // Group by exact time and count occurrences
-                                        const tripsByExactTime = new Map<
-                                          string,
-                                          {
-                                            time: string;
-                                            weekdayCount: number;
-                                            weekendCount: number;
-                                            totalPerWeek: number;
-                                            dayTypes: Set<string>;
-                                            firstStopName: string;
-                                          }
-                                        >();
+                            allTripsByTime.forEach((trips, timeKey) => {
+                              trips.forEach((tripInfo) => {
+                                if (!tripsByHour.has(tripInfo.hour)) {
+                                  tripsByHour.set(tripInfo.hour, []);
+                                }
+                                tripsByHour.get(tripInfo.hour)!.push(tripInfo);
+                              });
+                            });
 
-                                        trips.forEach((trip) => {
-                                          const timeKey = trip.departureTimeFormatted.substring(
+                            return Array.from(tripsByHour.entries())
+                              .sort(([a], [b]) => a - b)
+                              .map(([hour, tripInfos]) => {
+                                // Group by exact time within the hour
+                                const tripsByExactTime = new Map<
+                                  string,
+                                  Array<{
+                                    time: string;
+                                    variant: typeof route.variantDetails[0];
+                                    trip: TripDetail;
+                                  }>
+                                >();
+
+                                tripInfos.forEach((tripInfo) => {
+                                  if (!tripsByExactTime.has(tripInfo.time)) {
+                                    tripsByExactTime.set(tripInfo.time, []);
+                                  }
+                                  tripsByExactTime.get(tripInfo.time)!.push({
+                                    time: tripInfo.time,
+                                    variant: tripInfo.variant,
+                                    trip: tripInfo.trip,
+                                  });
+                                });
+
+                                return (
+                                  <div
+                                    key={hour}
+                                    className="rounded-lg border border-dashed p-3 bg-muted/20"
+                                  >
+                                    <p className="text-xs font-semibold mb-3">
+                                      {formatHour(hour)} ({tripInfos.length}{" "}
+                                      {tripInfos.length === 1 ? "departure" : "departures"})
+                                    </p>
+                                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                                      {Array.from(tripsByExactTime.entries())
+                                        .sort(([a], [b]) => a.localeCompare(b))
+                                        .map(([time, trips]) => {
+                                          // Aggregate info for this time
+                                          const variants = new Set(trips.map((t) => t.variant.variant_id));
+                                          const totalPerWeek = Math.max(
+                                            ...trips.map((t) => t.trip.timesPerWeek),
                                             0,
-                                            5,
-                                          ); // HH:MM
-                                          if (!tripsByExactTime.has(timeKey)) {
-                                            tripsByExactTime.set(timeKey, {
-                                              time: timeKey,
-                                              weekdayCount: 0,
-                                              weekendCount: 0,
-                                              totalPerWeek: 0,
-                                              dayTypes: new Set(),
-                                              firstStopName: trip.firstStopName || "",
-                                            });
-                                          }
-                                          const group = tripsByExactTime.get(timeKey)!;
-                                          if (trip.dayType === "weekday") {
-                                            group.weekdayCount += 1;
-                                            group.dayTypes.add("weekday");
-                                          } else if (trip.dayType === "weekend") {
-                                            group.weekendCount += 1;
-                                            group.dayTypes.add("weekend");
-                                          }
-                                          // Use the maximum timesPerWeek from trips at this time
-                                          if (trip.timesPerWeek > group.totalPerWeek) {
-                                            group.totalPerWeek = trip.timesPerWeek;
-                                          }
-                                          // Store first stop name (should be same for all trips at same time)
-                                          if (!group.firstStopName && trip.firstStopName) {
-                                            group.firstStopName = trip.firstStopName;
-                                          }
-                                        });
+                                          );
+                                          const weekdayCount = trips.filter(
+                                            (t) => t.trip.dayType === "weekday",
+                                          ).length;
+                                          const weekendCount = trips.filter(
+                                            (t) => t.trip.dayType === "weekend",
+                                          ).length;
+                                          const hasBoth = weekdayCount > 0 && weekendCount > 0;
+                                          const firstStopName = trips[0]?.trip.firstStopName || "";
 
-                                        return (
-                                          <div
-                                            key={hour}
-                                            className="rounded border border-dashed p-2 bg-background"
-                                          >
-                                            <p className="text-xs font-medium mb-1.5">
-                                              {formatHour(hour)} ({trips.length}{" "}
-                                              {trips.length === 1 ? "departure" : "departures"})
-                                            </p>
-                                            <div className="space-y-1">
-                                              {Array.from(tripsByExactTime.values())
-                                                .sort((a, b) =>
-                                                  a.time.localeCompare(b.time),
-                                                )
-                                                .map((group, idx) => {
-                                                  const hasBoth =
-                                                    group.weekdayCount > 0 &&
-                                                    group.weekendCount > 0;
-                                                  return (
-                                                    <div
-                                                      key={idx}
-                                                      className="text-[11px] text-muted-foreground flex items-center justify-between py-0.5"
-                                                    >
-                                                      <span className="flex items-center gap-1.5">
-                                                        <span className="font-mono">
-                                                          {group.time}
-                                                        </span>
-                                                        <span>•</span>
-                                                        <span>
-                                                          {variant.route_variant ||
-                                                            route.route_short_name}
-                                                        </span>
-                                                        {group.firstStopName && (
+                                          return (
+                                            <div
+                                              key={time}
+                                              className="rounded border border-dashed p-2 bg-background"
+                                            >
+                                              <div className="flex items-center justify-between mb-1.5">
+                                                <span className="text-xs font-medium font-mono">
+                                                  {time}
+                                                </span>
+                                                <span className="text-[10px] font-medium text-foreground">
+                                                  {totalPerWeek > 0
+                                                    ? `${totalPerWeek}x/week`
+                                                    : hasBoth
+                                                      ? `${weekdayCount} weekday + ${weekendCount} weekend`
+                                                      : weekdayCount > 0
+                                                        ? `${weekdayCount}x/week (weekday only)`
+                                                        : weekendCount > 0
+                                                          ? `${weekendCount}x/week (weekend only)`
+                                                          : "1x/week"}
+                                                </span>
+                                              </div>
+                                              <div className="space-y-1">
+                                                {trips.map((tripInfo, idx) => (
+                                                  <div
+                                                    key={idx}
+                                                    className="text-[11px] text-muted-foreground flex items-center justify-between py-0.5"
+                                                  >
+                                                    <span className="flex items-center gap-1.5">
+                                                      <span className="font-medium text-foreground">
+                                                        {tripInfo.variant.route_variant ||
+                                                          route.route_short_name}
+                                                      </span>
+                                                      {tripInfo.variant.startStopName &&
+                                                        tripInfo.variant.endStopName && (
                                                           <>
                                                             <span>•</span>
                                                             <span className="text-[10px]">
-                                                              from {group.firstStopName}
+                                                              {tripInfo.variant.startStopName} →{" "}
+                                                              {tripInfo.variant.endStopName}
                                                             </span>
                                                           </>
                                                         )}
-                                                      </span>
-                                                      <span className="ml-2 font-medium text-foreground text-[10px]">
-                                                        {group.totalPerWeek > 0
-                                                          ? `${group.totalPerWeek}x/week`
-                                                          : hasBoth
-                                                            ? `${group.weekdayCount} weekday + ${group.weekendCount} weekend`
-                                                            : group.weekdayCount > 0
-                                                              ? `${group.weekdayCount}x/week (weekday only)`
-                                                              : group.weekendCount > 0
-                                                                ? `${group.weekendCount}x/week (weekend only)`
-                                                                : "1x/week"}
-                                                      </span>
-                                                    </div>
-                                                  );
-                                                })}
+                                                      {firstStopName && !tripInfo.variant.startStopName && (
+                                                        <>
+                                                          <span>•</span>
+                                                          <span className="text-[10px]">
+                                                            from {firstStopName}
+                                                          </span>
+                                                        </>
+                                                      )}
+                                                    </span>
+                                                  </div>
+                                                ))}
+                                              </div>
                                             </div>
-                                          </div>
-                                        );
-                                      })}
+                                          );
+                                        })}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })
-                          ) : (
+                                );
+                              });
+                          })() : (
                             <div className="text-xs text-muted-foreground p-3 border border-dashed rounded-lg">
                               No detailed trip information available.
                             </div>
