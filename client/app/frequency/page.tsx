@@ -636,7 +636,12 @@ function FrequencyPageContent() {
   }, [routesByLine, selectedType, selectedRoute]);
 
   const overallStats = useMemo(() => {
-    if (filteredRoutes.length === 0) {
+    // Exclude special service routes from overall stats
+    const routesForStats = filteredRoutes.filter(
+      (route) => !specialServiceRoutes.includes(route.route_short_name)
+    );
+
+    if (routesForStats.length === 0) {
       return {
         totalTrips: 0,
         averageFrequency: 0,
@@ -646,18 +651,18 @@ function FrequencyPageContent() {
       };
     }
 
-    const totalTrips = filteredRoutes.reduce(
+    const totalTrips = routesForStats.reduce(
       (sum, route) => sum + route.totalTrips,
       0,
     );
 
-    // Aggregate hourly frequency across all routes
+    // Aggregate hourly frequency across all routes (excluding special service)
     const hourlyAggregate = Array.from({ length: 24 }, (_, hour) => ({
       hour,
       trips: 0,
     }));
 
-    filteredRoutes.forEach((route) => {
+    routesForStats.forEach((route) => {
       route.hourlyFrequency.forEach((freq) => {
         hourlyAggregate[freq.hour].trips += freq.trips;
       });
@@ -679,7 +684,7 @@ function FrequencyPageContent() {
       trips: 0,
     }));
 
-    filteredRoutes.forEach((route) => {
+    routesForStats.forEach((route) => {
       route.hourlyFrequencyWeekday.forEach((freq) => {
         hourlyAggregateWeekday[freq.hour].trips += freq.trips;
       });
@@ -691,7 +696,7 @@ function FrequencyPageContent() {
       trips: 0,
     }));
 
-    filteredRoutes.forEach((route) => {
+    routesForStats.forEach((route) => {
       route.hourlyFrequencyWeekend.forEach((freq) => {
         hourlyAggregateWeekend[freq.hour].trips += freq.trips;
       });
@@ -717,8 +722,8 @@ function FrequencyPageContent() {
       }
     });
 
-    // Calculate average headway - properly weighted average
-    const allHeadways = filteredRoutes.flatMap((route) => route.headways).filter((h) => h > 0 && h < 10000);
+    // Calculate average headway - properly weighted average (excluding special service)
+    const allHeadways = routesForStats.flatMap((route) => route.headways).filter((h) => h > 0 && h < 10000);
     const averageHeadway =
       allHeadways.length > 0
         ? allHeadways.reduce((sum, h) => sum + h, 0) / allHeadways.length
@@ -732,11 +737,11 @@ function FrequencyPageContent() {
     const totalTripsWeekendInDay = hourlyAggregateWeekend.reduce((sum, h) => sum + h.trips, 0);
     const averageFrequencyWeekend = totalTripsWeekendInDay / 24;
 
-    const totalTripsWeekday = filteredRoutes.reduce(
+    const totalTripsWeekday = routesForStats.reduce(
       (sum, route) => sum + route.totalTripsWeekday,
       0,
     );
-    const totalTripsWeekend = filteredRoutes.reduce(
+    const totalTripsWeekend = routesForStats.reduce(
       (sum, route) => sum + route.totalTripsWeekend,
       0,
     );
@@ -1097,7 +1102,11 @@ function FrequencyPageContent() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={Array.from({ length: 24 }, (_, hour) => {
-                      const trips = filteredRoutes.reduce((sum, route) => {
+                      // Exclude special service routes from overall graph
+                      const routesForGraph = filteredRoutes.filter(
+                        (route) => !specialServiceRoutes.includes(route.route_short_name)
+                      );
+                      const trips = routesForGraph.reduce((sum, route) => {
                         if (selectedDayType === "weekday") {
                           return sum + (route.hourlyFrequencyWeekday[hour]?.trips || 0);
                         } else if (selectedDayType === "weekend") {
