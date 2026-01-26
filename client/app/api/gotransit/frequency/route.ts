@@ -39,6 +39,8 @@ type FrequencyData = {
   route_long_name: string;
   route_type: string;
   direction_id: number;
+  startStopName: string;
+  endStopName: string;
   hourlyFrequency: Array<{ hour: number; trips: number }>;
   hourlyFrequencyWeekday: Array<{ hour: number; trips: number }>;
   hourlyFrequencyWeekend: Array<{ hour: number; trips: number }>;
@@ -517,10 +519,13 @@ export async function GET() {
         group.tripIds.push(detail.tripId);
       });
 
-      // Get first stop name for this variant
+      // Get first and last stop names for this variant
       const stops = variantStops[variantId] || [];
-      const firstStop = stops.find((s) => s.stop_sequence === 1);
+      const sortedStops = [...stops].sort((a, b) => a.stop_sequence - b.stop_sequence);
+      const firstStop = sortedStops[0];
+      const lastStop = sortedStops[sortedStops.length - 1];
       const firstStopName = firstStop?.stop_name || "";
+      const lastStopName = lastStop?.stop_name || "";
 
       // Convert to trip details array
       const tripDetails: TripDetail[] = Array.from(tripsByTime.values())
@@ -568,6 +573,8 @@ export async function GET() {
         route_long_name: route?.route_long_name || "",
         route_type: String(route?.route_type || ""),
         direction_id: info.direction_id,
+        startStopName: firstStopName,
+        endStopName: lastStopName,
         hourlyFrequency,
         hourlyFrequencyWeekday,
         hourlyFrequencyWeekend,
