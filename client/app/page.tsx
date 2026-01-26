@@ -28,11 +28,17 @@ export default function LandingPage() {
             <Link href="/map">
               <Button variant="ghost">Map</Button>
             </Link>
-            <Button variant="ghost">Docs</Button>
-            <Button variant="outline">Sign in</Button>
-            <Button>
-              Get started <ArrowRightIcon className="ml-2 size-4" />
-            </Button>
+            <Link href="/info">
+              <Button variant="ghost">Routes</Button>
+            </Link>
+            <Link href="/frequency">
+              <Button variant="ghost">Frequency</Button>
+            </Link>
+            <Link href="/map">
+              <Button>
+                Explore <ArrowRightIcon className="ml-2 size-4" />
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -40,19 +46,23 @@ export default function LandingPage() {
         <div className="grid gap-6 md:grid-cols-2">
           <Section title="Hero" className="min-h-[340px] justify-between">
             <div className="space-y-4">
-              <Badge variant="secondary">Real-time transit data</Badge>
+              <Badge variant="secondary">GO Transit Network</Badge>
               <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                A modern dashboard for public transit.
+                Build your own transit network.
               </h1>
               <p className="text-muted-foreground max-w-prose text-sm leading-6">
-                Use TransitFlow to monitor your fleet, analyze ridership, and communicate with your passengers. Everything is a box: sections, cards, feature blocks, pricing, FAQ.
+                Visualize GO Transit routes, analyze service patterns, and explore how different route configurations could improve commuter experiences. Interactive maps, route analysis, and frequency insights.
               </p>
 
               <div className="flex flex-wrap gap-2 pt-2">
-                <Button>
-                  Start building <ArrowRightIcon className="ml-2 size-4" />
-                </Button>
-                <Button variant="outline">See examples</Button>
+                <Link href="/map">
+                  <Button>
+                    View Map <ArrowRightIcon className="ml-2 size-4" />
+                  </Button>
+                </Link>
+                <Link href="/info">
+                  <Button variant="outline">Route Details</Button>
+                </Link>
               </div>
             </div>
 
@@ -64,16 +74,16 @@ export default function LandingPage() {
           <Section title="Key Features" className="min-h-[340px]">
             <div className="grid gap-4">
               <DashedCard
-                title="Real-time Vehicle Positions"
-                desc="Track your vehicles on a map in real-time."
+                title="Interactive Route Map"
+                desc="Explore GO Transit routes and Union Pearson Express on an interactive map with filtering and variant selection."
               />
               <DashedCard
-                title="Service Alerts"
-                desc="Notify your passengers about service changes."
+                title="Route Analysis"
+                desc="View trip durations, stop sequences, and route details for all GO Transit variants."
               />
               <DashedCard
-                title="Ridership Dashboards"
-                desc="Analyze ridership patterns and make data-driven decisions."
+                title="Bidirectional Merging"
+                desc="Automatically merged train routes show both directions with intuitive naming."
               />
             </div>
           </Section>
@@ -83,77 +93,69 @@ export default function LandingPage() {
         <div className="mt-6 grid gap-6 md:grid-cols-3">
           <Section title="Feature 01">
             <FeatureItem
-              title="GTFS & GTFS-RT"
-              desc="Easily import and process your GTFS and GTFS-RT feeds."
+              title="GTFS Data Processing"
+              desc="Process and analyze GTFS feeds to extract routes, stops, shapes, and trip information."
             />
           </Section>
           <Section title="Feature 02">
             <FeatureItem
-              title="Custom Visualizations"
-              desc="Create custom visualizations to better understand your data."
+              title="Route Variants"
+              desc="Automatically identify and group route variants with different stop patterns and directions."
             />
           </Section>
           <Section title="Feature 03">
             <FeatureItem
-              title="Developer API"
-              desc="Integrate your existing tools with our powerful developer API."
+              title="Map Visualization"
+              desc="Interactive Mapbox GL maps with custom styling, filtering, and route selection."
             />
           </Section>
         </div>
 
         {/* GO Pulse Section */}
         <div className="mt-6 grid gap-6 md:grid-cols-2">
-          <Section title="Introducing GO Pulse" className="min-h-[340px] justify-between">
+          <Section title="Current Features" className="min-h-[340px] justify-between">
             <div className="space-y-4">
               <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                A transit sandbox for building your own world of commuting.
+                Analyze and visualize GO Transit service.
               </h2>
               <p className="text-muted-foreground max-w-prose text-sm leading-6">
                 GO Pulse lets you visualize the GO Transit network, customize routes, add new lines, and simulate future expansions — all on an interactive map. It’s not just about today’s service. It’s about designing what regional transit *could* look like.
               </p>
             </div>
           </Section>
-          <Section title="GO Pulse Roadmap" className="min-h-[340px]">
+          <Section title="Coming Soon" className="min-h-[340px]">
             <div className="grid gap-4">
               <DashedCard
-                title="Custom routes and stations"
-                desc="Design your own transit lines and station placements."
+                title="Frequency Analysis"
+                desc="Analyze service frequency, headways, and trip patterns for each route and variant."
               />
               <DashedCard
-                title="Expansion modeling"
-                desc="Simulate the impact of new lines and service changes."
+                title="Peak Hour Analysis"
+                desc="Identify peak service periods and frequency variations throughout the day."
               />
               <DashedCard
-                title="Express service overlays"
-                desc="Add express services to optimize travel times."
+                title="Service Gaps"
+                desc="Identify periods with low or no service to highlight improvement opportunities."
               />
               <DashedCard
-                title="Crowd level prediction"
-                desc="Predict and visualize passenger density on routes."
+                title="Route Comparison"
+                desc="Compare frequency and service levels across different routes and variants."
               />
             </div>
           </Section>
         </div>
 
-        {/* Pricing row */}
+        {/* Data Sources */}
         <div className="mt-6 grid gap-6 md:grid-cols-2">
-          <Section title="Pricing" className="md:col-span-2">
-            <div className="grid gap-4 md:grid-cols-3">
-              <PricingCard
-                plan="Starter"
-                price="$0"
-                perks={["Basic dashboard", "Community support", "1 project"]}
+          <Section title="Data Sources" className="md:col-span-2">
+            <div className="grid gap-4 md:grid-cols-2">
+              <DashedCard
+                title="GO Transit GTFS"
+                desc="Official GTFS feed from GO Transit including routes, stops, trips, and schedules."
               />
-              <PricingCard
-                plan="Pro"
-                price="$19"
-                highlight
-                perks={["Unlimited projects", "Priority support", "Exports"]}
-              />
-              <PricingCard
-                plan="Team"
-                price="$49"
-                perks={["Seats + roles", "Audit logs", "SLA support"]}
+              <DashedCard
+                title="Union Pearson Express"
+                desc="UPX route and stop data integrated into the transit network visualization."
               />
             </div>
           </Section>
