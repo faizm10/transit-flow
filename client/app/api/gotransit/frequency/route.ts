@@ -581,18 +581,20 @@ export async function GET() {
         }
       >();
 
+      // Group by exact departure time (to the second) to avoid rounding issues
+      // Then we'll group by minute for display
       tripDetailsRaw.forEach((detail) => {
-        // Round to nearest minute for grouping
-        const timeKey = Math.floor(detail.departureTime / 60) * 60;
-        if (!tripsByTime.has(timeKey)) {
-          tripsByTime.set(timeKey, {
+        // Use exact departure time as key first, then we'll group by minute
+        const exactTimeKey = detail.departureTime;
+        if (!tripsByTime.has(exactTimeKey)) {
+          tripsByTime.set(exactTimeKey, {
             departureTime: detail.departureTime,
             dayTypes: new Set(),
             serviceIds: new Set(),
             tripIds: [],
           });
         }
-        const group = tripsByTime.get(timeKey)!;
+        const group = tripsByTime.get(exactTimeKey)!;
         group.dayTypes.add(detail.dayType);
         group.serviceIds.add(detail.serviceId);
         group.tripIds.push(detail.tripId);
@@ -606,8 +608,37 @@ export async function GET() {
       const firstStopName = firstStop?.stop_name || "";
       const lastStopName = lastStop?.stop_name || "";
 
+      // Group by minute (HH:MM) to combine trips at the same minute
+      // Multiple trips at the same minute from different service_ids = same trip pattern
+      const tripsByMinute = new Map<
+        number,
+        {
+          departureTime: number;
+          dayTypes: Set<"weekday" | "weekend" | "unknown">;
+          serviceIds: Set<string>;
+          tripIds: string[];
+        }
+      >();
+
+      tripsByTime.forEach((group) => {
+        // Round to nearest minute for grouping
+        const minuteKey = Math.floor(group.departureTime / 60) * 60;
+        if (!tripsByMinute.has(minuteKey)) {
+          tripsByMinute.set(minuteKey, {
+            departureTime: minuteKey,
+            dayTypes: new Set(),
+            serviceIds: new Set(),
+            tripIds: [],
+          });
+        }
+        const minuteGroup = tripsByMinute.get(minuteKey)!;
+        group.dayTypes.forEach((dt) => minuteGroup.dayTypes.add(dt));
+        group.serviceIds.forEach((sid) => minuteGroup.serviceIds.add(sid));
+        minuteGroup.tripIds.push(...group.tripIds);
+      });
+
       // Convert to trip details array
-      const tripDetails: TripDetail[] = Array.from(tripsByTime.values())
+      const tripDetails: TripDetail[] = Array.from(tripsByMinute.values())
         .map((group) => {
           // Count unique days of the week this departure time occurs
           // Each service_id represents a specific date, so we track which days of week
