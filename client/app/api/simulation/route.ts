@@ -6,6 +6,8 @@ import readline from "readline";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+const MAX_OUTPUT_TRIPS = 300;
+const MAX_SHAPE_POINTS_PER_TRIP = 220;
 
 type RouteEntry = {
   route_id: string;
@@ -113,6 +115,19 @@ function parseShortTime(value: string | null): number | null {
 
 function canonicalTripId(value: string): string {
   return value.trim().replace(/^\d{8}-/, "");
+}
+
+function downsampleShape(
+  points: Array<{ lat: number; lon: number; seq: number }>,
+): Array<{ lat: number; lon: number; seq: number }> {
+  if (points.length <= MAX_SHAPE_POINTS_PER_TRIP) return points;
+  const keep = MAX_SHAPE_POINTS_PER_TRIP;
+  const sampled: Array<{ lat: number; lon: number; seq: number }> = [];
+  for (let i = 0; i < keep; i += 1) {
+    const index = Math.round((i * (points.length - 1)) / (keep - 1));
+    sampled.push(points[index]);
+  }
+  return sampled;
 }
 
 function toServiceDate(value: string): string | null {
@@ -526,9 +541,10 @@ async function buildSimulationData(options: {
 export async function GET(request: Request) {
   const requestId = `sim-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const requestStartedAt = Date.now();
+  let debug = false;
   try {
     const { searchParams } = new URL(request.url);
-    const debug =
+    debug =
       searchParams.get("debug") === "1" ||
       searchParams.get("debug") === "true";
     const dateParam = searchParams.get("date");
@@ -626,12 +642,17 @@ export async function GET(request: Request) {
         end_time: number | null;
       }
     > = [];
+    let wasTruncated = false;
     const appendTrips = (data: {
       trips: Map<string, TripMeta>;
       stops: Map<string, TripStops>;
       shapes: Map<string, Array<{ lat: number; lon: number; seq: number }>>;
     }) => {
       data.trips.forEach((trip) => {
+        if (output.length >= MAX_OUTPUT_TRIPS) {
+          wasTruncated = true;
+          return;
+        }
         const stops = data.stops.get(trip.trip_id);
         if (!stops || stops.stops.length < 2) return;
         if (stops.minTime === null || stops.maxTime === null) return;
@@ -642,6 +663,7 @@ export async function GET(request: Request) {
         const shapePoints = trip.shape_id
           ? data.shapes.get(trip.shape_id) || []
           : [];
+        const sampledShapePoints = downsampleShape(shapePoints);
 
         output.push({
           ...trip,
@@ -651,7 +673,7 @@ export async function GET(request: Request) {
             lon: stop.lon,
             shapeIndex: stop.shapeIndex,
           })),
-          shape: shapePoints.map((point) => ({
+          shape: sampledShapePoints.map((point) => ({
             lat: point.lat,
             lon: point.lon,
           })),
@@ -691,6 +713,11 @@ export async function GET(request: Request) {
         shapes: upxData.shapes.size,
       },
       outputTrips: output.length,
+      truncated: wasTruncated,
+      limits: {
+        maxOutputTrips: MAX_OUTPUT_TRIPS,
+        maxShapePointsPerTrip: MAX_SHAPE_POINTS_PER_TRIP,
+      },
     };
     console.log(`[simulation:${requestId}] success`, diagnostics);
 
@@ -709,7 +736,11 @@ export async function GET(request: Request) {
     };
     console.error(`[simulation:${requestId}] error`, failure);
     return NextResponse.json(
-      { error: "Failed to build simulation data", requestId },
+      {
+        error: "Failed to build simulation data",
+        requestId,
+        ...(debug ? { details: failure } : {}),
+      },
       { status: 500 },
     );
   }
