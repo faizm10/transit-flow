@@ -7,6 +7,41 @@ import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
 
+type SimulationTrip = {
+  trip_id: string;
+  route_short_name: string;
+  route_long_name: string;
+  route_type: string;
+  direction_id: number;
+  source: "gotransit" | "union-pearson";
+  stops: Array<{ t: number; lat: number; lon: number; shapeIndex: number | null }>;
+  shape: Array<{ lat: number; lon: number }>;
+  start_stop_name: string;
+  end_stop_name: string;
+  start_time: number | null;
+  end_time: number | null;
+};
+
+function parseShortTime(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split(":");
+  if (parts.length < 2) return null;
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1]);
+  if ([hours, minutes].some((part) => Number.isNaN(part))) {
+    return null;
+  }
+  return hours * 3600 + minutes * 60;
+}
+
+function formatShortTime(seconds: number): string {
+  const totalMinutes = Math.floor(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
 export default function MapPage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -58,6 +93,23 @@ export default function MapPage() {
   const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
   const [goVariantFilterText, setGoVariantFilterText] = useState("");
   const hasInitializedGoVariants = useRef(false);
+  const [simulationDate, setSimulationDate] = useState(() => {
+    const now = new Date();
+    return now.toISOString().slice(0, 10);
+  });
+  const [simulationRoute, setSimulationRoute] = useState("21");
+  const [simulationStart, setSimulationStart] = useState("04:00");
+  const [simulationEnd, setSimulationEnd] = useState("08:00");
+  const [simulationCurrent, setSimulationCurrent] = useState(0);
+  const [simulationTrips, setSimulationTrips] = useState<SimulationTrip[]>([]);
+  const [simulationLoading, setSimulationLoading] = useState(false);
+  const [simulationError, setSimulationError] = useState<string | null>(null);
+  const [simulationPlaying, setSimulationPlaying] = useState(false);
+  const [simulationSpeed, setSimulationSpeed] = useState(60);
+  const [includeUpxInSimulation, setIncludeUpxInSimulation] = useState(true);
+  const animationFrame = useRef<number | null>(null);
+  const lastFrameTime = useRef<number | null>(null);
+
   // Update GO Transit layer visibility and filters
   useEffect(() => {
     if (!map.current || !map.current.isStyleLoaded()) return;
@@ -189,6 +241,14 @@ export default function MapPage() {
     return map;
   }, [goRoutes]);
 
+  const busRoutes = useMemo(() => {
+    return goRoutes
+      .filter((route) => String(route.route_type) === "3")
+      .map((route) => route.route_short_name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  }, [goRoutes]);
+
   const variantLookup = useMemo(() => {
     const map = new Map<
       string,
@@ -213,9 +273,47 @@ export default function MapPage() {
   }, [goVariantsIndex]);
 
   const colorForRoute = useCallback((routeShortName: string) => {
+    const normalized = routeShortName.trim().toUpperCase();
+    const routeColors: Record<string, string> = {
+      KITCHENER: "#22c55e",
+      "31": "#22c55e",
+      "32": "#22c55e",
+      "33": "#22c55e",
+      "36": "#22c55e",
+      "37": "#22c55e",
+      "38": "#22c55e",
+      "29": "#22c55e",
+      "41": "#ec4899",
+      "47": "#ec4899",
+      "48": "#ec4899",
+      "50": "#a855f7",
+      "51": "#a855f7",
+      "52": "#a855f7",
+      "53": "#a855f7",
+      "54": "#a855f7",
+      "55": "#a855f7",
+      "56": "#a855f7",
+      "57": "#a855f7",
+      "58": "#a855f7",
+      "59": "#a855f7",
+      "61": "#7dd3fc",
+      "RICHMOND HILL": "#7dd3fc",
+      BARRIE: "#2563eb",
+      "65": "#2563eb",
+      "68": "#2563eb",
+      "22": "#f97316",
+      "25": "#f97316",
+      "27": "#f97316",
+      MILTON: "#f97316",
+    };
+
+    if (routeColors[normalized]) {
+      return routeColors[normalized];
+    }
+
     let hash = 0;
-    for (let i = 0; i < routeShortName.length; i += 1) {
-      hash = (hash * 31 + routeShortName.charCodeAt(i)) % 360;
+    for (let i = 0; i < normalized.length; i += 1) {
+      hash = (hash * 31 + normalized.charCodeAt(i)) % 360;
     }
     return `hsl(${hash}, 70%, 45%)`;
   }, []);
@@ -677,6 +775,40 @@ export default function MapPage() {
 
   }, []);
 
+  const ensureSimulationLayer = useCallback(() => {
+    if (!map.current) return;
+    if (!map.current.getSource("simulation-vehicles")) {
+      map.current.addSource("simulation-vehicles", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+    }
+    if (!map.current.getLayer("simulation-vehicles-layer")) {
+      map.current.addLayer({
+        id: "simulation-vehicles-layer",
+        type: "circle",
+        source: "simulation-vehicles",
+        paint: {
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            8,
+            4,
+            12,
+            7,
+            15,
+            10,
+          ],
+          "circle-color": ["get", "color"],
+          "circle-stroke-color": "#0b0f19",
+          "circle-stroke-width": 1,
+          "circle-opacity": 0.95,
+        },
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
@@ -706,6 +838,7 @@ export default function MapPage() {
     const handleStyleLoad = () => {
       ensureUnionPearsonLayers();
       ensureGOTransitLayers();
+      ensureSimulationLayer();
       setMapReady(true);
     };
 
@@ -717,7 +850,7 @@ export default function MapPage() {
       map.current = null;
       setMapReady(false);
     };
-  }, [ensureUnionPearsonLayers, ensureGOTransitLayers]);
+  }, [ensureUnionPearsonLayers, ensureGOTransitLayers, ensureSimulationLayer]);
 
   // Update Union Pearson Express layer visibility
   useEffect(() => {
@@ -800,6 +933,11 @@ export default function MapPage() {
     }
   }, [mapReady, displayVariantLines, ensureGOTransitLayers]);
 
+  useEffect(() => {
+    if (!mapReady || !map.current) return;
+    ensureSimulationLayer();
+  }, [mapReady, ensureSimulationLayer]);
+
   const selectedVariantStops = useMemo(() => {
     if (!goVariantStops) return null;
     const features: GeoJSON.Feature[] = [];
@@ -873,16 +1011,283 @@ export default function MapPage() {
     }
   }, [unionPearsonShapes]);
 
+  useEffect(() => {
+    if (!mapReady || !map.current) return;
+    if (!simulationTrips.length) {
+      const empty: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: [],
+      };
+      const source = map.current.getSource(
+        "simulation-vehicles",
+      ) as mapboxgl.GeoJSONSource;
+      source?.setData(empty);
+      return;
+    }
+
+    const features: GeoJSON.Feature[] = [];
+    const currentTime = simulationCurrent;
+
+    simulationTrips.forEach((trip) => {
+      if (!trip.stops.length) return;
+      const first = trip.stops[0];
+      const last = trip.stops[trip.stops.length - 1];
+      if (currentTime < first.t || currentTime > last.t) return;
+
+      let position = null as { lat: number; lon: number } | null;
+      for (let i = 0; i < trip.stops.length - 1; i += 1) {
+        const a = trip.stops[i];
+        const b = trip.stops[i + 1];
+        if (currentTime < a.t || currentTime > b.t) continue;
+        if (b.t === a.t) {
+          position = { lat: a.lat, lon: a.lon };
+          break;
+        }
+        const ratio = (currentTime - a.t) / (b.t - a.t);
+        const hasShape =
+          trip.shape &&
+          trip.shape.length > 1 &&
+          a.shapeIndex !== null &&
+          b.shapeIndex !== null;
+        if (hasShape) {
+          const startIndex = Math.min(a.shapeIndex!, b.shapeIndex!);
+          const endIndex = Math.max(a.shapeIndex!, b.shapeIndex!);
+          const span = Math.max(1, endIndex - startIndex);
+          const rawIndex = startIndex + ratio * span;
+          const lowerIndex = Math.floor(rawIndex);
+          const upperIndex = Math.min(trip.shape.length - 1, lowerIndex + 1);
+          const segmentRatio = rawIndex - lowerIndex;
+          const p0 = trip.shape[lowerIndex];
+          const p1 = trip.shape[upperIndex];
+          position = {
+            lat: p0.lat + (p1.lat - p0.lat) * segmentRatio,
+            lon: p0.lon + (p1.lon - p0.lon) * segmentRatio,
+          };
+        } else {
+          position = {
+            lat: a.lat + (b.lat - a.lat) * ratio,
+            lon: a.lon + (b.lon - a.lon) * ratio,
+          };
+        }
+        break;
+      }
+      if (!position) return;
+
+      const color =
+        trip.source === "union-pearson"
+          ? "#0ea5e9"
+          : trip.route_type === "2"
+            ? "#22c55e"
+            : "#f97316";
+
+      features.push({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [position.lon, position.lat],
+        },
+        properties: {
+          trip_id: trip.trip_id,
+          route_short_name: trip.route_short_name,
+          route_long_name: trip.route_long_name,
+          route_type: trip.route_type,
+          source: trip.source,
+          color,
+          start_stop_name: trip.start_stop_name,
+          end_stop_name: trip.end_stop_name,
+          start_time: trip.start_time ?? "",
+          end_time: trip.end_time ?? "",
+        },
+      });
+    });
+
+    const collection: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features,
+    };
+    const source = map.current.getSource(
+      "simulation-vehicles",
+    ) as mapboxgl.GeoJSONSource;
+    source?.setData(collection);
+  }, [mapReady, simulationTrips, simulationCurrent, ensureSimulationLayer]);
+
+  useEffect(() => {
+    if (!mapReady || !map.current) return;
+    ensureSimulationLayer();
+
+    const popup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      offset: 12,
+      className: "simulation-popup",
+    });
+
+    const handleMove = (event: mapboxgl.MapLayerMouseEvent) => {
+      if (!event.features || event.features.length === 0) return;
+      const feature = event.features[0];
+      const props = feature.properties || {};
+      const route = props.route_short_name || "";
+      const startName = props.start_stop_name || "";
+      const endName = props.end_stop_name || "";
+      const startTime = props.start_time ? formatShortTime(Number(props.start_time)) : "--:--";
+      const endTime = props.end_time ? formatShortTime(Number(props.end_time)) : "--:--";
+
+      popup
+        .setLngLat((feature.geometry as GeoJSON.Point).coordinates as [number, number])
+        .setHTML(
+          `<div style="font-size:11px;line-height:1.2;min-width:140px;">
+            <div style="font-weight:600;margin-bottom:4px;">Route ${route}</div>
+            <div style="color:#cbd5f5;">${startName} → ${endName}</div>
+            <div style="color:#94a3b8;margin-top:4px;">${startTime} → ${endTime}</div>
+          </div>`,
+        )
+        .addTo(map.current!);
+      map.current!.getCanvas().style.cursor = "pointer";
+    };
+
+    const handleLeave = () => {
+      if (map.current) {
+        map.current.getCanvas().style.cursor = "";
+      }
+      popup.remove();
+    };
+
+    map.current.on("mousemove", "simulation-vehicles-layer", handleMove);
+    map.current.on("mouseleave", "simulation-vehicles-layer", handleLeave);
+
+    return () => {
+      map.current?.off("mousemove", "simulation-vehicles-layer", handleMove);
+      map.current?.off("mouseleave", "simulation-vehicles-layer", handleLeave);
+      popup.remove();
+    };
+  }, [mapReady, ensureSimulationLayer]);
+
+  useEffect(() => {
+    if (!simulationPlaying) {
+      if (animationFrame.current) {
+        cancelAnimationFrame(animationFrame.current);
+      }
+      animationFrame.current = null;
+      lastFrameTime.current = null;
+      return;
+    }
+
+    const startSeconds = parseShortTime(simulationStart) ?? 0;
+    const endSeconds = parseShortTime(simulationEnd) ?? startSeconds;
+
+    const tick = (timestamp: number) => {
+      if (!lastFrameTime.current) {
+        lastFrameTime.current = timestamp;
+        animationFrame.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      const delta = (timestamp - lastFrameTime.current) / 1000;
+      lastFrameTime.current = timestamp;
+
+      setSimulationCurrent((prev) => {
+        const next = prev + delta * simulationSpeed;
+        if (next >= endSeconds) {
+          setSimulationPlaying(false);
+          return endSeconds;
+        }
+        if (next < startSeconds) {
+          return startSeconds;
+        }
+        return next;
+      });
+
+      animationFrame.current = requestAnimationFrame(tick);
+    };
+
+    animationFrame.current = requestAnimationFrame(tick);
+    return () => {
+      if (animationFrame.current) {
+        cancelAnimationFrame(animationFrame.current);
+      }
+      animationFrame.current = null;
+      lastFrameTime.current = null;
+    };
+  }, [
+    simulationPlaying,
+    simulationSpeed,
+    simulationStart,
+    simulationEnd,
+  ]);
+
+  const loadSimulation = async () => {
+    const startSeconds = parseShortTime(simulationStart);
+    const endSeconds = parseShortTime(simulationEnd);
+    if (startSeconds === null || endSeconds === null) {
+      setSimulationError("Enter a valid start and end time (HH:MM).");
+      return;
+    }
+    if (endSeconds <= startSeconds) {
+      setSimulationError("End time must be after start time.");
+      return;
+    }
+
+    setSimulationLoading(true);
+    setSimulationError(null);
+    setSimulationPlaying(false);
+
+    try {
+      const routeTypes = [
+        showGoTrains ? "2" : null,
+        showGoBuses ? "3" : null,
+      ]
+        .filter(Boolean)
+        .join(",");
+      const params = new URLSearchParams({
+        date: simulationDate,
+        start: simulationStart,
+        end: simulationEnd,
+        includeUpx: includeUpxInSimulation ? "true" : "false",
+        routeShortName: simulationRoute,
+      });
+      if (routeTypes) {
+        params.set("routeTypes", routeTypes);
+      }
+      const response = await fetch(`/api/simulation?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const payload = (await response.json()) as {
+        startSeconds: number;
+        endSeconds: number;
+        trips: SimulationTrip[];
+      };
+      setSimulationTrips(payload.trips || []);
+      setSimulationCurrent(payload.startSeconds || startSeconds);
+    } catch (error) {
+      console.error("Simulation load failed:", error);
+      setSimulationError("Failed to load simulation data.");
+    } finally {
+      setSimulationLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const startSeconds = parseShortTime(simulationStart);
+    const endSeconds = parseShortTime(simulationEnd);
+    if (startSeconds === null || endSeconds === null) return;
+    setSimulationCurrent((prev) => {
+      if (prev < startSeconds) return startSeconds;
+      if (prev > endSeconds) return endSeconds;
+      return prev;
+    });
+  }, [simulationStart, simulationEnd]);
+
   return (
     <div className="relative h-screen w-full">
-      {/* GitHub icon - top left */}
+      {/* GitHub icon - bottom left */}
       <a
-        href="https://github.com/jli2007/delta"
+        href="https://github.com/faizm10/transit-flow"
         target="_blank"
         rel="noopener noreferrer"
-        className="absolute top-4 left-4 z-10 p-3 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 text-white/60 hover:text-white hover:bg-black/60 transition-all"
+        className="absolute bottom-4 left-4 z-10 p-2.5 rounded-lg bg-black/40 backdrop-blur-md border border-white/10 text-white/60 hover:text-white hover:bg-black/60 transition-all"
       >
-        <GitHubLogoIcon width={20} height={20} />
+        <GitHubLogoIcon width={18} height={18} />
       </a>
 
       {/* Controls Panel */}
@@ -913,20 +1318,20 @@ export default function MapPage() {
 
         {/* Filter Panel */}
         {showGoTransit && (
-          <div className="w-80 max-h-[70vh] overflow-hidden flex flex-col rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl">
+          <div className="w-72 max-h-[60vh] overflow-hidden flex flex-col rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl">
             {/* Header */}
-            <div className="px-4 py-3 border-b border-white/10 bg-black/40">
+            <div className="px-3 py-2.5 border-b border-white/10 bg-black/40">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-white">Route Filters</h3>
+                <h3 className="text-xs font-semibold text-white">Route Filters</h3>
                 <div className="flex gap-1.5">
                   <button
-                    className="px-2.5 py-1 text-xs rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-all"
+                    className="px-2 py-1 text-[11px] rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-all"
                     onClick={() => setSelectedVariantIds(allVariantIds)}
                   >
                     Select All
                   </button>
                   <button
-                    className="px-2.5 py-1 text-xs rounded-md bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 transition-all"
+                    className="px-2 py-1 text-[11px] rounded-md bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 transition-all"
                     onClick={() => setSelectedVariantIds([])}
                   >
                     Clear
@@ -941,7 +1346,7 @@ export default function MapPage() {
                   value={goVariantFilterText}
                   onChange={(event) => setGoVariantFilterText(event.target.value)}
                   placeholder="Search routes (e.g., 31A, Union, Kitchener)..."
-                  className="w-full rounded-lg bg-black/50 border border-white/10 px-3 py-2 pl-9 text-sm text-white/90 placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                  className="w-full rounded-lg bg-black/50 border border-white/10 px-3 py-2 pl-9 text-xs text-white/90 placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
                 />
                 <svg
                   className="absolute left-3 top-2.5 w-4 h-4 text-white/40"
@@ -974,9 +1379,9 @@ export default function MapPage() {
             </div>
 
             {/* Transport Type Filters */}
-            <div className="px-4 py-3 border-b border-white/10 bg-black/30">
+            <div className="px-3 py-2.5 border-b border-white/10 bg-black/30">
               <div className="flex items-center gap-4">
-                <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
+                <span className="text-[11px] font-medium text-white/60 uppercase tracking-wide">
                   Show:
                 </span>
                 <label className="flex items-center gap-2 cursor-pointer group">
@@ -986,7 +1391,7 @@ export default function MapPage() {
                     checked={showGoTrains}
                     onChange={() => setShowGoTrains((prev) => !prev)}
                   />
-                  <span className="text-sm text-white/80 group-hover:text-white transition">
+                  <span className="text-xs text-white/80 group-hover:text-white transition">
                     🚆 Trains
                   </span>
                 </label>
@@ -997,7 +1402,7 @@ export default function MapPage() {
                     checked={showGoBuses}
                     onChange={() => setShowGoBuses((prev) => !prev)}
                   />
-                  <span className="text-sm text-white/80 group-hover:text-white transition">
+                  <span className="text-xs text-white/80 group-hover:text-white transition">
                     🚌 Buses
                   </span>
                 </label>
@@ -1005,7 +1410,7 @@ export default function MapPage() {
             </div>
 
             {/* Variants List */}
-            <div className="flex-1 overflow-y-auto px-4 py-3">
+            <div className="flex-1 overflow-y-auto px-3 py-2.5">
               {groupedGoVariants.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-white/40 text-sm mb-1">No routes found</div>
@@ -1028,7 +1433,7 @@ export default function MapPage() {
                     return (
                       <div
                         key={group.routeShortName}
-                        className="border border-white/10 rounded-lg p-3 bg-black/20 hover:bg-black/30 transition-all"
+                        className="border border-white/10 rounded-lg p-2.5 bg-black/20 hover:bg-black/30 transition-all"
                       >
                         {/* Route Header */}
                         <div className="flex items-center justify-between mb-2">
@@ -1040,11 +1445,11 @@ export default function MapPage() {
                               }}
                             />
                             <div className="min-w-0 flex-1">
-                              <div className="text-sm font-semibold text-white truncate">
+                              <div className="text-xs font-semibold text-white truncate">
                                 {group.routeShortName}
                               </div>
                               {routeInfo?.route_long_name && (
-                                <div className="text-xs text-white/50 truncate">
+                                <div className="text-[11px] text-white/50 truncate">
                                   {routeInfo.route_long_name}
                                 </div>
                               )}
@@ -1052,7 +1457,7 @@ export default function MapPage() {
                           </div>
                           <div className="flex gap-1.5 shrink-0">
                             <button
-                              className={`px-2 py-1 text-xs rounded border transition-all ${
+                              className={`px-2 py-1 text-[11px] rounded border transition-all ${
                                 isAllSelected
                                   ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-300"
                                   : "bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10"
@@ -1062,7 +1467,7 @@ export default function MapPage() {
                               All
                             </button>
                             <button
-                              className="px-2 py-1 text-xs rounded bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all"
+                              className="px-2 py-1 text-[11px] rounded bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all"
                               onClick={() => setVariantGroup(variantIds, false)}
                             >
                               None
@@ -1090,10 +1495,10 @@ export default function MapPage() {
                                     setVariantGroup(item.variantIds, enabled);
                                   }}
                                 />
-                                <span className="text-sm text-white/80 group-hover:text-white flex-1 truncate">
+                                <span className="text-xs text-white/80 group-hover:text-white flex-1 truncate">
                                   {item.displayKey}
                                 </span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/50 uppercase">
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white/50 uppercase">
                                   {String(routeInfo?.route_type) === "2"
                                     ? "Train"
                                     : "Bus"}
@@ -1105,7 +1510,7 @@ export default function MapPage() {
 
                         {/* Selection Count */}
                         <div className="mt-2 pt-2 border-t border-white/5">
-                          <div className="text-xs text-white/40">
+                          <div className="text-[11px] text-white/40">
                             {selectedCount} of {variantIds.length} variants selected
                           </div>
                         </div>
@@ -1117,6 +1522,131 @@ export default function MapPage() {
             </div>
           </div>
         )}
+
+        <div className="w-72 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl p-3 text-white/80">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold text-white">Time Simulation</h3>
+            <span className="text-[10px] uppercase tracking-wide text-white/40">
+              EST/ET
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <label className="text-[11px] text-white/60">
+              Date
+              <input
+                type="date"
+                value={simulationDate}
+                onChange={(event) => setSimulationDate(event.target.value)}
+                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+              />
+            </label>
+            <label className="text-[11px] text-white/60">
+              Speed
+              <select
+                value={simulationSpeed}
+                onChange={(event) => setSimulationSpeed(Number(event.target.value))}
+                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+              >
+                <option value={30}>30x</option>
+                <option value={60}>60x</option>
+                <option value={120}>120x</option>
+                <option value={300}>300x</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <label className="text-[11px] text-white/60">
+              Route
+              <select
+                value={simulationRoute}
+                onChange={(event) => setSimulationRoute(event.target.value)}
+                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+              >
+                {busRoutes.length === 0 ? (
+                  <option value="21">21</option>
+                ) : (
+                  busRoutes.map((route) => (
+                    <option key={route} value={route}>
+                      {route}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
+            <label className="text-[11px] text-white/60">
+              Start
+              <input
+                type="time"
+                value={simulationStart}
+                onChange={(event) => setSimulationStart(event.target.value)}
+                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+              />
+            </label>
+            <label className="text-[11px] text-white/60">
+              End
+              <input
+                type="time"
+                value={simulationEnd}
+                onChange={(event) => setSimulationEnd(event.target.value)}
+                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+              />
+            </label>
+          </div>
+
+          <label className="flex items-center gap-2 text-[11px] text-white/60 mb-2">
+            <input
+              type="checkbox"
+              checked={includeUpxInSimulation}
+              onChange={() => setIncludeUpxInSimulation((prev) => !prev)}
+              className="w-4 h-4 rounded accent-blue-400 cursor-pointer"
+            />
+            Include UP Express
+          </label>
+
+          <div className="flex gap-2 mb-2">
+            <button
+              onClick={loadSimulation}
+              disabled={simulationLoading}
+              className="flex-1 px-3 py-1.5 rounded-lg bg-blue-500/70 text-white text-xs font-medium hover:bg-blue-500/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {simulationLoading ? "Loading..." : "Load Trips"}
+            </button>
+            <button
+              onClick={() => setSimulationPlaying((prev) => !prev)}
+              disabled={!simulationTrips.length}
+              className="px-3 py-1.5 rounded-lg bg-white/10 text-white/80 text-xs font-medium hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              {simulationPlaying ? "Pause" : "Play"}
+            </button>
+          </div>
+
+          <div className="mb-2">
+            <div className="flex items-center justify-between text-[10px] text-white/50">
+              <span>{formatShortTime(parseShortTime(simulationStart) ?? 0)}</span>
+              <span className="text-white/80 font-medium">
+                {formatShortTime(simulationCurrent)}
+              </span>
+              <span>{formatShortTime(parseShortTime(simulationEnd) ?? 0)}</span>
+            </div>
+            <input
+              type="range"
+              min={parseShortTime(simulationStart) ?? 0}
+              max={parseShortTime(simulationEnd) ?? 0}
+              value={simulationCurrent}
+              onChange={(event) => setSimulationCurrent(Number(event.target.value))}
+              className="w-full mt-2 accent-blue-400"
+            />
+          </div>
+
+          <div className="text-[10px] text-white/50">
+            {simulationTrips.length} trips loaded
+          </div>
+          {simulationError && (
+            <div className="mt-2 text-[10px] text-red-300">{simulationError}</div>
+          )}
+        </div>
       </div>
 
       <div ref={mapContainer} className="h-full w-full" />

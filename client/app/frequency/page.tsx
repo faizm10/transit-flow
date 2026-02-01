@@ -255,9 +255,7 @@ function FrequencyPageContent() {
     return routeShortName;
   };
 
-  // Special service routes that should be displayed separately
-  // Only the special variants (18L, 18R, 18M, 18N) - route 18 itself has regular service
-  const specialServiceRoutes = ["18L", "18R", "18M", "18N"];
+
 
   // Group data by route code (KI, LW, LE for trains) or route_short_name (for buses)
   const routesByLine = useMemo(() => {
@@ -313,9 +311,6 @@ function FrequencyPageContent() {
 
       const route = routeMap.get(key)!;
       
-      // Check if this is a special service variant (18M, 18N, 18L, 18R)
-      const isSpecialServiceVariant = specialServiceRoutes.includes(item.variant_id);
-      
       // Store variant details for later use (store all variants, but exclude special ones from stats)
       route.variantDetails.push({
         variant_id: item.variant_id,
@@ -328,7 +323,7 @@ function FrequencyPageContent() {
       
       // For trains: we'll recalculate from tripDetails after all variants are collected
       // For buses: aggregate hourly frequency from variants (excluding special service)
-      if (item.route_type !== "2" && !isSpecialServiceVariant) {
+      if (item.route_type !== "2") {
         // Aggregate hourly frequency - all days
         if (item.hourlyFrequency && Array.isArray(item.hourlyFrequency)) {
           item.hourlyFrequency.forEach((freq) => {
@@ -358,7 +353,7 @@ function FrequencyPageContent() {
       }
 
       // Aggregate headways - only valid positive headways (excluding special service)
-      if (!isSpecialServiceVariant && item.headways && Array.isArray(item.headways)) {
+      if (item.headways && Array.isArray(item.headways)) {
         item.headways.forEach((headway) => {
           if (headway > 0 && headway < 10000) { // Filter out invalid headways
             route.headways.push(headway);
@@ -384,10 +379,6 @@ function FrequencyPageContent() {
         const allTripTimesWeekend: number[] = [];
         
         route.variantDetails.forEach((variant) => {
-          // Exclude special service variants
-          if (specialServiceRoutes.includes(variant.variant_id)) {
-            return;
-          }
           variant.tripDetails.forEach((trip) => {
             const hour = Math.floor(trip.departureTime / 3600);
             const normalizedHour = hour >= 24 ? hour - 24 : hour;
@@ -463,10 +454,6 @@ function FrequencyPageContent() {
         const uniqueTimesMap = new Map<number, { weekday: boolean; weekend: boolean; timesPerWeek: number }>();
         
         route.variantDetails.forEach((variant) => {
-          // Exclude special service variants
-          if (specialServiceRoutes.includes(variant.variant_id)) {
-            return;
-          }
           variant.tripDetails.forEach((trip) => {
             const timeInMinutes = Math.floor(trip.departureTime / 60);
             if (!uniqueTimesMap.has(timeInMinutes)) {
@@ -515,10 +502,6 @@ function FrequencyPageContent() {
         const allTripTimesWeekend: number[] = [];
         
         route.variantDetails.forEach((variant) => {
-          // Exclude special service variants (18M, 18N, 18L, 18R)
-          if (specialServiceRoutes.includes(variant.variant_id)) {
-            return;
-          }
           variant.tripDetails.forEach((trip) => {
             const hour = Math.floor(trip.departureTime / 3600);
             const normalizedHour = hour >= 24 ? hour - 24 : hour;
@@ -593,10 +576,6 @@ function FrequencyPageContent() {
         const uniqueTimesMap = new Map<number, { weekday: boolean; weekend: boolean; timesPerWeek: number }>();
         
         route.variantDetails.forEach((variant) => {
-          // Exclude special service variants (18M, 18N, 18L, 18R)
-          if (specialServiceRoutes.includes(variant.variant_id)) {
-            return;
-          }
           variant.tripDetails.forEach((trip) => {
             const timeInMinutes = Math.floor(trip.departureTime / 60);
             if (!uniqueTimesMap.has(timeInMinutes)) {
@@ -707,10 +686,6 @@ function FrequencyPageContent() {
 
   const filteredRoutes = useMemo(() => {
     return routesByLine.filter((route) => {
-      // Exclude special service routes from main list
-      if (specialServiceRoutes.includes(route.route_short_name)) {
-        return false;
-      }
       if (selectedType !== "all" && route.route_type !== selectedType) {
         return false;
       }
@@ -721,27 +696,10 @@ function FrequencyPageContent() {
     });
   }, [routesByLine, selectedType, selectedRoute]);
 
-  const filteredSpecialServiceRoutes = useMemo(() => {
-    return routesByLine.filter((route) => {
-      // Only include special service routes
-      if (!specialServiceRoutes.includes(route.route_short_name)) {
-        return false;
-      }
-      if (selectedType !== "all" && route.route_type !== selectedType) {
-        return false;
-      }
-      if (selectedRoute !== "all" && route.route_short_name !== selectedRoute) {
-        return false;
-      }
-      return true;
-    });
-  }, [routesByLine, selectedType, selectedRoute]);
+
 
   const overallStats = useMemo(() => {
-    // Exclude special service routes from overall stats
-    const routesForStats = filteredRoutes.filter(
-      (route) => !specialServiceRoutes.includes(route.route_short_name)
-    );
+    const routesForStats = filteredRoutes;
 
     if (routesForStats.length === 0) {
       return {
@@ -1204,11 +1162,7 @@ function FrequencyPageContent() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={Array.from({ length: 24 }, (_, hour) => {
-                      // Exclude special service routes from overall graph
-                      const routesForGraph = filteredRoutes.filter(
-                        (route) => !specialServiceRoutes.includes(route.route_short_name)
-                      );
-                      const trips = routesForGraph.reduce((sum, route) => {
+                      const trips = filteredRoutes.reduce((sum, route) => {
                         if (selectedDayType === "weekday") {
                           return sum + (route.hourlyFrequencyWeekday[hour]?.trips || 0);
                         } else if (selectedDayType === "weekend") {
@@ -1532,10 +1486,7 @@ function FrequencyPageContent() {
                       {expandedRoutes.has(route.route_short_name) && (
                         <div className="mt-4 space-y-4">
                           {route.variantDetails.length > 0 ? (() => {
-                            // Filter out special service variants from display
-                            const regularVariants = route.variantDetails.filter(
-                              (variant) => !specialServiceRoutes.includes(variant.variant_id)
-                            );
+                            const regularVariants = route.variantDetails;
                             
                             if (regularVariants.length === 0) {
                               return (
@@ -1809,482 +1760,6 @@ function FrequencyPageContent() {
                 ))}
               </div>
             </Section>
-
-            {/* Special Service Routes */}
-            {filteredSpecialServiceRoutes.length > 0 && (
-              <Section>
-                <div className="mb-4">
-                  <h2 className="text-base font-semibold mb-1">
-                    Special Service Routes ({filteredSpecialServiceRoutes.length})
-                  </h2>
-                  <p className="text-xs text-muted-foreground">
-                    Routes with limited or special service schedules
-                  </p>
-                </div>
-                <div className="space-y-4">
-                  {filteredSpecialServiceRoutes.map((route) => (
-                    <div
-                      key={route.route_short_name}
-                      className="rounded-xl border border-dashed p-4"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">
-                            {formatRouteType(route.route_type)} • Route{" "}
-                            {route.route_short_name}
-                          </p>
-                          <h3 className="text-lg font-semibold">
-                            {route.route_short_name}
-                          </h3>
-                          {route.route_long_name && (
-                            <p className="text-sm text-muted-foreground">
-                              {route.route_long_name}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">
-                            {selectedDayType === "weekday"
-                              ? (route.totalTripsWeekday || 0).toLocaleString()
-                              : selectedDayType === "weekend"
-                                ? (route.totalTripsWeekend || 0).toLocaleString()
-                                : route.totalTrips.toLocaleString()}{" "}
-                            trips
-                          </p>
-                          {selectedDayType === "all" && (
-                            <p className="text-xs text-muted-foreground">
-                              Wkday: {(route.totalTripsWeekday || 0).toLocaleString()} • Wkend: {(route.totalTripsWeekend || 0).toLocaleString()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-4 mb-4">
-                        <div className="rounded-lg border border-dashed p-3">
-                          <p className="text-xs uppercase text-muted-foreground">
-                            Peak Hour
-                          </p>
-                          <p className="text-lg font-semibold">
-                            {selectedDayType === "weekday"
-                              ? formatHour(route.peakHourWeekday || 0)
-                              : selectedDayType === "weekend"
-                                ? formatHour(route.peakHourWeekend || 0)
-                                : formatHour(route.peakHour)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {selectedDayType === "weekday"
-                              ? `${route.peakFrequencyWeekday || 0} trips`
-                              : selectedDayType === "weekend"
-                                ? `${route.peakFrequencyWeekend || 0} trips`
-                                : `${route.peakFrequency} trips`}
-                          </p>
-                          {selectedDayType === "all" && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Wkday: {formatHour(route.peakHourWeekday || 0)} ({route.peakFrequencyWeekday || 0}) • Wkend: {formatHour(route.peakHourWeekend || 0)} ({route.peakFrequencyWeekend || 0})
-                            </p>
-                          )}
-                        </div>
-                        <div className="rounded-lg border border-dashed p-3">
-                          <p className="text-xs uppercase text-muted-foreground">
-                            Avg Headway
-                          </p>
-                          <p className="text-lg font-semibold">
-                            {route.averageHeadway > 0
-                              ? `${Math.round(route.averageHeadway)} min`
-                              : "N/A"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-dashed p-3">
-                          <p className="text-xs uppercase text-muted-foreground">
-                            Min Headway
-                          </p>
-                          <p className="text-lg font-semibold">
-                            {route.minHeadway > 0 && route.minHeadway < Infinity
-                              ? `${Math.round(route.minHeadway)} min`
-                              : "N/A"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-dashed p-3">
-                          <p className="text-xs uppercase text-muted-foreground">
-                            Max Headway
-                          </p>
-                          <p className="text-lg font-semibold">
-                            {route.maxHeadway > 0
-                              ? `${Math.round(route.maxHeadway)} min`
-                              : "N/A"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Trips Per Hour Chart */}
-                      <div className="mb-4">
-                        <h4 className="text-sm font-semibold mb-2">
-                          TRIPS PER HOUR ({selectedDayType === "weekday" ? "WEEKDAY" : selectedDayType === "weekend" ? "WEEKEND" : "ALL DAYS"})
-                        </h4>
-                        {(() => {
-                          const chartData =
-                            selectedDayType === "weekday"
-                              ? route.hourlyFrequencyWeekday
-                              : selectedDayType === "weekend"
-                                ? route.hourlyFrequencyWeekend
-                                : route.hourlyFrequency;
-                          return chartData.some((f) => f.trips > 0) ? (
-                            <div style={{ width: "100%", height: "200px" }}>
-                              <ResponsiveContainer width="100%" height="100%">
-                                <LineChart
-                                  data={chartData.map((f) => ({
-                                    hour: f.hour,
-                                    hourLabel: f.hourLabel,
-                                    trips: f.trips || 0,
-                                  }))}
-                                  margin={{ top: 5, right: 10, left: 0, bottom: 40 }}
-                                >
-                                  <CartesianGrid
-                                    strokeDasharray="3 3"
-                                    stroke="hsl(var(--border))"
-                                  />
-                                  <XAxis
-                                    dataKey="hourLabel"
-                                    tick={{ fontSize: 10 }}
-                                    stroke="hsl(var(--muted-foreground))"
-                                    angle={-45}
-                                    textAnchor="end"
-                                    height={50}
-                                  />
-                                  <YAxis
-                                    tick={{ fontSize: 10 }}
-                                    stroke="hsl(var(--muted-foreground))"
-                                    allowDecimals={false}
-                                  />
-                                  <Tooltip
-                                    contentStyle={{
-                                      backgroundColor: "hsl(var(--popover))",
-                                      border: "1px solid hsl(var(--border))",
-                                      borderRadius: "8px",
-                                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                                    }}
-                                    labelStyle={{
-                                      color: "hsl(var(--foreground))",
-                                      fontWeight: 600,
-                                      marginBottom: "4px",
-                                    }}
-                                    itemStyle={{
-                                      color: "hsl(var(--foreground))",
-                                    }}
-                                    cursor={{ stroke: "hsl(var(--primary))", strokeWidth: 2, strokeDasharray: "5 5" }}
-                                    labelFormatter={(value) => `Hour: ${value}`}
-                                    formatter={(value: number | undefined) => [
-                                      <span key="value" style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>
-                                        {value || 0} trips per hour
-                                      </span>,
-                                      "Trips per Hour",
-                                    ]}
-                                  />
-                                  <Line
-                                    type="monotone"
-                                    dataKey="trips"
-                                    stroke="hsl(var(--foreground))"
-                                    strokeWidth={2}
-                                    dot={{ r: 3, fill: "hsl(var(--foreground))", strokeWidth: 0 }}
-                                    activeDot={{ 
-                                      r: 6, 
-                                      fill: "hsl(var(--primary))",
-                                      stroke: "hsl(var(--background))",
-                                      strokeWidth: 2,
-                                    }}
-                                    connectNulls={false}
-                                    style={{ cursor: "pointer" }}
-                                  />
-                                </LineChart>
-                              </ResponsiveContainer>
-                            </div>
-                          ) : (
-                            <div className="text-xs text-muted-foreground p-4 border border-dashed rounded-lg">
-                              No trips per hour data available for this route.
-                            </div>
-                          );
-                        })()}
-                      </div>
-
-                      {/* More Information Section */}
-                      <div className="mt-4 border-t border-dashed pt-4">
-                        <button
-                          onClick={() => {
-                            setExpandedRoutes((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(route.route_short_name)) {
-                                next.delete(route.route_short_name);
-                              } else {
-                                next.add(route.route_short_name);
-                              }
-                              return next;
-                            });
-                          }}
-                          className="flex w-full items-center justify-between text-sm font-medium hover:text-foreground transition-colors"
-                        >
-                          <span>More Information</span>
-                          <span
-                            className={cn(
-                              "transition-transform",
-                              expandedRoutes.has(route.route_short_name)
-                                ? "rotate-180"
-                                : "",
-                            )}
-                          >
-                            ▼
-                          </span>
-                        </button>
-                        {expandedRoutes.has(route.route_short_name) && (
-                          <div className="mt-4 space-y-3">
-                            {(() => {
-                              // Same logic as main routes for displaying trip details
-                              const tripsByHourAndTime = new Map<
-                                number,
-                                Map<
-                                  string,
-                                  {
-                                    time: string;
-                                    hour: number;
-                                    variants: Array<{
-                                      variant: typeof route.variantDetails[0];
-                                      trip: TripDetail;
-                                    }>;
-                                    totalPerWeek: number;
-                                    weekdayCount: number;
-                                    weekendCount: number;
-                                    daysOfWeek: Set<number>;
-                                  }
-                                >
-                              >();
-
-                              route.variantDetails.forEach((variant) => {
-                                variant.tripDetails.forEach((trip) => {
-                                  const timeKey = trip.departureTimeFormatted.substring(0, 5);
-                                  const hour = Math.floor(trip.departureTime / 3600);
-                                  const normalizedHour = hour >= 24 ? hour - 24 : hour;
-
-                                  if (!tripsByHourAndTime.has(normalizedHour)) {
-                                    tripsByHourAndTime.set(normalizedHour, new Map());
-                                  }
-                                  const hourMap = tripsByHourAndTime.get(normalizedHour)!;
-
-                                  if (!hourMap.has(timeKey)) {
-                                    hourMap.set(timeKey, {
-                                      time: timeKey,
-                                      hour: normalizedHour,
-                                      variants: [],
-                                      totalPerWeek: 0,
-                                      weekdayCount: 0,
-                                      weekendCount: 0,
-                                      daysOfWeek: new Set(),
-                                    });
-                                  }
-
-                                  const timeEntry = hourMap.get(timeKey)!;
-                                  timeEntry.variants.push({ variant, trip });
-                                  
-                                  if (trip.timesPerWeek > timeEntry.totalPerWeek) {
-                                    timeEntry.totalPerWeek = trip.timesPerWeek;
-                                  }
-                                  
-                                  trip.daysOfWeek.forEach((day) => timeEntry.daysOfWeek.add(day));
-                                  
-                                  if (trip.dayType === "weekday") {
-                                    timeEntry.weekdayCount = Math.max(timeEntry.weekdayCount, trip.timesPerWeek);
-                                  } else if (trip.dayType === "weekend") {
-                                    timeEntry.weekendCount = Math.max(timeEntry.weekendCount, trip.timesPerWeek);
-                                  }
-                                });
-                              });
-
-                              const tripsByHour = new Map<
-                                number,
-                                Array<{
-                                  time: string;
-                                  hour: number;
-                                  totalPerWeek: number;
-                                  weekdayCount: number;
-                                  weekendCount: number;
-                                  variants: Array<{
-                                    variant: typeof route.variantDetails[0];
-                                    trip: TripDetail;
-                                  }>;
-                                  daysOfWeek: number[];
-                                }>
-                              >();
-
-                              tripsByHourAndTime.forEach((hourMap, hour) => {
-                                if (!tripsByHour.has(hour)) {
-                                  tripsByHour.set(hour, []);
-                                }
-                                
-                                hourMap.forEach((timeEntry) => {
-                                  tripsByHour.get(hour)!.push({
-                                    time: timeEntry.time,
-                                    hour: timeEntry.hour,
-                                    totalPerWeek: timeEntry.totalPerWeek,
-                                    weekdayCount: timeEntry.weekdayCount,
-                                    weekendCount: timeEntry.weekendCount,
-                                    variants: timeEntry.variants,
-                                    daysOfWeek: Array.from(timeEntry.daysOfWeek).sort((a, b) => a - b),
-                                  });
-                                });
-                              });
-
-                              return Array.from(tripsByHour.entries())
-                                .sort(([a], [b]) => a - b)
-                                .map(([hour, timeEntries]) => {
-                                  const totalDepartures = route.route_type === "2" 
-                                    ? timeEntries.length 
-                                    : timeEntries.reduce((sum, entry) => sum + entry.variants.length, 0);
-
-                                  return (
-                                    <div
-                                      key={hour}
-                                      className="rounded-lg border border-dashed p-3 bg-muted/20"
-                                    >
-                                      <p className="text-xs font-semibold mb-3">
-                                        {formatHour(hour)} ({totalDepartures}{" "}
-                                        {totalDepartures === 1 ? "trip" : "trips"})
-                                      </p>
-                                      <div className="space-y-2 max-h-96 overflow-y-auto">
-                                        {timeEntries
-                                          .sort((a, b) => a.time.localeCompare(b.time))
-                                          .map((timeEntry) => {
-                                            const hasBoth = timeEntry.weekdayCount > 0 && timeEntry.weekendCount > 0;
-                                            const tripsAtThisTime = route.route_type === "2" ? 1 : timeEntry.variants.length;
-
-                                            return (
-                                              <div
-                                                key={timeEntry.time}
-                                                className="rounded border border-dashed p-2 bg-background"
-                                              >
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                  <span className="text-xs font-medium font-mono">
-                                                    {timeEntry.time}
-                                                    {route.route_type !== "2" && tripsAtThisTime > 1 && (
-                                                      <span className="text-[10px] text-muted-foreground ml-1">
-                                                        ({tripsAtThisTime} trips)
-                                                      </span>
-                                                    )}
-                                                  </span>
-                                                  <span className="text-[10px] font-medium text-foreground">
-                                                    {timeEntry.totalPerWeek > 0
-                                                      ? `${timeEntry.totalPerWeek}x/week`
-                                                      : hasBoth
-                                                        ? `${timeEntry.weekdayCount} weekday + ${timeEntry.weekendCount} weekend`
-                                                        : timeEntry.weekdayCount > 0
-                                                          ? `${timeEntry.weekdayCount}x/week (weekday only)`
-                                                          : timeEntry.weekendCount > 0
-                                                            ? `${timeEntry.weekendCount}x/week (weekend only)`
-                                                            : "1x/week"}
-                                                  </span>
-                                                </div>
-                                                {route.route_type === "2" ? (
-                                                  <div className="rounded border border-dashed p-2 bg-muted/30">
-                                                    <div className="mb-1.5">
-                                                      <span className="text-[11px] font-medium text-foreground">
-                                                        {route.route_short_name}
-                                                      </span>
-                                                      {timeEntry.variants.length > 0 && timeEntry.variants[0].variant.startStopName &&
-                                                        timeEntry.variants[0].variant.endStopName && (
-                                                          <span className="text-[10px] text-muted-foreground ml-1.5">
-                                                            {timeEntry.variants[0].variant.startStopName} →{" "}
-                                                            {timeEntry.variants[0].variant.endStopName}
-                                                          </span>
-                                                        )}
-                                                    </div>
-                                                    {timeEntry.daysOfWeek && timeEntry.daysOfWeek.length > 0 && (
-                                                      <div className="mt-1.5">
-                                                        <p className="text-[10px] text-muted-foreground mb-1">
-                                                          Days:{" "}
-                                                          <span className="font-medium text-foreground">
-                                                            {formatDaysOfWeek(timeEntry.daysOfWeek)}
-                                                          </span>
-                                                        </p>
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                ) : (
-                                                  <div className="space-y-2">
-                                                    {timeEntry.variants.map((variantInfo, idx) => {
-                                                      const stops = variantStops[variantInfo.variant.variant_id] || [];
-                                                      const sortedStops = [...stops].sort((a, b) => a.stop_sequence - b.stop_sequence);
-                                                      
-                                                      return (
-                                                        <div
-                                                          key={idx}
-                                                          className="rounded border border-dashed p-2 bg-muted/30"
-                                                        >
-                                                          <div className="mb-1.5">
-                                                            <span className="text-[11px] font-medium text-foreground">
-                                                              {getVariantDisplayName(
-                                                                variantInfo.variant.variant_id,
-                                                                variantInfo.variant.route_variant,
-                                                                route.route_type
-                                                              )}
-                                                            </span>
-                                                            {variantInfo.variant.startStopName &&
-                                                              variantInfo.variant.endStopName && (
-                                                                <span className="text-[10px] text-muted-foreground ml-1.5">
-                                                                  {variantInfo.variant.startStopName} →{" "}
-                                                                  {variantInfo.variant.endStopName}
-                                                                </span>
-                                                              )}
-                                                          </div>
-                                                          {variantInfo.trip.daysOfWeek && variantInfo.trip.daysOfWeek.length > 0 && (
-                                                            <div className="mt-1.5">
-                                                              <p className="text-[10px] text-muted-foreground mb-1">
-                                                                Days:{" "}
-                                                                <span className="font-medium text-foreground">
-                                                                  {formatDaysOfWeek(variantInfo.trip.daysOfWeek)}
-                                                                </span>
-                                                              </p>
-                                                            </div>
-                                                          )}
-                                                          {sortedStops.length > 0 && (
-                                                            <div className="mt-1.5 pt-1.5 border-t border-dashed">
-                                                              <p className="text-[10px] text-muted-foreground mb-1.5">
-                                                                All stops ({sortedStops.length}):
-                                                              </p>
-                                                              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                                                                {sortedStops.map((stop, stopIdx) => (
-                                                                  <span
-                                                                    key={stop.stop_id}
-                                                                    className="inline-flex items-center"
-                                                                  >
-                                                                    <span className="text-[10px] text-muted-foreground">
-                                                                      {stop.stop_name}
-                                                                    </span>
-                                                                    {stopIdx < sortedStops.length - 1 && (
-                                                                      <span className="mx-1.5 text-[8px] text-muted-foreground/40">→</span>
-                                                                    )}
-                                                                  </span>
-                                                                ))}
-                                                              </div>
-                                                            </div>
-                                                          )}
-                                                        </div>
-                                                      );
-                                                    })}
-                                                  </div>
-                                                )}
-                                              </div>
-                                            );
-                                          })}
-                                      </div>
-                                    </div>
-                                  );
-                                });
-                            })()}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Section>
-            )}
           </>
         )}
       </div>

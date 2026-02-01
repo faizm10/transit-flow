@@ -753,7 +753,12 @@ export async function GET() {
       return a.direction_id - b.direction_id;
     });
 
-    return NextResponse.json({ results: frequencyResults });
+    const specialServiceRoutes = ["18M", "18N", "18R", "18L"];
+    const filteredResults = frequencyResults.filter(
+      (item) => !specialServiceRoutes.includes(item.variant_id)
+    );
+
+    return NextResponse.json({ results: filteredResults });
   } catch (error) {
     console.error("Error calculating frequency:", error);
     return NextResponse.json(
