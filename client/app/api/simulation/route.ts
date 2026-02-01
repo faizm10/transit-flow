@@ -4,6 +4,9 @@ import { createReadStream } from "fs";
 import { promises as fs } from "fs";
 import readline from "readline";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 type RouteEntry = {
   route_id: string;
   route_short_name: string;
@@ -262,45 +265,6 @@ async function loadTripsForDate(
   return trips;
 }
 
-async function loadShapes(basePath: string): Promise<
-  Map<string, Array<{ lat: number; lon: number; seq: number }>>
-> {
-  const shapesPath = path.join(basePath, "shapes.txt");
-  const content = await fs.readFile(shapesPath, "utf8");
-  const lines = content.split("\n").filter(Boolean);
-  if (lines.length === 0) return new Map();
-  const headers = parseCsvLine(lines[0]).map((h) => h.trim());
-  if (headers[0]) {
-    headers[0] = headers[0].replace(/^\uFEFF/, "");
-  }
-
-  const map = new Map<string, Array<{ lat: number; lon: number; seq: number }>>();
-  for (let i = 1; i < lines.length; i += 1) {
-    const values = parseCsvLine(lines[i]);
-    const row = headers.reduce<Record<string, string>>((obj, header, index) => {
-      obj[header] = (values[index] || "").trim();
-      return obj;
-    }, {});
-    if (!row.shape_id) continue;
-    const lat = row.shape_pt_lat ? Number(row.shape_pt_lat) : null;
-    const lon = row.shape_pt_lon ? Number(row.shape_pt_lon) : null;
-    const seq = row.shape_pt_sequence ? Number(row.shape_pt_sequence) : null;
-    if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(seq))
-      continue;
-    if (!map.has(row.shape_id)) {
-      map.set(row.shape_id, []);
-    }
-    map.get(row.shape_id)!.push({
-      lat: lat as number,
-      lon: lon as number,
-      seq: seq as number,
-    });
-  }
-
-  map.forEach((points) => points.sort((a, b) => a.seq - b.seq));
-  return map;
-}
-
 async function loadTripStops(
   basePath: string,
   tripIds: Set<string>,
@@ -391,35 +355,6 @@ async function loadTripStops(
   return tripStops;
 }
 
-function attachShapeIndices(
-  tripStops: Map<string, TripStops>,
-  trips: Map<string, TripMeta>,
-  shapes: Map<string, Array<{ lat: number; lon: number; seq: number }>>,
-) {
-  tripStops.forEach((entry, tripId) => {
-    const trip = trips.get(tripId);
-    if (!trip || !trip.shape_id) return;
-    const shape = shapes.get(trip.shape_id);
-    if (!shape || shape.length < 2) return;
-
-    entry.stops.forEach((stop) => {
-      let bestIndex = 0;
-      let bestDist = Number.POSITIVE_INFINITY;
-      for (let i = 0; i < shape.length; i += 1) {
-        const point = shape[i];
-        const dx = point.lon - stop.lon;
-        const dy = point.lat - stop.lat;
-        const dist = dx * dx + dy * dy;
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestIndex = i;
-        }
-      }
-      stop.shapeIndex = bestIndex;
-    });
-  });
-}
-
 async function buildSimulationData(options: {
   basePath: string;
   source: TripMeta["source"];
@@ -427,11 +362,10 @@ async function buildSimulationData(options: {
   routeTypeFilter: Set<string> | null;
   routeShortNameFilter: string | null;
 }) {
-  const [routes, stops, serviceIds, shapes] = await Promise.all([
+  const [routes, stops, serviceIds] = await Promise.all([
     loadRoutes(options.basePath),
     loadStops(options.basePath),
     loadActiveServiceIds(options.basePath, options.date),
-    loadShapes(options.basePath),
   ]);
 
   const trips = await loadTripsForDate(
@@ -456,10 +390,7 @@ async function buildSimulationData(options: {
     new Set(trips.keys()),
     stops,
   );
-
-  attachShapeIndices(tripStops, trips, shapes);
-
-  return { trips, stops: tripStops, shapes };
+  return { trips, stops: tripStops, shapes: new Map() };
 }
 
 export async function GET(request: Request) {
