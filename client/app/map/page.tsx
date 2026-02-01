@@ -275,16 +275,34 @@ export default function MapPage() {
   const colorForRoute = useCallback((routeShortName: string) => {
     const normalized = routeShortName.trim().toUpperCase();
     const routeColors: Record<string, string> = {
-      KITCHENER: "#22c55e",
-      "31": "#22c55e",
-      "32": "#22c55e",
-      "33": "#22c55e",
-      "36": "#22c55e",
-      "37": "#22c55e",
-      "38": "#22c55e",
-      "29": "#22c55e",
-      "41": "#ec4899",
-      "47": "#ec4899",
+      "LAKESHORE WEST": "#991b1b",
+      LW: "#991b1b",
+      "01": "#991b1b",
+      "11": "#991b1b",
+      "15": "#991b1b",
+      "16": "#991b1b",
+      "18": "#991b1b",
+      "LAKESHORE EAST": "#ef4444",
+      LE: "#ef4444",
+      "09": "#ef4444",
+      "88": "#ef4444",
+      "90": "#ef4444",
+      "92": "#ef4444",
+      "96": "#ef4444",
+      KITCHENER: "#16a34a",
+      "KITCHENER LINE": "#16a34a",
+      "31": "#16a34a",
+      "32": "#16a34a",
+      "33": "#16a34a",
+      "30": "#16a34a",
+      "36": "#16a34a",
+      "37": "#16a34a",
+      "38": "#16a34a",
+      "29": "#16a34a",
+      "40": "#a855f7",
+      "41": "#a855f7",
+      "47": "#a855f7",
+      "94": "#a855f7",
       "48": "#ec4899",
       "50": "#a855f7",
       "51": "#a855f7",
@@ -296,19 +314,38 @@ export default function MapPage() {
       "57": "#a855f7",
       "58": "#a855f7",
       "59": "#a855f7",
-      "61": "#7dd3fc",
-      "RICHMOND HILL": "#7dd3fc",
+      "61": "#0ea5e9",
+      "RICHMOND HILL": "#0ea5e9",
       BARRIE: "#2563eb",
+      "BARRIE LINE": "#2563eb",
       "65": "#2563eb",
       "68": "#2563eb",
-      "22": "#f97316",
-      "25": "#f97316",
-      "27": "#f97316",
-      MILTON: "#f97316",
+      "22": "#f59e0b",
+      "17": "#f59e0b",
+      "25": "#f59e0b",
+      "27": "#f59e0b",
+      MILTON: "#f59e0b",
+      "21": "#f59e0b",
+      STOUFFVILLE: "#8b5a2b",
+      "STOUFFVILLE LINE": "#8b5a2b",
+      "70": "#8b5a2b",
+      "71": "#8b5a2b",
     };
 
     if (routeColors[normalized]) {
       return routeColors[normalized];
+    }
+
+    // Handle variant labels like "31A", "31 KITCHENER", or "KI - ..."
+    if (normalized.includes("KITCHENER") || normalized === "KI" || normalized.startsWith("31")) {
+      return "#16a34a";
+    }
+    if (normalized.includes("MILTON") || normalized === "MI" || normalized.startsWith("21")) {
+      return "#f59e0b";
+    }
+    const routeNumberMatch = normalized.match(/\d{1,3}/);
+    if (routeNumberMatch && routeColors[routeNumberMatch[0]]) {
+      return routeColors[routeNumberMatch[0]];
     }
 
     let hash = 0;
