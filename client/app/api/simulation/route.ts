@@ -444,7 +444,11 @@ async function buildSimulationData(options: {
   );
 
   if (trips.size === 0) {
-    return { trips: new Map<string, TripMeta>(), stops: new Map<string, TripStops>() };
+    return {
+      trips: new Map<string, TripMeta>(),
+      stops: new Map<string, TripStops>(),
+      shapes: new Map(),
+    };
   }
 
   const tripStops = await loadTripStops(
@@ -522,6 +526,7 @@ export async function GET(request: Request) {
         : Promise.resolve({
             trips: new Map<string, TripMeta>(),
             stops: new Map<string, TripStops>(),
+            shapes: new Map(),
           }),
     ]);
 
