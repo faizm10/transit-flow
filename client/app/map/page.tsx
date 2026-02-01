@@ -1161,35 +1161,110 @@ export default function MapPage() {
       const last = trip.stops[trip.stops.length - 1];
       if (currentTime < first.t || currentTime > last.t) return;
 
+      // Pin at exact trip boundaries to avoid spawn/jump artifacts.
+      if (currentTime <= first.t) {
+        features.push({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [first.lon, first.lat],
+          },
+          properties: {
+            trip_id: trip.trip_id,
+            route_short_name: trip.route_short_name,
+            route_long_name: trip.route_long_name,
+            route_type: trip.route_type,
+            direction_id: trip.direction_id,
+            source: trip.source,
+            color:
+              trip.source === "union-pearson"
+                ? "#0ea5e9"
+                : trip.route_type === "2"
+                  ? "#22c55e"
+                  : "#f97316",
+            start_stop_name: trip.start_stop_name,
+            end_stop_name: trip.end_stop_name,
+            start_time: trip.start_time ?? "",
+            end_time: trip.end_time ?? "",
+          },
+        });
+        return;
+      }
+      if (currentTime >= last.t) {
+        features.push({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [last.lon, last.lat],
+          },
+          properties: {
+            trip_id: trip.trip_id,
+            route_short_name: trip.route_short_name,
+            route_long_name: trip.route_long_name,
+            route_type: trip.route_type,
+            direction_id: trip.direction_id,
+            source: trip.source,
+            color:
+              trip.source === "union-pearson"
+                ? "#0ea5e9"
+                : trip.route_type === "2"
+                  ? "#22c55e"
+                  : "#f97316",
+            start_stop_name: trip.start_stop_name,
+            end_stop_name: trip.end_stop_name,
+            start_time: trip.start_time ?? "",
+            end_time: trip.end_time ?? "",
+          },
+        });
+        return;
+      }
+
       let position = null as { lat: number; lon: number } | null;
       for (let i = 0; i < trip.stops.length - 1; i += 1) {
         const a = trip.stops[i];
         const b = trip.stops[i + 1];
-        if (currentTime < a.t || currentTime > b.t) continue;
-        if (b.t === a.t) {
+        if (currentTime < a.t) {
           position = { lat: a.lat, lon: a.lon };
           break;
         }
-        const ratio = (currentTime - a.t) / (b.t - a.t);
+        if (currentTime > b.t) continue;
+        if (b.t <= a.t) {
+          position = { lat: a.lat, lon: a.lon };
+          break;
+        }
+        const ratio = Math.max(0, Math.min(1, (currentTime - a.t) / (b.t - a.t)));
         const hasShape =
           trip.shape &&
           trip.shape.length > 1 &&
           a.shapeIndex !== null &&
           b.shapeIndex !== null;
         if (hasShape) {
-          const startIndex = Math.min(a.shapeIndex!, b.shapeIndex!);
-          const endIndex = Math.max(a.shapeIndex!, b.shapeIndex!);
+          const maxShapeIndex = trip.shape.length - 1;
+          const safeA = Math.max(0, Math.min(maxShapeIndex, a.shapeIndex!));
+          const safeB = Math.max(0, Math.min(maxShapeIndex, b.shapeIndex!));
+          const startIndex = Math.min(safeA, safeB);
+          const endIndex = Math.max(safeA, safeB);
           const span = Math.max(1, endIndex - startIndex);
           const rawIndex = startIndex + ratio * span;
-          const lowerIndex = Math.floor(rawIndex);
+          const lowerIndex = Math.max(
+            0,
+            Math.min(maxShapeIndex, Math.floor(rawIndex)),
+          );
           const upperIndex = Math.min(trip.shape.length - 1, lowerIndex + 1);
           const segmentRatio = rawIndex - lowerIndex;
           const p0 = trip.shape[lowerIndex];
           const p1 = trip.shape[upperIndex];
-          position = {
-            lat: p0.lat + (p1.lat - p0.lat) * segmentRatio,
-            lon: p0.lon + (p1.lon - p0.lon) * segmentRatio,
-          };
+          if (p0 && p1) {
+            position = {
+              lat: p0.lat + (p1.lat - p0.lat) * segmentRatio,
+              lon: p0.lon + (p1.lon - p0.lon) * segmentRatio,
+            };
+          } else {
+            position = {
+              lat: a.lat + (b.lat - a.lat) * ratio,
+              lon: a.lon + (b.lon - a.lon) * ratio,
+            };
+          }
         } else {
           position = {
             lat: a.lat + (b.lat - a.lat) * ratio,

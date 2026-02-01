@@ -130,6 +130,21 @@ function downsampleShape(
   return sampled;
 }
 
+function remapShapeIndex(
+  shapeIndex: number | null,
+  originalLength: number,
+  sampledLength: number,
+): number | null {
+  if (shapeIndex === null) return null;
+  if (originalLength <= 0 || sampledLength <= 0) return null;
+  if (sampledLength === 1) return 0;
+  if (originalLength === 1) return 0;
+
+  const normalized = shapeIndex / (originalLength - 1);
+  const mapped = Math.round(normalized * (sampledLength - 1));
+  return Math.max(0, Math.min(sampledLength - 1, mapped));
+}
+
 function toServiceDate(value: string): string | null {
   if (!value) return null;
   const trimmed = value.trim();
@@ -664,6 +679,8 @@ export async function GET(request: Request) {
           ? data.shapes.get(trip.shape_id) || []
           : [];
         const sampledShapePoints = downsampleShape(shapePoints);
+        const originalShapeLength = shapePoints.length;
+        const sampledShapeLength = sampledShapePoints.length;
 
         output.push({
           ...trip,
@@ -671,7 +688,11 @@ export async function GET(request: Request) {
             t: stop.t,
             lat: stop.lat,
             lon: stop.lon,
-            shapeIndex: stop.shapeIndex,
+            shapeIndex: remapShapeIndex(
+              stop.shapeIndex,
+              originalShapeLength,
+              sampledShapeLength,
+            ),
           })),
           shape: sampledShapePoints.map((point) => ({
             lat: point.lat,
