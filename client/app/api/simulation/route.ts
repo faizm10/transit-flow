@@ -7,7 +7,7 @@ import readline from "readline";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 const MAX_OUTPUT_TRIPS = 300;
-const MAX_SHAPE_POINTS_PER_TRIP = 220;
+const MAX_SHAPE_POINTS_PER_TRIP = 450;
 
 type RouteEntry = {
   route_id: string;
@@ -657,6 +657,7 @@ export async function GET(request: Request) {
         end_time: number | null;
       }
     > = [];
+    const shouldDownsampleShapes = (routeShortNameFilter?.size ?? 0) > 8;
     let wasTruncated = false;
     const appendTrips = (data: {
       trips: Map<string, TripMeta>;
@@ -678,7 +679,9 @@ export async function GET(request: Request) {
         const shapePoints = trip.shape_id
           ? data.shapes.get(trip.shape_id) || []
           : [];
-        const sampledShapePoints = downsampleShape(shapePoints);
+        const sampledShapePoints = shouldDownsampleShapes
+          ? downsampleShape(shapePoints)
+          : shapePoints;
         const originalShapeLength = shapePoints.length;
         const sampledShapeLength = sampledShapePoints.length;
 
@@ -738,6 +741,7 @@ export async function GET(request: Request) {
       limits: {
         maxOutputTrips: MAX_OUTPUT_TRIPS,
         maxShapePointsPerTrip: MAX_SHAPE_POINTS_PER_TRIP,
+        downsampleShapes: shouldDownsampleShapes,
       },
     };
     console.log(`[simulation:${requestId}] success`, diagnostics);
