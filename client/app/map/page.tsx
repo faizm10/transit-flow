@@ -1426,57 +1426,98 @@ export default function MapPage() {
       ]
         .filter(Boolean)
         .join(",");
-      const params = new URLSearchParams({
-        date: simulationDate,
-        start: simulationStart,
-        end: simulationEnd,
-        includeUpx: includeUpxInSimulation ? "true" : "false",
-        routeShortNames: simulationRoutes.join(","),
-        debug: "1",
-      });
-      if (routeTypes) {
-        params.set("routeTypes", routeTypes);
+      const chunkSize = 8;
+      const routeChunks: string[][] = [];
+      for (let i = 0; i < simulationRoutes.length; i += chunkSize) {
+        routeChunks.push(simulationRoutes.slice(i, i + chunkSize));
       }
-      const requestUrl = `/api/simulation?${params.toString()}`;
-      console.log("[SIM] Request", {
-        requestUrl,
-        routes: simulationRoutes,
-        date: simulationDate,
-        start: simulationStart,
-        end: simulationEnd,
-      });
-      const response = await fetch(requestUrl);
-      if (!response.ok) {
-        let errorPayload: Record<string, unknown> | null = null;
-        try {
-          errorPayload = (await response.json()) as Record<string, unknown>;
-        } catch {
-          errorPayload = null;
-        }
-        console.error("[SIM] API error response", {
-          status: response.status,
-          errorPayload,
+
+      const allTrips: SimulationTrip[] = [];
+      let effectiveStartSeconds = startSeconds;
+      let effectiveEndSeconds = endSeconds;
+
+      for (let i = 0; i < routeChunks.length; i += 1) {
+        const chunk = routeChunks[i];
+        const params = new URLSearchParams({
+          date: simulationDate,
+          start: simulationStart,
+          end: simulationEnd,
+          includeUpx: includeUpxInSimulation ? "true" : "false",
+          routeShortNames: chunk.join(","),
+          debug: "1",
         });
-        const requestId = errorPayload?.requestId
-          ? String(errorPayload.requestId)
-          : "n/a";
-        const apiError = errorPayload?.error ? String(errorPayload.error) : "";
-        throw new Error(`HTTP ${response.status} ${apiError} (requestId: ${requestId})`);
+        if (routeTypes) {
+          params.set("routeTypes", routeTypes);
+        }
+        const requestUrl = `/api/simulation?${params.toString()}`;
+        console.log("[SIM] Request", {
+          chunkIndex: i + 1,
+          chunkTotal: routeChunks.length,
+          requestUrl,
+          routes: chunk,
+          date: simulationDate,
+          start: simulationStart,
+          end: simulationEnd,
+        });
+
+        const response = await fetch(requestUrl);
+        if (!response.ok) {
+          let errorPayload: Record<string, unknown> | null = null;
+          try {
+            errorPayload = (await response.json()) as Record<string, unknown>;
+          } catch {
+            errorPayload = null;
+          }
+          console.error("[SIM] API error response", {
+            chunkIndex: i + 1,
+            status: response.status,
+            errorPayload,
+          });
+          const requestId = errorPayload?.requestId
+            ? String(errorPayload.requestId)
+            : "n/a";
+          const apiError = errorPayload?.error ? String(errorPayload.error) : "";
+          throw new Error(
+            `HTTP ${response.status} ${apiError} (chunk ${i + 1}/${routeChunks.length}, requestId: ${requestId})`,
+          );
+        }
+
+        const payload = (await response.json()) as {
+          startSeconds: number;
+          endSeconds: number;
+          trips: SimulationTrip[];
+          diagnostics?: Record<string, unknown>;
+        };
+        if (payload.diagnostics) {
+          console.log("[SIM] API diagnostics", {
+            chunkIndex: i + 1,
+            ...payload.diagnostics,
+          });
+        }
+
+        allTrips.push(...(payload.trips || []));
+        if (typeof payload.startSeconds === "number") {
+          effectiveStartSeconds = Math.min(effectiveStartSeconds, payload.startSeconds);
+        }
+        if (typeof payload.endSeconds === "number") {
+          effectiveEndSeconds = Math.max(effectiveEndSeconds, payload.endSeconds);
+        }
       }
-      const payload = (await response.json()) as {
-        startSeconds: number;
-        endSeconds: number;
-        trips: SimulationTrip[];
-        diagnostics?: Record<string, unknown>;
-      };
-      if (payload.diagnostics) {
-        console.log("[SIM] API diagnostics", payload.diagnostics);
-      }
-      setSimulationTrips(payload.trips || []);
-      setSimulationCurrent(payload.startSeconds || startSeconds);
+
+      setSimulationTrips(allTrips);
+      setSimulationCurrent(effectiveStartSeconds || startSeconds);
+      console.log("[SIM] Combined result", {
+        routeCount: simulationRoutes.length,
+        chunkCount: routeChunks.length,
+        trips: allTrips.length,
+        startSeconds: effectiveStartSeconds,
+        endSeconds: effectiveEndSeconds,
+      });
     } catch (error) {
       console.error("Simulation load failed:", error);
-      setSimulationError("Failed to load simulation data.");
+      setSimulationError(
+        error instanceof Error ? error.message : "Failed to load simulation data.",
+      );
     } finally {
       setSimulationLoading(false);
     }
