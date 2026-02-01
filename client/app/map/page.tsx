@@ -42,6 +42,56 @@ function formatShortTime(seconds: number): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
+function normalizeStopKey(value: string): string {
+  return value
+    .toUpperCase()
+    .replace(/['.]/g, "")
+    .replace(/[(),]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const MAJOR_STOP_NAME_FRAGMENTS = [
+  "SPORTSWORLD DR @ HWY 8 PARK & RIDE",
+  "CAMBRIDGE SMART CENTRE",
+  "HESPELER RD @ PINEBUSH RD",
+  "BROCK RD @ MCLEAN RD ABERFOYLE PARK & RIDE",
+  "REGIONAL RD 25 @ HWY 401 PARK & RIDE",
+  "WINSTON CHURCHILL TRANSITWAY STATION",
+  "ERIN MILLS TRANSITWAY STATION",
+  "SQUARE ONE",
+  "MILTON GO BUS",
+  "FINCH BUS TERMINAL",
+  "MEADOWVALE BUS TERMINAL",
+  "MOUNT PLEASANT GO BUS",
+  "GEORGETOWN GO BUS",
+  "RAILWAY ST @ ALBERT ST",
+  "OLD ELM GO BUS",
+  "UNION STATION",
+  "SHOPPERS WORLD",
+];
+
+function shouldShowMajorStop(
+  stopName: string,
+  routeShortName: string,
+  routeType: string,
+): boolean {
+  const normalizedName = normalizeStopKey(stopName);
+  const routeNumber = routeShortName.trim().match(/\d{1,3}/)?.[0] ?? "";
+
+  if (routeType === "2") return true; // Show all GO train stations.
+  if (["94", "52", "12", "11"].includes(routeNumber)) return true;
+  if (normalizedName.includes("UNIVERSITY")) return true;
+  if (normalizedName.includes("BUS STATION") || normalizedName.includes("BUS TERMINAL")) {
+    return true;
+  }
+  if (normalizedName.includes(" GO ") && normalizedName.includes(" STATION")) return true;
+
+  return MAJOR_STOP_NAME_FRAGMENTS.some((fragment) =>
+    normalizedName.includes(fragment),
+  );
+}
+
 export default function MapPage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -983,6 +1033,7 @@ export default function MapPage() {
       const lookup = variantLookup.get(variantId);
       const routeInfo = lookup ? routeById.get(lookup.route_id) : null;
       const routeType = routeInfo ? String(routeInfo.route_type) : "";
+      const routeShortName = lookup?.route_short_name || "";
 
       stops.forEach((stop) => {
         if (
@@ -991,6 +1042,9 @@ export default function MapPage() {
           Number.isNaN(stop.stop_lat) ||
           Number.isNaN(stop.stop_lon)
         ) {
+          return;
+        }
+        if (!shouldShowMajorStop(stop.stop_name, routeShortName, routeType)) {
           return;
         }
         features.push({
@@ -1004,7 +1058,7 @@ export default function MapPage() {
             stop_id: stop.stop_id,
             stop_name: stop.stop_name,
             stop_sequence: stop.stop_sequence,
-            route_short_name: lookup?.route_short_name || "",
+            route_short_name: routeShortName,
             route_type: routeType,
           },
         });
