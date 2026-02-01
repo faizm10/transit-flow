@@ -148,7 +148,7 @@ export default function MapPage() {
     const now = new Date();
     return now.toISOString().slice(0, 10);
   });
-  const [simulationRoute, setSimulationRoute] = useState("21");
+  const [simulationRoutes, setSimulationRoutes] = useState<string[]>(["21"]);
   const [simulationStart, setSimulationStart] = useState("04:00");
   const [simulationEnd, setSimulationEnd] = useState("08:00");
   const [simulationCurrent, setSimulationCurrent] = useState(0);
@@ -157,9 +157,11 @@ export default function MapPage() {
   const [simulationError, setSimulationError] = useState<string | null>(null);
   const [simulationPlaying, setSimulationPlaying] = useState(false);
   const [simulationSpeed, setSimulationSpeed] = useState(60);
+  const [focusedSimulationTripId, setFocusedSimulationTripId] = useState<string | null>(null);
   const [includeUpxInSimulation, setIncludeUpxInSimulation] = useState(true);
   const animationFrame = useRef<number | null>(null);
   const lastFrameTime = useRef<number | null>(null);
+  const lastFollowCameraUpdate = useRef<number>(0);
 
   // Update GO Transit layer visibility and filters
   useEffect(() => {
@@ -299,6 +301,17 @@ export default function MapPage() {
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b));
   }, [goRoutes]);
+
+  const simulationRouteOptions = useMemo(() => {
+    const trainCodes = goRoutes
+      .filter((route) => String(route.route_type) === "2")
+      .map((route) => route.route_short_name)
+      .filter(Boolean);
+    const requestedTrainCodes = ["KI", "LW", "LE", "BR", "ST", "RH", "MI"];
+    return Array.from(
+      new Set([...busRoutes, ...trainCodes, ...requestedTrainCodes]),
+    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [busRoutes, goRoutes]);
 
   const variantLookup = useMemo(() => {
     const map = new Map<
@@ -443,6 +456,28 @@ export default function MapPage() {
       hasInitializedGoVariants.current = true;
     }
   }, [allVariantIds]);
+
+  useEffect(() => {
+    const selectedRoutes = simulationRoutes.map((route) => route.trim()).filter(Boolean);
+    if (selectedRoutes.length === 0) {
+      setSelectedVariantIds([]);
+      return;
+    }
+
+    const variantIds = selectedRoutes.flatMap(
+      (route) => (goVariantsIndex[route] || []).map((variant) => variant.variant_id),
+    );
+    const uniqueVariantIds = Array.from(new Set(variantIds));
+    setSelectedVariantIds((prev) => {
+      if (
+        prev.length === uniqueVariantIds.length &&
+        prev.every((id, index) => id === uniqueVariantIds[index])
+      ) {
+        return prev;
+      }
+      return uniqueVariantIds;
+    });
+  }, [simulationRoutes, goVariantsIndex]);
 
   // Helper function to check if two stop sequences are reversed
   const areStopsReversed = useCallback(
@@ -1202,7 +1237,33 @@ export default function MapPage() {
       "simulation-vehicles",
     ) as mapboxgl.GeoJSONSource;
     source?.setData(collection);
-  }, [mapReady, simulationTrips, simulationCurrent, ensureSimulationLayer]);
+
+    if (focusedSimulationTripId) {
+      const focusedFeature = features.find((feature) => {
+        const props = feature.properties as Record<string, unknown>;
+        return String(props.trip_id || "") === focusedSimulationTripId;
+      });
+      if (focusedFeature) {
+        const now = Date.now();
+        if (now - lastFollowCameraUpdate.current > 350) {
+          lastFollowCameraUpdate.current = now;
+          const coords = (focusedFeature.geometry as GeoJSON.Point)
+            .coordinates as [number, number];
+          map.current.easeTo({
+            center: coords,
+            duration: 320,
+            essential: true,
+          });
+        }
+      }
+    }
+  }, [
+    mapReady,
+    simulationTrips,
+    simulationCurrent,
+    ensureSimulationLayer,
+    focusedSimulationTripId,
+  ]);
 
   useEffect(() => {
     if (!mapReady || !map.current) return;
@@ -1256,12 +1317,31 @@ export default function MapPage() {
       popup.remove();
     };
 
+    const handleClick = (event: mapboxgl.MapLayerMouseEvent) => {
+      if (!event.features || event.features.length === 0 || !map.current) return;
+      const feature = event.features[0];
+      const props = feature.properties || {};
+      const tripId = String(props.trip_id || "");
+      if (!tripId) return;
+
+      setFocusedSimulationTripId(tripId);
+      const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+      map.current.easeTo({
+        center: coords,
+        zoom: Math.max(map.current.getZoom(), 11.5),
+        duration: 450,
+        essential: true,
+      });
+    };
+
     map.current.on("mousemove", "simulation-vehicles-layer", handleMove);
     map.current.on("mouseleave", "simulation-vehicles-layer", handleLeave);
+    map.current.on("click", "simulation-vehicles-layer", handleClick);
 
     return () => {
       map.current?.off("mousemove", "simulation-vehicles-layer", handleMove);
       map.current?.off("mouseleave", "simulation-vehicles-layer", handleLeave);
+      map.current?.off("click", "simulation-vehicles-layer", handleClick);
       popup.remove();
     };
   }, [mapReady, ensureSimulationLayer]);
@@ -1322,6 +1402,10 @@ export default function MapPage() {
   const loadSimulation = async () => {
     const startSeconds = parseShortTime(simulationStart);
     const endSeconds = parseShortTime(simulationEnd);
+    if (simulationRoutes.length === 0) {
+      setSimulationError("Select at least one route.");
+      return;
+    }
     if (startSeconds === null || endSeconds === null) {
       setSimulationError("Enter a valid start and end time (HH:MM).");
       return;
@@ -1347,7 +1431,7 @@ export default function MapPage() {
         start: simulationStart,
         end: simulationEnd,
         includeUpx: includeUpxInSimulation ? "true" : "false",
-        routeShortName: simulationRoute,
+        routeShortNames: simulationRoutes.join(","),
       });
       if (routeTypes) {
         params.set("routeTypes", routeTypes);
@@ -1381,6 +1465,25 @@ export default function MapPage() {
       return prev;
     });
   }, [simulationStart, simulationEnd]);
+
+  const clearSimulationTrackers = () => {
+    setSimulationTrips([]);
+    setSimulationPlaying(false);
+    setFocusedSimulationTripId(null);
+    setSimulationError(null);
+    setSimulationCurrent(parseShortTime(simulationStart) ?? 0);
+  };
+
+  const resetSimulationInputs = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setSimulationDate(today);
+    setSimulationRoutes(["21"]);
+    setSimulationStart("04:00");
+    setSimulationEnd("08:00");
+    setSimulationSpeed(60);
+    setIncludeUpxInSimulation(true);
+    clearSimulationTrackers();
+  };
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -1615,23 +1718,33 @@ export default function MapPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-2 mb-2">
-            <label className="text-[11px] text-white/60">
-              Route
+            <label className="text-[11px] text-white/60 col-span-2">
+              Routes ({simulationRoutes.length} selected)
               <select
-                value={simulationRoute}
-                onChange={(event) => setSimulationRoute(event.target.value)}
-                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+                multiple
+                value={simulationRoutes}
+                onChange={(event) => {
+                  const selected = Array.from(event.target.selectedOptions).map(
+                    (option) => option.value,
+                  );
+                  setSimulationRoutes(selected);
+                  clearSimulationTrackers();
+                }}
+                className="mt-1 h-28 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
               >
-                {busRoutes.length === 0 ? (
+                {simulationRouteOptions.length === 0 ? (
                   <option value="21">21</option>
                 ) : (
-                  busRoutes.map((route) => (
+                  simulationRouteOptions.map((route) => (
                     <option key={route} value={route}>
                       {route}
                     </option>
                   ))
                 )}
               </select>
+              <div className="mt-1 text-[10px] text-white/45">
+                Hold Cmd/Ctrl to select multiple routes (includes KI, LW, LE, BR, ST, RH, MI).
+              </div>
             </label>
             <label className="text-[11px] text-white/60">
               Start
@@ -1678,7 +1791,20 @@ export default function MapPage() {
             >
               {simulationPlaying ? "Pause" : "Play"}
             </button>
+            <button
+              onClick={clearSimulationTrackers}
+              className="px-3 py-1.5 rounded-lg bg-white/10 text-white/80 text-xs font-medium hover:bg-white/20 transition-all"
+            >
+              Clear
+            </button>
           </div>
+
+          <button
+            onClick={resetSimulationInputs}
+            className="w-full mb-2 px-3 py-1.5 rounded-lg bg-white/5 text-white/70 text-xs font-medium hover:bg-white/10 transition-all border border-white/10"
+          >
+            Reset Simulation
+          </button>
 
           <div className="mb-2">
             <div className="flex items-center justify-between text-[10px] text-white/50">

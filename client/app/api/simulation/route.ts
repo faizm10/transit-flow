@@ -223,7 +223,7 @@ async function loadTripsForDate(
   activeServiceIds: Set<string>,
   source: TripMeta["source"],
   routeTypeFilter: Set<string> | null,
-  routeShortNameFilter: string | null,
+  routeShortNameFilter: Set<string> | null,
 ): Promise<Map<string, TripMeta>> {
   const tripsPath = path.join(basePath, "trips.txt");
   const content = await fs.readFile(tripsPath, "utf8");
@@ -247,7 +247,10 @@ async function loadTripsForDate(
     const route = routeMap.get(row.route_id);
     const routeType = String(route?.route_type ?? "");
     if (routeTypeFilter && !routeTypeFilter.has(routeType)) continue;
-    if (routeShortNameFilter && route?.route_short_name !== routeShortNameFilter)
+    if (
+      routeShortNameFilter &&
+      !routeShortNameFilter.has(String(route?.route_short_name ?? ""))
+    )
       continue;
 
     trips.set(row.trip_id, {
@@ -355,12 +358,101 @@ async function loadTripStops(
   return tripStops;
 }
 
+async function loadShapesForTrips(
+  basePath: string,
+  trips: Map<string, TripMeta>,
+): Promise<Map<string, Array<{ lat: number; lon: number; seq: number }>>> {
+  const shapeIds = new Set<string>();
+  trips.forEach((trip) => {
+    if (trip.shape_id) shapeIds.add(trip.shape_id);
+  });
+  if (shapeIds.size === 0) return new Map();
+
+  const shapesPath = path.join(basePath, "shapes.txt");
+  const stream = createReadStream(shapesPath, { encoding: "utf8" });
+  const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
+
+  let headers: string[] = [];
+  let isHeader = true;
+  const map = new Map<string, Array<{ lat: number; lon: number; seq: number }>>();
+
+  for await (const line of rl) {
+    if (!line) continue;
+    if (isHeader) {
+      headers = parseCsvLine(line).map((h) => h.trim());
+      if (headers[0]) {
+        headers[0] = headers[0].replace(/^\uFEFF/, "");
+      }
+      isHeader = false;
+      continue;
+    }
+
+    const values = parseCsvLine(line);
+    const row = headers.reduce<Record<string, string>>((obj, header, index) => {
+      obj[header] = (values[index] || "").trim();
+      return obj;
+    }, {});
+
+    if (!row.shape_id || !shapeIds.has(row.shape_id)) continue;
+    const lat = row.shape_pt_lat ? Number(row.shape_pt_lat) : null;
+    const lon = row.shape_pt_lon ? Number(row.shape_pt_lon) : null;
+    const seq = row.shape_pt_sequence ? Number(row.shape_pt_sequence) : null;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(seq)) {
+      continue;
+    }
+
+    if (!map.has(row.shape_id)) {
+      map.set(row.shape_id, []);
+    }
+    map.get(row.shape_id)!.push({
+      lat: lat as number,
+      lon: lon as number,
+      seq: seq as number,
+    });
+  }
+
+  map.forEach((points) => points.sort((a, b) => a.seq - b.seq));
+  return map;
+}
+
+function attachShapeIndices(
+  tripStops: Map<string, TripStops>,
+  trips: Map<string, TripMeta>,
+  shapes: Map<string, Array<{ lat: number; lon: number; seq: number }>>,
+) {
+  tripStops.forEach((entry, tripId) => {
+    const trip = trips.get(tripId);
+    if (!trip || !trip.shape_id) return;
+    const shape = shapes.get(trip.shape_id);
+    if (!shape || shape.length < 2) return;
+
+    // Keep indices monotonic to follow shape direction and avoid jumps.
+    let searchStart = 0;
+    entry.stops.forEach((stop) => {
+      let bestIndex = searchStart;
+      let bestDist = Number.POSITIVE_INFINITY;
+      for (let i = searchStart; i < shape.length; i += 1) {
+        const point = shape[i];
+        const dx = point.lon - stop.lon;
+        const dy = point.lat - stop.lat;
+        const dist = dx * dx + dy * dy;
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIndex = i;
+        }
+      }
+      stop.shapeIndex = bestIndex;
+      searchStart = bestIndex;
+    });
+  });
+}
+
 async function buildSimulationData(options: {
   basePath: string;
   source: TripMeta["source"];
   date: string;
   routeTypeFilter: Set<string> | null;
-  routeShortNameFilter: string | null;
+  routeShortNameFilter: Set<string> | null;
 }) {
   const [routes, stops, serviceIds] = await Promise.all([
     loadRoutes(options.basePath),
@@ -390,7 +482,9 @@ async function buildSimulationData(options: {
     new Set(trips.keys()),
     stops,
   );
-  return { trips, stops: tripStops, shapes: new Map() };
+  const shapes = await loadShapesForTrips(options.basePath, trips);
+  attachShapeIndices(tripStops, trips, shapes);
+  return { trips, stops: tripStops, shapes };
 }
 
 export async function GET(request: Request) {
@@ -402,6 +496,7 @@ export async function GET(request: Request) {
     const includeUpx = searchParams.get("includeUpx") !== "false";
     const routeTypesParam = searchParams.get("routeTypes");
     const routeShortNameParam = searchParams.get("routeShortName");
+    const routeShortNamesParam = searchParams.get("routeShortNames");
 
     if (!dateParam || !startParam || !endParam) {
       return NextResponse.json(
@@ -430,10 +525,17 @@ export async function GET(request: Request) {
       routeTypesParam && routeTypesParam.trim().length > 0
         ? new Set(routeTypesParam.split(",").map((value) => value.trim()))
         : null;
+    const routeShortNames = (
+      routeShortNamesParam && routeShortNamesParam.trim().length > 0
+        ? routeShortNamesParam.split(",")
+        : routeShortNameParam && routeShortNameParam.trim().length > 0
+          ? [routeShortNameParam]
+          : []
+    )
+      .map((value) => value.trim())
+      .filter(Boolean);
     const routeShortNameFilter =
-      routeShortNameParam && routeShortNameParam.trim().length > 0
-        ? routeShortNameParam.trim()
-        : null;
+      routeShortNames.length > 0 ? new Set(routeShortNames) : null;
 
     const goBasePath = path.join(process.cwd(), "public", "gotransit");
     const upxBasePath = path.join(process.cwd(), "public", "union-pearson");
