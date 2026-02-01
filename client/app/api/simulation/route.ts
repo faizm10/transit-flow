@@ -488,8 +488,13 @@ async function buildSimulationData(options: {
 }
 
 export async function GET(request: Request) {
+  const requestId = `sim-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const requestStartedAt = Date.now();
   try {
     const { searchParams } = new URL(request.url);
+    const debug =
+      searchParams.get("debug") === "1" ||
+      searchParams.get("debug") === "true";
     const dateParam = searchParams.get("date");
     const startParam = searchParams.get("start");
     const endParam = searchParams.get("end");
@@ -537,8 +542,19 @@ export async function GET(request: Request) {
     const routeShortNameFilter =
       routeShortNames.length > 0 ? new Set(routeShortNames) : null;
 
+    console.log(`[simulation:${requestId}] request`, {
+      dateParam,
+      startParam,
+      endParam,
+      includeUpx,
+      routeTypesParam,
+      routeShortNames,
+      debug,
+    });
+
     const goBasePath = path.join(process.cwd(), "public", "gotransit");
     const upxBasePath = path.join(process.cwd(), "public", "union-pearson");
+    const buildStartedAt = Date.now();
 
     const [goData, upxData] = await Promise.all([
       buildSimulationData({
@@ -562,6 +578,7 @@ export async function GET(request: Request) {
             shapes: new Map(),
           }),
     ]);
+    const buildDurationMs = Date.now() - buildStartedAt;
 
     const output: Array<
       TripMeta & {
@@ -613,15 +630,50 @@ export async function GET(request: Request) {
     appendTrips(goData);
     appendTrips(upxData);
 
+    const diagnostics = {
+      requestId,
+      durationMs: Date.now() - requestStartedAt,
+      buildDurationMs,
+      input: {
+        serviceDate,
+        startSeconds,
+        endSeconds,
+        includeUpx,
+        routeTypes: routeTypeFilter ? Array.from(routeTypeFilter) : [],
+        routeShortNames: routeShortNameFilter
+          ? Array.from(routeShortNameFilter)
+          : [],
+      },
+      go: {
+        trips: goData.trips.size,
+        stopSets: goData.stops.size,
+        shapes: goData.shapes.size,
+      },
+      upx: {
+        trips: upxData.trips.size,
+        stopSets: upxData.stops.size,
+        shapes: upxData.shapes.size,
+      },
+      outputTrips: output.length,
+    };
+    console.log(`[simulation:${requestId}] success`, diagnostics);
+
     return NextResponse.json({
       startSeconds,
       endSeconds,
       trips: output,
+      ...(debug ? { diagnostics } : {}),
     });
   } catch (error) {
-    console.error("Simulation data error:", error);
+    const failure = {
+      requestId,
+      durationMs: Date.now() - requestStartedAt,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    };
+    console.error(`[simulation:${requestId}] error`, failure);
     return NextResponse.json(
-      { error: "Failed to build simulation data" },
+      { error: "Failed to build simulation data", requestId },
       { status: 500 },
     );
   }

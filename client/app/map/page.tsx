@@ -1432,19 +1432,46 @@ export default function MapPage() {
         end: simulationEnd,
         includeUpx: includeUpxInSimulation ? "true" : "false",
         routeShortNames: simulationRoutes.join(","),
+        debug: "1",
       });
       if (routeTypes) {
         params.set("routeTypes", routeTypes);
       }
-      const response = await fetch(`/api/simulation?${params.toString()}`);
+      const requestUrl = `/api/simulation?${params.toString()}`;
+      console.log("[SIM] Request", {
+        requestUrl,
+        routes: simulationRoutes,
+        date: simulationDate,
+        start: simulationStart,
+        end: simulationEnd,
+      });
+      const response = await fetch(requestUrl);
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        let errorPayload: Record<string, unknown> | null = null;
+        try {
+          errorPayload = (await response.json()) as Record<string, unknown>;
+        } catch {
+          errorPayload = null;
+        }
+        console.error("[SIM] API error response", {
+          status: response.status,
+          errorPayload,
+        });
+        const requestId = errorPayload?.requestId
+          ? String(errorPayload.requestId)
+          : "n/a";
+        const apiError = errorPayload?.error ? String(errorPayload.error) : "";
+        throw new Error(`HTTP ${response.status} ${apiError} (requestId: ${requestId})`);
       }
       const payload = (await response.json()) as {
         startSeconds: number;
         endSeconds: number;
         trips: SimulationTrip[];
+        diagnostics?: Record<string, unknown>;
       };
+      if (payload.diagnostics) {
+        console.log("[SIM] API diagnostics", payload.diagnostics);
+      }
       setSimulationTrips(payload.trips || []);
       setSimulationCurrent(payload.startSeconds || startSeconds);
     } catch (error) {
