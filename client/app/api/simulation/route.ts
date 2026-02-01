@@ -111,6 +111,10 @@ function parseShortTime(value: string | null): number | null {
   return hours * 3600 + minutes * 60;
 }
 
+function canonicalTripId(value: string): string {
+  return value.trim().replace(/^\d{8}-/, "");
+}
+
 function toServiceDate(value: string): string | null {
   if (!value) return null;
   const trimmed = value.trim();
@@ -278,6 +282,14 @@ async function loadTripStops(
   const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
 
   const tripStops = new Map<string, TripStops>();
+  const canonicalTripIdMap = new Map<string, string>();
+  tripIds.forEach((tripId) => {
+    const key = canonicalTripId(tripId);
+    if (!canonicalTripIdMap.has(key)) {
+      canonicalTripIdMap.set(key, tripId);
+    }
+  });
+  let fallbackMatchedRows = 0;
   let headers: string[] = [];
   let isHeader = true;
 
@@ -287,6 +299,11 @@ async function loadTripStops(
       headers = parseCsvLine(line).map((h) => h.trim());
       if (headers[0]) {
         headers[0] = headers[0].replace(/^\uFEFF/, "");
+      }
+      if (!headers.includes("trip_id") || !headers.includes("stop_id")) {
+        throw new Error(
+          `Invalid stop_times header in ${stopTimesPath}; missing required columns`,
+        );
       }
       isHeader = false;
       continue;
@@ -299,7 +316,19 @@ async function loadTripStops(
     }, {});
 
     const tripId = row.trip_id;
-    if (!tripId || !tripIds.has(tripId)) continue;
+    if (!tripId) continue;
+    let matchedTripId: string | null = null;
+    if (tripIds.has(tripId)) {
+      matchedTripId = tripId;
+    } else {
+      const canonical = canonicalTripId(tripId);
+      const fallbackTripId = canonicalTripIdMap.get(canonical);
+      if (fallbackTripId) {
+        matchedTripId = fallbackTripId;
+        fallbackMatchedRows += 1;
+      }
+    }
+    if (!matchedTripId) continue;
 
     const stopId = row.stop_id;
     if (!stopId) continue;
@@ -314,8 +343,8 @@ async function loadTripStops(
     const seq = Number(row.stop_sequence);
     if (!Number.isFinite(seq)) continue;
 
-    if (!tripStops.has(tripId)) {
-      tripStops.set(tripId, {
+    if (!tripStops.has(matchedTripId)) {
+      tripStops.set(matchedTripId, {
         stops: [],
         minSeq: null,
         maxSeq: null,
@@ -327,7 +356,7 @@ async function loadTripStops(
         maxTime: null,
       });
     }
-    const entry = tripStops.get(tripId)!;
+    const entry = tripStops.get(matchedTripId)!;
     entry.stops.push({
       t: timeSeconds,
       lat: stop.stop_lat,
@@ -354,6 +383,13 @@ async function loadTripStops(
   tripStops.forEach((entry) => {
     entry.stops.sort((a, b) => a.seq - b.seq);
   });
+
+  if (fallbackMatchedRows > 0) {
+    console.log("[simulation] stop_times fallback trip_id matching used", {
+      fallbackMatchedRows,
+      matchedTrips: tripStops.size,
+    });
+  }
 
   return tripStops;
 }
