@@ -143,6 +143,7 @@ export default function MapPage() {
   const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
   const [goVariantFilterText, setGoVariantFilterText] = useState("");
   const [showRouteFilters, setShowRouteFilters] = useState(false);
+  const [showTimeSimulation, setShowTimeSimulation] = useState(true);
   const hasInitializedGoVariants = useRef(false);
   const [simulationDate, setSimulationDate] = useState(() => {
     const now = new Date();
@@ -1827,14 +1828,24 @@ export default function MapPage() {
           </div>
         )}
 
-        <div className="w-64 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl p-3 text-white/80">
-          <div className="flex items-center justify-between mb-2">
+        <div className="w-64 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl text-white/80 overflow-hidden">
+          <button
+            onClick={() => setShowTimeSimulation((prev) => !prev)}
+            className="w-full px-3 py-2.5 border-b border-white/10 bg-black/40 flex items-center justify-between hover:bg-black/55 transition-all"
+          >
             <h3 className="text-xs font-semibold text-white">Time Simulation</h3>
-            <span className="text-[10px] uppercase tracking-wide text-white/40">
-              EST/ET
-            </span>
-          </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wide text-white/40">
+                EST/ET
+              </span>
+              <span className="text-xs text-white/60">
+                {showTimeSimulation ? "Hide" : "Show"}
+              </span>
+            </div>
+          </button>
 
+          {showTimeSimulation && (
+            <div className="p-3">
           <div className="grid grid-cols-2 gap-2 mb-2">
             <label className="text-[11px] text-white/60">
               Date
@@ -1972,6 +1983,8 @@ export default function MapPage() {
           </div>
           {simulationError && (
             <div className="mt-2 text-[10px] text-red-300">{simulationError}</div>
+          )}
+            </div>
           )}
         </div>
       </div>
