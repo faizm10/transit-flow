@@ -6,6 +6,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
+import { RouteBuilder } from "@/components/RouteBuilder";
 
 type SimulationTrip = {
   trip_id: string;
@@ -144,6 +145,7 @@ export default function MapPage() {
   const [goVariantFilterText, setGoVariantFilterText] = useState("");
   const [showRouteFilters, setShowRouteFilters] = useState(false);
   const [showTimeSimulation, setShowTimeSimulation] = useState(true);
+  const [showRouteBuilder, setShowRouteBuilder] = useState(false);
   const hasInitializedGoVariants = useRef(false);
   const [simulationDate, setSimulationDate] = useState(() => {
     const now = new Date();
@@ -1665,7 +1667,37 @@ export default function MapPage() {
           >
             {showGoTransit ? "✓ GO Transit" : "GO Transit"}
           </button>
+          <button
+            onClick={() => setShowRouteBuilder((prev) => !prev)}
+            className={`px-4 py-2.5 rounded-lg backdrop-blur-md border transition-all text-sm font-medium ${
+              showRouteBuilder
+                ? "bg-blue-500/60 border-blue-400/30 text-white"
+                : "bg-black/40 border-white/10 text-white/60 hover:text-white hover:bg-black/60"
+            }`}
+          >
+            {showRouteBuilder ? "✓ Route Builder" : "Route Builder"}
+          </button>
         </div>
+
+        {/* Route Builder Popup */}
+        {showRouteBuilder && (
+          <div className="fixed inset-0 z-50 pointer-events-none">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              aria-hidden
+            />
+            <div className="absolute right-4 top-4 bottom-4 w-80 pointer-events-auto flex flex-col">
+              <RouteBuilder
+                mapRef={map}
+                mapReady={mapReady}
+                enabled={showRouteBuilder}
+                goVariantsIndex={goVariantsIndex}
+                goVariantStops={goVariantStops}
+                onClose={() => setShowRouteBuilder(false)}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Filter Panel */}
         {showGoTransit && (
