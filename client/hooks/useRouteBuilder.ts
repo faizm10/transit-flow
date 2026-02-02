@@ -7,7 +7,8 @@ import {
   type DirectionsResult,
 } from "@/lib/mapboxDirections";
 
-const STORAGE_ROUTES = "route_builder_routes";
+export const ROUTE_BUILDER_STORAGE_KEY = "route_builder_routes";
+const STORAGE_ROUTES = ROUTE_BUILDER_STORAGE_KEY;
 const STORAGE_CURRENT = "route_builder_current";
 const DEFAULT_PROFILE: DirectionsProfile = "mapbox/driving";
 const DEFAULT_COLOR = "#3b82f6";
@@ -49,6 +50,12 @@ export type CustomRoute = {
   baseVariantLabel?: string;
   stops: Stop[];
   schedule?: Schedule;
+  /** Route geometry from Mapbox Directions (required for simulation) */
+  geometry?: GeoJSON.LineString;
+  /** Trip duration in seconds (required for simulation timing) */
+  durationSeconds?: number;
+  /** Per-leg durations in seconds (stop i to stop i+1). Enables accurate segment timing. */
+  legDurations?: number[];
 };
 
 export type GoVariantOption = {
@@ -132,6 +139,9 @@ function normalizeCustomRoute(raw: unknown): CustomRoute {
     baseVariantLabel: r?.baseVariantLabel != null ? String(r.baseVariantLabel) : undefined,
     stops,
     schedule: r?.schedule as Schedule | undefined,
+    geometry: (r?.geometry as GeoJSON.LineString | undefined) ?? undefined,
+    durationSeconds: typeof r?.durationSeconds === "number" ? r.durationSeconds : undefined,
+    legDurations: Array.isArray(r?.legDurations) ? r.legDurations.map(Number) : undefined,
   };
 }
 
@@ -155,6 +165,110 @@ function saveCurrentToStorage(current: CustomRoute | null): void {
   } catch {
     // ignore
   }
+}
+
+/** Load saved custom routes from localStorage (for use outside the hook, e.g. simulation) */
+export function getSavedCustomRoutes(): CustomRoute[] {
+  return loadRoutesFromStorage();
+}
+
+/** Build simulation trips from a custom route for the given time window */
+export function buildSimulationTripsFromCustomRoute(
+  customRoute: CustomRoute,
+  startSeconds: number,
+  endSeconds: number
+): Array<{
+  trip_id: string;
+  route_short_name: string;
+  route_long_name: string;
+  route_type: string;
+  direction_id: number;
+  source: "custom";
+  stops: Array<{ t: number; lat: number; lon: number; shapeIndex: number | null }>;
+  shape: Array<{ lat: number; lon: number }>;
+  start_stop_name: string;
+  end_stop_name: string;
+  start_time: number | null;
+  end_time: number | null;
+  color: string;
+}> {
+  const { name, color, stops: routeStops, geometry, durationSeconds, legDurations, schedule } =
+    customRoute;
+  if (!geometry?.coordinates?.length || !routeStops.length || !durationSeconds) return [];
+
+  const shape = geometry.coordinates.map(([lon, lat]) => ({ lat, lon }));
+
+  function findClosestShapeIndex(lat: number, lon: number): number {
+    let best = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < shape.length; i++) {
+      const p = shape[i];
+      const d = (p.lat - lat) ** 2 + (p.lon - lon) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  const formatSecToTime = (sec: number) => {
+    const h = Math.floor(sec / 3600) % 24;
+    const m = Math.floor((sec % 3600) / 60);
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+  const departures: string[] = schedule
+    ? expandSchedule(schedule)
+    : [formatSecToTime(startSeconds)];
+
+  function parseTimeToSec(s: string): number {
+    const [h, m] = s.split(":").map(Number);
+    return (h ?? 0) * 3600 + (m ?? 0) * 60;
+  }
+
+  const trips: ReturnType<typeof buildSimulationTripsFromCustomRoute> = [];
+
+  for (const dep of departures) {
+    const depSec = parseTimeToSec(dep);
+    if (depSec < startSeconds || depSec > endSeconds) continue;
+
+    const endSec = depSec + durationSeconds;
+    const n = routeStops.length;
+    const stopsWithTime = routeStops.map((stop, i) => {
+      let t: number;
+      if (n <= 1) {
+        t = depSec;
+      } else if (legDurations && legDurations.length >= 1) {
+        t = depSec + legDurations.slice(0, i).reduce((a, b) => a + b, 0);
+      } else {
+        t = depSec + (durationSeconds * i) / (n - 1);
+      }
+      return {
+        t,
+        lat: stop.lat,
+        lon: stop.lng,
+        shapeIndex: findClosestShapeIndex(stop.lat, stop.lng),
+      };
+    });
+
+    trips.push({
+      trip_id: `custom-${customRoute.id}-${dep.replace(":", "")}`,
+      route_short_name: name,
+      route_long_name: name,
+      route_type: "3",
+      direction_id: 0,
+      source: "custom",
+      stops: stopsWithTime,
+      shape,
+      start_stop_name: routeStops[0]?.name ?? "Start",
+      end_stop_name: routeStops[routeStops.length - 1]?.name ?? "End",
+      start_time: depSec,
+      end_time: endSec,
+      color,
+    });
+  }
+
+  return trips;
 }
 
 /** Generate list of departures from a frequency schedule */
@@ -247,6 +361,15 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
       .then((result) => {
         if (result.ok) {
           setRoute(result.data);
+          setCurrentRoute((prev) => {
+            const base = prev ?? createEmptyRoute();
+            return {
+              ...base,
+              geometry: result.data.geometry,
+              durationSeconds: result.data.duration,
+              legDurations: result.data.legDurations,
+            };
+          });
         } else {
           setRoute(null);
           setError(
@@ -351,14 +474,27 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
   const saveRoute = useCallback(() => {
     const toSave = currentRoute ?? createEmptyRoute();
     if (toSave.stops.length < 2) return;
-    const existing = routes.find((r) => r.id === toSave.id);
+    const enriched: CustomRoute = {
+      ...toSave,
+      geometry: route?.geometry ?? toSave.geometry,
+      durationSeconds: route?.duration ?? toSave.durationSeconds,
+      legDurations: route?.legDurations ?? toSave.legDurations,
+    };
+    const existing = routes.find((r) => r.id === enriched.id);
     const next = existing
-      ? routes.map((r) => (r.id === toSave.id ? toSave : r))
-      : [...routes, toSave];
+      ? routes.map((r) => (r.id === enriched.id ? enriched : r))
+      : [...routes, enriched];
     setRoutes(next);
     setCurrentRoute(null);
     saveCurrentToStorage(null);
-  }, [currentRoute, routes]);
+    // Persist to localStorage before dispatching so listeners read fresh data
+    saveRoutesToStorage(next);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("route-builder-saved", { detail: { routeId: enriched.id } })
+      );
+    }
+  }, [currentRoute, routes, route]);
 
   const loadRoute = useCallback((r: CustomRoute) => {
     setCurrentRoute({ ...r });
