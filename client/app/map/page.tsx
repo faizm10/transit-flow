@@ -159,7 +159,7 @@ export default function MapPage() {
   const [buildingRouteGeometry, setBuildingRouteGeometry] = useState<GeoJSON.LineString | null>(null);
 
   useEffect(() => {
-    const handler = (e: Event) => {
+    const handleSaved = (e: Event) => {
       const detail = (e as CustomEvent<{ routeId?: string }>).detail;
       setSavedCustomRoutes(getSavedCustomRoutes());
       // Auto-add newly saved custom route to time simulation selection
@@ -170,13 +170,28 @@ export default function MapPage() {
         );
         if (showCustomNetwork) {
           setSelectedCustomRouteIds((prev) =>
-            prev.includes(detail.routeId!) ? prev : [...prev, detail.routeId!]
+            prev.includes(detail.routeId) ? prev : [...prev, detail.routeId]
           );
         }
       }
     };
-    window.addEventListener("route-builder-saved", handler);
-    return () => window.removeEventListener("route-builder-saved", handler);
+    const handleDeleted = (e: Event) => {
+      const detail = (e as CustomEvent<{ routeId?: string }>).detail;
+      setSavedCustomRoutes(getSavedCustomRoutes());
+      if (detail?.routeId) {
+        const customValue = `custom:${detail.routeId}`;
+        setSelectedCustomRouteIds((prev) =>
+          prev.filter((id) => id !== detail.routeId)
+        );
+        setSimulationRoutes((prev) => prev.filter((id) => id !== customValue));
+      }
+    };
+    window.addEventListener("route-builder-saved", handleSaved);
+    window.addEventListener("route-builder-deleted", handleDeleted);
+    return () => {
+      window.removeEventListener("route-builder-saved", handleSaved);
+      window.removeEventListener("route-builder-deleted", handleDeleted);
+    };
   }, [showCustomNetwork]);
 
   // When custom network is on and we have saved routes but none selected, default to all
