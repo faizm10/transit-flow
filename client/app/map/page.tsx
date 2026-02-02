@@ -7,6 +7,10 @@ import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import { RouteBuilder } from "@/components/RouteBuilder";
+import {
+  getSavedCustomRoutes,
+  buildSimulationTripsFromCustomRoute,
+} from "@/hooks/useRouteBuilder";
 
 type SimulationTrip = {
   trip_id: string;
@@ -14,13 +18,14 @@ type SimulationTrip = {
   route_long_name: string;
   route_type: string;
   direction_id: number;
-  source: "gotransit" | "union-pearson";
+  source: "gotransit" | "union-pearson" | "custom";
   stops: Array<{ t: number; lat: number; lon: number; shapeIndex: number | null }>;
   shape: Array<{ lat: number; lon: number }>;
   start_stop_name: string;
   end_stop_name: string;
   start_time: number | null;
   end_time: number | null;
+  color?: string;
 };
 
 function parseShortTime(value: string): number | null {
@@ -144,8 +149,46 @@ export default function MapPage() {
   const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
   const [goVariantFilterText, setGoVariantFilterText] = useState("");
   const [showRouteFilters, setShowRouteFilters] = useState(false);
-  const [showTimeSimulation, setShowTimeSimulation] = useState(true);
+  const [showTimeSimulation, setShowTimeSimulation] = useState(false);
   const [showRouteBuilder, setShowRouteBuilder] = useState(false);
+  const [showCustomNetwork, setShowCustomNetwork] = useState(true);
+  const [savedCustomRoutes, setSavedCustomRoutes] = useState(() =>
+    typeof window !== "undefined" ? getSavedCustomRoutes() : []
+  );
+  const [selectedCustomRouteIds, setSelectedCustomRouteIds] = useState<string[]>([]);
+  const [buildingRouteGeometry, setBuildingRouteGeometry] = useState<GeoJSON.LineString | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ routeId?: string }>).detail;
+      setSavedCustomRoutes(getSavedCustomRoutes());
+      // Auto-add newly saved custom route to time simulation selection
+      if (detail?.routeId) {
+        const customValue = `custom:${detail.routeId}`;
+        setSimulationRoutes((prev) =>
+          prev.includes(customValue) ? prev : [...prev, customValue]
+        );
+      }
+    };
+    window.addEventListener("route-builder-saved", handler);
+    return () => window.removeEventListener("route-builder-saved", handler);
+  }, []);
+
+  // When custom network is on and we have saved routes but none selected, default to all
+  useEffect(() => {
+    if (
+      showCustomNetwork &&
+      selectedCustomRouteIds.length === 0 &&
+      savedCustomRoutes.length > 0
+    ) {
+      const withGeometry = savedCustomRoutes.filter(
+        (r) => r.stops.length >= 2 && r.geometry
+      );
+      if (withGeometry.length > 0) {
+        setSelectedCustomRouteIds(withGeometry.map((r) => r.id));
+      }
+    }
+  }, [showCustomNetwork, savedCustomRoutes]);
   const hasInitializedGoVariants = useRef(false);
   const [simulationDate, setSimulationDate] = useState(() => {
     const now = new Date();
@@ -311,10 +354,22 @@ export default function MapPage() {
       .map((route) => route.route_short_name)
       .filter(Boolean);
     const requestedTrainCodes = ["KI", "LW", "LE", "BR", "ST", "RH", "MI"];
-    return Array.from(
+    const goOptions = Array.from(
       new Set([...busRoutes, ...trainCodes, ...requestedTrainCodes]),
-    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  }, [busRoutes, goRoutes]);
+    )
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .map((v) => ({ value: v, label: v }));
+    const customOptions = savedCustomRoutes
+      .filter((r) => r.stops.length >= 2 && r.geometry && r.durationSeconds)
+      .map((r) => ({ value: `custom:${r.id}`, label: `★ ${r.name}` }));
+    return [...customOptions, ...goOptions].sort((a, b) => {
+      const aCustom = a.value.startsWith("custom:");
+      const bCustom = b.value.startsWith("custom:");
+      if (aCustom && !bCustom) return -1;
+      if (!aCustom && bCustom) return 1;
+      return a.label.localeCompare(b.label, undefined, { numeric: true });
+    });
+  }, [busRoutes, goRoutes, savedCustomRoutes]);
 
   const variantLookup = useMemo(() => {
     const map = new Map<
@@ -467,7 +522,8 @@ export default function MapPage() {
       return;
     }
 
-    const variantIds = selectedRoutes.flatMap(
+    const goRoutesOnly = selectedRoutes.filter((r) => !r.startsWith("custom:"));
+    const variantIds = goRoutesOnly.flatMap(
       (route) => (goVariantsIndex[route] || []).map((variant) => variant.variant_id),
     );
     const uniqueVariantIds = Array.from(new Set(variantIds));
@@ -901,6 +957,28 @@ export default function MapPage() {
 
   }, []);
 
+  const ensureCustomRoutesLayers = useCallback(() => {
+    if (!map.current) return;
+    if (!map.current.getSource("custom-routes")) {
+      map.current.addSource("custom-routes", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+    }
+    if (!map.current.getLayer("custom-routes-layer")) {
+      map.current.addLayer({
+        id: "custom-routes-layer",
+        type: "line",
+        source: "custom-routes",
+        paint: {
+          "line-color": ["get", "route_color"],
+          "line-width": 4,
+          "line-opacity": 0.9,
+        },
+      });
+    }
+  }, []);
+
   const ensureSimulationLayer = useCallback(() => {
     if (!map.current) return;
     if (!map.current.getSource("simulation-vehicles")) {
@@ -964,6 +1042,7 @@ export default function MapPage() {
     const handleStyleLoad = () => {
       ensureUnionPearsonLayers();
       ensureGOTransitLayers();
+      ensureCustomRoutesLayers();
       ensureSimulationLayer();
       setMapReady(true);
     };
@@ -976,7 +1055,7 @@ export default function MapPage() {
       map.current = null;
       setMapReady(false);
     };
-  }, [ensureUnionPearsonLayers, ensureGOTransitLayers, ensureSimulationLayer]);
+  }, [ensureUnionPearsonLayers, ensureGOTransitLayers, ensureCustomRoutesLayers, ensureSimulationLayer]);
 
   // Update Union Pearson Express layer visibility
   useEffect(() => {
@@ -1109,6 +1188,37 @@ export default function MapPage() {
     } as GeoJSON.FeatureCollection;
   }, [goVariantStops, selectedVariantIds, variantLookup, routeById]);
 
+  const customRoutesGeoJSON = useMemo(() => {
+    const features: GeoJSON.Feature<GeoJSON.LineString>[] = [];
+    savedCustomRoutes.forEach((r) => {
+      if (!selectedCustomRouteIds.includes(r.id)) return;
+      if (!r.geometry?.coordinates?.length) return;
+      features.push({
+        type: "Feature",
+        geometry: r.geometry,
+        properties: { route_color: r.color || "#8b5cf6" },
+      });
+    });
+    return { type: "FeatureCollection" as const, features };
+  }, [savedCustomRoutes, selectedCustomRouteIds]);
+
+  useEffect(() => {
+    if (!mapReady || !map.current) return;
+    ensureCustomRoutesLayers();
+    const source = map.current.getSource("custom-routes") as mapboxgl.GeoJSONSource;
+    if (source && showCustomNetwork) {
+      source.setData(customRoutesGeoJSON);
+    }
+    const layer = map.current.getLayer("custom-routes-layer");
+    if (layer) {
+      map.current.setLayoutProperty(
+        "custom-routes-layer",
+        "visibility",
+        showCustomNetwork ? "visible" : "none"
+      );
+    }
+  }, [mapReady, showCustomNetwork, customRoutesGeoJSON, ensureCustomRoutesLayers]);
+
   useEffect(() => {
     if (!mapReady || !map.current || !selectedVariantStops) {
       return;
@@ -1180,11 +1290,12 @@ export default function MapPage() {
             direction_id: trip.direction_id,
             source: trip.source,
             color:
-              trip.source === "union-pearson"
+              trip.color ??
+              (trip.source === "union-pearson"
                 ? "#0ea5e9"
                 : trip.route_type === "2"
                   ? "#22c55e"
-                  : "#f97316",
+                  : "#f97316"),
             start_stop_name: trip.start_stop_name,
             end_stop_name: trip.end_stop_name,
             start_time: trip.start_time ?? "",
@@ -1208,11 +1319,12 @@ export default function MapPage() {
             direction_id: trip.direction_id,
             source: trip.source,
             color:
-              trip.source === "union-pearson"
+              trip.color ??
+              (trip.source === "union-pearson"
                 ? "#0ea5e9"
                 : trip.route_type === "2"
                   ? "#22c55e"
-                  : "#f97316",
+                  : "#f97316"),
             start_stop_name: trip.start_stop_name,
             end_stop_name: trip.end_stop_name,
             start_time: trip.start_time ?? "",
@@ -1279,11 +1391,12 @@ export default function MapPage() {
       if (!position) return;
 
       const color =
-        trip.source === "union-pearson"
+        trip.color ??
+        (trip.source === "union-pearson"
           ? "#0ea5e9"
           : trip.route_type === "2"
             ? "#22c55e"
-            : "#f97316";
+            : "#f97316");
 
       features.push({
         type: "Feature",
@@ -1362,7 +1475,12 @@ export default function MapPage() {
       const routeLongName = props.route_long_name || "";
       const startName = props.start_stop_name || "";
       const endName = props.end_stop_name || "";
-      const source = props.source === "union-pearson" ? "UP Express" : "GO Transit";
+      const source =
+        props.source === "union-pearson"
+          ? "UP Express"
+          : props.source === "custom"
+            ? "Custom"
+            : "GO Transit";
       const directionLabel =
         props.direction_id === "1" || props.direction_id === 1
           ? "Direction 1"
@@ -1498,6 +1616,25 @@ export default function MapPage() {
     setSimulationPlaying(false);
 
     try {
+      const goRouteNames = simulationRoutes.filter((r) => !r.startsWith("custom:"));
+      const customRouteIds = simulationRoutes
+        .filter((r) => r.startsWith("custom:"))
+        .map((r) => r.replace(/^custom:/, ""));
+
+      const allTrips: SimulationTrip[] = [];
+
+      for (const customId of customRouteIds) {
+        const customRoute = savedCustomRoutes.find((r) => r.id === customId);
+        if (customRoute) {
+          const trips = buildSimulationTripsFromCustomRoute(
+            customRoute,
+            startSeconds,
+            endSeconds
+          );
+          allTrips.push(...trips);
+        }
+      }
+
       const routeTypes = [
         showGoTrains ? "2" : null,
         showGoBuses ? "3" : null,
@@ -1506,11 +1643,10 @@ export default function MapPage() {
         .join(",");
       const chunkSize = 8;
       const routeChunks: string[][] = [];
-      for (let i = 0; i < simulationRoutes.length; i += chunkSize) {
-        routeChunks.push(simulationRoutes.slice(i, i + chunkSize));
+      for (let i = 0; i < goRouteNames.length; i += chunkSize) {
+        routeChunks.push(goRouteNames.slice(i, i + chunkSize));
       }
 
-      const allTrips: SimulationTrip[] = [];
       let effectiveStartSeconds = startSeconds;
       let effectiveEndSeconds = endSeconds;
 
@@ -1631,6 +1767,12 @@ export default function MapPage() {
     clearSimulationTrackers();
   };
 
+  const showAllNetworks = () => {
+    setShowGoTransit(true);
+    setShowUnionPearson(true);
+    setShowCustomNetwork(true);
+  };
+
   return (
     <div className="relative h-screen w-full overflow-hidden">
       {/* GitHub icon - bottom left */}
@@ -1643,64 +1785,101 @@ export default function MapPage() {
         <GitHubLogoIcon width={18} height={18} />
       </a>
 
-      {/* Controls Panel */}
-      <div className="absolute top-4 right-4 bottom-4 z-10 flex max-w-[calc(100vw-1rem)] flex-col gap-3 overflow-y-auto pr-1">
-        {/* Quick Toggle Buttons */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowUnionPearson((prev) => !prev)}
-            className={`px-4 py-2.5 rounded-lg backdrop-blur-md border transition-all text-sm font-medium ${
-              showUnionPearson
-                ? "bg-blue-500/60 border-blue-400/30 text-white"
-                : "bg-black/40 border-white/10 text-white/60 hover:text-white hover:bg-black/60"
-            }`}
-          >
-            {showUnionPearson ? "✓ UPX" : "UPX"}
-          </button>
-          <button
-            onClick={() => setShowGoTransit((prev) => !prev)}
-            className={`px-4 py-2.5 rounded-lg backdrop-blur-md border transition-all text-sm font-medium ${
-              showGoTransit
-                ? "bg-emerald-500/60 border-emerald-400/30 text-white"
-                : "bg-black/40 border-white/10 text-white/60 hover:text-white hover:bg-black/60"
-            }`}
-          >
-            {showGoTransit ? "✓ GO Transit" : "GO Transit"}
-          </button>
-          <button
-            onClick={() => setShowRouteBuilder((prev) => !prev)}
-            className={`px-4 py-2.5 rounded-lg backdrop-blur-md border transition-all text-sm font-medium ${
-              showRouteBuilder
-                ? "bg-blue-500/60 border-blue-400/30 text-white"
-                : "bg-black/40 border-white/10 text-white/60 hover:text-white hover:bg-black/60"
-            }`}
-          >
-            {showRouteBuilder ? "✓ Route Builder" : "Route Builder"}
-          </button>
-        </div>
-
-        {/* Route Builder Popup */}
-        {showRouteBuilder && (
-          <div className="fixed inset-0 z-50 pointer-events-none">
-            <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              aria-hidden
-            />
-            <div className="absolute right-4 top-4 bottom-4 w-80 pointer-events-auto flex flex-col">
-              <RouteBuilder
-                mapRef={map}
-                mapReady={mapReady}
-                enabled={showRouteBuilder}
-                goVariantsIndex={goVariantsIndex}
-                goVariantStops={goVariantStops}
-                onClose={() => setShowRouteBuilder(false)}
-              />
-            </div>
+      {/* Vertical Sidebar Navbar - left */}
+      <nav className="absolute left-4 top-4 bottom-4 z-10 flex flex-col gap-1 w-44">
+        <div className="rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-xl overflow-hidden">
+          <div className="px-2.5 py-2 border-b border-white/10">
+            <span className="text-[10px] font-semibold text-white/60 uppercase tracking-wider">
+              Networks
+            </span>
           </div>
+          <div className="p-2 space-y-1">
+            <button
+              onClick={() => setShowGoTransit((prev) => !prev)}
+              className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
+                showGoTransit
+                  ? "bg-emerald-500/60 border border-emerald-400/30 text-white"
+                  : "bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {showGoTransit ? "✓ " : ""}GO Transit
+            </button>
+            <button
+              onClick={() => setShowUnionPearson((prev) => !prev)}
+              className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
+                showUnionPearson
+                  ? "bg-blue-500/60 border border-blue-400/30 text-white"
+                  : "bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {showUnionPearson ? "✓ " : ""}UPX
+            </button>
+            <button
+              onClick={() => setShowCustomNetwork((prev) => !prev)}
+              className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
+                showCustomNetwork
+                  ? "bg-violet-500/60 border border-violet-400/30 text-white"
+                  : "bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {showCustomNetwork ? "✓ " : ""}Custom
+            </button>
+            <button
+              onClick={showAllNetworks}
+              className="w-full px-3 py-2 rounded-lg text-left text-xs font-medium bg-white/5 border border-transparent text-white/70 hover:bg-white/10 hover:text-white transition-all"
+            >
+              Show all networks
+            </button>
+          </div>
+        </div>
+        <div className="rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-xl overflow-hidden">
+          <div className="px-2.5 py-2 border-b border-white/10">
+            <span className="text-[10px] font-semibold text-white/60 uppercase tracking-wider">
+              Tools
+            </span>
+          </div>
+          <div className="p-2 space-y-1">
+            <button
+              onClick={() => setShowRouteBuilder((prev) => !prev)}
+              className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
+                showRouteBuilder
+                  ? "bg-blue-500/60 border border-blue-400/30 text-white"
+                  : "bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {showRouteBuilder ? "✓ " : ""}Route Builder
+            </button>
+            <button
+              onClick={() => setShowTimeSimulation((prev) => !prev)}
+              className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
+                showTimeSimulation
+                  ? "bg-amber-500/60 border border-amber-400/30 text-white"
+                  : "bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {showTimeSimulation ? "✓ " : ""}Time Simulation
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Panels - right side */}
+      <div className="absolute top-4 right-4 bottom-4 z-10 flex max-w-[calc(100vw-1rem)] flex-col gap-3 overflow-y-auto pr-1">
+        {/* Route Builder Panel - mount when building or when custom network on (to show building route) */}
+        {(showRouteBuilder || showCustomNetwork) && (
+          <RouteBuilder
+            mapRef={map}
+            mapReady={mapReady}
+            enabled={showRouteBuilder}
+            showPanel={showRouteBuilder}
+            goVariantsIndex={goVariantsIndex}
+            goVariantStops={goVariantStops}
+            showCustomNetwork={showCustomNetwork}
+          />
         )}
 
         {/* Filter Panel */}
-        {showGoTransit && (
+        {(showGoTransit || showCustomNetwork) && (
           <div className="w-64 overflow-hidden rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl">
             <button
               onClick={() => setShowRouteFilters((prev) => !prev)}
@@ -1710,6 +1889,9 @@ export default function MapPage() {
                 <h3 className="text-xs font-semibold text-white">Route Filters</h3>
                 <span className="text-[10px] text-white/50">
                   {selectedVariantIds.length}/{allVariantIds.length}
+                  {showCustomNetwork && savedCustomRoutes.length > 0 && (
+                    <> · {selectedCustomRouteIds.length}/{savedCustomRoutes.length} custom</>
+                  )}
                 </span>
               </div>
               <span className="text-xs text-white/60">
@@ -1854,30 +2036,78 @@ export default function MapPage() {
                       })}
                     </div>
                   )}
+
+                  {showCustomNetwork && savedCustomRoutes.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-white/10">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-semibold text-violet-300 uppercase tracking-wider">
+                          Custom Routes
+                        </span>
+                        <div className="flex gap-1">
+                          <button
+                            className="px-1.5 py-0.5 text-[10px] rounded bg-violet-500/20 border border-violet-500/30 text-violet-300 hover:bg-violet-500/30"
+                            onClick={() => setSelectedCustomRouteIds(savedCustomRoutes.map((r) => r.id))}
+                          >
+                            All
+                          </button>
+                          <button
+                            className="px-1.5 py-0.5 text-[10px] rounded bg-white/5 border border-white/10 text-white/70 hover:bg-white/10"
+                            onClick={() => setSelectedCustomRouteIds([])}
+                          >
+                            None
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        {savedCustomRoutes
+                          .filter((r) => r.stops.length >= 2 && r.geometry)
+                          .map((r) => (
+                            <label
+                              key={r.id}
+                              className="flex items-center gap-1.5 cursor-pointer p-1 rounded hover:bg-white/5 transition-all"
+                            >
+                              <input
+                                type="checkbox"
+                                className="w-3 h-3 rounded accent-violet-400 cursor-pointer"
+                                checked={selectedCustomRouteIds.includes(r.id)}
+                                onChange={() => {
+                                  setSelectedCustomRouteIds((prev) =>
+                                    prev.includes(r.id)
+                                      ? prev.filter((id) => id !== r.id)
+                                      : [...prev, r.id]
+                                  );
+                                }}
+                              />
+                              <span
+                                className="h-2.5 w-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: r.color }}
+                              />
+                              <span className="text-[11px] text-white/80 flex-1 truncate">
+                                {r.name}
+                              </span>
+                            </label>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
           </div>
         )}
 
+        {showTimeSimulation && (
         <div className="w-64 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl text-white/80 overflow-hidden">
-          <button
-            onClick={() => setShowTimeSimulation((prev) => !prev)}
+          <div
             className="w-full px-3 py-2.5 border-b border-white/10 bg-black/40 flex items-center justify-between hover:bg-black/55 transition-all"
           >
             <h3 className="text-xs font-semibold text-white">Time Simulation</h3>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase tracking-wide text-white/40">
-                EST/ET
-              </span>
-              <span className="text-xs text-white/60">
-                {showTimeSimulation ? "Hide" : "Show"}
-              </span>
-            </div>
-          </button>
+            <span className="text-[10px] uppercase tracking-wide text-white/40">
+              EST/ET
+            </span>
+          </div>
 
-          {showTimeSimulation && (
-            <div className="p-3">
+          <div className="p-3">
           <div className="grid grid-cols-2 gap-2 mb-2">
             <label className="text-[11px] text-white/60">
               Date
@@ -1921,15 +2151,15 @@ export default function MapPage() {
                 {simulationRouteOptions.length === 0 ? (
                   <option value="21">21</option>
                 ) : (
-                  simulationRouteOptions.map((route) => (
-                    <option key={route} value={route}>
-                      {route}
+                  simulationRouteOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))
                 )}
               </select>
               <div className="mt-1 text-[10px] text-white/45">
-                Hold Cmd/Ctrl to select multiple routes (includes KI, LW, LE, BR, ST, RH, MI).
+                Hold Cmd/Ctrl to select multiple. ★ = saved custom routes.
               </div>
             </label>
             <label className="text-[11px] text-white/60">
@@ -2016,9 +2246,9 @@ export default function MapPage() {
           {simulationError && (
             <div className="mt-2 text-[10px] text-red-300">{simulationError}</div>
           )}
-            </div>
-          )}
+          </div>
         </div>
+        )}
       </div>
 
       <div ref={mapContainer} className="h-full w-full" />
