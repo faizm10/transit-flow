@@ -9,7 +9,9 @@ export type DirectionsProfile = "mapbox/driving" | "mapbox/walking" | "mapbox/cy
 export type DirectionsResult = {
   geometry: GeoJSON.LineString;
   distance: number; // meters
-  duration: number; // seconds
+  duration: number; // seconds (total)
+  /** Duration of each leg in seconds (stop i to stop i+1). Enables accurate simulation timing. */
+  legDurations: number[];
 };
 
 export type DirectionsErrorCode =
@@ -69,6 +71,7 @@ export async function fetchDirections(
         geometry?: { coordinates: [number, number][] };
         distance?: number;
         duration?: number;
+        legs?: Array<{ duration?: number; distance?: number }>;
       }>;
       code?: string;
       message?: string;
@@ -109,6 +112,12 @@ export async function fetchDirections(
       };
     }
 
+    const legs = route.legs ?? [];
+    const legDurations = legs
+      .map((leg) => leg.duration ?? 0)
+      .filter((d) => d >= 0);
+    const totalDuration = route.duration ?? legDurations.reduce((a, b) => a + b, 0);
+
     return {
       ok: true,
       data: {
@@ -117,7 +126,8 @@ export async function fetchDirections(
           coordinates: coordsRoute,
         },
         distance: route.distance ?? 0,
-        duration: route.duration ?? 0,
+        duration: totalDuration,
+        legDurations: legDurations.length > 0 ? legDurations : [totalDuration],
       },
     };
   } catch (err) {
