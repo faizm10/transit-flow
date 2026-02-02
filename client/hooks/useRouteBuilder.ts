@@ -620,12 +620,21 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
   }, []);
 
   const deleteRoute = useCallback((id: string) => {
-    setRoutes((prev) => prev.filter((r) => r.id !== id));
+    const next = routes.filter((r) => r.id !== id);
+    setRoutes(next);
+    saveRoutesToStorage(next);
+    if (typeof window !== "undefined") {
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("route-builder-deleted", { detail: { routeId: id } })
+        );
+      }, 0);
+    }
     if (currentRoute?.id === id) {
       setCurrentRoute(null);
       setRoute(null);
     }
-  }, [currentRoute?.id]);
+  }, [currentRoute?.id, routes]);
 
   const clearRoute = useCallback(() => {
     setCurrentRoute(createEmptyRoute());
