@@ -24,6 +24,7 @@ export type Stop = {
   name?: string;
   lng: number;
   lat: number;
+  timepoint?: boolean;
 };
 
 export type ScheduleFrequency = {
@@ -110,6 +111,13 @@ function stopId(): string {
   return `stop-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function cloneStops(stops: Stop[]): Stop[] {
+  return stops.map((stop) => ({
+    ...stop,
+    id: stopId(),
+  }));
+}
+
 function goStopsToStops(
   goStops: GoVariantStop[]
 ): Stop[] {
@@ -121,6 +129,7 @@ function goStopsToStops(
       name: s.stop_name,
       lng: s.stop_lon!,
       lat: s.stop_lat!,
+      timepoint: false,
     }));
 }
 
@@ -156,6 +165,7 @@ function normalizeCustomRoute(raw: unknown): CustomRoute {
       name: x?.name != null ? String(x.name) : undefined,
       lng: Number(x?.lng ?? 0),
       lat: Number(x?.lat ?? 0),
+      timepoint: Boolean(x?.timepoint ?? false),
     } as Stop;
   });
   return {
@@ -532,6 +542,25 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
     });
   }, []);
 
+  const updateRouteById = useCallback(
+    (id: string, updates: Partial<CustomRoute>) => {
+      setRoutes((prev) => {
+        const next = prev.map((r) => (r.id === id ? { ...r, ...updates } : r));
+        saveRoutesToStorage(next);
+        if (typeof window !== "undefined") {
+          setTimeout(() => {
+            window.dispatchEvent(
+              new CustomEvent("route-builder-saved", { detail: { routeId: id } })
+            );
+          }, 0);
+        }
+        return next;
+      });
+      setCurrentRoute((prev) => (prev && prev.id === id ? { ...prev, ...updates } : prev));
+    },
+    []
+  );
+
   const setStops = useCallback((newStops: Stop[]) => {
     updateCurrent({ stops: newStops });
   }, [updateCurrent]);
@@ -539,12 +568,12 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
   const addStop = useCallback((lng: number, lat: number, name?: string) => {
     setStops([
       ...stops,
-      { id: stopId(), name: name ?? `Stop ${stops.length + 1}`, lng, lat },
+      { id: stopId(), name: name ?? `Stop ${stops.length + 1}`, lng, lat, timepoint: false },
     ]);
   }, [stops, setStops]);
 
   const updateStop = useCallback(
-    (id: string, updates: Partial<Pick<Stop, "lng" | "lat" | "name">>) => {
+    (id: string, updates: Partial<Pick<Stop, "lng" | "lat" | "name" | "timepoint">>) => {
       setStops(
         stops.map((s) => (s.id === id ? { ...s, ...updates } : s))
       );
@@ -615,6 +644,29 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
     }
   }, [currentRoute, routes, route]);
 
+  const saveReversedRoute = useCallback((base: CustomRoute) => {
+    if (base.stops.length < 2) return;
+    const reversed: CustomRoute = {
+      ...base,
+      id: generateId(),
+      name: `${base.name} (Reverse)`,
+      stops: cloneStops([...base.stops].reverse()),
+      geometry: undefined,
+      durationSeconds: undefined,
+      legDurations: undefined,
+    };
+    setRoutes((prev) => {
+      const next = [...prev, reversed];
+      saveRoutesToStorage(next);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("route-builder-saved", { detail: { routeId: reversed.id } })
+        );
+      }
+      return next;
+    });
+  }, []);
+
   const loadRoute = useCallback((r: CustomRoute) => {
     setCurrentRoute({ ...r });
   }, []);
@@ -665,9 +717,11 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
     moveStop,
     setStops,
     updateCurrent,
+    updateRouteById,
     loadFromGoVariant,
     clearBaseVariant,
     saveRoute,
+    saveReversedRoute,
     loadRoute,
     deleteRoute,
     clearRoute,

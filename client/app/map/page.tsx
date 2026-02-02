@@ -151,12 +151,15 @@ export default function MapPage() {
   const [showRouteFilters, setShowRouteFilters] = useState(false);
   const [showTimeSimulation, setShowTimeSimulation] = useState(false);
   const [showRouteBuilder, setShowRouteBuilder] = useState(false);
+  const [showScheduleBuilder, setShowScheduleBuilder] = useState(false);
   const [showCustomNetwork, setShowCustomNetwork] = useState(true);
-  const [savedCustomRoutes, setSavedCustomRoutes] = useState(() =>
-    typeof window !== "undefined" ? getSavedCustomRoutes() : []
-  );
+  const [savedCustomRoutes, setSavedCustomRoutes] = useState(() => []);
   const [selectedCustomRouteIds, setSelectedCustomRouteIds] = useState<string[]>([]);
   const [buildingRouteGeometry, setBuildingRouteGeometry] = useState<GeoJSON.LineString | null>(null);
+
+  useEffect(() => {
+    setSavedCustomRoutes(getSavedCustomRoutes());
+  }, []);
 
   useEffect(() => {
     const handleSaved = (e: Event) => {
@@ -1913,6 +1916,16 @@ export default function MapPage() {
               {showRouteBuilder ? "✓ " : ""}Route Builder
             </button>
             <button
+              onClick={() => setShowScheduleBuilder((prev) => !prev)}
+              className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
+                showScheduleBuilder
+                  ? "bg-indigo-500/60 border border-indigo-400/30 text-white"
+                  : "bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {showScheduleBuilder ? "✓ " : ""}Schedule Builder
+            </button>
+            <button
               onClick={() => setShowTimeSimulation((prev) => !prev)}
               className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
                 showTimeSimulation
@@ -1929,12 +1942,13 @@ export default function MapPage() {
       {/* Panels - right side */}
       <div className="absolute top-4 right-4 bottom-4 z-10 flex max-w-[calc(100vw-1rem)] flex-col gap-3 overflow-y-auto pr-1">
         {/* Route Builder Panel - mount when building or when custom network on (to show building route) */}
-        {(showRouteBuilder || showCustomNetwork) && (
+        {(showRouteBuilder || showCustomNetwork || showScheduleBuilder) && (
           <RouteBuilder
             mapRef={map}
             mapReady={mapReady}
             enabled={showRouteBuilder}
             showPanel={showRouteBuilder}
+            showSchedulePanel={showScheduleBuilder}
             goVariantsIndex={goVariantsIndex}
             goVariantStops={goVariantStops}
             showCustomNetwork={showCustomNetwork}
