@@ -10,6 +10,7 @@ import { RouteBuilder } from "@/components/RouteBuilder";
 import {
   getSavedCustomRoutes,
   buildSimulationTripsFromCustomRoute,
+  type CustomRoute,
 } from "@/hooks/useRouteBuilder";
 
 type SimulationTrip = {
@@ -153,7 +154,7 @@ export default function MapPage() {
   const [showRouteBuilder, setShowRouteBuilder] = useState(false);
   const [showScheduleBuilder, setShowScheduleBuilder] = useState(false);
   const [showCustomNetwork, setShowCustomNetwork] = useState(true);
-  const [savedCustomRoutes, setSavedCustomRoutes] = useState(() => []);
+  const [savedCustomRoutes, setSavedCustomRoutes] = useState<CustomRoute[]>([]);
   const [selectedCustomRouteIds, setSelectedCustomRouteIds] = useState<string[]>([]);
   const [buildingRouteGeometry, setBuildingRouteGeometry] = useState<GeoJSON.LineString | null>(null);
 
@@ -166,14 +167,15 @@ export default function MapPage() {
       const detail = (e as CustomEvent<{ routeId?: string }>).detail;
       setSavedCustomRoutes(getSavedCustomRoutes());
       // Auto-add newly saved custom route to time simulation selection
-      if (detail?.routeId) {
-        const customValue = `custom:${detail.routeId}`;
+      const routeId = detail?.routeId;
+      if (routeId) {
+        const customValue = `custom:${routeId}`;
         setSimulationRoutes((prev) =>
           prev.includes(customValue) ? prev : [...prev, customValue]
         );
         if (showCustomNetwork) {
           setSelectedCustomRouteIds((prev) =>
-            prev.includes(detail.routeId) ? prev : [...prev, detail.routeId]
+            prev.includes(routeId) ? prev : [...prev, routeId]
           );
         }
       }
@@ -181,10 +183,11 @@ export default function MapPage() {
     const handleDeleted = (e: Event) => {
       const detail = (e as CustomEvent<{ routeId?: string }>).detail;
       setSavedCustomRoutes(getSavedCustomRoutes());
-      if (detail?.routeId) {
-        const customValue = `custom:${detail.routeId}`;
+      const routeId = detail?.routeId;
+      if (routeId) {
+        const customValue = `custom:${routeId}`;
         setSelectedCustomRouteIds((prev) =>
-          prev.filter((id) => id !== detail.routeId)
+          prev.filter((id) => id !== routeId)
         );
         setSimulationRoutes((prev) => prev.filter((id) => id !== customValue));
       }
