@@ -1656,13 +1656,16 @@ export default function MapPage() {
       let effectiveStartSeconds = startSeconds;
       let effectiveEndSeconds = endSeconds;
 
-      for (let i = 0; i < routeChunks.length; i += 1) {
-        const chunk = routeChunks[i];
+      const fetchChunkPayload = async (
+        chunk: string[],
+        includeUpxFlag: boolean,
+        chunkIndex: number,
+      ) => {
         const params = new URLSearchParams({
           date: simulationDate,
           start: simulationStart,
           end: simulationEnd,
-          includeUpx: includeUpxInSimulation ? "true" : "false",
+          includeUpx: includeUpxFlag ? "true" : "false",
           routeShortNames: chunk.join(","),
           debug: "1",
         });
@@ -1671,13 +1674,14 @@ export default function MapPage() {
         }
         const requestUrl = `/api/simulation?${params.toString()}`;
         console.log("[SIM] Request", {
-          chunkIndex: i + 1,
+          chunkIndex,
           chunkTotal: routeChunks.length,
           requestUrl,
           routes: chunk,
           date: simulationDate,
           start: simulationStart,
           end: simulationEnd,
+          includeUpx: includeUpxFlag,
         });
 
         const response = await fetch(requestUrl);
@@ -1689,7 +1693,7 @@ export default function MapPage() {
             errorPayload = null;
           }
           console.error("[SIM] API error response", {
-            chunkIndex: i + 1,
+            chunkIndex,
             status: response.status,
             errorPayload,
           });
@@ -1697,17 +1701,55 @@ export default function MapPage() {
             ? String(errorPayload.requestId)
             : "n/a";
           const apiError = errorPayload?.error ? String(errorPayload.error) : "";
+          const apiDetails =
+            errorPayload?.details &&
+            typeof errorPayload.details === "object" &&
+            "message" in errorPayload.details
+              ? String((errorPayload.details as Record<string, unknown>).message)
+              : "";
           throw new Error(
-            `HTTP ${response.status} ${apiError} (chunk ${i + 1}/${routeChunks.length}, requestId: ${requestId})`,
+            `HTTP ${response.status} ${apiError}${
+              apiDetails ? ` — ${apiDetails}` : ""
+            } (chunk ${chunkIndex}/${routeChunks.length}, requestId: ${requestId})`,
           );
         }
 
-        const payload = (await response.json()) as {
+        return (await response.json()) as {
           startSeconds: number;
           endSeconds: number;
           trips: SimulationTrip[];
           diagnostics?: Record<string, unknown>;
         };
+      };
+
+      for (let i = 0; i < routeChunks.length; i += 1) {
+        const chunk = routeChunks[i];
+        let payload: {
+          startSeconds: number;
+          endSeconds: number;
+          trips: SimulationTrip[];
+          diagnostics?: Record<string, unknown>;
+        };
+        try {
+          payload = await fetchChunkPayload(
+            chunk,
+            includeUpxInSimulation,
+            i + 1,
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          const likelyFileMissing =
+            /ENOENT|no such file|Failed to build simulation data/i.test(message);
+          if (includeUpxInSimulation && likelyFileMissing) {
+            console.warn(
+              `[SIM] Chunk ${i + 1} failed with UPX enabled; retrying without UPX`,
+            );
+            payload = await fetchChunkPayload(chunk, false, i + 1);
+          } else {
+            throw error;
+          }
+        }
+
         if (payload.diagnostics) {
           console.log("[SIM] API diagnostics", {
             chunkIndex: i + 1,
