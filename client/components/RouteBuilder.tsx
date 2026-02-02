@@ -508,21 +508,80 @@ function ScheduleEditor({
   schedule: Schedule | undefined;
   onChange: (s: Schedule | undefined) => void;
 }) {
+  type DayKey =
+    | "sunday"
+    | "monday"
+    | "tuesday"
+    | "wednesday"
+    | "thursday"
+    | "friday"
+    | "saturday";
+  const dayOrder: Array<{ key: DayKey; label: string }> = [
+    { key: "monday", label: "Mon" },
+    { key: "tuesday", label: "Tue" },
+    { key: "wednesday", label: "Wed" },
+    { key: "thursday", label: "Thu" },
+    { key: "friday", label: "Fri" },
+    { key: "saturday", label: "Sat" },
+    { key: "sunday", label: "Sun" },
+  ];
+  const defaultDayConfigs = (): Record<
+    DayKey,
+    { enabled: boolean; startTime: string; endTime: string; intervalMinutes: number }
+  > => ({
+    monday: { enabled: true, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
+    tuesday: { enabled: true, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
+    wednesday: { enabled: true, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
+    thursday: { enabled: true, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
+    friday: { enabled: true, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
+    saturday: { enabled: false, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
+    sunday: { enabled: false, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
+  });
+  const hydrateDayConfigs = (
+    input: Schedule | undefined,
+  ): Record<
+    DayKey,
+    { enabled: boolean; startTime: string; endTime: string; intervalMinutes: number }
+  > => {
+    const base = defaultDayConfigs();
+    if (!input || input.type !== "frequency") return base;
+    if (input.dayConfigs && Object.keys(input.dayConfigs).length > 0) {
+      dayOrder.forEach(({ key }) => {
+        const value = input.dayConfigs?.[key];
+        if (!value) return;
+        base[key] = {
+          enabled: Boolean(value.enabled),
+          startTime: value.startTime || base[key].startTime,
+          endTime: value.endTime || base[key].endTime,
+          intervalMinutes: Number(value.intervalMinutes || base[key].intervalMinutes),
+        };
+      });
+      return base;
+    }
+    const legacyStart = input.startTime || "06:00";
+    const legacyEnd = input.endTime || "22:00";
+    const legacyInterval = Number(input.intervalMinutes || 30);
+    const legacyDays = input.days || "weekday";
+    dayOrder.forEach(({ key }) => {
+      const isWeekend = key === "saturday" || key === "sunday";
+      const enabled =
+        legacyDays === "all" ||
+        (legacyDays === "weekend" && isWeekend) ||
+        (legacyDays === "weekday" && !isWeekend);
+      base[key] = {
+        enabled,
+        startTime: legacyStart,
+        endTime: legacyEnd,
+        intervalMinutes: legacyInterval,
+      };
+    });
+    return base;
+  };
+
   const [type, setType] = useState<"frequency" | "fixed" | "none">(
     schedule?.type ?? "none"
   );
-  const [startTime, setStartTime] = useState(
-    schedule?.type === "frequency" ? schedule.startTime : "06:00"
-  );
-  const [endTime, setEndTime] = useState(
-    schedule?.type === "frequency" ? schedule.endTime : "22:00"
-  );
-  const [intervalMinutes, setIntervalMinutes] = useState(
-    schedule?.type === "frequency" ? schedule.intervalMinutes : 30
-  );
-  const [days, setDays] = useState<"weekday" | "weekend" | "all">(
-    schedule?.type === "frequency" ? schedule.days : "weekday"
-  );
+  const [dayConfigs, setDayConfigs] = useState(() => hydrateDayConfigs(schedule));
   const [departuresText, setDeparturesText] = useState(
     schedule?.type === "fixed"
       ? schedule.departures.join(", ")
@@ -531,12 +590,8 @@ function ScheduleEditor({
 
   useEffect(() => {
     setType(schedule?.type ?? "none");
-    if (schedule?.type === "frequency") {
-      setStartTime(schedule.startTime);
-      setEndTime(schedule.endTime);
-      setIntervalMinutes(schedule.intervalMinutes);
-      setDays(schedule.days);
-    } else if (schedule?.type === "fixed") {
+    setDayConfigs(hydrateDayConfigs(schedule));
+    if (schedule?.type === "fixed") {
       setDeparturesText(schedule.departures.join(", "));
     }
   }, [schedule]);
@@ -549,10 +604,7 @@ function ScheduleEditor({
     if (type === "frequency") {
       onChange({
         type: "frequency",
-        startTime,
-        endTime,
-        intervalMinutes,
-        days,
+        dayConfigs,
       });
     } else {
       const list = departuresText
@@ -587,51 +639,123 @@ function ScheduleEditor({
       </div>
       {type === "frequency" && (
         <>
-          <div className="grid grid-cols-2 gap-2">
-            <label>
-              <span className="text-white/50">Start</span>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="mt-1 w-full rounded bg-black/50 border border-white/10 px-2 py-1 text-xs"
-              />
-            </label>
-            <label>
-              <span className="text-white/50">End</span>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="mt-1 w-full rounded bg-black/50 border border-white/10 px-2 py-1 text-xs"
-              />
-            </label>
-          </div>
-          <div>
-            <span className="text-white/50">Interval (min)</span>
-            <select
-              value={intervalMinutes}
-              onChange={(e) => setIntervalMinutes(Number(e.target.value))}
-              className="mt-1 w-full rounded bg-black/50 border border-white/10 px-2 py-1 text-xs"
+          <div className="flex gap-1">
+            <button
+              onClick={() =>
+                setDayConfigs((prev) => {
+                  const next = { ...prev };
+                  dayOrder.forEach(({ key }) => {
+                    if (key === "saturday" || key === "sunday") return;
+                    next[key] = { ...next[key], enabled: true };
+                  });
+                  return next;
+                })
+              }
+              className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-[10px]"
             >
-              {[15, 30, 45, 60, 90, 120].map((m) => (
-                <option key={m} value={m}>
-                  Every {m} min
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <span className="text-white/50">Days</span>
-            <select
-              value={days}
-              onChange={(e) => setDays(e.target.value as "weekday" | "weekend" | "all")}
-              className="mt-1 w-full rounded bg-black/50 border border-white/10 px-2 py-1 text-xs"
+              Weekdays
+            </button>
+            <button
+              onClick={() =>
+                setDayConfigs((prev) => {
+                  const next = { ...prev };
+                  dayOrder.forEach(({ key }) => {
+                    next[key] = { ...next[key], enabled: true };
+                  });
+                  return next;
+                })
+              }
+              className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-[10px]"
             >
-              <option value="weekday">Weekdays</option>
-              <option value="weekend">Weekends</option>
-              <option value="all">All days</option>
-            </select>
+              All days
+            </button>
+            <button
+              onClick={() =>
+                setDayConfigs((prev) => {
+                  const next = { ...prev };
+                  dayOrder.forEach(({ key }) => {
+                    next[key] = { ...next[key], enabled: false };
+                  });
+                  return next;
+                })
+              }
+              className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-[10px]"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="space-y-2">
+            {dayOrder.map(({ key, label }) => {
+              const row = dayConfigs[key];
+              return (
+                <div key={key} className="rounded border border-white/10 p-2">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-[10px]">
+                      <input
+                        type="checkbox"
+                        className="w-3.5 h-3.5 rounded accent-blue-400"
+                        checked={row.enabled}
+                        onChange={(e) =>
+                          setDayConfigs((prev) => ({
+                            ...prev,
+                            [key]: { ...prev[key], enabled: e.target.checked },
+                          }))
+                        }
+                      />
+                      <span>{label}</span>
+                    </label>
+                    <span className="text-[10px] text-white/45">
+                      Every {row.intervalMinutes} min
+                    </span>
+                  </div>
+                  {row.enabled && (
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      <input
+                        type="time"
+                        value={row.startTime}
+                        onChange={(e) =>
+                          setDayConfigs((prev) => ({
+                            ...prev,
+                            [key]: { ...prev[key], startTime: e.target.value },
+                          }))
+                        }
+                        className="w-full rounded bg-black/50 border border-white/10 px-2 py-1 text-xs"
+                      />
+                      <input
+                        type="time"
+                        value={row.endTime}
+                        onChange={(e) =>
+                          setDayConfigs((prev) => ({
+                            ...prev,
+                            [key]: { ...prev[key], endTime: e.target.value },
+                          }))
+                        }
+                        className="w-full rounded bg-black/50 border border-white/10 px-2 py-1 text-xs"
+                      />
+                      <select
+                        value={row.intervalMinutes}
+                        onChange={(e) =>
+                          setDayConfigs((prev) => ({
+                            ...prev,
+                            [key]: {
+                              ...prev[key],
+                              intervalMinutes: Number(e.target.value),
+                            },
+                          }))
+                        }
+                        className="w-full rounded bg-black/50 border border-white/10 px-2 py-1 text-xs"
+                      >
+                        {[10, 15, 20, 30, 45, 60, 90, 120].map((m) => (
+                          <option key={m} value={m}>
+                            {m}m
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </>
       )}

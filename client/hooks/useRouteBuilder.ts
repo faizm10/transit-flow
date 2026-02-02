@@ -28,10 +28,22 @@ export type Stop = {
 
 export type ScheduleFrequency = {
   type: "frequency";
-  startTime: string;
-  endTime: string;
-  intervalMinutes: number;
-  days: "weekday" | "weekend" | "all";
+  dayConfigs: Partial<
+    Record<
+      DayKey,
+      {
+        enabled: boolean;
+        startTime: string;
+        endTime: string;
+        intervalMinutes: number;
+      }
+    >
+  >;
+  // Legacy fields (kept for backward compatibility with old saved routes)
+  startTime?: string;
+  endTime?: string;
+  intervalMinutes?: number;
+  days?: "weekday" | "weekend" | "all";
 };
 
 export type ScheduleFixed = {
@@ -40,6 +52,24 @@ export type ScheduleFixed = {
 };
 
 export type Schedule = ScheduleFrequency | ScheduleFixed;
+export type DayKey =
+  | "sunday"
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday";
+
+const DAY_KEYS: DayKey[] = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
 
 export type CustomRoute = {
   id: string;
@@ -176,7 +206,8 @@ export function getSavedCustomRoutes(): CustomRoute[] {
 export function buildSimulationTripsFromCustomRoute(
   customRoute: CustomRoute,
   startSeconds: number,
-  endSeconds: number
+  endSeconds: number,
+  serviceDateISO?: string,
 ): Array<{
   trip_id: string;
   route_short_name: string;
@@ -218,7 +249,7 @@ export function buildSimulationTripsFromCustomRoute(
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   };
   const departures: string[] = schedule
-    ? expandSchedule(schedule)
+    ? expandSchedule(schedule, serviceDateISO)
     : [formatSecToTime(startSeconds)];
 
   function parseTimeToSec(s: string): number {
@@ -271,21 +302,109 @@ export function buildSimulationTripsFromCustomRoute(
   return trips;
 }
 
-/** Generate list of departures from a frequency schedule */
-export function expandSchedule(schedule: Schedule): string[] {
+/** Generate list of departures from a schedule (date-aware for frequency schedules) */
+export function expandSchedule(schedule: Schedule, serviceDateISO?: string): string[] {
   if (schedule.type === "fixed") return [...schedule.departures];
-  const { startTime, endTime, intervalMinutes } = schedule;
+
+  const normalized = normalizeFrequencySchedule(schedule);
+  const activeDayKey = getActiveDayKey(serviceDateISO);
+  const dayConfig =
+    normalized[activeDayKey] ?? Object.values(normalized).find((cfg) => cfg.enabled);
+  if (!dayConfig || !dayConfig.enabled) return [];
+
+  const { startTime, endTime, intervalMinutes } = dayConfig;
   const [sh, sm] = startTime.split(":").map(Number);
   const [eh, em] = endTime.split(":").map(Number);
   const startMins = sh * 60 + sm;
   const endMins = eh * 60 + em;
   const out: string[] = [];
+  if (!Number.isFinite(intervalMinutes) || intervalMinutes <= 0) return out;
   for (let m = startMins; m <= endMins; m += intervalMinutes) {
     const h = Math.floor(m / 60) % 24;
     const min = m % 60;
     out.push(`${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`);
   }
   return out;
+}
+
+function getActiveDayKey(serviceDateISO?: string): DayKey {
+  if (!serviceDateISO) return "monday";
+  const date = new Date(`${serviceDateISO}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "monday";
+  const day = date.getDay();
+  const map: DayKey[] = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ];
+  return map[day] ?? "monday";
+}
+
+function normalizeFrequencySchedule(
+  schedule: ScheduleFrequency,
+): Record<
+  DayKey,
+  { enabled: boolean; startTime: string; endTime: string; intervalMinutes: number }
+> {
+  const defaults = DAY_KEYS.reduce(
+    (acc, day) => {
+      acc[day] = {
+        enabled: false,
+        startTime: "06:00",
+        endTime: "22:00",
+        intervalMinutes: 30,
+      };
+      return acc;
+    },
+    {} as Record<
+      DayKey,
+      { enabled: boolean; startTime: string; endTime: string; intervalMinutes: number }
+    >,
+  );
+
+  if (schedule.dayConfigs && Object.keys(schedule.dayConfigs).length > 0) {
+    DAY_KEYS.forEach((day) => {
+      const existing = schedule.dayConfigs?.[day];
+      if (!existing) return;
+      defaults[day] = {
+        enabled: Boolean(existing.enabled),
+        startTime: existing.startTime || "06:00",
+        endTime: existing.endTime || "22:00",
+        intervalMinutes: Number(existing.intervalMinutes || 30),
+      };
+    });
+    return defaults;
+  }
+
+  const legacyStart = schedule.startTime || "06:00";
+  const legacyEnd = schedule.endTime || "22:00";
+  const legacyInterval = Number(schedule.intervalMinutes || 30);
+  const legacyDays = schedule.days || "weekday";
+
+  const enableDays = (days: DayKey[]) => {
+    days.forEach((day) => {
+      defaults[day] = {
+        enabled: true,
+        startTime: legacyStart,
+        endTime: legacyEnd,
+        intervalMinutes: legacyInterval,
+      };
+    });
+  };
+
+  if (legacyDays === "all") {
+    enableDays(DAY_KEYS);
+  } else if (legacyDays === "weekend") {
+    enableDays(["saturday", "sunday"]);
+  } else {
+    enableDays(["monday", "tuesday", "wednesday", "thursday", "friday"]);
+  }
+
+  return defaults;
 }
 
 export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> | null) {

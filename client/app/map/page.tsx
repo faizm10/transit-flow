@@ -168,11 +168,16 @@ export default function MapPage() {
         setSimulationRoutes((prev) =>
           prev.includes(customValue) ? prev : [...prev, customValue]
         );
+        if (showCustomNetwork) {
+          setSelectedCustomRouteIds((prev) =>
+            prev.includes(detail.routeId!) ? prev : [...prev, detail.routeId!]
+          );
+        }
       }
     };
     window.addEventListener("route-builder-saved", handler);
     return () => window.removeEventListener("route-builder-saved", handler);
-  }, []);
+  }, [showCustomNetwork]);
 
   // When custom network is on and we have saved routes but none selected, default to all
   useEffect(() => {
@@ -1629,7 +1634,8 @@ export default function MapPage() {
           const trips = buildSimulationTripsFromCustomRoute(
             customRoute,
             startSeconds,
-            endSeconds
+            endSeconds,
+            simulationDate,
           );
           allTrips.push(...trips);
         }
