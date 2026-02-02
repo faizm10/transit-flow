@@ -34,9 +34,10 @@ type RouteBuilderProps = {
   mapRef: React.RefObject<mapboxgl.Map | null>;
   mapReady: boolean;
   enabled: boolean;
+  showPanel?: boolean;
   goVariantsIndex: GoVariantsIndex | null;
   goVariantStops: Record<string, GoVariantStop[]> | null;
-  onClose?: () => void;
+  showCustomNetwork?: boolean;
 };
 
 function getVariantLabel(
@@ -62,9 +63,10 @@ export function RouteBuilder({
   mapRef,
   mapReady,
   enabled,
+  showPanel = true,
   goVariantsIndex,
   goVariantStops,
-  onClose,
+  showCustomNetwork = true,
 }: RouteBuilderProps) {
   const {
     routes,
@@ -115,10 +117,12 @@ export function RouteBuilder({
 
   const routeColor = activeRoute.color;
 
-  // Ensure route layer exists; remove on unmount
+  const isActive = enabled || showCustomNetwork;
+
+  // Ensure route layer exists when active; remove on unmount
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady || !enabled) return;
+    if (!map || !mapReady || !isActive) return;
 
     const ensureLayer = () => {
       if (!map.getSource(ROUTE_SOURCE_ID)) {
@@ -153,28 +157,29 @@ export function RouteBuilder({
       if (map.getLayer(ROUTE_LAYER_ID)) map.removeLayer(ROUTE_LAYER_ID);
       if (map.getSource(ROUTE_SOURCE_ID)) map.removeSource(ROUTE_SOURCE_ID);
     };
-  }, [mapRef, mapReady, enabled, routeColor]);
+  }, [mapRef, mapReady, isActive, routeColor]);
 
   // Update route line geometry
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady || !enabled) return;
+    if (!map || !mapReady || !isActive) return;
 
     const source = map.getSource(ROUTE_SOURCE_ID) as mapboxgl.GeoJSONSource;
     if (!source) return;
 
-    if (route?.geometry) {
+    const geometry = route?.geometry ?? activeRoute.geometry;
+    if (geometry?.coordinates?.length) {
       source.setData({
         type: "Feature",
         properties: {},
-        geometry: route.geometry,
+        geometry,
       });
     } else {
       source.setData({ type: "FeatureCollection", features: [] });
     }
-  }, [mapRef, mapReady, enabled, route?.geometry]);
+  }, [mapRef, mapReady, isActive, route?.geometry, activeRoute.geometry]);
 
-  // Map click to add stop
+  // Map click to add stop (only when panel is open)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !enabled) return;
@@ -192,7 +197,7 @@ export function RouteBuilder({
     };
   }, [mapRef, mapReady, enabled, addStop]);
 
-  // Markers for stops
+  // Markers for stops (only when panel is open)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !enabled) return;
@@ -233,45 +238,33 @@ export function RouteBuilder({
     };
   }, [mapRef, mapReady, enabled, stops, routeColor, updateStop]);
 
-  // Layer visibility when disabled
+  // Layer visibility when disabled or custom network hidden
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
     if (map.getLayer(ROUTE_LAYER_ID)) {
+      const visible = enabled && showCustomNetwork;
       map.setLayoutProperty(
         ROUTE_LAYER_ID,
         "visibility",
-        enabled ? "visible" : "none"
+        visible ? "visible" : "none"
       );
     }
-  }, [mapRef, mapReady, enabled]);
+  }, [mapRef, mapReady, enabled, showCustomNetwork]);
 
-  if (!enabled) return null;
+  if (!showPanel) return null;
 
   const schedule = activeRoute.schedule;
   const departures = schedule ? expandSchedule(schedule) : [];
 
   return (
-    <div className="h-full overflow-hidden rounded-xl bg-black/70 backdrop-blur-md border border-white/20 shadow-2xl text-white/90 flex flex-col">
-      <div className="px-3 py-2.5 border-b border-white/10 bg-black/40 flex items-start justify-between gap-2 shrink-0">
-        <div>
-          <h3 className="text-sm font-semibold text-white">Create New Route</h3>
-          <p className="text-[10px] text-white/50 mt-0.5">
-            Click map to add stops · Drag markers · Extend GO routes
-          </p>
-        </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors shrink-0"
-            title="Close"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-            </svg>
-          </button>
-        )}
+    <div className="w-72 overflow-hidden rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl text-white/90 flex flex-col max-h-[85vh]">
+      <div className="px-3 py-2.5 border-b border-white/10 bg-black/40 shrink-0">
+        <h3 className="text-xs font-semibold text-white">Create New Route</h3>
+        <p className="text-[10px] text-white/50 mt-0.5">
+          Click map to add stops · Drag markers · Extend GO routes
+        </p>
       </div>
 
       <div className="p-3 space-y-3 overflow-y-auto flex-1 min-h-0">
