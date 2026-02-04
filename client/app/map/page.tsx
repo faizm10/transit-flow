@@ -12,6 +12,18 @@ import {
   buildSimulationTripsFromCustomRoute,
   type CustomRoute,
 } from "@/hooks/useRouteBuilder";
+import { Header } from "@/components/Header";
+import { SidePanel } from "@/components/SidePanel";
+import { NetworksPanel } from "@/components/NetworksPanel";
+import { FiltersPanel } from "@/components/FiltersPanel";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type SimulationTrip = {
   trip_id: string;
@@ -149,14 +161,26 @@ export default function MapPage() {
   const [showGoTransit, setShowGoTransit] = useState(true);
   const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
   const [goVariantFilterText, setGoVariantFilterText] = useState("");
-  const [showRouteFilters, setShowRouteFilters] = useState(false);
-  const [showTimeSimulation, setShowTimeSimulation] = useState(false);
   const [showRouteBuilder, setShowRouteBuilder] = useState(false);
   const [showScheduleBuilder, setShowScheduleBuilder] = useState(false);
   const [showCustomNetwork, setShowCustomNetwork] = useState(true);
   const [savedCustomRoutes, setSavedCustomRoutes] = useState<CustomRoute[]>([]);
   const [selectedCustomRouteIds, setSelectedCustomRouteIds] = useState<string[]>([]);
   const [buildingRouteGeometry, setBuildingRouteGeometry] = useState<GeoJSON.LineString | null>(null);
+  const [activePanel, setActivePanel] = useState<string | null>(null);
+
+  const handlePanelToggle = (panel: string) => {
+    setActivePanel((prev) => (prev === panel ? null : panel));
+  };
+
+  useEffect(() => {
+    if (activePanel === "builder") {
+      setShowRouteBuilder(true);
+      return;
+    }
+    setShowRouteBuilder(false);
+    setShowScheduleBuilder(false);
+  }, [activePanel]);
 
   useEffect(() => {
     setSavedCustomRoutes(getSavedCustomRoutes());
@@ -220,9 +244,9 @@ export default function MapPage() {
     const now = new Date();
     return now.toISOString().slice(0, 10);
   });
-  const [simulationRoutes, setSimulationRoutes] = useState<string[]>(["21"]);
-  const [simulationStart, setSimulationStart] = useState("04:00");
-  const [simulationEnd, setSimulationEnd] = useState("08:00");
+  const [simulationRoutes, setSimulationRoutes] = useState<string[]>([]);
+  const [simulationStart, setSimulationStart] = useState("05:30");
+  const [simulationEnd, setSimulationEnd] = useState("13:00");
   const [simulationCurrent, setSimulationCurrent] = useState(0);
   const [simulationTrips, setSimulationTrips] = useState<SimulationTrip[]>([]);
   const [simulationLoading, setSimulationLoading] = useState(false);
@@ -230,7 +254,7 @@ export default function MapPage() {
   const [simulationPlaying, setSimulationPlaying] = useState(false);
   const [simulationSpeed, setSimulationSpeed] = useState(60);
   const [focusedSimulationTripId, setFocusedSimulationTripId] = useState<string | null>(null);
-  const [includeUpxInSimulation, setIncludeUpxInSimulation] = useState(true);
+  const [includeUpxInSimulation, setIncludeUpxInSimulation] = useState(false);
   const animationFrame = useRef<number | null>(null);
   const lastFrameTime = useRef<number | null>(null);
   const lastFollowCameraUpdate = useRef<number>(0);
@@ -1825,14 +1849,35 @@ export default function MapPage() {
     setSimulationCurrent(parseShortTime(simulationStart) ?? 0);
   };
 
+  const handleSimulationRoutesChange = useCallback(
+    (routes: string[]) => {
+      setSimulationRoutes(routes);
+      clearSimulationTrackers();
+    },
+    [clearSimulationTrackers],
+  );
+
+  const toggleSimulationRoute = useCallback(
+    (routeId: string) => {
+      setSimulationRoutes((prev) => {
+        const next = prev.includes(routeId)
+          ? prev.filter((id) => id !== routeId)
+          : [...prev, routeId];
+        return next;
+      });
+      clearSimulationTrackers();
+    },
+    [clearSimulationTrackers],
+  );
+
   const resetSimulationInputs = () => {
     const today = new Date().toISOString().slice(0, 10);
     setSimulationDate(today);
-    setSimulationRoutes(["21"]);
-    setSimulationStart("04:00");
-    setSimulationEnd("08:00");
+    setSimulationRoutes([]);
+    setSimulationStart("05:30");
+    setSimulationEnd("13:00");
     setSimulationSpeed(60);
-    setIncludeUpxInSimulation(true);
+    setIncludeUpxInSimulation(false);
     clearSimulationTrackers();
   };
 
@@ -1854,93 +1899,270 @@ export default function MapPage() {
         <GitHubLogoIcon width={18} height={18} />
       </a>
 
-      {/* Vertical Sidebar Navbar - left */}
-      <nav className="absolute left-4 top-4 bottom-4 z-10 flex flex-col gap-1 w-44">
-        <div className="rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-xl overflow-hidden">
-          <div className="px-2.5 py-2 border-b border-white/10">
-            <span className="text-[10px] font-semibold text-white/60 uppercase tracking-wider">
-              Networks
-            </span>
+      <Header activePanel={activePanel} onPanelToggle={handlePanelToggle} />
+
+      <SidePanel
+        title="Networks"
+        isOpen={activePanel === "networks"}
+        onClose={() => setActivePanel(null)}
+      >
+        <NetworksPanel
+          showGoTransit={showGoTransit}
+          setShowGoTransit={setShowGoTransit}
+          showUnionPearson={showUnionPearson}
+          setShowUnionPearson={setShowUnionPearson}
+          showCustomNetwork={showCustomNetwork}
+          setShowCustomNetwork={setShowCustomNetwork}
+          onShowAll={showAllNetworks}
+        />
+      </SidePanel>
+
+      <SidePanel
+        title="Route Filters"
+        isOpen={activePanel === "filters"}
+        onClose={() => setActivePanel(null)}
+      >
+        {showGoTransit || showCustomNetwork ? (
+          <>
+            <FiltersPanel
+              goVariantFilterText={goVariantFilterText}
+              setGoVariantFilterText={setGoVariantFilterText}
+              showGoBuses={showGoBuses}
+              setShowGoBuses={setShowGoBuses}
+              showGoTrains={showGoTrains}
+              setShowGoTrains={setShowGoTrains}
+              groupedGoVariants={groupedGoVariants}
+              selectedVariantIds={selectedVariantIds}
+              allVariantIds={allVariantIds}
+              setVariantGroup={setVariantGroup}
+              setSelectedVariantIds={setSelectedVariantIds}
+              toggleVariant={toggleVariant}
+            />
+
+            {showCustomNetwork && savedCustomRoutes.length > 0 && (
+              <div className="mt-6 border-t border-white/10 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-xs font-bold text-neutral-300 uppercase tracking-wider">
+                    Custom Routes
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
+                      onClick={() => setSelectedCustomRouteIds(savedCustomRoutes.map((r) => r.id))}
+                    >
+                      All
+                    </button>
+                    <button
+                      className="text-xs font-semibold text-neutral-400 hover:text-white transition-colors"
+                      onClick={() => setSelectedCustomRouteIds([])}
+                    >
+                      None
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  {savedCustomRoutes
+                    .filter((r) => r.stops.length >= 2 && r.geometry)
+                    .map((r) => (
+                      <label
+                        key={r.id}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-all cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded accent-violet-400 cursor-pointer"
+                          checked={selectedCustomRouteIds.includes(r.id)}
+                          onChange={() => {
+                            setSelectedCustomRouteIds((prev) =>
+                              prev.includes(r.id)
+                                ? prev.filter((id) => id !== r.id)
+                                : [...prev, r.id]
+                            );
+                          }}
+                        />
+                        <span
+                          className="h-2.5 w-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: r.color }}
+                        />
+                        <span className="text-sm text-neutral-200 flex-1 truncate">
+                          {r.name}
+                        </span>
+                      </label>
+                    ))}
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-sm text-neutral-400">
+            Enable a network to see filters.
           </div>
-          <div className="p-2 space-y-1">
+        )}
+      </SidePanel>
+
+      {activePanel === "simulation" && (
+        <div className="absolute left-1/2 top-20 z-30 w-[720px] max-w-[92vw] -translate-x-1/2 rounded-2xl border border-white/10 bg-black/85 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+            <div className="text-xs font-bold uppercase tracking-wider text-white">
+              Simulation
+            </div>
             <button
-              onClick={() => setShowGoTransit((prev) => !prev)}
-              className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
-                showGoTransit
-                  ? "bg-emerald-500/60 border border-emerald-400/30 text-white"
-                  : "bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white"
-              }`}
+              onClick={() => setActivePanel(null)}
+              className="text-xs text-white/60 hover:text-white transition-colors"
             >
-              {showGoTransit ? "✓ " : ""}GO Transit
+              Close
             </button>
-            <button
-              onClick={() => setShowUnionPearson((prev) => !prev)}
-              className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
-                showUnionPearson
-                  ? "bg-blue-500/60 border border-blue-400/30 text-white"
-                  : "bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {showUnionPearson ? "✓ " : ""}UPX
-            </button>
-            <button
-              onClick={() => setShowCustomNetwork((prev) => !prev)}
-              className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
-                showCustomNetwork
-                  ? "bg-violet-500/60 border border-violet-400/30 text-white"
-                  : "bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {showCustomNetwork ? "✓ " : ""}Custom
-            </button>
-            <button
-              onClick={showAllNetworks}
-              className="w-full px-3 py-2 rounded-lg text-left text-xs font-medium bg-white/5 border border-transparent text-white/70 hover:bg-white/10 hover:text-white transition-all"
-            >
-              Show all networks
-            </button>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <span className="text-white/60">Date</span>
+                <input
+                  type="date"
+                  value={simulationDate}
+                  onChange={(e) => setSimulationDate(e.target.value)}
+                  className="bg-transparent text-white/90 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <span className="text-white/60">Time</span>
+                <input
+                  type="time"
+                  value={simulationStart}
+                  onChange={(e) => setSimulationStart(e.target.value)}
+                  className="bg-transparent text-white/90 focus:outline-none"
+                />
+                <span className="text-white/40">→</span>
+                <input
+                  type="time"
+                  value={simulationEnd}
+                  onChange={(e) => setSimulationEnd(e.target.value)}
+                  className="bg-transparent text-white/90 focus:outline-none"
+                />
+              </div>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 hover:bg-white/10 transition-all">
+                    Routes
+                    <span className="text-white/50">({simulationRoutes.length})</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-64 bg-black/90 text-white">
+                  <DropdownMenuLabel className="text-white/50">
+                    Select routes
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  {simulationRouteOptions.length === 0 ? (
+                    <DropdownMenuCheckboxItem checked={false}>
+                      21
+                    </DropdownMenuCheckboxItem>
+                  ) : (
+                    simulationRouteOptions.map((opt) => (
+                      <DropdownMenuCheckboxItem
+                        key={opt.value}
+                        checked={simulationRoutes.includes(opt.value)}
+                        onCheckedChange={() => toggleSimulationRoute(opt.value)}
+                      >
+                        {opt.label}
+                      </DropdownMenuCheckboxItem>
+                    ))
+                  )}
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <div className="px-2 py-2 text-[10px] text-white/40">
+                    Multiple select enabled.
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <span className="text-white/60">Speed</span>
+                <select
+                  value={simulationSpeed}
+                  onChange={(e) => setSimulationSpeed(Number(e.target.value))}
+                  className="bg-transparent text-white/90 focus:outline-none"
+                >
+                  <option value={1}>1x</option>
+                  <option value={30}>30x</option>
+                  <option value={60}>60x</option>
+                  <option value={120}>120x</option>
+                  <option value={300}>300x</option>
+                  <option value={600}>600x</option>
+                  <option value={1000}>1000x</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={loadSimulation}
+                  disabled={simulationLoading}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-xs font-semibold text-white disabled:opacity-50"
+                >
+                  {simulationLoading ? "Loading..." : "Start"}
+                </button>
+                <button
+                  onClick={() => setSimulationPlaying((prev) => !prev)}
+                  disabled={!simulationTrips.length}
+                  className="px-3 py-2 rounded-xl bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 border border-white/10 disabled:opacity-40"
+                >
+                  {simulationPlaying ? "Pause" : "Play"}
+                </button>
+                <button
+                  onClick={clearSimulationTrackers}
+                  className="px-3 py-2 rounded-xl bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 border border-white/10"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={resetSimulationInputs}
+                  className="px-3 py-2 rounded-xl bg-white/5 text-xs font-semibold text-neutral-300 hover:bg-white/10 border border-white/10"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-neutral-400">
+                <span>{formatShortTime(parseShortTime(simulationStart) ?? 0)}</span>
+                <span className="text-white font-semibold">
+                  {formatShortTime(simulationCurrent)}
+                </span>
+                <span>{formatShortTime(parseShortTime(simulationEnd) ?? 0)}</span>
+              </div>
+              <input
+                type="range"
+                min={parseShortTime(simulationStart) ?? 0}
+                max={parseShortTime(simulationEnd) ?? 0}
+                value={simulationCurrent}
+                onChange={(event) => setSimulationCurrent(Number(event.target.value))}
+                className="w-full accent-blue-400"
+              />
+              <div className="text-xs text-neutral-500">
+                {simulationTrips.length} trips loaded
+              </div>
+              {simulationError && (
+                <div className="text-xs text-red-300">{simulationError}</div>
+              )}
+            </div>
           </div>
         </div>
-        <div className="rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-xl overflow-hidden">
-          <div className="px-2.5 py-2 border-b border-white/10">
-            <span className="text-[10px] font-semibold text-white/60 uppercase tracking-wider">
-              Tools
+      )}
+
+      {(simulationTrips.length > 0 || simulationPlaying) && (
+        <div className="absolute top-4 right-4 z-30 rounded-xl border border-white/10 bg-black/70 px-3 py-2 text-xs text-white/80 shadow-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-white/60">Time</span>
+            <span className="font-semibold text-white">
+              {formatShortTime(simulationCurrent)}
             </span>
           </div>
-          <div className="p-2 space-y-1">
-            <button
-              onClick={() => setShowRouteBuilder((prev) => !prev)}
-              className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
-                showRouteBuilder
-                  ? "bg-blue-500/60 border border-blue-400/30 text-white"
-                  : "bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {showRouteBuilder ? "✓ " : ""}Route Builder
-            </button>
-            <button
-              onClick={() => setShowScheduleBuilder((prev) => !prev)}
-              className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
-                showScheduleBuilder
-                  ? "bg-indigo-500/60 border border-indigo-400/30 text-white"
-                  : "bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {showScheduleBuilder ? "✓ " : ""}Schedule Builder
-            </button>
-            <button
-              onClick={() => setShowTimeSimulation((prev) => !prev)}
-              className={`w-full px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
-                showTimeSimulation
-                  ? "bg-amber-500/60 border border-amber-400/30 text-white"
-                  : "bg-white/5 border border-transparent text-white/60 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {showTimeSimulation ? "✓ " : ""}Time Simulation
-            </button>
+          <div className="text-[10px] text-white/50">
+            {simulationTrips.length} trips loaded
           </div>
         </div>
-      </nav>
+      )}
 
       {/* Panels - right side */}
       <div className="absolute top-4 right-4 bottom-4 z-10 flex max-w-[calc(100vw-1rem)] flex-col gap-3 overflow-y-auto pr-1">
@@ -1958,377 +2180,6 @@ export default function MapPage() {
           />
         )}
 
-        {/* Filter Panel */}
-        {(showGoTransit || showCustomNetwork) && (
-          <div className="w-64 overflow-hidden rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl">
-            <button
-              onClick={() => setShowRouteFilters((prev) => !prev)}
-              className="w-full px-3 py-2.5 border-b border-white/10 bg-black/40 flex items-center justify-between hover:bg-black/55 transition-all"
-            >
-              <div className="flex items-center gap-2">
-                <h3 className="text-xs font-semibold text-white">Route Filters</h3>
-                <span className="text-[10px] text-white/50">
-                  {selectedVariantIds.length}/{allVariantIds.length}
-                  {showCustomNetwork && savedCustomRoutes.length > 0 && (
-                    <> · {selectedCustomRouteIds.length}/{savedCustomRoutes.length} custom</>
-                  )}
-                </span>
-              </div>
-              <span className="text-xs text-white/60">
-                {showRouteFilters ? "Hide" : "Show"}
-              </span>
-            </button>
-
-            {showRouteFilters && (
-              <div className="max-h-[48vh] overflow-hidden flex flex-col">
-                <div className="px-3 py-2 border-b border-white/10 bg-black/30 space-y-2">
-                  <div className="flex gap-1.5">
-                    <button
-                      className="flex-1 px-2 py-1 text-[11px] rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-all"
-                      onClick={() => setSelectedVariantIds(allVariantIds)}
-                    >
-                      Select all
-                    </button>
-                    <button
-                      className="px-2 py-1 text-[11px] rounded-md bg-white/10 hover:bg-white/20 text-white/80 border border-white/15 transition-all"
-                      onClick={() => setSelectedVariantIds([])}
-                    >
-                      Clear
-                    </button>
-                  </div>
-
-                  <input
-                    type="text"
-                    value={goVariantFilterText}
-                    onChange={(event) => setGoVariantFilterText(event.target.value)}
-                    placeholder="Search routes..."
-                    className="w-full rounded-md bg-black/50 border border-white/10 px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/40 transition-all"
-                  />
-
-                  <div className="flex items-center justify-between text-xs text-white/75">
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-3.5 h-3.5 rounded accent-emerald-400 cursor-pointer"
-                        checked={showGoTrains}
-                        onChange={() => setShowGoTrains((prev) => !prev)}
-                      />
-                      Trains
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-3.5 h-3.5 rounded accent-emerald-400 cursor-pointer"
-                        checked={showGoBuses}
-                        onChange={() => setShowGoBuses((prev) => !prev)}
-                      />
-                      Buses
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-2.5 py-2">
-                  {groupedGoVariants.length === 0 ? (
-                    <div className="text-center py-6 text-[11px] text-white/45">
-                      No routes found
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {groupedGoVariants.map((group) => {
-                        const routeInfo = routeByShortName.get(group.routeShortName);
-                        const variantIds = group.items.flatMap((item) => item.variantIds);
-                        const selectedCount = variantIds.filter((id) =>
-                          selectedVariantIds.includes(id),
-                        ).length;
-                        const isAllSelected = selectedCount === variantIds.length;
-
-                        return (
-                          <div
-                            key={group.routeShortName}
-                            className="border border-white/10 rounded-md p-2 bg-black/20"
-                          >
-                            <div className="flex items-center justify-between mb-1.5">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span
-                                  className="h-2.5 w-2.5 rounded-full shrink-0"
-                                  style={{
-                                    backgroundColor: colorForRoute(group.routeShortName),
-                                  }}
-                                />
-                                <span className="text-[11px] font-semibold text-white truncate">
-                                  {group.routeShortName}
-                                </span>
-                              </div>
-                              <div className="flex gap-1 shrink-0">
-                                <button
-                                  className={`px-1.5 py-0.5 text-[10px] rounded border transition-all ${
-                                    isAllSelected
-                                      ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-300"
-                                      : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
-                                  }`}
-                                  onClick={() => setVariantGroup(variantIds, true)}
-                                >
-                                  All
-                                </button>
-                                <button
-                                  className="px-1.5 py-0.5 text-[10px] rounded bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 transition-all"
-                                  onClick={() => setVariantGroup(variantIds, false)}
-                                >
-                                  None
-                                </button>
-                              </div>
-                            </div>
-
-                            {routeInfo?.route_long_name && (
-                              <div className="text-[10px] text-white/45 truncate mb-1.5">
-                                {routeInfo.route_long_name}
-                              </div>
-                            )}
-
-                            <div className="space-y-1">
-                              {group.items.map((item) => {
-                                const isItemSelected = item.variantIds.every((id) =>
-                                  selectedVariantIds.includes(id),
-                                );
-                                return (
-                                  <label
-                                    key={item.displayKey}
-                                    className="flex items-center gap-1.5 cursor-pointer p-1 rounded hover:bg-white/5 transition-all"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      className="w-3 h-3 rounded accent-emerald-400 cursor-pointer"
-                                      checked={isItemSelected}
-                                      onChange={() => {
-                                        const enabled = !isItemSelected;
-                                        setVariantGroup(item.variantIds, enabled);
-                                      }}
-                                    />
-                                    <span className="text-[11px] text-white/80 flex-1 truncate">
-                                      {item.displayKey}
-                                    </span>
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {showCustomNetwork && savedCustomRoutes.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-white/10">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-semibold text-violet-300 uppercase tracking-wider">
-                          Custom Routes
-                        </span>
-                        <div className="flex gap-1">
-                          <button
-                            className="px-1.5 py-0.5 text-[10px] rounded bg-violet-500/20 border border-violet-500/30 text-violet-300 hover:bg-violet-500/30"
-                            onClick={() => setSelectedCustomRouteIds(savedCustomRoutes.map((r) => r.id))}
-                          >
-                            All
-                          </button>
-                          <button
-                            className="px-1.5 py-0.5 text-[10px] rounded bg-white/5 border border-white/10 text-white/70 hover:bg-white/10"
-                            onClick={() => setSelectedCustomRouteIds([])}
-                          >
-                            None
-                          </button>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        {savedCustomRoutes
-                          .filter((r) => r.stops.length >= 2 && r.geometry)
-                          .map((r) => (
-                            <label
-                              key={r.id}
-                              className="flex items-center gap-1.5 cursor-pointer p-1 rounded hover:bg-white/5 transition-all"
-                            >
-                              <input
-                                type="checkbox"
-                                className="w-3 h-3 rounded accent-violet-400 cursor-pointer"
-                                checked={selectedCustomRouteIds.includes(r.id)}
-                                onChange={() => {
-                                  setSelectedCustomRouteIds((prev) =>
-                                    prev.includes(r.id)
-                                      ? prev.filter((id) => id !== r.id)
-                                      : [...prev, r.id]
-                                  );
-                                }}
-                              />
-                              <span
-                                className="h-2.5 w-2.5 rounded-full shrink-0"
-                                style={{ backgroundColor: r.color }}
-                              />
-                              <span className="text-[11px] text-white/80 flex-1 truncate">
-                                {r.name}
-                              </span>
-                            </label>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {showTimeSimulation && (
-        <div className="w-64 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl text-white/80 overflow-hidden">
-          <div
-            className="w-full px-3 py-2.5 border-b border-white/10 bg-black/40 flex items-center justify-between hover:bg-black/55 transition-all"
-          >
-            <h3 className="text-xs font-semibold text-white">Time Simulation</h3>
-            <span className="text-[10px] uppercase tracking-wide text-white/40">
-              EST/ET
-            </span>
-          </div>
-
-          <div className="p-3">
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <label className="text-[11px] text-white/60">
-              Date
-              <input
-                type="date"
-                value={simulationDate}
-                onChange={(event) => setSimulationDate(event.target.value)}
-                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
-              />
-            </label>
-            <label className="text-[11px] text-white/60">
-              Speed
-              <select
-                value={simulationSpeed}
-                onChange={(event) => setSimulationSpeed(Number(event.target.value))}
-                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
-              >
-                <option value={30}>30x</option>
-                <option value={60}>60x</option>
-                <option value={120}>120x</option>
-                <option value={300}>300x</option>
-              </select>
-            </label>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <label className="text-[11px] text-white/60 col-span-2">
-              Routes ({simulationRoutes.length} selected)
-              <select
-                multiple
-                value={simulationRoutes}
-                onChange={(event) => {
-                  const selected = Array.from(event.target.selectedOptions).map(
-                    (option) => option.value,
-                  );
-                  setSimulationRoutes(selected);
-                  clearSimulationTrackers();
-                }}
-                className="mt-1 h-28 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
-              >
-                {simulationRouteOptions.length === 0 ? (
-                  <option value="21">21</option>
-                ) : (
-                  simulationRouteOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))
-                )}
-              </select>
-              <div className="mt-1 text-[10px] text-white/45">
-                Hold Cmd/Ctrl to select multiple. ★ = saved custom routes.
-              </div>
-            </label>
-            <label className="text-[11px] text-white/60">
-              Start
-              <input
-                type="time"
-                value={simulationStart}
-                onChange={(event) => setSimulationStart(event.target.value)}
-                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
-              />
-            </label>
-            <label className="text-[11px] text-white/60">
-              End
-              <input
-                type="time"
-                value={simulationEnd}
-                onChange={(event) => setSimulationEnd(event.target.value)}
-                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
-              />
-            </label>
-          </div>
-
-          <label className="flex items-center gap-2 text-[11px] text-white/60 mb-2">
-            <input
-              type="checkbox"
-              checked={includeUpxInSimulation}
-              onChange={() => setIncludeUpxInSimulation((prev) => !prev)}
-              className="w-4 h-4 rounded accent-blue-400 cursor-pointer"
-            />
-            Include UP Express
-          </label>
-
-          <div className="flex gap-2 mb-2">
-            <button
-              onClick={loadSimulation}
-              disabled={simulationLoading}
-              className="flex-1 px-3 py-1.5 rounded-lg bg-blue-500/70 text-white text-xs font-medium hover:bg-blue-500/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              {simulationLoading ? "Loading..." : "Load Trips"}
-            </button>
-            <button
-              onClick={() => setSimulationPlaying((prev) => !prev)}
-              disabled={!simulationTrips.length}
-              className="px-3 py-1.5 rounded-lg bg-white/10 text-white/80 text-xs font-medium hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              {simulationPlaying ? "Pause" : "Play"}
-            </button>
-            <button
-              onClick={clearSimulationTrackers}
-              className="px-3 py-1.5 rounded-lg bg-white/10 text-white/80 text-xs font-medium hover:bg-white/20 transition-all"
-            >
-              Clear
-            </button>
-          </div>
-
-          <button
-            onClick={resetSimulationInputs}
-            className="w-full mb-2 px-3 py-1.5 rounded-lg bg-white/5 text-white/70 text-xs font-medium hover:bg-white/10 transition-all border border-white/10"
-          >
-            Reset Simulation
-          </button>
-
-          <div className="mb-2">
-            <div className="flex items-center justify-between text-[10px] text-white/50">
-              <span>{formatShortTime(parseShortTime(simulationStart) ?? 0)}</span>
-              <span className="text-white/80 font-medium">
-                {formatShortTime(simulationCurrent)}
-              </span>
-              <span>{formatShortTime(parseShortTime(simulationEnd) ?? 0)}</span>
-            </div>
-            <input
-              type="range"
-              min={parseShortTime(simulationStart) ?? 0}
-              max={parseShortTime(simulationEnd) ?? 0}
-              value={simulationCurrent}
-              onChange={(event) => setSimulationCurrent(Number(event.target.value))}
-              className="w-full mt-2 accent-blue-400"
-            />
-          </div>
-
-          <div className="text-[10px] text-white/50">
-            {simulationTrips.length} trips loaded
-          </div>
-          {simulationError && (
-            <div className="mt-2 text-[10px] text-red-300">{simulationError}</div>
-          )}
-          </div>
-        </div>
-        )}
       </div>
 
       <div ref={mapContainer} className="h-full w-full" />
