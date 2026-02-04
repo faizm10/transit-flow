@@ -210,9 +210,9 @@ export function RouteBuilder({
   const lastQuickEndpointsRef = useRef<string | null>(null);
   const rawQuickStartRef = useRef<Stop | null>(null);
   const rawQuickEndRef = useRef<Stop | null>(null);
-  const [scheduleTargetId, setScheduleTargetId] = useState<string>(
-    () => currentRoute?.id ?? ""
-  );
+  const [scheduleTargetIds, setScheduleTargetIds] = useState<string[]>(() => [
+    currentRoute?.id ?? activeRoute.id,
+  ]);
 
   const variantOptions = useMemo(() => {
     if (!goVariantsIndex || !goVariantStops) return [];
@@ -872,21 +872,26 @@ export function RouteBuilder({
 
   useEffect(() => {
     if (!currentRoute?.id) return;
-    setScheduleTargetId((prev) => (prev === currentRoute.id ? prev : currentRoute.id));
+    setScheduleTargetIds((prev) =>
+      prev.length === 1 && prev[0] === currentRoute.id ? prev : [currentRoute.id]
+    );
   }, [currentRoute?.id]);
 
   if (!showPanel && !showSchedulePanel) return null;
 
+  const primaryScheduleTargetId = scheduleTargetIds[0] ?? activeRoute.id;
   const scheduleTargetRoute =
-    scheduleTargetId && scheduleTargetId !== activeRoute.id
-      ? routes.find((r) => r.id === scheduleTargetId) ?? activeRoute
+    primaryScheduleTargetId && primaryScheduleTargetId !== activeRoute.id
+      ? routes.find((r) => r.id === primaryScheduleTargetId) ?? activeRoute
       : activeRoute;
   const schedule = scheduleTargetRoute.schedule;
   const departures = schedule ? expandSchedule(schedule) : [];
   const scheduleTargetName =
-    scheduleTargetId === activeRoute.id || !scheduleTargetId
+    scheduleTargetIds.length > 1
+      ? "Multiple routes"
+      : primaryScheduleTargetId === activeRoute.id || !primaryScheduleTargetId
       ? "Current route"
-      : routes.find((r) => r.id === scheduleTargetId)?.name ?? "Current route";
+      : routes.find((r) => r.id === primaryScheduleTargetId)?.name ?? "Current route";
 
   return (
     <div className="flex gap-3 items-start">
@@ -1406,8 +1411,16 @@ export function RouteBuilder({
           <div className="rounded-lg border border-white/10 bg-black/40 px-2 py-2 text-[10px] text-white/70 space-y-1">
             <div className="text-white/50">Schedule applies to</div>
             <select
-              value={scheduleTargetId}
-              onChange={(e) => setScheduleTargetId(e.target.value)}
+              multiple
+              value={scheduleTargetIds}
+              onChange={(e) => {
+                const selected = Array.from(e.target.selectedOptions).map(
+                  (option) => option.value
+                );
+                setScheduleTargetIds(
+                  selected.length > 0 ? selected : [activeRoute.id]
+                );
+              }}
               className="w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1 text-xs text-white/90"
             >
               <option value={activeRoute.id}>Current route</option>
@@ -1417,17 +1430,24 @@ export function RouteBuilder({
                 </option>
               ))}
             </select>
+            <div className="text-white/35">
+              Hold Cmd/Ctrl to select multiple routes.
+            </div>
             <div className="text-white/40">{scheduleTargetName}</div>
           </div>
           <ScheduleEditor
             schedule={schedule}
             onChange={(s) => {
-              const isSavedTarget = routes.some((r) => r.id === scheduleTargetId);
-              if (!scheduleTargetId || !isSavedTarget || scheduleTargetId === activeRoute.id) {
-                updateCurrent({ schedule: s });
-              } else {
-                updateRouteById(scheduleTargetId, { schedule: s });
-              }
+              const targets =
+                scheduleTargetIds.length > 0 ? scheduleTargetIds : [activeRoute.id];
+              targets.forEach((targetId) => {
+                const isSavedTarget = routes.some((r) => r.id === targetId);
+                if (!targetId || !isSavedTarget || targetId === activeRoute.id) {
+                  updateCurrent({ schedule: s });
+                } else {
+                  updateRouteById(targetId, { schedule: s });
+                }
+              });
             }}
             durationSeconds={scheduleTargetRoute.durationSeconds ?? route?.duration ?? activeRoute.durationSeconds}
           />
