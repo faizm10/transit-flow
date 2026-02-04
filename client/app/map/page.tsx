@@ -176,6 +176,12 @@ export default function MapPage() {
   useEffect(() => {
     if (activePanel === "builder") {
       setShowRouteBuilder(true);
+      setShowScheduleBuilder(false);
+      return;
+    }
+    if (activePanel === "schedule") {
+      setShowRouteBuilder(false);
+      setShowScheduleBuilder(true);
       return;
     }
     setShowRouteBuilder(false);
@@ -2174,6 +2180,7 @@ export default function MapPage() {
             enabled={showRouteBuilder}
             showPanel={showRouteBuilder}
             showSchedulePanel={showScheduleBuilder}
+            onCloseSchedule={() => setActivePanel(null)}
             goVariantsIndex={goVariantsIndex}
             goVariantStops={goVariantStops}
             showCustomNetwork={showCustomNetwork}

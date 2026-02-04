@@ -85,6 +85,22 @@ export function Header({ activePanel, onPanelToggle }: HeaderProps) {
           <TimerIcon className={`w-4 h-4 relative z-10 ${activePanel === "simulation" ? "" : "group-hover:scale-110 transition-transform"}`} />
           <span className="relative z-10">Simulation</span>
         </button>
+
+        {/* Schedule Button */}
+        <button
+          onClick={() => onPanelToggle("schedule")}
+          className={`group relative px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2.5 overflow-hidden ${
+            activePanel === "schedule"
+              ? "text-white"
+              : "text-neutral-400 hover:text-white"
+          }`}
+        >
+          {activePanel === "schedule" && (
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-sky-500 shadow-lg shadow-indigo-500/50"></div>
+          )}
+          <RocketIcon className={`w-4 h-4 relative z-10 ${activePanel === "schedule" ? "" : "group-hover:scale-110 transition-transform"}`} />
+          <span className="relative z-10">Schedule</span>
+        </button>
       </div>
     </header>
   );

@@ -47,6 +47,7 @@ type RouteBuilderProps = {
   enabled: boolean;
   showPanel?: boolean;
   showSchedulePanel?: boolean;
+  onCloseSchedule?: () => void;
   goVariantsIndex: GoVariantsIndex | null;
   goVariantStops: Record<string, GoVariantStop[]> | null;
   showCustomNetwork?: boolean;
@@ -162,6 +163,7 @@ export function RouteBuilder({
   enabled,
   showPanel = true,
   showSchedulePanel = false,
+  onCloseSchedule,
   goVariantsIndex,
   goVariantStops,
   showCustomNetwork = true,
@@ -213,6 +215,29 @@ export function RouteBuilder({
   const [scheduleTargetIds, setScheduleTargetIds] = useState<string[]>(() => [
     currentRoute?.id ?? activeRoute.id,
   ]);
+  const [scheduleDraft, setScheduleDraft] = useState<{
+    startTime: string;
+    endTime: string;
+    outboundHeadway: number;
+    returnEnabled: boolean;
+    returnBufferMinutes: number;
+    returnHeadway: number;
+    returnSameAsOutbound: boolean;
+    departures: string[];
+  }>({
+    startTime: "06:00",
+    endTime: "22:00",
+    outboundHeadway: 30,
+    returnEnabled: true,
+    returnBufferMinutes: 10,
+    returnHeadway: 30,
+    returnSameAsOutbound: true,
+    departures: [],
+  });
+  const [scheduleDeparturesText, setScheduleDeparturesText] = useState("");
+  const scheduleInitializedRef = useRef(false);
+  const [scheduleHasData, setScheduleHasData] = useState(true);
+  const [scheduleGenerating, setScheduleGenerating] = useState(false);
 
   const variantOptions = useMemo(() => {
     if (!goVariantsIndex || !goVariantStops) return [];
@@ -877,8 +902,6 @@ export function RouteBuilder({
     );
   }, [currentRoute?.id]);
 
-  if (!showPanel && !showSchedulePanel) return null;
-
   const primaryScheduleTargetId = scheduleTargetIds[0] ?? activeRoute.id;
   const scheduleTargetRoute =
     primaryScheduleTargetId && primaryScheduleTargetId !== activeRoute.id
@@ -892,6 +915,135 @@ export function RouteBuilder({
       : primaryScheduleTargetId === activeRoute.id || !primaryScheduleTargetId
       ? "Current route"
       : routes.find((r) => r.id === primaryScheduleTargetId)?.name ?? "Current route";
+
+  const parseTimeToMinutes = useCallback((value: string) => {
+    const [h, m] = value.split(":").map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+    return h * 60 + m;
+  }, []);
+
+  const formatMinutesToTime = useCallback((minutes: number) => {
+    const clamped = Math.max(0, minutes);
+    const h = Math.floor(clamped / 60) % 24;
+    const m = clamped % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }, []);
+
+  const buildDeparturesFromDraft = useCallback(
+    (draft: typeof scheduleDraft, durationSeconds?: number) => {
+      const startMins = parseTimeToMinutes(draft.startTime);
+      const endMins = parseTimeToMinutes(draft.endTime);
+      if (startMins == null || endMins == null || endMins < startMins) return [];
+      const outboundHeadway = Math.max(1, Math.round(draft.outboundHeadway));
+      const returnHeadway = draft.returnSameAsOutbound
+        ? outboundHeadway
+        : Math.max(1, Math.round(draft.returnHeadway));
+      const durationMinutes = durationSeconds ? Math.max(1, Math.round(durationSeconds / 60)) : 0;
+      const returnStartOffset = durationMinutes + Math.max(0, Math.round(draft.returnBufferMinutes));
+
+      const outbound: number[] = [];
+      for (let t = startMins; t <= endMins; t += outboundHeadway) {
+        outbound.push(t);
+      }
+
+      const returns: number[] = [];
+      if (draft.returnEnabled) {
+        const returnStart = startMins + returnStartOffset;
+        for (let t = returnStart; t <= endMins; t += returnHeadway) {
+          returns.push(t);
+        }
+      }
+
+      const merged = Array.from(new Set([...outbound, ...returns])).sort((a, b) => a - b);
+      return merged.map(formatMinutesToTime);
+    },
+    [formatMinutesToTime, parseTimeToMinutes],
+  );
+
+  const applyScheduleToTargets = useCallback(
+    (nextSchedule: Schedule | undefined) => {
+      const targets = scheduleTargetIds.length > 0 ? scheduleTargetIds : [activeRoute.id];
+      targets.forEach((targetId) => {
+        const isSavedTarget = routes.some((r) => r.id === targetId);
+        if (!targetId || !isSavedTarget || targetId === activeRoute.id) {
+          updateCurrent({ schedule: nextSchedule });
+        } else {
+          updateRouteById(targetId, { schedule: nextSchedule });
+        }
+      });
+    },
+    [activeRoute.id, routes, scheduleTargetIds, updateCurrent, updateRouteById],
+  );
+
+  const applyDeparturesText = useCallback(() => {
+    const tokens = scheduleDeparturesText
+      .split(/[\s,]+/g)
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const times = tokens
+      .map((t) => {
+        const mins = parseTimeToMinutes(t);
+        if (mins == null) return null;
+        return formatMinutesToTime(mins);
+      })
+      .filter((t): t is string => Boolean(t));
+    const unique = Array.from(new Set(times)).sort();
+    setScheduleDraft((prev) => ({ ...prev, departures: unique }));
+    setScheduleDeparturesText(unique.join("\n"));
+    setScheduleHasData(unique.length > 0);
+    applyScheduleToTargets({ type: "fixed", departures: unique });
+  }, [
+    applyScheduleToTargets,
+    formatMinutesToTime,
+    parseTimeToMinutes,
+    scheduleDeparturesText,
+  ]);
+
+  useEffect(() => {
+    if (!showSchedulePanel) {
+      scheduleInitializedRef.current = false;
+      return;
+    }
+
+    const existingDepartures = schedule ? expandSchedule(schedule) : [];
+    setScheduleHasData(existingDepartures.length > 0);
+
+    const initialDepartures =
+      existingDepartures.length > 0
+        ? existingDepartures
+        : buildDeparturesFromDraft(
+            scheduleDraft,
+            scheduleTargetRoute.durationSeconds ?? route?.duration ?? activeRoute.durationSeconds,
+          );
+
+    const start = initialDepartures[0] ?? scheduleDraft.startTime;
+    const end = initialDepartures[initialDepartures.length - 1] ?? scheduleDraft.endTime;
+
+    setScheduleDraft((prev) => ({
+      ...prev,
+      startTime: start,
+      endTime: end,
+      departures: initialDepartures,
+    }));
+    setScheduleDeparturesText(initialDepartures.join("\n"));
+
+    if (!schedule && initialDepartures.length > 0) {
+      applyScheduleToTargets({ type: "fixed", departures: initialDepartures });
+    }
+
+    scheduleInitializedRef.current = true;
+  }, [
+    activeRoute.durationSeconds,
+    applyScheduleToTargets,
+    buildDeparturesFromDraft,
+    route?.duration,
+    schedule,
+    scheduleTargetIds,
+    scheduleTargetRoute.durationSeconds,
+    showSchedulePanel,
+  ]);
+
+  if (!showPanel && !showSchedulePanel) return null;
 
   return (
     <div className="flex gap-3 items-start">
@@ -1400,65 +1552,231 @@ export function RouteBuilder({
       )}
 
       {showSchedulePanel && (
-      <div className="w-80 overflow-hidden rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl text-white/90 flex flex-col max-h-[85vh]">
-        <div className="px-3 py-2.5 border-b border-white/10 bg-black/40 shrink-0">
-          <h3 className="text-xs font-semibold text-white">Schedule Builder</h3>
-          <p className="text-[10px] text-white/50 mt-0.5">
-            Click a preset, then tweak times + frequency
-          </p>
-        </div>
-        <div className="p-3 space-y-3 overflow-y-auto flex-1 min-h-0">
-          <div className="rounded-lg border border-white/10 bg-black/40 px-2 py-2 text-[10px] text-white/70 space-y-1">
-            <div className="text-white/50">Schedule applies to</div>
-            <select
-              multiple
-              value={scheduleTargetIds}
-              onChange={(e) => {
-                const selected = Array.from(e.target.selectedOptions).map(
-                  (option) => option.value
-                );
-                setScheduleTargetIds(
-                  selected.length > 0 ? selected : [activeRoute.id]
-                );
-              }}
-              className="w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1 text-xs text-white/90"
-            >
-              <option value={activeRoute.id}>Current route</option>
-              {routes.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-            <div className="text-white/35">
-              Hold Cmd/Ctrl to select multiple routes.
+        <div className="fixed inset-0 z-40 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative z-10 w-[980px] max-w-[95vw] rounded-2xl border border-white/10 bg-neutral-950/95 shadow-2xl text-white">
+            <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-4">
+              <div>
+                <h3 className="text-sm font-semibold">Schedule Builder</h3>
+                <p className="text-xs text-white/50">
+                  Build a single-day A → B schedule with return trips and then fine-tune.
+                </p>
+              </div>
+              <div className="text-xs text-white/60">{scheduleTargetName}</div>
             </div>
-            <div className="text-white/40">{scheduleTargetName}</div>
+
+            <div className="grid gap-6 p-6 md:grid-cols-[320px_1fr]">
+              <div className="space-y-4">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="text-[11px] uppercase tracking-wider text-white/50">
+                    Applies To
+                  </div>
+                  <select
+                    multiple
+                    value={scheduleTargetIds}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions).map(
+                        (option) => option.value
+                      );
+                      setScheduleTargetIds(
+                        selected.length > 0 ? selected : [activeRoute.id]
+                      );
+                    }}
+                    className="mt-2 h-28 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-xs text-white/90 focus:outline-none"
+                  >
+                    <option value={activeRoute.id}>Current route</option>
+                    {routes.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="mt-2 text-[10px] text-white/35">
+                    Hold Cmd/Ctrl to select multiple routes.
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
+                  <div className="text-[11px] uppercase tracking-wider text-white/50">
+                    Trip Window
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="time"
+                      value={scheduleDraft.startTime}
+                      onChange={(e) =>
+                        setScheduleDraft((prev) => ({ ...prev, startTime: e.target.value }))
+                      }
+                      className="flex-1 rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-xs text-white/90"
+                    />
+                    <input
+                      type="time"
+                      value={scheduleDraft.endTime}
+                      onChange={(e) =>
+                        setScheduleDraft((prev) => ({ ...prev, endTime: e.target.value }))
+                      }
+                      className="flex-1 rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-xs text-white/90"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] text-white/60">Outbound headway (minutes)</div>
+                    <input
+                      type="number"
+                      min={1}
+                      value={scheduleDraft.outboundHeadway}
+                      onChange={(e) =>
+                        setScheduleDraft((prev) => ({
+                          ...prev,
+                          outboundHeadway: Number(e.target.value || 1),
+                        }))
+                      }
+                      className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-xs text-white/90"
+                    />
+                  </div>
+
+                  <div className="border-t border-white/10 pt-3 space-y-2">
+                    <label className="flex items-center gap-2 text-xs text-white/80">
+                      <input
+                        type="checkbox"
+                        checked={scheduleDraft.returnEnabled}
+                        onChange={(e) =>
+                          setScheduleDraft((prev) => ({
+                            ...prev,
+                            returnEnabled: e.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 rounded accent-blue-400"
+                      />
+                      Include return trip to A
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-[11px] text-white/60">Return buffer (min)</div>
+                        <input
+                          type="number"
+                          min={0}
+                          value={scheduleDraft.returnBufferMinutes}
+                          onChange={(e) =>
+                            setScheduleDraft((prev) => ({
+                              ...prev,
+                              returnBufferMinutes: Number(e.target.value || 0),
+                            }))
+                          }
+                          className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-xs text-white/90"
+                        />
+                      </div>
+                      <div>
+                        <div className="text-[11px] text-white/60">Return headway (min)</div>
+                        <input
+                          type="number"
+                          min={1}
+                          value={
+                            scheduleDraft.returnSameAsOutbound
+                              ? scheduleDraft.outboundHeadway
+                              : scheduleDraft.returnHeadway
+                          }
+                          onChange={(e) =>
+                            setScheduleDraft((prev) => ({
+                              ...prev,
+                              returnHeadway: Number(e.target.value || 1),
+                            }))
+                          }
+                          disabled={scheduleDraft.returnSameAsOutbound}
+                          className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-xs text-white/90 disabled:opacity-50"
+                        />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-white/70">
+                      <input
+                        type="checkbox"
+                        checked={scheduleDraft.returnSameAsOutbound}
+                        onChange={(e) =>
+                          setScheduleDraft((prev) => ({
+                            ...prev,
+                            returnSameAsOutbound: e.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 rounded accent-blue-400"
+                      />
+                      Return headway same as outbound
+                    </label>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setScheduleGenerating(true);
+                      window.setTimeout(() => {
+                        const nextDepartures = buildDeparturesFromDraft(
+                          scheduleDraft,
+                          scheduleTargetRoute.durationSeconds ??
+                            route?.duration ??
+                            activeRoute.durationSeconds,
+                        );
+                        setScheduleDraft((prev) => ({
+                          ...prev,
+                          departures: nextDepartures,
+                        }));
+                        setScheduleDeparturesText(nextDepartures.join("\n"));
+                        setScheduleHasData(nextDepartures.length > 0);
+                        applyScheduleToTargets({ type: "fixed", departures: nextDepartures });
+                        setScheduleGenerating(false);
+                      }, 250);
+                    }}
+                    className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-2 text-xs font-semibold text-white"
+                  >
+                    {scheduleGenerating ? "Generating..." : "Generate Schedule"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] uppercase tracking-wider text-white/50">
+                      Departures (editable)
+                    </div>
+                    <div className="text-xs text-white/60">
+                      {scheduleDraft.departures.length} trips
+                    </div>
+                  </div>
+                  {!scheduleHasData && (
+                    <div className="mt-2 text-[10px] text-amber-300">
+                      This route has no schedule yet. Generate one or paste times.
+                    </div>
+                  )}
+                  <textarea
+                    value={scheduleDeparturesText}
+                    onChange={(e) => setScheduleDeparturesText(e.target.value)}
+                    placeholder="HH:MM per line"
+                    className="mt-3 h-64 w-full rounded-xl bg-black/40 border border-white/10 p-3 text-xs text-white/90 focus:outline-none"
+                  />
+                  <div className="mt-2 text-[10px] text-white/40">
+                    Separate times by line or comma. Example: 06:00, 06:30, 07:00
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={applyDeparturesText}
+                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 hover:bg-white/10"
+                  >
+                    Apply Edits
+                  </button>
+                  <button
+                    onClick={() => {
+                      applyDeparturesText();
+                      onCloseSchedule?.();
+                    }}
+                    className="rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-2 text-xs font-semibold text-white"
+                  >
+                    Save & Close
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <ScheduleEditor
-            schedule={schedule}
-            onChange={(s) => {
-              const targets =
-                scheduleTargetIds.length > 0 ? scheduleTargetIds : [activeRoute.id];
-              targets.forEach((targetId) => {
-                const isSavedTarget = routes.some((r) => r.id === targetId);
-                if (!targetId || !isSavedTarget || targetId === activeRoute.id) {
-                  updateCurrent({ schedule: s });
-                } else {
-                  updateRouteById(targetId, { schedule: s });
-                }
-              });
-            }}
-            durationSeconds={scheduleTargetRoute.durationSeconds ?? route?.duration ?? activeRoute.durationSeconds}
-          />
-          {departures.length > 0 && (
-            <div className="text-[10px] text-white/45">
-              {departures.length} departures: {departures.slice(0, 5).join(", ")}
-              {departures.length > 5 ? ` ...` : ""}
-            </div>
-          )}
         </div>
-      </div>
       )}
     </div>
   );
