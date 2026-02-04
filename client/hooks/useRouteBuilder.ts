@@ -522,8 +522,11 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (stops.length < 2) {
-      setRoute(null);
-      setError(null);
+      if (route !== null || error !== null || loading) {
+        setRoute(null);
+        setError(null);
+        setLoading(false);
+      }
       return;
     }
     debounceRef.current = setTimeout(() => {
@@ -533,7 +536,7 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [stops, activeRoute.profile, recompute]);
+  }, [stops, activeRoute.profile, recompute, route, error, loading]);
 
   const updateCurrent = useCallback((updates: Partial<CustomRoute>) => {
     setCurrentRoute((prev) => {

@@ -238,6 +238,8 @@ export function RouteBuilder({
   const scheduleInitializedRef = useRef(false);
   const [scheduleHasData, setScheduleHasData] = useState(true);
   const [scheduleGenerating, setScheduleGenerating] = useState(false);
+  const [scheduleOutboundTimes, setScheduleOutboundTimes] = useState<string[]>([]);
+  const [scheduleReturnTimes, setScheduleReturnTimes] = useState<string[]>([]);
 
   const variantOptions = useMemo(() => {
     if (!goVariantsIndex || !goVariantStops) return [];
@@ -933,7 +935,9 @@ export function RouteBuilder({
     (draft: typeof scheduleDraft, durationSeconds?: number) => {
       const startMins = parseTimeToMinutes(draft.startTime);
       const endMins = parseTimeToMinutes(draft.endTime);
-      if (startMins == null || endMins == null || endMins < startMins) return [];
+      if (startMins == null || endMins == null || endMins < startMins) {
+        return { outbound: [] as number[], returns: [] as number[], merged: [] as number[] };
+      }
       const outboundHeadway = Math.max(1, Math.round(draft.outboundHeadway));
       const returnHeadway = draft.returnSameAsOutbound
         ? outboundHeadway
@@ -955,7 +959,7 @@ export function RouteBuilder({
       }
 
       const merged = Array.from(new Set([...outbound, ...returns])).sort((a, b) => a - b);
-      return merged.map(formatMinutesToTime);
+      return { outbound, returns, merged };
     },
     [formatMinutesToTime, parseTimeToMinutes],
   );
@@ -991,6 +995,8 @@ export function RouteBuilder({
     setScheduleDraft((prev) => ({ ...prev, departures: unique }));
     setScheduleDeparturesText(unique.join("\n"));
     setScheduleHasData(unique.length > 0);
+    setScheduleOutboundTimes([]);
+    setScheduleReturnTimes([]);
     applyScheduleToTargets({ type: "fixed", departures: unique });
   }, [
     applyScheduleToTargets,
@@ -1008,13 +1014,13 @@ export function RouteBuilder({
     const existingDepartures = schedule ? expandSchedule(schedule) : [];
     setScheduleHasData(existingDepartures.length > 0);
 
+    const generated = buildDeparturesFromDraft(
+      scheduleDraft,
+      scheduleTargetRoute.durationSeconds ?? route?.duration ?? activeRoute.durationSeconds,
+    );
+    const generatedDepartures = generated.merged.map(formatMinutesToTime);
     const initialDepartures =
-      existingDepartures.length > 0
-        ? existingDepartures
-        : buildDeparturesFromDraft(
-            scheduleDraft,
-            scheduleTargetRoute.durationSeconds ?? route?.duration ?? activeRoute.durationSeconds,
-          );
+      existingDepartures.length > 0 ? existingDepartures : generatedDepartures;
 
     const start = initialDepartures[0] ?? scheduleDraft.startTime;
     const end = initialDepartures[initialDepartures.length - 1] ?? scheduleDraft.endTime;
@@ -1026,6 +1032,13 @@ export function RouteBuilder({
       departures: initialDepartures,
     }));
     setScheduleDeparturesText(initialDepartures.join("\n"));
+    if (existingDepartures.length > 0) {
+      setScheduleOutboundTimes([]);
+      setScheduleReturnTimes([]);
+    } else {
+      setScheduleOutboundTimes(generated.outbound.map(formatMinutesToTime));
+      setScheduleReturnTimes(generated.returns.map(formatMinutesToTime));
+    }
 
     if (!schedule && initialDepartures.length > 0) {
       applyScheduleToTargets({ type: "fixed", departures: initialDepartures });
@@ -1707,18 +1720,21 @@ export function RouteBuilder({
                     onClick={() => {
                       setScheduleGenerating(true);
                       window.setTimeout(() => {
-                        const nextDepartures = buildDeparturesFromDraft(
+                        const generated = buildDeparturesFromDraft(
                           scheduleDraft,
                           scheduleTargetRoute.durationSeconds ??
                             route?.duration ??
                             activeRoute.durationSeconds,
                         );
+                        const nextDepartures = generated.merged.map(formatMinutesToTime);
                         setScheduleDraft((prev) => ({
                           ...prev,
                           departures: nextDepartures,
                         }));
                         setScheduleDeparturesText(nextDepartures.join("\n"));
                         setScheduleHasData(nextDepartures.length > 0);
+                        setScheduleOutboundTimes(generated.outbound.map(formatMinutesToTime));
+                        setScheduleReturnTimes(generated.returns.map(formatMinutesToTime));
                         applyScheduleToTargets({ type: "fixed", departures: nextDepartures });
                         setScheduleGenerating(false);
                       }, 250);
@@ -1731,7 +1747,7 @@ export function RouteBuilder({
               </div>
 
               <div className="space-y-4">
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="text-[11px] uppercase tracking-wider text-white/50">
                       Departures (editable)
@@ -1740,19 +1756,70 @@ export function RouteBuilder({
                       {scheduleDraft.departures.length} trips
                     </div>
                   </div>
+
                   {!scheduleHasData && (
-                    <div className="mt-2 text-[10px] text-amber-300">
+                    <div className="text-[10px] text-amber-300">
                       This route has no schedule yet. Generate one or paste times.
                     </div>
                   )}
-                  <textarea
-                    value={scheduleDeparturesText}
-                    onChange={(e) => setScheduleDeparturesText(e.target.value)}
-                    placeholder="HH:MM per line"
-                    className="mt-3 h-64 w-full rounded-xl bg-black/40 border border-white/10 p-3 text-xs text-white/90 focus:outline-none"
-                  />
-                  <div className="mt-2 text-[10px] text-white/40">
-                    Separate times by line or comma. Example: 06:00, 06:30, 07:00
+                  <div className="text-[10px] text-white/45">
+                    Outbound/Return lists are auto-generated. Custom Times override both and become
+                    the departures used for simulation.
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-lg border border-white/10 bg-black/30 p-3">
+                      <div className="text-[10px] uppercase tracking-wider text-blue-300">
+                        Outbound A → B
+                      </div>
+                      {scheduleOutboundTimes.length === 0 ? (
+                        <div className="mt-2 text-[10px] text-white/40">
+                          Generate a schedule to see outbound trips.
+                        </div>
+                      ) : (
+                        <div className="mt-2 max-h-28 overflow-y-auto text-xs text-white/80 space-y-1">
+                          {scheduleOutboundTimes.map((time) => (
+                            <div key={`out-${time}`} className="rounded bg-white/5 px-2 py-1">
+                              {time}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-lg border border-white/10 bg-black/30 p-3">
+                      <div className="text-[10px] uppercase tracking-wider text-emerald-300">
+                        Return B → A
+                      </div>
+                      {scheduleReturnTimes.length === 0 ? (
+                        <div className="mt-2 text-[10px] text-white/40">
+                          Generate a schedule to see return trips.
+                        </div>
+                      ) : (
+                        <div className="mt-2 max-h-28 overflow-y-auto text-xs text-white/80 space-y-1">
+                          {scheduleReturnTimes.map((time) => (
+                            <div key={`ret-${time}`} className="rounded bg-white/5 px-2 py-1">
+                              {time}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-white/10 bg-black/30 p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-white/50">
+                      Custom Times (override)
+                    </div>
+                    <textarea
+                      value={scheduleDeparturesText}
+                      onChange={(e) => setScheduleDeparturesText(e.target.value)}
+                      placeholder="HH:MM per line"
+                      className="mt-2 h-40 w-full rounded-lg bg-black/40 border border-white/10 p-3 text-xs text-white/90 focus:outline-none"
+                    />
+                    <div className="mt-2 text-[10px] text-white/40">
+                      Separate times by line or comma. Example: 06:00, 06:30, 07:00
+                    </div>
                   </div>
                 </div>
 
