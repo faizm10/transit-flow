@@ -5,7 +5,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { } from "@/components/ui/card"
 import { ArrowRightIcon, CheckIcon } from "lucide-react"
 
 export default function LandingPage() {
@@ -232,39 +232,4 @@ function FeatureItem({ title, desc }: { title: string; desc: string }) {
   )
 }
 
-function PricingCard({
-  plan,
-  price,
-  perks,
-  highlight,
-}: {
-  plan: string
-  price: string
-  perks: string[]
-  highlight?: boolean
-}) {
-  return (
-    <Card className={cn("border-dashed", highlight && "ring-1 ring-border")}>
-      <CardHeader>
-        <CardTitle className="text-base">{plan}</CardTitle>
-        <CardDescription className="text-sm">
-          <span className="text-foreground font-semibold">{price}</span>
-          <span className="text-muted-foreground"> / mo</span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          {perks.map((p) => (
-            <div key={p} className="text-muted-foreground flex items-center gap-2 text-sm">
-              <CheckIcon className="size-4" />
-              {p}
-            </div>
-          ))}
-        </div>
-        <Button className="w-full" variant={highlight ? "default" : "outline"}>
-          Choose {plan}
-        </Button>
-      </CardContent>
-    </Card>
-  )
-}
+

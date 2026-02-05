@@ -1,4 +1,4 @@
 // Placeholder for AssetManagerPanel component
-export function AssetManagerPanel(props: any) {
+export function AssetManagerPanel() {
   return null;
 }

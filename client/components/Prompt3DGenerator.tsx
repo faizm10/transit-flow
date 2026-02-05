@@ -1,4 +1,4 @@
 // Placeholder for Prompt3DGenerator component
-export function Prompt3DGenerator(props: any) {
+export function Prompt3DGenerator() {
   return null;
 }

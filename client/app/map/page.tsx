@@ -7,10 +7,13 @@ import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import { RouteBuilder } from "@/components/RouteBuilder";
+import { RouteCommandBar } from "@/components/RouteCommandBar";
+import { ScheduleModal } from "@/components/ScheduleModal";
 import {
   getSavedCustomRoutes,
   buildSimulationTripsFromCustomRoute,
   type CustomRoute,
+  type Schedule,
 } from "@/hooks/useRouteBuilder";
 import { Header } from "@/components/Header";
 import { SidePanel } from "@/components/SidePanel";
@@ -166,8 +169,11 @@ export default function MapPage() {
   const [showCustomNetwork, setShowCustomNetwork] = useState(true);
   const [savedCustomRoutes, setSavedCustomRoutes] = useState<CustomRoute[]>([]);
   const [selectedCustomRouteIds, setSelectedCustomRouteIds] = useState<string[]>([]);
-  const [buildingRouteGeometry, setBuildingRouteGeometry] = useState<GeoJSON.LineString | null>(null);
+  
   const [activePanel, setActivePanel] = useState<string | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [pendingScheduleRouteId, setPendingScheduleRouteId] = useState<string | null>(null);
+  const [mapCenter, setMapCenter] = useState({ lat: 43.6532, lng: -79.3832 });
 
   const handlePanelToggle = (panel: string) => {
     setActivePanel((prev) => (prev === panel ? null : panel));
@@ -244,7 +250,7 @@ export default function MapPage() {
         setSelectedCustomRouteIds(withGeometry.map((r) => r.id));
       }
     }
-  }, [showCustomNetwork, savedCustomRoutes]);
+  }, [showCustomNetwork, savedCustomRoutes, selectedCustomRouteIds.length]);
   const hasInitializedGoVariants = useRef(false);
   const [simulationDate, setSimulationDate] = useState(() => {
     const now = new Date();
@@ -668,7 +674,7 @@ export default function MapPage() {
         if (name.includes("allandale")) return "Allandale";
         
         // Remove common suffixes
-        let cleaned = fullName
+        const cleaned = fullName
           .replace(/\s+GO\s*$/i, "")
           .replace(/\s+Station\s*$/i, "")
           .replace(/\s+Stop\s*$/i, "")
@@ -793,7 +799,7 @@ export default function MapPage() {
                   if (name.includes("richmond hill")) return "Richmond Hill";
                   if (name.includes("barrie")) return "Barrie";
                   if (name.includes("allandale")) return "Allandale";
-                  let cleaned = fullName
+                  const cleaned = fullName
                     .replace(/\s+GO\s*$/i, "")
                     .replace(/\s+Station\s*$/i, "")
                     .replace(/\s+Stop\s*$/i, "")
@@ -886,13 +892,7 @@ export default function MapPage() {
     createMergedRouteName,
   ]);
 
-  const toggleVariant = (variantId: string) => {
-    setSelectedVariantIds((prev) =>
-      prev.includes(variantId)
-        ? prev.filter((id) => id !== variantId)
-        : [...prev, variantId],
-    );
-  };
+  
 
   const setVariantGroup = (variantIds: string[], enabled: boolean) => {
     setSelectedVariantIds((prev) => {
@@ -1125,7 +1125,7 @@ export default function MapPage() {
       }
 
     }
-  }, [showUnionPearson, map.current]);
+  }, [showUnionPearson]);
 
   // Update GO Transit layer visibility
   useEffect(() => {
@@ -1146,7 +1146,7 @@ export default function MapPage() {
         );
       }
     }
-  }, [showGoTransit, map.current]);
+  }, [showGoTransit]);
 
   // Update Union Pearson Express route line data
   useEffect(() => {
@@ -1847,21 +1847,15 @@ export default function MapPage() {
     });
   }, [simulationStart, simulationEnd]);
 
-  const clearSimulationTrackers = () => {
+  const clearSimulationTrackers = useCallback(() => {
     setSimulationTrips([]);
     setSimulationPlaying(false);
     setFocusedSimulationTripId(null);
     setSimulationError(null);
     setSimulationCurrent(parseShortTime(simulationStart) ?? 0);
-  };
+  }, [simulationStart]);
 
-  const handleSimulationRoutesChange = useCallback(
-    (routes: string[]) => {
-      setSimulationRoutes(routes);
-      clearSimulationTrackers();
-    },
-    [clearSimulationTrackers],
-  );
+  
 
   const toggleSimulationRoute = useCallback(
     (routeId: string) => {
@@ -1892,6 +1886,118 @@ export default function MapPage() {
     setShowUnionPearson(true);
     setShowCustomNetwork(true);
   };
+
+  // Track map center for stop search
+  useEffect(() => {
+    if (!map.current) return;
+    const updateCenter = () => {
+      const center = map.current!.getCenter();
+      setMapCenter({ lat: center.lat, lng: center.lng });
+    };
+    map.current.on("move", updateCenter);
+    return () => {
+      map.current?.off("move", updateCenter);
+    };
+  }, [mapReady]);
+
+  // Command bar handlers
+  const handleCreateRoute = () => {
+    setActivePanel("builder");
+  };
+
+  const handleAddStopFromCommandBar = (stop: { name: string; lat: number; lng: number }) => {
+    // Trigger route builder to add a stop
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("route-builder-add-stop", {
+          detail: { name: stop.name, lat: stop.lat, lng: stop.lng },
+        })
+      );
+    }
+    setActivePanel("builder");
+  };
+
+  
+
+  const handleAIRoute = (route: {
+    name: string;
+    stops: Array<{ name: string; lat: number; lng: number; reasoning?: string }>;
+    reasoning: string;
+  }) => {
+    // Create stops array for the route builder
+    const stops = route.stops.map((stop, index) => ({
+      name: stop.name,
+      lat: stop.lat,
+      lng: stop.lng,
+    }));
+
+    // Dispatch event to route builder with AI-generated route
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("route-builder-ai-route", {
+          detail: {
+            name: route.name,
+            stops,
+            reasoning: route.reasoning,
+          },
+        })
+      );
+    }
+
+    // Open route builder to show the generated route
+    setActivePanel("builder");
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const openBuilder = () => setActivePanel("builder");
+    window.addEventListener("route-builder-open", openBuilder);
+    return () => {
+      window.removeEventListener("route-builder-open", openBuilder);
+    };
+  }, []);
+
+  // Schedule modal handlers
+  const handleSaveSchedule = (schedule: Schedule) => {
+    if (pendingScheduleRouteId) {
+      const route = savedCustomRoutes.find((r) => r.id === pendingScheduleRouteId);
+      if (route) {
+        // Update the route with schedule
+        const updated = { ...route, schedule };
+        const nextRoutes = savedCustomRoutes.map((r) =>
+          r.id === pendingScheduleRouteId ? updated : r
+        );
+        setSavedCustomRoutes(nextRoutes);
+
+        // Save to localStorage
+        if (typeof window !== "undefined") {
+          localStorage.setItem("route_builder_routes", JSON.stringify(nextRoutes));
+          window.dispatchEvent(
+            new CustomEvent("route-builder-saved", {
+              detail: { routeId: pendingScheduleRouteId },
+            })
+          );
+        }
+      }
+    }
+    setShowScheduleModal(false);
+    setPendingScheduleRouteId(null);
+  };
+
+  // Listen for route finalization event
+  useEffect(() => {
+    const handleRouteFinalized = (e: Event) => {
+      const detail = (e as CustomEvent<{ routeId: string }>).detail;
+      if (detail?.routeId) {
+        setPendingScheduleRouteId(detail.routeId);
+        setShowScheduleModal(true);
+      }
+    };
+    window.addEventListener("route-builder-finalized", handleRouteFinalized);
+    return () => {
+      window.removeEventListener("route-builder-finalized", handleRouteFinalized);
+    };
+  }, []);
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -1942,7 +2048,6 @@ export default function MapPage() {
               allVariantIds={allVariantIds}
               setVariantGroup={setVariantGroup}
               setSelectedVariantIds={setSelectedVariantIds}
-              toggleVariant={toggleVariant}
             />
 
             {showCustomNetwork && savedCustomRoutes.length > 0 && (
@@ -2188,6 +2293,30 @@ export default function MapPage() {
         )}
 
       </div>
+
+      {/* Route Command Bar */}
+      <RouteCommandBar
+        enabled={!simulationPlaying}
+        onCreateRoute={handleCreateRoute}
+        onAddStop={handleAddStopFromCommandBar}
+        onAIRoute={handleAIRoute}
+        mapCenter={mapCenter}
+      />
+
+      {/* Schedule Modal */}
+      <ScheduleModal
+        isOpen={showScheduleModal}
+        onClose={() => {
+          setShowScheduleModal(false);
+          setPendingScheduleRouteId(null);
+        }}
+        onSave={handleSaveSchedule}
+        routeName={
+          pendingScheduleRouteId
+            ? savedCustomRoutes.find((r) => r.id === pendingScheduleRouteId)?.name
+            : undefined
+        }
+      />
 
       <div ref={mapContainer} className="h-full w-full" />
     </div>

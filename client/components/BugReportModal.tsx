@@ -1,4 +1,4 @@
 // Placeholder for BugReportModal component
-export function BugReportModal(props: any) {
+export function BugReportModal() {
   return null;
 }

@@ -1,5 +1,5 @@
 // Placeholder for Tutorial component
-export function Tutorial(props: any) {
+export function Tutorial() {
   return null;
 }
 

@@ -199,7 +199,7 @@ function FrequencyPageContent() {
     if (dayTypeParam !== selectedDayType && ["all", "weekday", "weekend"].includes(dayTypeParam)) {
       setSelectedDayType(dayTypeParam);
     }
-  }, [searchParams]);
+  }, [searchParams, selectedRoute, selectedType, selectedDayType]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -844,7 +844,7 @@ function FrequencyPageContent() {
               </p>
               <p className="text-xs text-muted-foreground leading-5">
                 Trips per hour is now separated by <strong>weekday</strong> (Monday-Friday) and <strong>weekend</strong> (Saturday-Sunday). 
-                Use the "Day Type" filter to view specific periods, or "All Days" to see combined totals across all service days, variants, and directions.
+                Use the &quot;Day Type&quot; filter to view specific periods, or &quot;All Days&quot; to see combined totals across all service days, variants, and directions.
               </p>
             </div>
           </div>
@@ -1242,18 +1242,20 @@ function FrequencyPageContent() {
                             style={{
                               transition: "opacity 0.2s ease",
                             }}
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             onMouseEnter={(e: any) => {
                               if (e && e.target) {
-                                e.target.style.opacity = "0.7";
-                                e.target.style.fill = hour === peakHour 
+                                (e.target as SVGElement).style.opacity = "0.7";
+                                (e.target as SVGElement).style.fill = hour === peakHour 
                                   ? "hsl(142 76% 42%)" 
                                   : "hsl(var(--primary))";
                               }
                             }}
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             onMouseLeave={(e: any) => {
                               if (e && e.target) {
-                                e.target.style.opacity = "1";
-                                e.target.style.fill = hour === peakHour
+                                (e.target as SVGElement).style.opacity = "1";
+                                (e.target as SVGElement).style.fill = hour === peakHour
                                   ? "hsl(142 76% 36%)"
                                   : "hsl(var(--foreground))";
                               }
