@@ -420,9 +420,18 @@ function normalizeFrequencySchedule(
 
 export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> | null) {
   const [routes, setRoutes] = useState<CustomRoute[]>(() => loadRoutesFromStorage());
-  const [currentRoute, setCurrentRoute] = useState<CustomRoute | null>(() =>
-    loadCurrentFromStorage()
-  );
+  const [currentRoute, setCurrentRoute] = useState<CustomRoute | null>(() => {
+    const storedCurrent = loadCurrentFromStorage();
+    if (storedCurrent) return storedCurrent;
+
+    // If no current route is stored, try to load the first saved route
+    const savedRoutes = loadRoutesFromStorage();
+    if (savedRoutes.length > 0) {
+      return savedRoutes[0];
+    }
+
+    return null; // Otherwise, start with no current route (will use emptyRoute)
+  });
 
   const emptyRoute = useMemo<CustomRoute>(() => ({
     id: generateId(),

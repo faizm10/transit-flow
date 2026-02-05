@@ -1,5 +1,15 @@
 "use client";
 
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxGroup,
+  ComboboxLabel,
+} from "@/components/ui/combobox";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import {
@@ -165,6 +175,7 @@ export function RouteBuilder({
   showPanel = true,
   showSchedulePanel = false,
   onCloseSchedule,
+    goVariantsIndex,
     goVariantStops,
   showCustomNetwork = true,
 }: RouteBuilderProps) {
@@ -186,6 +197,7 @@ export function RouteBuilder({
     clearRoute,
     updateCurrent,
     updateRouteById,
+    loadFromGoVariant,
   } = useRouteBuilder(goVariantStops);
 
   const [buildMode, setBuildMode] = useState<"quick" | "manual">("quick");
@@ -201,7 +213,29 @@ export function RouteBuilder({
     Array<{ id: string; name: string; lat: number; lng: number; distanceKm: number }>
   >([]);
   const [showExtensions, setShowExtensions] = useState(false);
-  
+
+  const [showGoVariantSelector, setShowGoVariantSelector] = useState(false);
+  const [selectedGoVariant, setSelectedGoVariant] = useState<string | null>(null);
+
+  const goVariantOptions = useMemo(() => {
+    if (!goVariantsIndex) return new Map();
+    const groupedOptions = new Map<string, { value: string; label: string }[]>();
+
+    Object.entries(goVariantsIndex).forEach(([routeShortName, variants]) => {
+      const optionsForGroup: { value: string; label: string }[] = [];
+      variants.forEach((variant) => {
+        optionsForGroup.push({
+          value: variant.variant_id,
+          label: `${routeShortName} - ${variant.label}`,
+        });
+      });
+      if (optionsForGroup.length > 0) {
+        groupedOptions.set(routeShortName, optionsForGroup.sort((a, b) => a.label.localeCompare(b.label)));
+      }
+    });
+
+    return new Map([...groupedOptions.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+  }, [goVariantsIndex]);
   
   const [pinMode, setPinMode] = useState(false);
   const [pinCandidate, setPinCandidate] = useState<{
@@ -1148,6 +1182,55 @@ export function RouteBuilder({
         </div>
 
         <div className="p-3 space-y-3 overflow-y-auto flex-1 min-h-0">
+          <div className="rounded-lg bg-black/30 border border-white/10 p-2 text-[11px] space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-white/70">Load GO Transit Line</span>
+              <button
+                onClick={() => setShowGoVariantSelector((v) => !v)}
+                className="text-[10px] text-blue-300 hover:text-blue-200"
+              >
+                {showGoVariantSelector ? "Hide" : "Show"}
+              </button>
+            </div>
+            {showGoVariantSelector && (
+              <Combobox
+                value={selectedGoVariant}
+                onValueChange={(value) => {
+                  setSelectedGoVariant(value);
+                  let selectedOption: { value: string; label: string } | undefined;
+                  for (const optionsArray of goVariantOptions.values()) {
+                    selectedOption = optionsArray.find((opt) => opt.value === value);
+                    if (selectedOption) break;
+                  }
+                  if (selectedOption) {
+                    loadFromGoVariant(selectedOption.value, selectedOption.label);
+                  }
+                }}
+                disabled={!goVariantsIndex}
+              >
+                <ComboboxInput placeholder="Search GO Transit Lines..." />
+                <ComboboxContent>
+                  <ComboboxList>
+                    {goVariantOptions.size === 0 && (
+                      <ComboboxItem value="no-options" disabled>
+                        No GO Transit Lines found.
+                      </ComboboxItem>
+                    )}
+                    {[...goVariantOptions.entries()].map(([groupName, options]) => (
+                      <ComboboxGroup key={groupName}>
+                        <ComboboxLabel>{groupName}</ComboboxLabel>
+                        {options.map((option) => (
+                          <ComboboxItem key={option.value} value={option.value}>
+                            {option.label}
+                          </ComboboxItem>
+                        ))}
+                      </ComboboxGroup>
+                    ))}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+            )}
+          </div>
         {/* Route name + color */}
         <div className="flex gap-2">
           <input
