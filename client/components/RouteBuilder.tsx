@@ -11,9 +11,27 @@ import {
 } from "@/hooks/useRouteBuilder";
 import { fetchDirections } from "@/lib/mapboxDirections";
 import type { DirectionsProfile } from "@/lib/mapboxDirections";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ROUTE_LAYER_ID = "route-builder-line";
 const ROUTE_SOURCE_ID = "route-builder-route";
+const SAVED_STOPS_KEY = "route_builder_saved_stops";
+
+type SavedStop = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+};
 
 type GoVariant = {
   variant_id: string;
@@ -208,8 +226,18 @@ export function RouteBuilder({
   const [showExtensions, setShowExtensions] = useState(false);
   const [showExtendDropdown, setShowExtendDropdown] = useState(false);
   const [showSavedRoutes, setShowSavedRoutes] = useState(false);
+  const [pinMode, setPinMode] = useState(false);
+  const [pinCandidate, setPinCandidate] = useState<{
+    id: string;
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [pinName, setPinName] = useState("Pinned stop");
+  const [showPinNameDialog, setShowPinNameDialog] = useState(false);
+  const [showPinSaveDialog, setShowPinSaveDialog] = useState(false);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const lastQuickEndpointsRef = useRef<string | null>(null);
+  const lastQuickStyleKeyRef = useRef<string | null>(null);
   const rawQuickStartRef = useRef<Stop | null>(null);
   const rawQuickEndRef = useRef<Stop | null>(null);
   const [scheduleTargetIds, setScheduleTargetIds] = useState<string[]>(() => [
@@ -267,6 +295,72 @@ export function RouteBuilder({
     [stops, selectedStopId]
   );
   const hasQuickEndpoints = stops.length >= 2;
+
+  // Listen for add-stop events from command bar
+  useEffect(() => {
+    const handleAddStop = (e: Event) => {
+      const detail = (e as CustomEvent<{ name: string; lat: number; lng: number }>).detail;
+      if (detail) {
+        addStop(detail.lng, detail.lat, detail.name);
+      }
+    };
+    window.addEventListener("route-builder-add-stop", handleAddStop);
+    return () => {
+      window.removeEventListener("route-builder-add-stop", handleAddStop);
+    };
+  }, [addStop]);
+
+  // Listen for AI-generated routes
+  useEffect(() => {
+    const handleAIRoute = (e: Event) => {
+      const detail = (e as CustomEvent<{
+        name: string;
+        stops: Array<{ name: string; lat: number; lng: number }>;
+        reasoning: string;
+      }>).detail;
+
+      if (detail && detail.stops) {
+        // Convert AI stops to Stop objects
+        const newStops: Stop[] = detail.stops.map((stop, index) => ({
+          id: `stop-${Date.now()}-${index}`,
+          name: stop.name,
+          lng: stop.lng,
+          lat: stop.lat,
+          timepoint: index === 0 || index === detail.stops.length - 1,
+        }));
+
+        // Update current route with AI-generated data
+        updateCurrent({
+          name: detail.name,
+          stops: newStops,
+        });
+
+        // Switch to quick mode so Generate can add corridor stops
+        setBuildMode("quick");
+        setQuickStyle(null);
+      }
+    };
+    window.addEventListener("route-builder-ai-route", handleAIRoute);
+    return () => {
+      window.removeEventListener("route-builder-ai-route", handleAIRoute);
+    };
+  }, [updateCurrent]);
+
+  // Finalize and save route with schedule prompt
+  const handleFinalizeRoute = useCallback(() => {
+    if (stops.length < 2) return;
+    saveRoute();
+    // Trigger schedule modal after save
+    setTimeout(() => {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("route-builder-finalized", {
+            detail: { routeId: activeRoute.id },
+          })
+        );
+      }
+    }, 100);
+  }, [stops.length, saveRoute, activeRoute.id]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -416,8 +510,8 @@ export function RouteBuilder({
   );
 
   const generateQuickRoute = useCallback(
-    async (style: QuickStyle) => {
-      if (stops.length < 2) return;
+    async (style: QuickStyle, currentStops: Stop[]) => {
+      if (currentStops.length < 2) return;
       const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
       if (!token) {
         setQuickError("Mapbox token not configured");
@@ -426,8 +520,8 @@ export function RouteBuilder({
       setQuickGenerating(true);
       setQuickError(null);
       setQuickNoStops(false);
-      const rawStart = rawQuickStartRef.current ?? stops[0];
-      const rawEnd = rawQuickEndRef.current ?? stops[stops.length - 1];
+      const rawStart = rawQuickStartRef.current ?? currentStops[0];
+      const rawEnd = rawQuickEndRef.current ?? currentStops[currentStops.length - 1];
       const start = { ...rawStart, timepoint: true };
       const end = { ...rawEnd, timepoint: true };
       const result = await fetchDirections(
@@ -460,20 +554,21 @@ export function RouteBuilder({
       setQuickStyle(style);
       setQuickGenerating(false);
     },
-    [stops, activeRoute.profile, availableStops.length, buildStopsFromGeometry, setStops]
+    [activeRoute.profile, availableStops.length, buildStopsFromGeometry, setStops]
   );
 
   useEffect(() => {
     if (buildMode !== "quick") return;
     if (stops.length !== 2) {
       lastQuickEndpointsRef.current = null;
+      lastQuickStyleKeyRef.current = null;
       return;
     }
     if (!quickStopsLoaded || quickGenerating || quickStyle) return;
     const key = `${stops[0].id}-${stops[1].id}`;
     if (lastQuickEndpointsRef.current === key) return;
     lastQuickEndpointsRef.current = key;
-    generateQuickRoute("normal");
+    generateQuickRoute("normal", stops);
   }, [buildMode, stops, quickStopsLoaded, quickGenerating, quickStyle, generateQuickRoute]);
 
   useEffect(() => {
@@ -481,14 +576,17 @@ export function RouteBuilder({
     if (quickStyle !== "express") return;
     if (stops.length !== 2) return;
     if (!quickStopsLoaded || quickGenerating) return;
-    generateQuickRoute("express");
+    const key = `${stops[0].id}-${stops[1].id}-express-${includeUniversitiesExpress ? "u1" : "u0"}`;
+    if (lastQuickStyleKeyRef.current === key) return;
+    lastQuickStyleKeyRef.current = key;
+    generateQuickRoute("express", stops);
   }, [buildMode, quickStyle, stops, quickStopsLoaded, quickGenerating, includeUniversitiesExpress, generateQuickRoute]);
 
   const applyQuickStyle = useCallback(
     (style: QuickStyle) => {
-      generateQuickRoute(style);
+      generateQuickRoute(style, stops);
     },
-    [generateQuickRoute]
+    [generateQuickRoute, stops]
   );
 
   const resetQuickEndpoints = useCallback(() => {
@@ -498,9 +596,71 @@ export function RouteBuilder({
     setQuickNoStops(false);
     setSelectedStopId(null);
     lastQuickEndpointsRef.current = null;
+    lastQuickStyleKeyRef.current = null;
     rawQuickStartRef.current = null;
     rawQuickEndRef.current = null;
   }, [clearRoute]);
+
+  const savePinnedStop = useCallback((stop: SavedStop) => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(SAVED_STOPS_KEY);
+      const existing = raw ? (JSON.parse(raw) as SavedStop[]) : [];
+      const next = Array.isArray(existing) ? existing : [];
+      if (!next.find((s) => s.id === stop.id)) {
+        next.push(stop);
+      }
+      window.localStorage.setItem(SAVED_STOPS_KEY, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("route-builder-saved-stop", { detail: stop }));
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const startPin = () => {
+      setPinMode(true);
+      setSelectedStopId(null);
+    };
+    window.addEventListener("route-builder-pin-start", startPin);
+    return () => {
+      window.removeEventListener("route-builder-pin-start", startPin);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!showPanel && pinMode) {
+      window.dispatchEvent(new CustomEvent("route-builder-open"));
+    }
+  }, [pinMode, showPanel]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const openBuilder = () => window.dispatchEvent(new CustomEvent("route-builder-open"));
+    window.addEventListener("route-builder-pin-complete", openBuilder);
+    return () => {
+      window.removeEventListener("route-builder-pin-complete", openBuilder);
+    };
+  }, []);
+
+  const applyPinnedStop = useCallback(
+    (stop: Stop) => {
+      if (stops.length === 0) {
+        rawQuickStartRef.current = stop;
+        setStops([stop]);
+        return;
+      }
+      if (stops.length === 1) {
+        rawQuickEndRef.current = stop;
+        setStops([stops[0], stop]);
+        return;
+      }
+      setStops([...stops, stop]);
+    },
+    [stops, setStops]
+  );
 
   const handleSaveReversed = useCallback(() => {
     const base = currentRoute ?? activeRoute;
@@ -612,37 +772,17 @@ export function RouteBuilder({
     }
   }, [mapRef, mapReady, isActive, route?.geometry, activeRoute.geometry]);
 
-  // Map click to add stop (only when panel is open)
+  // Map click to pin stop (only when pin mode is active)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady || !enabled) return;
+    if (!map || !mapReady || (!enabled && !pinMode) || !pinMode) return;
 
     const handleClick = (e: mapboxgl.MapMouseEvent) => {
       const { lng, lat } = e.lngLat;
-      if (buildMode === "manual") {
-        addStop(lng, lat);
-        return;
-      }
-      const newStop: Stop = {
-        id: buildStopId(),
-        name: stops.length === 0 ? "Start" : stops.length === 1 ? "End" : "End",
-        lng,
-        lat,
-        timepoint: stops.length === 0 || stops.length === 1,
-      };
-      if (stops.length === 0) {
-        rawQuickStartRef.current = newStop;
-        setStops([newStop]);
-      } else if (stops.length === 1) {
-        rawQuickEndRef.current = newStop;
-        setStops([stops[0], newStop]);
-      } else {
-        rawQuickEndRef.current = newStop;
-        setStops([stops[0], newStop]);
-      }
-      setQuickStyle(null);
-      setQuickError(null);
-      setQuickNoStops(false);
+      setPinCandidate({ id: buildStopId(), lat, lng });
+      setPinName("Pinned stop");
+      setShowPinNameDialog(true);
+      setPinMode(false);
     };
 
     map.on("click", handleClick);
@@ -651,7 +791,7 @@ export function RouteBuilder({
       map.off("click", handleClick);
       map.getCanvas().style.cursor = "";
     };
-  }, [mapRef, mapReady, enabled, buildMode, addStop, stops, setStops]);
+  }, [mapRef, mapReady, enabled, pinMode]);
 
   // Markers for stops (only when panel is open)
   useEffect(() => {
@@ -941,9 +1081,9 @@ export function RouteBuilder({
       const outboundHeadway = Math.max(1, Math.round(draft.outboundHeadway));
       const returnHeadway = draft.returnSameAsOutbound
         ? outboundHeadway
-        : Math.max(1, Math.round(draft.returnHeadway));
+        : Math.max(0, Math.round(draft.returnHeadway));
       const durationMinutes = durationSeconds ? Math.max(1, Math.round(durationSeconds / 60)) : 0;
-      const returnStartOffset = durationMinutes + Math.max(0, Math.round(draft.returnBufferMinutes));
+      const returnBuffer = Math.max(0, Math.round(draft.returnBufferMinutes));
 
       const outbound: number[] = [];
       for (let t = startMins; t <= endMins; t += outboundHeadway) {
@@ -952,9 +1092,11 @@ export function RouteBuilder({
 
       const returns: number[] = [];
       if (draft.returnEnabled) {
-        const returnStart = startMins + returnStartOffset;
-        for (let t = returnStart; t <= endMins; t += returnHeadway) {
-          returns.push(t);
+        for (const depart of outbound) {
+          const returnDepart = depart + durationMinutes + returnBuffer + returnHeadway;
+          if (returnDepart <= endMins) {
+            returns.push(returnDepart);
+          }
         }
       }
 
@@ -1065,34 +1207,10 @@ export function RouteBuilder({
         <div className="px-3 py-2.5 border-b border-white/10 bg-black/40 shrink-0">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-white">Route Builder</h3>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setBuildMode("quick")}
-              className={`px-2 py-0.5 rounded text-[10px] border ${
-                buildMode === "quick"
-                  ? "bg-white/20 border-white/30 text-white"
-                  : "bg-black/40 border-white/10 text-white/60"
-              }`}
-            >
-              Quick
-            </button>
-            <button
-              onClick={() => setBuildMode("manual")}
-              className={`px-2 py-0.5 rounded text-[10px] border ${
-                buildMode === "manual"
-                  ? "bg-white/20 border-white/30 text-white"
-                  : "bg-black/40 border-white/10 text-white/60"
-              }`}
-            >
-              Manual
-            </button>
           </div>
-        </div>
-        <p className="text-[10px] text-white/50 mt-0.5">
-          {buildMode === "quick"
-            ? "Pick start and end — generate a route in seconds"
-            : "Click map to add stops · Drag markers · Extend GO routes"}
-        </p>
+          <p className="text-[10px] text-white/50 mt-0.5">
+            Add start/end from the command bar, then generate or edit stops.
+          </p>
         </div>
 
         <div className="p-3 space-y-3 overflow-y-auto flex-1 min-h-0">
@@ -1102,10 +1220,10 @@ export function RouteBuilder({
             type="text"
             value={activeRoute.name}
             onChange={(e) => updateCurrent({ name: e.target.value })}
-            placeholder="Route name (e.g. 30 extended to London)"
+            placeholder="Route name"
             className="flex-1 rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
           />
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-wrap">
             {ROUTE_COLORS.map((c) => (
               <button
                 key={c}
@@ -1121,193 +1239,6 @@ export function RouteBuilder({
           </div>
         </div>
 
-        {buildMode === "quick" && (
-          <div className="rounded-xl bg-black/30 border border-white/10 p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] text-white/60">Pick start + end</div>
-              <button
-                onClick={resetQuickEndpoints}
-                className="text-[10px] text-white/40 hover:text-white/70"
-              >
-                Reset
-              </button>
-            </div>
-            <div className="rounded-lg bg-black/40 border border-white/10 px-2 py-2 text-[11px]">
-              <div className="flex items-center justify-between">
-                <div className="text-white/90 truncate">{stops[0]?.name ?? "Start stop"}</div>
-                <div className="text-white/40">→</div>
-                <div className="text-white/90 truncate text-right">
-                  {stops[stops.length - 1]?.name ?? "End stop"}
-                </div>
-              </div>
-            </div>
-
-            {hasQuickEndpoints && (
-              <div className="grid grid-cols-3 gap-2">
-                {(Object.keys(QUICK_STYLE_CONFIG) as QuickStyle[]).map((key) => (
-                  <button
-                    key={key}
-                    onClick={() => applyQuickStyle(key)}
-                    disabled={quickGenerating}
-                    className={`rounded-lg border px-2 py-2 text-[10px] text-left transition ${
-                      quickStyle === key
-                        ? "border-white/40 bg-white/15"
-                        : "border-white/10 bg-black/40 hover:bg-white/5"
-                    }`}
-                  >
-                    <div className="text-white/90">{QUICK_STYLE_CONFIG[key].label}</div>
-                    <div className="text-white/40">
-                      {key === "express"
-                        ? "80% fewer stops"
-                        : key === "medium"
-                          ? "50% fewer stops"
-                          : "All nearby stops"}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {quickStyle === "express" && (
-              <label className="flex items-center gap-2 text-[10px] text-white/60">
-                <input
-                  type="checkbox"
-                  className="w-3.5 h-3.5 rounded accent-blue-400"
-                  checked={includeUniversitiesExpress}
-                  onChange={(e) => setIncludeUniversitiesExpress(e.target.checked)}
-                />
-                Include universities along the route
-              </label>
-            )}
-
-            {(quickGenerating || quickError || quickNoStops) && (
-              <div className="text-[10px] text-white/50">
-                {quickGenerating
-                  ? "Finding stops along route..."
-                  : quickError
-                    ? quickError
-                    : "No transit stops found near this route."}
-              </div>
-            )}
-
-            {route && (
-              <div className="grid grid-cols-3 gap-2 text-[10px] text-white/70">
-                <div className="rounded-lg border border-white/10 bg-black/40 px-2 py-2">
-                  <div className="text-white/40">Distance</div>
-                  <div className="text-white/90 font-medium">
-                    {(route.distance / 1000).toFixed(1)} km
-                  </div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-black/40 px-2 py-2">
-                  <div className="text-white/40">Duration</div>
-                  <div className="text-white/90 font-medium">
-                    {Math.round(route.duration / 60)} min
-                  </div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-black/40 px-2 py-2">
-                  <div className="text-white/40">Stops</div>
-                  <div className="text-white/90 font-medium">{stops.length}</div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={saveRoute}
-                  disabled={stops.length < 2}
-                  className="rounded-lg bg-emerald-500/20 border border-emerald-400/40 px-3 py-2 text-[11px] text-emerald-200 hover:bg-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Save route
-                </button>
-                <button
-                  onClick={handleSaveReversed}
-                  disabled={stops.length < 2}
-                  className="rounded-lg bg-white/10 border border-white/15 px-3 py-2 text-[11px] text-white/80 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Save reverse
-                </button>
-              </div>
-              <button
-                onClick={() => setBuildMode("manual")}
-                className="text-[11px] text-blue-300 hover:text-blue-200"
-              >
-                Edit stops
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Extend GO route */}
-        {buildMode === "manual" && (
-        <div>
-          <label className="text-[10px] text-white/60 block mb-1">
-            Extend GO route (optional)
-          </label>
-          {activeRoute.baseVariantLabel ? (
-            <div className="flex items-center gap-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 px-2 py-1.5">
-              <span className="text-[11px] text-emerald-200 truncate flex-1">
-                {activeRoute.baseVariantLabel}
-              </span>
-              <button
-                onClick={clearBaseVariant}
-                className="text-[10px] text-red-300 hover:text-red-200"
-              >
-                Clear
-              </button>
-            </div>
-          ) : (
-            <div className="relative">
-              <button
-                onClick={() => setShowExtendDropdown((v) => !v)}
-                className="w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/70 hover:bg-black/60 text-left"
-              >
-                {showExtendDropdown ? "Hide options" : "Select GO route to extend..."}
-              </button>
-              {showExtendDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-lg bg-black/90 border border-white/20 shadow-xl z-20">
-                  {variantOptions.length === 0 ? (
-                    <div className="px-2 py-3 text-[10px] text-white/50">
-                      Loading...
-                    </div>
-                  ) : (
-                    variantOptions.map((opt) => (
-                      <button
-                        key={opt.variantId}
-                        onClick={() => {
-                          loadFromGoVariant(opt.variantId, opt.label);
-                          setShowExtendDropdown(false);
-                        }}
-                        className="w-full px-2 py-2 text-left text-[11px] hover:bg-white/10 border-b border-white/5 last:border-0"
-                      >
-                        {opt.label}
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        )}
-
-        {/* Profile */}
-        {buildMode === "manual" && (
-        <div>
-          <label className="text-[10px] text-white/60 block mb-1">Profile</label>
-          <select
-            value={profile}
-            onChange={(e) => setProfile(e.target.value as DirectionsProfile)}
-            className="w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-          >
-            <option value="mapbox/driving">Driving</option>
-            <option value="mapbox/walking">Walking</option>
-            <option value="mapbox/cycling">Cycling</option>
-          </select>
-        </div>
-        )}
-
-        {/* Route stats */}
         {route && (
           <div
             className="rounded-lg px-2.5 py-2 text-xs border"
@@ -1338,39 +1269,16 @@ export function RouteBuilder({
           <div className="text-[10px] text-red-300">{error}</div>
         )}
 
-        {/* Stops */}
-        {buildMode === "manual" && (
+        {/* Current route stops */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] text-white/60">Stops ({stops.length})</span>
-            <div className="flex gap-2">
-              <button
-                onClick={saveRoute}
-                disabled={stops.length < 2}
-                className="text-[10px] text-emerald-400 hover:text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Save
-              </button>
-              <button
-                onClick={handleSaveReversed}
-                disabled={stops.length < 2}
-                className="text-[10px] text-white/60 hover:text-white/80 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Save reverse
-              </button>
-              <button
-                onClick={clearRoute}
-                className="text-[10px] text-red-300 hover:text-red-200"
-              >
-                Clear
-              </button>
-            </div>
+            <span className="text-[10px] text-white/60">Current route stops ({stops.length})</span>
           </div>
 
-          <div className="max-h-40 overflow-y-auto space-y-1">
+          <div className="max-h-52 overflow-y-auto space-y-1">
             {stops.length === 0 ? (
               <div className="text-[10px] text-white/40 py-4 text-center">
-                Extend a GO route or add 2+ stops by clicking the map
+                Add start and end, then generate stops.
               </div>
             ) : (
               stops.map((stop, i) => (
@@ -1391,9 +1299,8 @@ export function RouteBuilder({
             )}
           </div>
         </div>
-        )}
 
-        {buildMode === "manual" && selectedStop && (
+        {selectedStop && (
           <div className="rounded-lg bg-black/30 border border-white/10 p-2 text-[11px] space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-white/70">Stop details</span>
@@ -1408,41 +1315,7 @@ export function RouteBuilder({
             <div className="text-white/50">
               {selectedStop.lat.toFixed(5)}, {selectedStop.lng.toFixed(5)}
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() =>
-                  updateStop(selectedStop.id, { timepoint: !selectedStop.timepoint })
-                }
-                className="text-[10px] text-amber-300 hover:text-amber-200"
-              >
-                {selectedStop.timepoint ? "Unset timepoint" : "Mark as timepoint"}
-              </button>
-              <button
-                onClick={() => removeStop(selectedStop.id)}
-                className="text-[10px] text-red-300 hover:text-red-200"
-              >
-                Remove stop
-              </button>
-            </div>
-          </div>
-        )}
-
-        {buildMode === "quick" && selectedStop && (
-          <div className="rounded-lg bg-black/30 border border-white/10 p-2 text-[11px] space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-white/70">Stop details</span>
-              <button
-                onClick={() => setSelectedStopId(null)}
-                className="text-[10px] text-white/40 hover:text-white/70"
-              >
-                Close
-              </button>
-            </div>
-            <div className="text-white/90">{selectedStop.name ?? "Stop"}</div>
-            <div className="text-white/50">
-              {selectedStop.lat.toFixed(5)}, {selectedStop.lng.toFixed(5)}
-            </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setStopAsStart(selectedStop.id)}
                 className="text-[10px] text-emerald-300 hover:text-emerald-200"
@@ -1454,6 +1327,20 @@ export function RouteBuilder({
                 className="text-[10px] text-blue-300 hover:text-blue-200"
               >
                 Set as end
+              </button>
+              <button
+                onClick={() =>
+                  updateStop(selectedStop.id, { timepoint: !selectedStop.timepoint })
+                }
+                className="text-[10px] text-amber-300 hover:text-amber-200"
+              >
+                {selectedStop.timepoint ? "Unset timepoint" : "Mark timepoint"}
+              </button>
+              <button
+                onClick={() => removeStop(selectedStop.id)}
+                className="text-[10px] text-red-300 hover:text-red-200"
+              >
+                Remove stop
               </button>
             </div>
           </div>
@@ -1481,107 +1368,147 @@ export function RouteBuilder({
           </div>
         )}
 
-        {buildMode === "manual" && (
-          <div className="rounded-lg bg-black/30 border border-white/10 p-2 text-[11px] space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-white/70">Suggest extension</span>
-              <button
-                onClick={() => {
-                  setExtensionSuggestions(buildExtensionSuggestions());
-                  setShowExtensions((v) => !v);
-                }}
-                className="text-[10px] text-blue-300 hover:text-blue-200"
-                disabled={!selectedStop}
-              >
-                {showExtensions ? "Hide" : "Suggest"}
-              </button>
-            </div>
-            {!selectedStop && (
-              <div className="text-white/40">
-                Select a stop to get extension suggestions.
-              </div>
-            )}
-            {showExtensions && extensionSuggestions.length > 0 && (
-              <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
-                {extensionSuggestions.map((opt) => (
-                  <button
-                    key={`${opt.name}-${opt.id}`}
-                    onClick={() => applyExtension(opt)}
-                    className="w-full text-left rounded bg-black/40 border border-white/10 px-2 py-1 text-[10px] hover:bg-white/10"
-                  >
-                    {opt.name} · {opt.distanceKm.toFixed(0)} km away
-                  </button>
-                ))}
-              </div>
-            )}
-            {showExtensions && selectedStop && extensionSuggestions.length === 0 && (
-              <div className="text-white/40">No nearby extensions found.</div>
-            )}
+        <div className="rounded-lg bg-black/30 border border-white/10 p-2 text-[11px] space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-white/70">Suggest extension</span>
+            <button
+              onClick={() => {
+                setExtensionSuggestions(buildExtensionSuggestions());
+                setShowExtensions((v) => !v);
+              }}
+              className="text-[10px] text-blue-300 hover:text-blue-200"
+              disabled={!selectedStop}
+            >
+              {showExtensions ? "Hide" : "Suggest"}
+            </button>
           </div>
-        )}
+          {!selectedStop && (
+            <div className="text-white/40">
+              Select a stop to get extension suggestions.
+            </div>
+          )}
+          {showExtensions && extensionSuggestions.length > 0 && (
+            <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+              {extensionSuggestions.map((opt) => (
+                <button
+                  key={`${opt.name}-${opt.id}`}
+                  onClick={() => applyExtension(opt)}
+                  className="w-full text-left rounded bg-black/40 border border-white/10 px-2 py-1 text-[10px] hover:bg-white/10"
+                >
+                  {opt.name} · {opt.distanceKm.toFixed(0)} km away
+                </button>
+              ))}
+            </div>
+          )}
+          {showExtensions && selectedStop && extensionSuggestions.length === 0 && (
+            <div className="text-white/40">No nearby extensions found.</div>
+          )}
+        </div>
 
         {/* Saved routes */}
         {routes.length > 0 && (
-          <div>
-            <button
-              onClick={() => setShowSavedRoutes((v) => !v)}
-              className="w-full flex items-center justify-between text-[10px] text-white/60 hover:text-white/80"
-            >
-              <span>Saved routes ({routes.length})</span>
-              <span>{showSavedRoutes ? "Hide" : "Show"}</span>
-            </button>
-            {showSavedRoutes && (
-              <div className="mt-2 space-y-1">
-                {routes.map((r) => (
-                  <div
-                    key={r.id}
-                    className="flex items-center gap-2 rounded-lg bg-black/30 border border-white/10 px-2 py-1.5"
+          <div className="space-y-2">
+            <div className="text-[10px] text-white/60">Saved routes ({routes.length})</div>
+            {routes.map((r) => (
+              <div
+                key={r.id}
+                className="rounded-lg bg-black/30 border border-white/10 px-2 py-2 space-y-2"
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: r.color }}
+                  />
+                  <span className="text-[11px] truncate flex-1">{r.name}</span>
+                  <button
+                    onClick={() => loadRoute(r)}
+                    className="text-[10px] text-blue-400 hover:text-blue-300"
                   >
-                    <span
-                      className="w-3 h-3 rounded-full shrink-0"
-                      style={{ backgroundColor: r.color }}
-                    />
-                    <span className="text-[11px] truncate flex-1">{r.name}</span>
-                    <button
-                      onClick={() => loadRoute(r)}
-                      className="text-[10px] text-blue-400 hover:text-blue-300"
-                    >
-                      Load
-                    </button>
-                    <button
-                      onClick={() => deleteRoute(r.id)}
-                      className="text-[10px] text-red-400 hover:text-red-300"
-                    >
-                      Del
-                    </button>
-                  </div>
-                ))}
+                    Load
+                  </button>
+                  <button
+                    onClick={() => deleteRoute(r.id)}
+                    className="text-[10px] text-red-400 hover:text-red-300"
+                  >
+                    Del
+                  </button>
+                </div>
+                <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                  {r.stops.length === 0 ? (
+                    <div className="text-[10px] text-white/40">No stops saved.</div>
+                  ) : (
+                    r.stops.map((stop, idx) => (
+                      <div
+                        key={`${r.id}-${stop.id}-${idx}`}
+                        className="rounded bg-black/40 border border-white/10 px-2 py-1 text-[10px] text-white/80"
+                      >
+                        {idx + 1}. {stop.name ?? "Stop"}
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-            )}
+            ))}
           </div>
         )}
+        </div>
+        <div className="px-3 py-2 border-t border-white/10 bg-black/40 shrink-0 flex items-center gap-2">
+          <button
+            onClick={saveRoute}
+            disabled={stops.length < 2}
+            className="flex-1 rounded-lg bg-emerald-600 text-white px-3 py-2 text-[11px] font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+          >
+            Save route
+          </button>
+          <button
+            onClick={clearRoute}
+            className="flex-1 rounded-lg bg-red-600 text-white px-3 py-2 text-[11px] font-semibold hover:bg-red-700 shadow-sm"
+          >
+            Clear
+          </button>
         </div>
       </div>
       )}
 
       {showSchedulePanel && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative z-10 w-[980px] max-w-[95vw] rounded-2xl border border-white/10 bg-neutral-950/95 shadow-2xl text-white">
-            <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-4">
-              <div>
-                <h3 className="text-sm font-semibold">Schedule Builder</h3>
-                <p className="text-xs text-white/50">
-                  Build a single-day A → B schedule with return trips and then fine-tune.
-                </p>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="relative z-10 w-[1040px] max-w-[96vw] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/95 shadow-2xl text-white">
+            <div className="pointer-events-none absolute -top-32 -right-28 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-32 -left-28 h-72 w-72 rounded-full bg-amber-500/20 blur-3xl" />
+
+            <div className="relative border-b border-white/10 px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.24em] text-white/60">
+                    Schedule Lab
+                  </div>
+                  <h3 className="mt-3 text-lg font-semibold">Schedule Builder</h3>
+                  <p className="text-xs text-white/60">
+                    Build a single-day A → B schedule, generate returns, and refine the departures.
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">
+                    Editing
+                  </div>
+                  <div className="text-sm font-medium text-white/90">{scheduleTargetName}</div>
+                  <div className="mt-2 flex items-center justify-end gap-2 text-[11px] text-white/50">
+                    <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
+                      {scheduleDraft.departures.length} trips
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
+                      {scheduleDraft.startTime}–{scheduleDraft.endTime}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="text-xs text-white/60">{scheduleTargetName}</div>
             </div>
 
-            <div className="grid gap-6 p-6 md:grid-cols-[320px_1fr]">
+            <div className="relative grid gap-6 p-6 lg:grid-cols-[340px_1fr]">
               <div className="space-y-4">
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <div className="text-[11px] uppercase tracking-wider text-white/50">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.2em] text-white/50">
                     Applies To
                   </div>
                   <select
@@ -1595,7 +1522,7 @@ export function RouteBuilder({
                         selected.length > 0 ? selected : [activeRoute.id]
                       );
                     }}
-                    className="mt-2 h-28 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-xs text-white/90 focus:outline-none"
+                    className="mt-3 h-32 w-full rounded-xl bg-black/40 border border-white/10 px-2 py-2 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40"
                   >
                     <option value={activeRoute.id}>Current route</option>
                     {routes.map((r) => (
@@ -1604,23 +1531,23 @@ export function RouteBuilder({
                       </option>
                     ))}
                   </select>
-                  <div className="mt-2 text-[10px] text-white/35">
+                  <div className="mt-2 text-[10px] text-white/40">
                     Hold Cmd/Ctrl to select multiple routes.
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
-                  <div className="text-[11px] uppercase tracking-wider text-white/50">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+                  <div className="text-[11px] uppercase tracking-[0.2em] text-white/50">
                     Trip Window
                   </div>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <input
                       type="time"
                       value={scheduleDraft.startTime}
                       onChange={(e) =>
                         setScheduleDraft((prev) => ({ ...prev, startTime: e.target.value }))
                       }
-                      className="flex-1 rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-xs text-white/90"
+                      className="rounded-xl bg-black/40 border border-white/10 px-2.5 py-2 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40"
                     />
                     <input
                       type="time"
@@ -1628,7 +1555,7 @@ export function RouteBuilder({
                       onChange={(e) =>
                         setScheduleDraft((prev) => ({ ...prev, endTime: e.target.value }))
                       }
-                      className="flex-1 rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-xs text-white/90"
+                      className="rounded-xl bg-black/40 border border-white/10 px-2.5 py-2 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40"
                     />
                   </div>
 
@@ -1636,15 +1563,15 @@ export function RouteBuilder({
                     <div className="text-[11px] text-white/60">Outbound headway (minutes)</div>
                     <input
                       type="number"
-                      min={1}
+                      min={0}
                       value={scheduleDraft.outboundHeadway}
                       onChange={(e) =>
                         setScheduleDraft((prev) => ({
                           ...prev,
-                          outboundHeadway: Number(e.target.value || 1),
+                          outboundHeadway: e.target.value === "" ? 0 : Number(e.target.value),
                         }))
                       }
-                      className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-xs text-white/90"
+                      className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-2.5 py-2 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40"
                     />
                   </div>
 
@@ -1659,7 +1586,7 @@ export function RouteBuilder({
                             returnEnabled: e.target.checked,
                           }))
                         }
-                        className="h-4 w-4 rounded accent-blue-400"
+                        className="h-4 w-4 rounded accent-emerald-400"
                       />
                       Include return trip to A
                     </label>
@@ -1673,17 +1600,17 @@ export function RouteBuilder({
                           onChange={(e) =>
                             setScheduleDraft((prev) => ({
                               ...prev,
-                              returnBufferMinutes: Number(e.target.value || 0),
+                              returnBufferMinutes: e.target.value === "" ? 0 : Number(e.target.value),
                             }))
                           }
-                          className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-xs text-white/90"
+                          className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-2.5 py-2 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40"
                         />
                       </div>
                       <div>
                         <div className="text-[11px] text-white/60">Return headway (min)</div>
                         <input
                           type="number"
-                          min={1}
+                          min={0}
                           value={
                             scheduleDraft.returnSameAsOutbound
                               ? scheduleDraft.outboundHeadway
@@ -1692,11 +1619,11 @@ export function RouteBuilder({
                           onChange={(e) =>
                             setScheduleDraft((prev) => ({
                               ...prev,
-                              returnHeadway: Number(e.target.value || 1),
+                              returnHeadway: e.target.value === "" ? 0 : Number(e.target.value),
                             }))
                           }
                           disabled={scheduleDraft.returnSameAsOutbound}
-                          className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1 text-xs text-white/90 disabled:opacity-50"
+                          className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-2.5 py-2 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40 disabled:opacity-50"
                         />
                       </div>
                     </div>
@@ -1710,7 +1637,7 @@ export function RouteBuilder({
                             returnSameAsOutbound: e.target.checked,
                           }))
                         }
-                        className="h-4 w-4 rounded accent-blue-400"
+                        className="h-4 w-4 rounded accent-emerald-400"
                       />
                       Return headway same as outbound
                     </label>
@@ -1739,7 +1666,7 @@ export function RouteBuilder({
                         setScheduleGenerating(false);
                       }, 250);
                     }}
-                    className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-2 text-xs font-semibold text-white"
+                    className="w-full rounded-xl bg-gradient-to-r from-emerald-400 to-amber-300 px-3 py-2.5 text-xs font-semibold text-neutral-900 shadow-lg shadow-emerald-500/10 transition hover:from-emerald-300 hover:to-amber-200"
                   >
                     {scheduleGenerating ? "Generating..." : "Generate Schedule"}
                   </button>
@@ -1747,9 +1674,9 @@ export function RouteBuilder({
               </div>
 
               <div className="space-y-4">
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <div className="text-[11px] uppercase tracking-wider text-white/50">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-white/50">
                       Departures (editable)
                     </div>
                     <div className="text-xs text-white/60">
@@ -1758,7 +1685,7 @@ export function RouteBuilder({
                   </div>
 
                   {!scheduleHasData && (
-                    <div className="text-[10px] text-amber-300">
+                    <div className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-[10px] text-amber-100">
                       This route has no schedule yet. Generate one or paste times.
                     </div>
                   )}
@@ -1768,18 +1695,18 @@ export function RouteBuilder({
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-lg border border-white/10 bg-black/30 p-3">
-                      <div className="text-[10px] uppercase tracking-wider text-blue-300">
+                    <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-300">
                         Outbound A → B
                       </div>
                       {scheduleOutboundTimes.length === 0 ? (
-                        <div className="mt-2 text-[10px] text-white/40">
+                        <div className="mt-3 text-[10px] text-white/40">
                           Generate a schedule to see outbound trips.
                         </div>
                       ) : (
-                        <div className="mt-2 max-h-28 overflow-y-auto text-xs text-white/80 space-y-1">
+                        <div className="mt-3 max-h-28 space-y-1 overflow-y-auto text-xs text-white/80">
                           {scheduleOutboundTimes.map((time) => (
-                            <div key={`out-${time}`} className="rounded bg-white/5 px-2 py-1">
+                            <div key={`out-${time}`} className="rounded-lg bg-white/5 px-2 py-1">
                               {time}
                             </div>
                           ))}
@@ -1787,18 +1714,18 @@ export function RouteBuilder({
                       )}
                     </div>
 
-                    <div className="rounded-lg border border-white/10 bg-black/30 p-3">
-                      <div className="text-[10px] uppercase tracking-wider text-emerald-300">
+                    <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-amber-300">
                         Return B → A
                       </div>
                       {scheduleReturnTimes.length === 0 ? (
-                        <div className="mt-2 text-[10px] text-white/40">
+                        <div className="mt-3 text-[10px] text-white/40">
                           Generate a schedule to see return trips.
                         </div>
                       ) : (
-                        <div className="mt-2 max-h-28 overflow-y-auto text-xs text-white/80 space-y-1">
+                        <div className="mt-3 max-h-28 space-y-1 overflow-y-auto text-xs text-white/80">
                           {scheduleReturnTimes.map((time) => (
-                            <div key={`ret-${time}`} className="rounded bg-white/5 px-2 py-1">
+                            <div key={`ret-${time}`} className="rounded-lg bg-white/5 px-2 py-1">
                               {time}
                             </div>
                           ))}
@@ -1807,15 +1734,15 @@ export function RouteBuilder({
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-white/10 bg-black/30 p-3">
-                    <div className="text-[10px] uppercase tracking-wider text-white/50">
+                  <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/50">
                       Custom Times (override)
                     </div>
                     <textarea
                       value={scheduleDeparturesText}
                       onChange={(e) => setScheduleDeparturesText(e.target.value)}
                       placeholder="HH:MM per line"
-                      className="mt-2 h-40 w-full rounded-lg bg-black/40 border border-white/10 p-3 text-xs text-white/90 focus:outline-none"
+                      className="mt-3 h-40 w-full rounded-xl bg-black/40 border border-white/10 p-3 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40"
                     />
                     <div className="mt-2 text-[10px] text-white/40">
                       Separate times by line or comma. Example: 06:00, 06:30, 07:00
@@ -1826,7 +1753,7 @@ export function RouteBuilder({
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={applyDeparturesText}
-                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 hover:bg-white/10"
+                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 hover:bg-white/10"
                   >
                     Apply Edits
                   </button>
@@ -1835,7 +1762,7 @@ export function RouteBuilder({
                       applyDeparturesText();
                       onCloseSchedule?.();
                     }}
-                    className="rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-2 text-xs font-semibold text-white"
+                    className="rounded-xl bg-emerald-500 hover:bg-emerald-400 px-3 py-2 text-xs font-semibold text-neutral-900 shadow-sm transition-all"
                   >
                     Save & Close
                   </button>
@@ -1845,6 +1772,94 @@ export function RouteBuilder({
           </div>
         </div>
       )}
+
+      <AlertDialog open={showPinNameDialog} onOpenChange={setShowPinNameDialog}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Name this stop</AlertDialogTitle>
+            <AlertDialogDescription>
+              Give this pinned stop a label. You can edit it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="mt-3">
+            <input
+              type="text"
+              value={pinName}
+              onChange={(e) => setPinName(e.target.value)}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              placeholder="Pinned stop"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setPinCandidate(null);
+                window.dispatchEvent(new CustomEvent("route-builder-pin-complete"));
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!pinCandidate) return;
+                const name = pinName.trim() || "Pinned stop";
+                const newStop: Stop = {
+                  id: pinCandidate.id,
+                  name,
+                  lat: pinCandidate.lat,
+                  lng: pinCandidate.lng,
+                  timepoint: stops.length === 0 || stops.length === 1,
+                };
+                applyPinnedStop(newStop);
+                setShowPinNameDialog(false);
+                window.dispatchEvent(new CustomEvent("route-builder-open"));
+                setShowPinSaveDialog(true);
+              }}
+            >
+              Add stop
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showPinSaveDialog} onOpenChange={setShowPinSaveDialog}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save this stop?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Saved stops appear in the command bar for quick reuse.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setPinCandidate(null);
+                setShowPinSaveDialog(false);
+                window.dispatchEvent(new CustomEvent("route-builder-pin-complete"));
+              }}
+            >
+              Skip
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!pinCandidate) return;
+                const name = pinName.trim() || "Pinned stop";
+                savePinnedStop({
+                  id: pinCandidate.id,
+                  name,
+                  lat: pinCandidate.lat,
+                  lng: pinCandidate.lng,
+                });
+                setPinCandidate(null);
+                setShowPinSaveDialog(false);
+                window.dispatchEvent(new CustomEvent("route-builder-pin-complete"));
+              }}
+            >
+              Save stop
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
