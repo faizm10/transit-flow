@@ -84,6 +84,21 @@ function parseCsvLine(line: string): string[] {
   return values;
 }
 
+function parseHeaderLine(line: string): string[] {
+  const cleaned = line.replace(/^\uFEFF/, "").trimEnd();
+  const comma = parseCsvLine(cleaned).map((h) => h.trim());
+  if (comma.includes("trip_id") && comma.includes("stop_id")) return comma;
+  if (cleaned.includes("\t")) {
+    const tab = cleaned.split("\t").map((h) => h.trim());
+    if (tab.includes("trip_id") && tab.includes("stop_id")) return tab;
+  }
+  if (cleaned.includes(";")) {
+    const semi = cleaned.split(";").map((h) => h.trim());
+    if (semi.includes("trip_id") && semi.includes("stop_id")) return semi;
+  }
+  return comma;
+}
+
 function parseTimeToSeconds(value: string | undefined): number | null {
   if (!value) return null;
   const trimmed = value.trim();
@@ -326,10 +341,7 @@ async function loadTripStops(
   for await (const line of rl) {
     if (!line) continue;
     if (isHeader) {
-      headers = parseCsvLine(line).map((h) => h.trim());
-      if (headers[0]) {
-        headers[0] = headers[0].replace(/^\uFEFF/, "");
-      }
+      headers = parseHeaderLine(line);
       if (!headers.includes("trip_id") || !headers.includes("stop_id")) {
         throw new Error(
           `Invalid stop_times header in ${stopTimesPath}; missing required columns`,
