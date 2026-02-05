@@ -1199,7 +1199,7 @@ export function RouteBuilder({
                   setSelectedGoVariant(value);
                   let selectedOption: { value: string; label: string } | undefined;
                   for (const optionsArray of goVariantOptions.values()) {
-                    selectedOption = optionsArray.find((opt) => opt.value === value);
+                    selectedOption = optionsArray.find((opt: { value: string; label: string }) => opt.value === value);
                     if (selectedOption) break;
                   }
                   if (selectedOption) {
@@ -1219,7 +1219,7 @@ export function RouteBuilder({
                     {[...goVariantOptions.entries()].map(([groupName, options]) => (
                       <ComboboxGroup key={groupName}>
                         <ComboboxLabel>{groupName}</ComboboxLabel>
-                        {options.map((option) => (
+                        {options.map((option: { value: string; label: string }) => (
                           <ComboboxItem key={option.value} value={option.value}>
                             {option.label}
                           </ComboboxItem>
