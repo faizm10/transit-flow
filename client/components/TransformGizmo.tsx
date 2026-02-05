@@ -1,4 +1,4 @@
 // Placeholder for TransformGizmo component
-export function TransformGizmo(props: any) {
+export function TransformGizmo() {
   return null;
 }

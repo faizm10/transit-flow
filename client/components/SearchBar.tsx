@@ -1,4 +1,4 @@
 // Placeholder for SearchBar component
-export function SearchBar(props: any) {
+export function SearchBar() {
   return null;
 }

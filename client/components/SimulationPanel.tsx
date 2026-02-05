@@ -18,7 +18,7 @@ type SimulationPanelProps = {
   simulationLoading: boolean;
   simulationError: string | null;
   clearSimulationTrackers: () => void;
-  resetSimulationInputs: () => void;
+  
 };
 
 export function SimulationPanel({
@@ -37,7 +37,6 @@ export function SimulationPanel({
   simulationLoading,
   simulationError,
   clearSimulationTrackers,
-  resetSimulationInputs,
 }: SimulationPanelProps) {
   return (
     <div className="space-y-5">

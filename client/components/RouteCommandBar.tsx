@@ -29,7 +29,7 @@ type AIGeneratedStop = {
 type RouteCommandBarProps = {
   onCreateRoute: () => void;
   onAddStop: (stop: { name: string; lat: number; lng: number }) => void;
-  onPromptRoute: (prompt: string) => void;
+  
   onAIRoute: (route: { name: string; stops: AIGeneratedStop[]; reasoning: string }) => void;
   mapCenter?: { lat: number; lng: number };
   enabled: boolean;
@@ -38,7 +38,6 @@ type RouteCommandBarProps = {
 export function RouteCommandBar({
   onCreateRoute,
   onAddStop,
-  onPromptRoute,
   onAIRoute,
   mapCenter,
   enabled,

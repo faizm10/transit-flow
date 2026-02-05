@@ -1,4 +1,4 @@
 // Placeholder for BuildingDetailsPanel component
-export function BuildingDetailsPanel(props: any) {
+export function BuildingDetailsPanel() {
   return null;
 }

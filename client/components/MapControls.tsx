@@ -1,4 +1,4 @@
 // Placeholder for MapControls component
-export function MapControls(props: any) {
+export function MapControls() {
   return null;
 }

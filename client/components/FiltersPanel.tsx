@@ -21,7 +21,7 @@ type FiltersPanelProps = {
   allVariantIds: string[];
   setVariantGroup: (variantIds: string[], enabled: boolean) => void;
   setSelectedVariantIds: (ids: string[]) => void;
-  toggleVariant: (id: string) => void;
+
 };
 
 export function FiltersPanel({
@@ -36,7 +36,6 @@ export function FiltersPanel({
   allVariantIds,
   setVariantGroup,
   setSelectedVariantIds,
-  toggleVariant,
 }: FiltersPanelProps) {
   const selectedCount = useMemo(() => {
     return selectedVariantIds.length;

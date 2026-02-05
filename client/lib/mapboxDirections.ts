@@ -78,7 +78,7 @@ export async function fetchDirections(
     };
 
     if (!res.ok) {
-      const code = (json.code || "TokenError") as DirectionsErrorCode;
+      
       return {
         ok: false,
         error: {

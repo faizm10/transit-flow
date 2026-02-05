@@ -1,4 +1,4 @@
 // Placeholder for Toolbar component
-export function Toolbar(props: any) {
+export function Toolbar() {
   return null;
 }

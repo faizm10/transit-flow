@@ -1,4 +1,4 @@
 // Placeholder for SearchResultPopup component
-export function SearchResultPopup(props: any) {
+export function SearchResultPopup() {
   return null;
 }

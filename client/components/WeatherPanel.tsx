@@ -1,4 +1,4 @@
 // Placeholder for WeatherPanel component
-export function WeatherPanel(props: any) {
+export function WeatherPanel() {
   return null;
 }

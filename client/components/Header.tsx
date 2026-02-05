@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  CubeIcon,
-  GlobeIcon,
   LayersIcon,
   MixerHorizontalIcon,
   PlusIcon,

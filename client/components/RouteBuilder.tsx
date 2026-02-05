@@ -10,7 +10,7 @@ import {
   type Schedule,
 } from "@/hooks/useRouteBuilder";
 import { fetchDirections } from "@/lib/mapboxDirections";
-import type { DirectionsProfile } from "@/lib/mapboxDirections";
+import type { } from "@/lib/mapboxDirections";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,24 +71,7 @@ type RouteBuilderProps = {
   showCustomNetwork?: boolean;
 };
 
-function getVariantLabel(
-  variant: GoVariant,
-  stops: GoVariantStop[] | undefined
-): string {
-  if (stops && stops.length >= 2) {
-    const first = stops[0]?.stop_name ?? "";
-    const last = stops[stops.length - 1]?.stop_name ?? "";
-    const short = (s: string) =>
-      s
-        .replace(/\s+GO\s*$/i, "")
-        .replace(/\s+Station\s*$/i, "")
-        .replace(/\s+Bus\s*$/i, "")
-        .replace(/\s+Terminal\s*$/i, "")
-        .trim();
-    if (first && last) return `${variant.route_variant || variant.variant_id} - ${short(first)} → ${short(last)}`;
-  }
-  return variant.label || variant.variant_id;
-}
+
 
 const QUICK_STYLE_CONFIG = {
   normal: { label: "Normal (more stops)", spacingKm: 1.2 },
@@ -182,8 +165,7 @@ export function RouteBuilder({
   showPanel = true,
   showSchedulePanel = false,
   onCloseSchedule,
-  goVariantsIndex,
-  goVariantStops,
+    goVariantStops,
   showCustomNetwork = true,
 }: RouteBuilderProps) {
   const {
@@ -191,8 +173,6 @@ export function RouteBuilder({
     currentRoute,
     activeRoute,
     stops,
-    profile,
-    setProfile,
     route,
     loading,
     error,
@@ -200,10 +180,7 @@ export function RouteBuilder({
     updateStop,
     removeStop,
     setStops,
-    loadFromGoVariant,
-    clearBaseVariant,
     saveRoute,
-    saveReversedRoute,
     loadRoute,
     deleteRoute,
     clearRoute,
@@ -214,18 +191,18 @@ export function RouteBuilder({
   const [buildMode, setBuildMode] = useState<"quick" | "manual">("quick");
   const [quickStyle, setQuickStyle] = useState<QuickStyle | null>(null);
   const [quickGenerating, setQuickGenerating] = useState(false);
-  const [quickError, setQuickError] = useState<string | null>(null);
-  const [quickNoStops, setQuickNoStops] = useState(false);
+  const [, setQuickError] = useState<string | null>(null);
+  const [, setQuickNoStops] = useState(false);
   const [quickStopsLoaded, setQuickStopsLoaded] = useState(false);
-  const [includeUniversitiesExpress, setIncludeUniversitiesExpress] = useState(false);
+  const [includeUniversitiesExpress, ] = useState(false);
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
   const [availableStops, setAvailableStops] = useState<GoStopPoint[]>([]);
   const [extensionSuggestions, setExtensionSuggestions] = useState<
     Array<{ id: string; name: string; lat: number; lng: number; distanceKm: number }>
   >([]);
   const [showExtensions, setShowExtensions] = useState(false);
-  const [showExtendDropdown, setShowExtendDropdown] = useState(false);
-  const [showSavedRoutes, setShowSavedRoutes] = useState(false);
+  
+  
   const [pinMode, setPinMode] = useState(false);
   const [pinCandidate, setPinCandidate] = useState<{
     id: string;
@@ -269,23 +246,7 @@ export function RouteBuilder({
   const [scheduleOutboundTimes, setScheduleOutboundTimes] = useState<string[]>([]);
   const [scheduleReturnTimes, setScheduleReturnTimes] = useState<string[]>([]);
 
-  const variantOptions = useMemo(() => {
-    if (!goVariantsIndex || !goVariantStops) return [];
-    const out: { variantId: string; routeShortName: string; label: string }[] = [];
-    Object.entries(goVariantsIndex).forEach(([routeShortName, variants]) => {
-      variants.forEach((v) => {
-        const s = goVariantStops[v.variant_id];
-        if (s && s.length > 0) {
-          out.push({
-            variantId: v.variant_id,
-            routeShortName,
-            label: getVariantLabel(v, s),
-          });
-        }
-      });
-    });
-    return out.sort((a, b) => a.label.localeCompare(b.label));
-  }, [goVariantsIndex, goVariantStops]);
+  
 
   const routeColor = activeRoute.color;
 
@@ -294,7 +255,7 @@ export function RouteBuilder({
     () => stops.find((s) => s.id === selectedStopId) ?? null,
     [stops, selectedStopId]
   );
-  const hasQuickEndpoints = stops.length >= 2;
+  
 
   // Listen for add-stop events from command bar
   useEffect(() => {
@@ -347,24 +308,12 @@ export function RouteBuilder({
   }, [updateCurrent]);
 
   // Finalize and save route with schedule prompt
-  const handleFinalizeRoute = useCallback(() => {
-    if (stops.length < 2) return;
-    saveRoute();
-    // Trigger schedule modal after save
-    setTimeout(() => {
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("route-builder-finalized", {
-            detail: { routeId: activeRoute.id },
-          })
-        );
-      }
-    }, 100);
-  }, [stops.length, saveRoute, activeRoute.id]);
+  
 
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuickStopsLoaded(false);
     fetch("/api/gotransit/all-stops")
       .then((res) => res.json())
@@ -422,8 +371,7 @@ export function RouteBuilder({
       geometry: GeoJSON.LineString,
       style: QuickStyle,
       start: Stop,
-      end: Stop,
-      baseDurationSeconds?: number
+      end: Stop
     ): { stops: Stop[]; hasNearbyStops: boolean } => {
       if (!geometry?.coordinates?.length) {
         return { stops: [start, end], hasNearbyStops: false };
@@ -542,8 +490,7 @@ export function RouteBuilder({
           result.data.geometry,
           style,
           start,
-          end,
-          result.data.duration
+          end
         );
         setStops(derivedStops);
         setQuickNoStops(!hasNearbyStops);
@@ -568,6 +515,7 @@ export function RouteBuilder({
     const key = `${stops[0].id}-${stops[1].id}`;
     if (lastQuickEndpointsRef.current === key) return;
     lastQuickEndpointsRef.current = key;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     generateQuickRoute("normal", stops);
   }, [buildMode, stops, quickStopsLoaded, quickGenerating, quickStyle, generateQuickRoute]);
 
@@ -579,27 +527,13 @@ export function RouteBuilder({
     const key = `${stops[0].id}-${stops[1].id}-express-${includeUniversitiesExpress ? "u1" : "u0"}`;
     if (lastQuickStyleKeyRef.current === key) return;
     lastQuickStyleKeyRef.current = key;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     generateQuickRoute("express", stops);
   }, [buildMode, quickStyle, stops, quickStopsLoaded, quickGenerating, includeUniversitiesExpress, generateQuickRoute]);
 
-  const applyQuickStyle = useCallback(
-    (style: QuickStyle) => {
-      generateQuickRoute(style, stops);
-    },
-    [generateQuickRoute, stops]
-  );
+  
 
-  const resetQuickEndpoints = useCallback(() => {
-    clearRoute();
-    setQuickStyle(null);
-    setQuickError(null);
-    setQuickNoStops(false);
-    setSelectedStopId(null);
-    lastQuickEndpointsRef.current = null;
-    lastQuickStyleKeyRef.current = null;
-    rawQuickStartRef.current = null;
-    rawQuickEndRef.current = null;
-  }, [clearRoute]);
+  
 
   const savePinnedStop = useCallback((stop: SavedStop) => {
     if (typeof window === "undefined") return;
@@ -662,11 +596,7 @@ export function RouteBuilder({
     [stops, setStops]
   );
 
-  const handleSaveReversed = useCallback(() => {
-    const base = currentRoute ?? activeRoute;
-    if (base.stops.length < 2) return;
-    saveReversedRoute(base);
-  }, [currentRoute, activeRoute, saveReversedRoute]);
+  
 
   const setStopAsStart = useCallback(
     (id: string) => {
@@ -1015,7 +945,7 @@ export function RouteBuilder({
   }, [selectedStop, goVariantStops]);
 
   useEffect(() => {
-    if (!showExtensions) return;
+// eslint-disable-next-line react-hooks/set-state-in-effect
     setExtensionSuggestions(buildExtensionSuggestions());
   }, [showExtensions, selectedStop, buildExtensionSuggestions]);
 
@@ -1039,6 +969,7 @@ export function RouteBuilder({
 
   useEffect(() => {
     if (!currentRoute?.id) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setScheduleTargetIds((prev) =>
       prev.length === 1 && prev[0] === currentRoute.id ? prev : [currentRoute.id]
     );
@@ -1050,7 +981,7 @@ export function RouteBuilder({
       ? routes.find((r) => r.id === primaryScheduleTargetId) ?? activeRoute
       : activeRoute;
   const schedule = scheduleTargetRoute.schedule;
-  const departures = schedule ? expandSchedule(schedule) : [];
+  
   const scheduleTargetName =
     scheduleTargetIds.length > 1
       ? "Multiple routes"
@@ -1103,7 +1034,7 @@ export function RouteBuilder({
       const merged = Array.from(new Set([...outbound, ...returns])).sort((a, b) => a - b);
       return { outbound, returns, merged };
     },
-    [formatMinutesToTime, parseTimeToMinutes],
+    [parseTimeToMinutes],
   );
 
   const applyScheduleToTargets = useCallback(
@@ -1154,6 +1085,7 @@ export function RouteBuilder({
     }
 
     const existingDepartures = schedule ? expandSchedule(schedule) : [];
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setScheduleHasData(existingDepartures.length > 0);
 
     const generated = buildDeparturesFromDraft(
@@ -1196,6 +1128,8 @@ export function RouteBuilder({
     scheduleTargetIds,
     scheduleTargetRoute.durationSeconds,
     showSchedulePanel,
+    formatMinutesToTime,
+    scheduleDraft,
   ]);
 
   if (!showPanel && !showSchedulePanel) return null;
@@ -1864,408 +1798,7 @@ export function RouteBuilder({
   );
 }
 
-function ScheduleEditor({
-  schedule,
-  onChange,
-  durationSeconds,
-}: {
-  schedule: Schedule | undefined;
-  onChange: (s: Schedule | undefined) => void;
-  durationSeconds?: number;
-}) {
-  type DayKey =
-    | "sunday"
-    | "monday"
-    | "tuesday"
-    | "wednesday"
-    | "thursday"
-    | "friday"
-    | "saturday";
-  const dayOrder: Array<{ key: DayKey; label: string }> = [
-    { key: "monday", label: "Mon" },
-    { key: "tuesday", label: "Tue" },
-    { key: "wednesday", label: "Wed" },
-    { key: "thursday", label: "Thu" },
-    { key: "friday", label: "Fri" },
-    { key: "saturday", label: "Sat" },
-    { key: "sunday", label: "Sun" },
-  ];
-  const defaultDayConfigs = (): Record<
-    DayKey,
-    { enabled: boolean; startTime: string; endTime: string; intervalMinutes: number }
-  > => ({
-    monday: { enabled: true, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
-    tuesday: { enabled: true, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
-    wednesday: { enabled: true, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
-    thursday: { enabled: true, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
-    friday: { enabled: true, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
-    saturday: { enabled: false, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
-    sunday: { enabled: false, startTime: "06:00", endTime: "22:00", intervalMinutes: 30 },
-  });
-  const hydrateDayConfigs = (
-    input: Schedule | undefined,
-  ): Record<
-    DayKey,
-    { enabled: boolean; startTime: string; endTime: string; intervalMinutes: number }
-  > => {
-    const base = defaultDayConfigs();
-    if (!input || input.type !== "frequency") return base;
-    if (input.dayConfigs && Object.keys(input.dayConfigs).length > 0) {
-      dayOrder.forEach(({ key }) => {
-        const value = input.dayConfigs?.[key];
-        if (!value) return;
-        base[key] = {
-          enabled: Boolean(value.enabled),
-          startTime: value.startTime || base[key].startTime,
-          endTime: value.endTime || base[key].endTime,
-          intervalMinutes: Number(value.intervalMinutes || base[key].intervalMinutes),
-        };
-      });
-      return base;
-    }
-    const legacyStart = input.startTime || "06:00";
-    const legacyEnd = input.endTime || "22:00";
-    const legacyInterval = Number(input.intervalMinutes || 30);
-    const legacyDays = input.days || "weekday";
-    dayOrder.forEach(({ key }) => {
-      const isWeekend = key === "saturday" || key === "sunday";
-      const enabled =
-        legacyDays === "all" ||
-        (legacyDays === "weekend" && isWeekend) ||
-        (legacyDays === "weekday" && !isWeekend);
-      base[key] = {
-        enabled,
-        startTime: legacyStart,
-        endTime: legacyEnd,
-        intervalMinutes: legacyInterval,
-      };
-    });
-    return base;
-  };
 
-  const [type, setType] = useState<"frequency" | "fixed" | "none">(
-    schedule?.type ?? "none"
-  );
-  const [dayConfigs, setDayConfigs] = useState(() => hydrateDayConfigs(schedule));
-  const [departuresText, setDeparturesText] = useState(
-    schedule?.type === "fixed"
-      ? schedule.departures.join(", ")
-      : "06:00, 06:30, 07:00, 07:30, 08:00"
-  );
-
-  useEffect(() => {
-    setType(schedule?.type ?? "none");
-    setDayConfigs(hydrateDayConfigs(schedule));
-    if (schedule?.type === "fixed") {
-      setDeparturesText(schedule.departures.join(", "));
-    }
-  }, [schedule]);
-
-  const presetConfigs = {
-    weekdayPeak: {
-      label: "Weekday peak",
-      config: {
-        monday: { enabled: true, startTime: "06:00", endTime: "09:00", intervalMinutes: 10 },
-        tuesday: { enabled: true, startTime: "06:00", endTime: "09:00", intervalMinutes: 10 },
-        wednesday: { enabled: true, startTime: "06:00", endTime: "09:00", intervalMinutes: 10 },
-        thursday: { enabled: true, startTime: "06:00", endTime: "09:00", intervalMinutes: 10 },
-        friday: { enabled: true, startTime: "06:00", endTime: "09:00", intervalMinutes: 10 },
-      },
-    },
-    weekdayOffPeak: {
-      label: "Weekday off-peak",
-      config: {
-        monday: { enabled: true, startTime: "09:00", endTime: "15:00", intervalMinutes: 20 },
-        tuesday: { enabled: true, startTime: "09:00", endTime: "15:00", intervalMinutes: 20 },
-        wednesday: { enabled: true, startTime: "09:00", endTime: "15:00", intervalMinutes: 20 },
-        thursday: { enabled: true, startTime: "09:00", endTime: "15:00", intervalMinutes: 20 },
-        friday: { enabled: true, startTime: "09:00", endTime: "15:00", intervalMinutes: 20 },
-      },
-    },
-    saturday: {
-      label: "Saturday",
-      config: {
-        saturday: { enabled: true, startTime: "08:00", endTime: "22:00", intervalMinutes: 30 },
-      },
-    },
-    sundayHoliday: {
-      label: "Sunday/holiday",
-      config: {
-        sunday: { enabled: true, startTime: "09:00", endTime: "21:00", intervalMinutes: 40 },
-      },
-    },
-  };
-
-  const applyPreset = (preset: keyof typeof presetConfigs) => {
-    const merged = { ...defaultDayConfigs(), ...presetConfigs[preset].config };
-    setType("frequency");
-    setDayConfigs(merged);
-  };
-
-  const autoGenerateSchedule = () => {
-    const tripMinutes = durationSeconds ? durationSeconds / 60 : 60;
-    const baseInterval =
-      tripMinutes <= 30 ? 10 : tripMinutes <= 60 ? 15 : tripMinutes <= 90 ? 20 : 30;
-    const next = defaultDayConfigs();
-    (["monday", "tuesday", "wednesday", "thursday", "friday"] as DayKey[]).forEach(
-      (key) => {
-        next[key] = {
-          enabled: true,
-          startTime: "06:00",
-          endTime: "23:00",
-          intervalMinutes: baseInterval,
-        };
-      }
-    );
-    next.saturday = {
-      enabled: true,
-      startTime: "08:00",
-      endTime: "22:00",
-      intervalMinutes: Math.min(40, baseInterval + 10),
-    };
-    next.sunday = {
-      enabled: true,
-      startTime: "09:00",
-      endTime: "21:00",
-      intervalMinutes: Math.min(45, baseInterval + 15),
-    };
-    setType("frequency");
-    setDayConfigs(next);
-  };
-
-  const apply = () => {
-    if (type === "none") {
-      onChange(undefined);
-      return;
-    }
-    if (type === "frequency") {
-      onChange({
-        type: "frequency",
-        dayConfigs,
-      });
-    } else {
-      const list = departuresText
-        .split(/[\s,;]+/)
-        .map((s) => s.trim())
-        .filter((s) => /^\d{1,2}:\d{2}$/.test(s));
-      onChange({ type: "fixed", departures: list });
-    }
-  };
-
-  const summary = useMemo(() => {
-    if (type !== "frequency") return null;
-    const enabledDays = dayOrder
-      .map(({ key }) => dayConfigs[key])
-      .filter((d) => d?.enabled);
-    if (enabledDays.length === 0) return null;
-    const startTime = enabledDays[0]?.startTime ?? "06:00";
-    const endTime = enabledDays[0]?.endTime ?? "22:00";
-    const interval = enabledDays[0]?.intervalMinutes ?? 30;
-    return { startTime, endTime, interval };
-  }, [type, dayConfigs, dayOrder]);
-
-  const busesNeeded = useMemo(() => {
-    if (!summary || !durationSeconds || durationSeconds <= 0) return null;
-    const intervalSeconds = summary.interval * 60;
-    if (!intervalSeconds) return null;
-    return Math.max(1, Math.ceil(durationSeconds / intervalSeconds));
-  }, [summary, durationSeconds]);
-
-  return (
-    <div className="mt-2 space-y-3 rounded-lg bg-black/30 border border-white/10 p-2 text-[11px]">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-[10px] text-white/50">
-          <span>Presets</span>
-          <button
-            onClick={autoGenerateSchedule}
-            className="text-white/60 hover:text-white/80"
-          >
-            Auto-generate
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {Object.entries(presetConfigs).map(([key, preset]) => (
-            <button
-              key={key}
-              onClick={() => applyPreset(key as keyof typeof presetConfigs)}
-              className="rounded-lg bg-black/40 border border-white/10 px-2 py-2 text-[10px] text-white/80 hover:bg-white/10"
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <button
-          onClick={() => setType("none")}
-          className={`px-2 py-1 rounded-lg ${type === "none" ? "bg-white/20" : "bg-white/5"}`}
-        >
-          None
-        </button>
-        <button
-          onClick={() => setType("frequency")}
-          className={`px-2 py-1 rounded-lg ${type === "frequency" ? "bg-white/20" : "bg-white/5"}`}
-        >
-          Frequency
-        </button>
-        <button
-          onClick={() => setType("fixed")}
-          className={`px-2 py-1 rounded-lg ${type === "fixed" ? "bg-white/20" : "bg-white/5"}`}
-        >
-          Fixed times
-        </button>
-      </div>
-      {type === "frequency" && (
-        <>
-          <div className="flex gap-1">
-            <button
-              onClick={() =>
-                setDayConfigs((prev) => {
-                  const next = { ...prev };
-                  dayOrder.forEach(({ key }) => {
-                    if (key === "saturday" || key === "sunday") return;
-                    next[key] = { ...next[key], enabled: true };
-                  });
-                  return next;
-                })
-              }
-              className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-[10px]"
-            >
-              Weekdays
-            </button>
-            <button
-              onClick={() =>
-                setDayConfigs((prev) => {
-                  const next = { ...prev };
-                  dayOrder.forEach(({ key }) => {
-                    next[key] = { ...next[key], enabled: true };
-                  });
-                  return next;
-                })
-              }
-              className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-[10px]"
-            >
-              All days
-            </button>
-            <button
-              onClick={() =>
-                setDayConfigs((prev) => {
-                  const next = { ...prev };
-                  dayOrder.forEach(({ key }) => {
-                    next[key] = { ...next[key], enabled: false };
-                  });
-                  return next;
-                })
-              }
-              className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-[10px]"
-            >
-              Clear
-            </button>
-          </div>
-          <div className="space-y-2">
-            {dayOrder.map(({ key, label }) => {
-              const row = dayConfigs[key];
-              return (
-                <div key={key} className="rounded-lg border border-white/10 p-2">
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 text-[10px]">
-                      <input
-                        type="checkbox"
-                        className="w-3.5 h-3.5 rounded accent-blue-400"
-                        checked={row.enabled}
-                        onChange={(e) =>
-                          setDayConfigs((prev) => ({
-                            ...prev,
-                            [key]: { ...prev[key], enabled: e.target.checked },
-                          }))
-                        }
-                      />
-                      <span>{label}</span>
-                    </label>
-                    <span className="text-[10px] text-white/45">
-                      Every {row.intervalMinutes} min
-                    </span>
-                  </div>
-                  {row.enabled && (
-                    <div className="grid grid-cols-3 gap-2 mt-2">
-                      <input
-                        type="time"
-                        value={row.startTime}
-                        onChange={(e) =>
-                          setDayConfigs((prev) => ({
-                            ...prev,
-                            [key]: { ...prev[key], startTime: e.target.value },
-                          }))
-                        }
-                        className="w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1 text-xs"
-                      />
-                      <input
-                        type="time"
-                        value={row.endTime}
-                        onChange={(e) =>
-                          setDayConfigs((prev) => ({
-                            ...prev,
-                            [key]: { ...prev[key], endTime: e.target.value },
-                          }))
-                        }
-                        className="w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1 text-xs"
-                      />
-                      <select
-                        value={row.intervalMinutes}
-                        onChange={(e) =>
-                          setDayConfigs((prev) => ({
-                            ...prev,
-                            [key]: {
-                              ...prev[key],
-                              intervalMinutes: Number(e.target.value),
-                            },
-                          }))
-                        }
-                        className="w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1 text-xs"
-                      >
-                        {[10, 15, 20, 30, 45, 60, 90, 120].map((m) => (
-                          <option key={m} value={m}>
-                            {m}m
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-      {type === "fixed" && (
-        <label>
-          <span className="text-white/50">Times (e.g. 06:00, 06:30, 07:00)</span>
-          <input
-            type="text"
-            value={departuresText}
-            onChange={(e) => setDeparturesText(e.target.value)}
-            placeholder="06:00, 06:30, 07:00"
-            className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-2 py-1 text-xs"
-          />
-        </label>
-      )}
-      {type !== "none" && (
-        <button
-          onClick={apply}
-          className="w-full py-2 rounded-lg bg-blue-500/30 text-blue-200 text-[10px] hover:bg-blue-500/40"
-        >
-          Apply schedule
-        </button>
-      )}
-      {summary && (
-        <div className="text-[10px] text-white/50">
-          {summary.startTime}–{summary.endTime} · every {summary.interval} min
-          {busesNeeded ? ` · ~${busesNeeded} buses` : ""}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function StopRow({
   stop,

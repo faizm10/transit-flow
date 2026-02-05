@@ -20,8 +20,8 @@ type RouteStop = {
   matched?: boolean;
 };
 
-const MAX_TOTAL_STOPS = 6;
-const NEARBY_STOP_KM = 3;
+
+
 
 function toRad(value: number) {
   return (value * Math.PI) / 180;
@@ -248,61 +248,9 @@ function lineProjectProgress(
   return bestProgress;
 }
 
-function sampleLine(line: Array<[number, number]>, stepKm = 0.4) {
-  if (line.length < 2) return line;
-  const samples: Array<[number, number]> = [line[0]];
-  let carry = 0;
 
-  for (let i = 0; i < line.length - 1; i++) {
-    const a = { lng: line[i][0], lat: line[i][1] };
-    const b = { lng: line[i + 1][0], lat: line[i + 1][1] };
-    const segmentKm = haversineKm(a, b);
-    if (segmentKm === 0) continue;
 
-    let dist = carry;
-    while (dist + stepKm <= segmentKm) {
-      dist += stepKm;
-      const t = dist / segmentKm;
-      samples.push([a.lng + (b.lng - a.lng) * t, a.lat + (b.lat - a.lat) * t]);
-    }
-    carry = segmentKm - dist;
-  }
 
-  samples.push(line[line.length - 1]);
-  return samples;
-}
-
-function collectStopsAlongRoute(
-  stops: StopData[],
-  line: Array<[number, number]>,
-  maxStops: number
-) {
-  const samplePoints = sampleLine(line);
-  const seen = new Set<string>();
-  const ordered: StopData[] = [];
-
-  for (const [lng, lat] of samplePoints) {
-    let nearest: StopData | null = null;
-    let nearestKm = Infinity;
-    for (const stop of stops) {
-      const km = haversineKm({ lat, lng }, { lat: stop.stop_lat, lng: stop.stop_lon });
-      if (km <= NEARBY_STOP_KM && km < nearestKm) {
-        nearestKm = km;
-        nearest = stop;
-      }
-    }
-    if (nearest) {
-      const key = nearest.stop_id;
-      if (!seen.has(key)) {
-        seen.add(key);
-        ordered.push(nearest);
-        if (ordered.length >= maxStops) break;
-      }
-    }
-  }
-
-  return ordered;
-}
 
 async function getRouteGeometry(start: RouteStop, end: RouteStop) {
   const token = process.env.MAPBOX_ACCESS_TOKEN || process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
@@ -331,7 +279,7 @@ async function getRouteGeometry(start: RouteStop, end: RouteStop) {
         : typeof data?.code === "string"
           ? data.code
           : "Mapbox routing returned no geometry";
-    return { error: msg as const };
+    return { error: msg };
   }
   return { line: line as Array<[number, number]> };
 }

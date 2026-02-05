@@ -443,7 +443,7 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAutoNameRef = useRef<string | null>(null);
 
-  function createEmptyRoute(): CustomRoute {
+  const createEmptyRoute = useCallback((): CustomRoute => {
     return {
       id: generateId(),
       name: "New Route",
@@ -451,7 +451,7 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
       profile: DEFAULT_PROFILE,
       stops: [],
     };
-  }
+  }, [routes.length]);
 
   const persistCurrent = useCallback(() => {
     if (currentRoute) {
@@ -527,11 +527,12 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
         setLoading(false);
         abortRef.current = null;
       });
-  }, [stops, activeRoute.profile]);
+  }, [stops, activeRoute.profile, createEmptyRoute]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (stops.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRoute(null);
       setError(null);
       setLoading(false);
@@ -551,7 +552,7 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
       const base = prev ?? createEmptyRoute();
       return { ...base, ...updates };
     });
-  }, []);
+  }, [createEmptyRoute]);
 
   useEffect(() => {
     if (stops.length < 2) return;
@@ -563,6 +564,7 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
       currentName === "New Route" || currentName === lastAutoNameRef.current;
     if (!shouldUpdate || currentName === autoName) return;
     lastAutoNameRef.current = autoName;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     updateCurrent({ name: autoName });
   }, [stops, activeRoute.name, updateCurrent]);
 
@@ -601,7 +603,7 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
         ],
       };
     });
-  }, []);
+  }, [createEmptyRoute]);
 
   const updateStop = useCallback(
     (id: string, updates: Partial<Pick<Stop, "lng" | "lat" | "name" | "timepoint">>) => {
@@ -613,7 +615,7 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
         };
       });
     },
-    []
+    [createEmptyRoute]
   );
 
   const removeStop = useCallback(
@@ -626,7 +628,7 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
         };
       });
     },
-    []
+    [createEmptyRoute]
   );
 
   const moveStop = useCallback(
@@ -643,7 +645,7 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
         return { ...base, stops: next };
       });
     },
-    []
+    [createEmptyRoute]
   );
 
   const loadFromGoVariant = useCallback(
@@ -687,7 +689,7 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
         new CustomEvent("route-builder-saved", { detail: { routeId: enriched.id } })
       );
     }
-  }, [currentRoute, routes, route]);
+  }, [currentRoute, routes, route, createEmptyRoute]);
 
   const saveReversedRoute = useCallback((base: CustomRoute) => {
     if (base.stops.length < 2) return;
@@ -738,13 +740,13 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
     setRoute(null);
     setError(null);
     saveCurrentToStorage(null);
-  }, []);
+  }, [createEmptyRoute]);
 
   const startNewRoute = useCallback(() => {
     setCurrentRoute(createEmptyRoute());
     setRoute(null);
     setError(null);
-  }, []);
+  }, [createEmptyRoute]);
 
   return {
     routes,

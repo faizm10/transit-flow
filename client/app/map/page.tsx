@@ -169,7 +169,7 @@ export default function MapPage() {
   const [showCustomNetwork, setShowCustomNetwork] = useState(true);
   const [savedCustomRoutes, setSavedCustomRoutes] = useState<CustomRoute[]>([]);
   const [selectedCustomRouteIds, setSelectedCustomRouteIds] = useState<string[]>([]);
-  const [buildingRouteGeometry, setBuildingRouteGeometry] = useState<GeoJSON.LineString | null>(null);
+  
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [pendingScheduleRouteId, setPendingScheduleRouteId] = useState<string | null>(null);
@@ -250,7 +250,7 @@ export default function MapPage() {
         setSelectedCustomRouteIds(withGeometry.map((r) => r.id));
       }
     }
-  }, [showCustomNetwork, savedCustomRoutes]);
+  }, [showCustomNetwork, savedCustomRoutes, selectedCustomRouteIds.length]);
   const hasInitializedGoVariants = useRef(false);
   const [simulationDate, setSimulationDate] = useState(() => {
     const now = new Date();
@@ -674,7 +674,7 @@ export default function MapPage() {
         if (name.includes("allandale")) return "Allandale";
         
         // Remove common suffixes
-        let cleaned = fullName
+        const cleaned = fullName
           .replace(/\s+GO\s*$/i, "")
           .replace(/\s+Station\s*$/i, "")
           .replace(/\s+Stop\s*$/i, "")
@@ -799,7 +799,7 @@ export default function MapPage() {
                   if (name.includes("richmond hill")) return "Richmond Hill";
                   if (name.includes("barrie")) return "Barrie";
                   if (name.includes("allandale")) return "Allandale";
-                  let cleaned = fullName
+                  const cleaned = fullName
                     .replace(/\s+GO\s*$/i, "")
                     .replace(/\s+Station\s*$/i, "")
                     .replace(/\s+Stop\s*$/i, "")
@@ -892,13 +892,7 @@ export default function MapPage() {
     createMergedRouteName,
   ]);
 
-  const toggleVariant = (variantId: string) => {
-    setSelectedVariantIds((prev) =>
-      prev.includes(variantId)
-        ? prev.filter((id) => id !== variantId)
-        : [...prev, variantId],
-    );
-  };
+  
 
   const setVariantGroup = (variantIds: string[], enabled: boolean) => {
     setSelectedVariantIds((prev) => {
@@ -1131,7 +1125,7 @@ export default function MapPage() {
       }
 
     }
-  }, [showUnionPearson, map.current]);
+  }, [showUnionPearson]);
 
   // Update GO Transit layer visibility
   useEffect(() => {
@@ -1152,7 +1146,7 @@ export default function MapPage() {
         );
       }
     }
-  }, [showGoTransit, map.current]);
+  }, [showGoTransit]);
 
   // Update Union Pearson Express route line data
   useEffect(() => {
@@ -1853,21 +1847,15 @@ export default function MapPage() {
     });
   }, [simulationStart, simulationEnd]);
 
-  const clearSimulationTrackers = () => {
+  const clearSimulationTrackers = useCallback(() => {
     setSimulationTrips([]);
     setSimulationPlaying(false);
     setFocusedSimulationTripId(null);
     setSimulationError(null);
     setSimulationCurrent(parseShortTime(simulationStart) ?? 0);
-  };
+  }, [simulationStart]);
 
-  const handleSimulationRoutesChange = useCallback(
-    (routes: string[]) => {
-      setSimulationRoutes(routes);
-      clearSimulationTrackers();
-    },
-    [clearSimulationTrackers],
-  );
+  
 
   const toggleSimulationRoute = useCallback(
     (routeId: string) => {
@@ -1929,11 +1917,7 @@ export default function MapPage() {
     setActivePanel("builder");
   };
 
-  const handlePromptRoute = (prompt: string) => {
-    // Legacy handler - now replaced by handleAIRoute
-    console.log("Route prompt:", prompt);
-    setActivePanel("builder");
-  };
+  
 
   const handleAIRoute = (route: {
     name: string;
@@ -2064,7 +2048,6 @@ export default function MapPage() {
               allVariantIds={allVariantIds}
               setVariantGroup={setVariantGroup}
               setSelectedVariantIds={setSelectedVariantIds}
-              toggleVariant={toggleVariant}
             />
 
             {showCustomNetwork && savedCustomRoutes.length > 0 && (
@@ -2316,7 +2299,6 @@ export default function MapPage() {
         enabled={!simulationPlaying}
         onCreateRoute={handleCreateRoute}
         onAddStop={handleAddStopFromCommandBar}
-        onPromptRoute={handlePromptRoute}
         onAIRoute={handleAIRoute}
         mapCenter={mapCenter}
       />

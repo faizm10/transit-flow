@@ -1,4 +1,4 @@
 // Placeholder for InsertModelModal component
-export function InsertModelModal(props: any) {
+export function InsertModelModal() {
   return null;
 }
