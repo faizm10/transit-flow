@@ -24,6 +24,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
+  DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -264,7 +265,7 @@ export default function MapPage() {
   const [simulationLoading, setSimulationLoading] = useState(false);
   const [simulationError, setSimulationError] = useState<string | null>(null);
   const [simulationPlaying, setSimulationPlaying] = useState(false);
-  const [simulationSpeed, setSimulationSpeed] = useState(60);
+  const [simulationSpeed, setSimulationSpeed] = useState(5);
   const [focusedSimulationTripId, setFocusedSimulationTripId] = useState<string | null>(null);
   const [includeUpxInSimulation, setIncludeUpxInSimulation] = useState(false);
   const animationFrame = useRef<number | null>(null);
@@ -1817,6 +1818,15 @@ export default function MapPage() {
         }
       }
 
+      if (allTrips.length === 0) {
+        setSimulationTrips([]);
+        setSimulationCurrent(startSeconds);
+        setSimulationError(
+          "No trips found for the selected routes/time window. Try a different date, time, or route.",
+        );
+        return;
+      }
+
       setSimulationTrips(allTrips);
       setSimulationCurrent(effectiveStartSeconds || startSeconds);
       console.log("[SIM] Combined result", {
@@ -1855,6 +1865,93 @@ export default function MapPage() {
     setSimulationCurrent(parseShortTime(simulationStart) ?? 0);
   }, [simulationStart]);
 
+  const simulationLiveStats = useMemo(() => {
+    if (!simulationTrips.length) {
+      return {
+        activeTrips: 0,
+        activeByRoute: [] as Array<{ route: string; count: number }>,
+        nextArrivals: [] as Array<{
+          route: string;
+          routeLongName: string;
+          nextTime: number;
+          headway: number | null;
+        }>,
+      };
+    }
+
+    const byRoute = new Map<
+      string,
+      {
+        routeLongName: string;
+        activeCount: number;
+        upcoming: number[];
+      }
+    >();
+    let activeTrips = 0;
+
+    simulationTrips.forEach((trip) => {
+      const start =
+        trip.start_time ?? trip.stops[0]?.t ?? null;
+      const end =
+        trip.end_time ?? trip.stops[trip.stops.length - 1]?.t ?? null;
+      if (start === null || end === null) return;
+      const routeKey = trip.route_short_name || trip.route_long_name || trip.trip_id;
+      if (!byRoute.has(routeKey)) {
+        byRoute.set(routeKey, {
+          routeLongName: trip.route_long_name || trip.route_short_name || routeKey,
+          activeCount: 0,
+          upcoming: [],
+        });
+      }
+      const entry = byRoute.get(routeKey)!;
+
+      if (simulationCurrent >= start && simulationCurrent <= end) {
+        entry.activeCount += 1;
+        activeTrips += 1;
+      }
+
+      if (start > simulationCurrent) {
+        entry.upcoming.push(start);
+      }
+    });
+
+    const activeByRoute = Array.from(byRoute.entries())
+      .map(([route, data]) => ({
+        route,
+        count: data.activeCount,
+      }))
+      .filter((item) => item.count > 0)
+      .sort((a, b) => b.count - a.count || a.route.localeCompare(b.route));
+
+    const nextArrivals = Array.from(byRoute.entries())
+      .map(([route, data]) => {
+        const upcoming = data.upcoming.sort((a, b) => a - b);
+        if (!upcoming.length) return null;
+        const nextTime = upcoming[0];
+        const headway = upcoming.length > 1 ? upcoming[1] - upcoming[0] : null;
+        return {
+          route,
+          routeLongName: data.routeLongName,
+          nextTime,
+          headway,
+        };
+      })
+      .filter(Boolean) as Array<{
+      route: string;
+      routeLongName: string;
+      nextTime: number;
+      headway: number | null;
+    }>;
+
+    nextArrivals.sort((a, b) => a.nextTime - b.nextTime);
+
+    return {
+      activeTrips,
+      activeByRoute,
+      nextArrivals,
+    };
+  }, [simulationTrips, simulationCurrent]);
+
   
 
   const toggleSimulationRoute = useCallback(
@@ -1870,13 +1967,24 @@ export default function MapPage() {
     [clearSimulationTrackers],
   );
 
+  const selectAllSimulationRoutes = useCallback(() => {
+    const all = simulationRouteOptions.map((opt) => opt.value);
+    setSimulationRoutes(all);
+    clearSimulationTrackers();
+  }, [simulationRouteOptions, clearSimulationTrackers]);
+
+  const clearSimulationRoutes = useCallback(() => {
+    setSimulationRoutes([]);
+    clearSimulationTrackers();
+  }, [clearSimulationTrackers]);
+
   const resetSimulationInputs = () => {
     const today = new Date().toISOString().slice(0, 10);
     setSimulationDate(today);
     setSimulationRoutes([]);
     setSimulationStart("05:30");
     setSimulationEnd("13:00");
-    setSimulationSpeed(60);
+    setSimulationSpeed(5);
     setIncludeUpxInSimulation(false);
     clearSimulationTrackers();
   };
@@ -2165,6 +2273,22 @@ export default function MapPage() {
                     Select routes
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-white/10" />
+                  <div className="px-2 py-1 text-[10px] text-white/40">
+                    Quick actions
+                  </div>
+                  <DropdownMenuItem
+                    onClick={selectAllSimulationRoutes}
+                    className="text-xs text-white/80"
+                  >
+                    Select all
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={clearSimulationRoutes}
+                    className="text-xs text-white/70"
+                  >
+                    Clear all
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-white/10" />
                   {simulationRouteOptions.length === 0 ? (
                     <DropdownMenuCheckboxItem checked={false}>
                       21
@@ -2195,12 +2319,11 @@ export default function MapPage() {
                   className="bg-transparent text-white/90 focus:outline-none"
                 >
                   <option value={1}>1x</option>
-                  <option value={30}>30x</option>
-                  <option value={60}>60x</option>
-                  <option value={120}>120x</option>
-                  <option value={300}>300x</option>
-                  <option value={600}>600x</option>
-                  <option value={1000}>1000x</option>
+                  <option value={5}>5x</option>
+                  <option value={20}>20x</option>
+                  <option value={50}>50x</option>
+                  <option value={100}>100x</option>
+                  <option value={200}>200x</option>
                 </select>
               </div>
 
@@ -2262,16 +2385,71 @@ export default function MapPage() {
       )}
 
       {(simulationTrips.length > 0 || simulationPlaying) && (
-        <div className="absolute top-4 right-4 z-30 rounded-xl border border-white/10 bg-black/70 px-3 py-2 text-xs text-white/80 shadow-lg">
-          <div className="flex items-center gap-2">
-            <span className="text-white/60">Time</span>
+        <div className="absolute top-4 right-4 z-30 w-[280px] rounded-xl border border-white/10 bg-black/70 px-3 py-2 text-xs text-white/80 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-white/60">Time</span>
+              <span className="font-semibold text-white">
+                {formatShortTime(simulationCurrent)}
+              </span>
+            </div>
+            <div className="text-[10px] text-white/50">
+              {simulationTrips.length} trips
+            </div>
+          </div>
+
+          <div className="mt-2 flex items-center justify-between text-[11px]">
+            <span className="text-white/60">Active vehicles</span>
             <span className="font-semibold text-white">
-              {formatShortTime(simulationCurrent)}
+              {simulationLiveStats.activeTrips}
             </span>
           </div>
-          <div className="text-[10px] text-white/50">
-            {simulationTrips.length} trips loaded
-          </div>
+
+          {simulationLiveStats.activeByRoute.length > 0 && (
+            <div className="mt-2">
+              <div className="text-[10px] uppercase tracking-wider text-white/40">
+                On Route
+              </div>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {simulationLiveStats.activeByRoute.slice(0, 6).map((item) => (
+                  <div
+                    key={`active-${item.route}`}
+                    className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/80"
+                  >
+                    {item.route} · {item.count}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {simulationLiveStats.nextArrivals.length > 0 && (
+            <div className="mt-3">
+              <div className="text-[10px] uppercase tracking-wider text-white/40">
+                Next Arrival
+              </div>
+              <div className="mt-1 space-y-1">
+                {simulationLiveStats.nextArrivals.slice(0, 4).map((item) => (
+                  <div
+                    key={`arrival-${item.route}`}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <div className="truncate text-white/80">
+                      {item.route}
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-white/60">
+                      <span>{formatShortTime(item.nextTime)}</span>
+                      {item.headway !== null && (
+                        <span className="text-white/40">
+                          · {Math.round(item.headway / 60)}m gap
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
