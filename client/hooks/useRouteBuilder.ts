@@ -53,7 +53,29 @@ export type ScheduleFixed = {
   departures: string[];
 };
 
-export type Schedule = ScheduleFrequency | ScheduleFixed;
+export type ScheduleTrip = {
+  id: string;
+  departMinutes: number;
+  runtimeMinutes: number;
+  type: "peak" | "off-peak";
+  status: "auto" | "edited";
+};
+
+export type ScheduleTrips = {
+  type: "trips";
+  trips: ScheduleTrip[];
+  rules: {
+    serviceWindow: { start: string; end: string };
+    peak: {
+      intervalMinutes: number;
+      ranges: Array<{ start: string; end: string }>;
+    };
+    offPeak: { intervalMinutes: number };
+    runtimeMinutes: number;
+  };
+};
+
+export type Schedule = ScheduleFrequency | ScheduleFixed | ScheduleTrips;
 export type DayKey =
   | "sunday"
   | "monday"
@@ -259,16 +281,71 @@ export function buildSimulationTripsFromCustomRoute(
     const m = Math.floor((sec % 3600) / 60);
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   };
-  const departures: string[] = schedule
-    ? expandSchedule(schedule, serviceDateISO)
-    : [formatSecToTime(startSeconds)];
+  const departures: string[] =
+    schedule && schedule.type !== "trips"
+      ? expandSchedule(schedule, serviceDateISO)
+      : [formatSecToTime(startSeconds)];
 
   function parseTimeToSec(s: string): number {
     const [h, m] = s.split(":").map(Number);
     return (h ?? 0) * 3600 + (m ?? 0) * 60;
   }
 
+  const scaleLegDurations = (runtimeSec: number) => {
+    if (!legDurations || legDurations.length === 0) return null;
+    const total = legDurations.reduce((a, b) => a + b, 0);
+    if (!Number.isFinite(total) || total <= 0) return null;
+    return legDurations.map((d) => (d / total) * runtimeSec);
+  };
+
   const trips: ReturnType<typeof buildSimulationTripsFromCustomRoute> = [];
+
+  if (schedule?.type === "trips") {
+    const scheduleTrips = schedule.trips ?? [];
+    scheduleTrips.forEach((trip) => {
+      const depSec = trip.departMinutes * 60;
+      if (depSec < startSeconds || depSec > endSeconds) return;
+
+      const runtimeSec = Math.max(60, Math.round(trip.runtimeMinutes * 60));
+      const endSec = depSec + runtimeSec;
+      const n = routeStops.length;
+      const scaledLegs = scaleLegDurations(runtimeSec);
+      const stopsWithTime = routeStops.map((stop, i) => {
+        let t: number;
+        if (n <= 1) {
+          t = depSec;
+        } else if (scaledLegs && scaledLegs.length >= 1) {
+          t = depSec + scaledLegs.slice(0, i).reduce((a, b) => a + b, 0);
+        } else {
+          t = depSec + (runtimeSec * i) / (n - 1);
+        }
+        return {
+          t,
+          lat: stop.lat,
+          lon: stop.lng,
+          shapeIndex: findClosestShapeIndex(stop.lat, stop.lng),
+        };
+      });
+
+      trips.push({
+        trip_id: `custom-${customRoute.id}-${Math.round(trip.departMinutes)}`,
+        route_short_name: name,
+        route_long_name: name,
+        route_type: "3",
+        direction_id: 0,
+        source: "custom",
+        stops: stopsWithTime,
+        shape,
+        start_stop_name: routeStops[0]?.name ?? "Start",
+        end_stop_name: routeStops[routeStops.length - 1]?.name ?? "End",
+        start_time: depSec,
+        end_time: endSec,
+        color,
+      });
+    });
+
+    return trips;
+  }
 
   for (const dep of departures) {
     const depSec = parseTimeToSec(dep);
@@ -315,6 +392,17 @@ export function buildSimulationTripsFromCustomRoute(
 
 /** Generate list of departures from a schedule (date-aware for frequency schedules) */
 export function expandSchedule(schedule: Schedule, serviceDateISO?: string): string[] {
+  if (schedule.type === "trips") {
+    const sorted = [...schedule.trips].sort(
+      (a, b) => a.departMinutes - b.departMinutes,
+    );
+    return sorted.map((trip) => {
+      const mins = trip.departMinutes;
+      const h = Math.floor(mins / 60) % 24;
+      const m = mins % 60;
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    });
+  }
   if (schedule.type === "fixed") return [...schedule.departures];
 
   const normalized = normalizeFrequencySchedule(schedule);
