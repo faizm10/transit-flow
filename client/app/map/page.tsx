@@ -8,12 +8,10 @@ import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import { RouteBuilder } from "@/components/RouteBuilder";
 import { RouteCommandBar } from "@/components/RouteCommandBar";
-import { ScheduleModal } from "@/components/ScheduleModal";
 import {
   getSavedCustomRoutes,
   buildSimulationTripsFromCustomRoute,
   type CustomRoute,
-  type Schedule,
 } from "@/hooks/useRouteBuilder";
 import { Header } from "@/components/Header";
 import { SidePanel } from "@/components/SidePanel";
@@ -172,8 +170,6 @@ export default function MapPage() {
   const [selectedCustomRouteIds, setSelectedCustomRouteIds] = useState<string[]>([]);
   
   const [activePanel, setActivePanel] = useState<string | null>(null);
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [pendingScheduleRouteId, setPendingScheduleRouteId] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 43.6532, lng: -79.3832 });
 
   const handlePanelToggle = (panel: string) => {
@@ -2065,47 +2061,7 @@ export default function MapPage() {
     };
   }, []);
 
-  // Schedule modal handlers
-  const handleSaveSchedule = (schedule: Schedule) => {
-    if (pendingScheduleRouteId) {
-      const route = savedCustomRoutes.find((r) => r.id === pendingScheduleRouteId);
-      if (route) {
-        // Update the route with schedule
-        const updated = { ...route, schedule };
-        const nextRoutes = savedCustomRoutes.map((r) =>
-          r.id === pendingScheduleRouteId ? updated : r
-        );
-        setSavedCustomRoutes(nextRoutes);
-
-        // Save to localStorage
-        if (typeof window !== "undefined") {
-          localStorage.setItem("route_builder_routes", JSON.stringify(nextRoutes));
-          window.dispatchEvent(
-            new CustomEvent("route-builder-saved", {
-              detail: { routeId: pendingScheduleRouteId },
-            })
-          );
-        }
-      }
-    }
-    setShowScheduleModal(false);
-    setPendingScheduleRouteId(null);
-  };
-
-  // Listen for route finalization event
-  useEffect(() => {
-    const handleRouteFinalized = (e: Event) => {
-      const detail = (e as CustomEvent<{ routeId: string }>).detail;
-      if (detail?.routeId) {
-        setPendingScheduleRouteId(detail.routeId);
-        setShowScheduleModal(true);
-      }
-    };
-    window.addEventListener("route-builder-finalized", handleRouteFinalized);
-    return () => {
-      window.removeEventListener("route-builder-finalized", handleRouteFinalized);
-    };
-  }, []);
+  
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -2119,7 +2075,9 @@ export default function MapPage() {
         <GitHubLogoIcon width={18} height={18} />
       </a>
 
-      <Header activePanel={activePanel} onPanelToggle={handlePanelToggle} />
+      {activePanel !== "schedule" && (
+        <Header activePanel={activePanel} onPanelToggle={handlePanelToggle} />
+      )}
 
       <SidePanel
         title="Networks"
@@ -2473,28 +2431,15 @@ export default function MapPage() {
       </div>
 
       {/* Route Command Bar */}
-      <RouteCommandBar
-        enabled={!simulationPlaying}
-        onCreateRoute={handleCreateRoute}
-        onAddStop={handleAddStopFromCommandBar}
-        onAIRoute={handleAIRoute}
-        mapCenter={mapCenter}
-      />
-
-      {/* Schedule Modal */}
-      <ScheduleModal
-        isOpen={showScheduleModal}
-        onClose={() => {
-          setShowScheduleModal(false);
-          setPendingScheduleRouteId(null);
-        }}
-        onSave={handleSaveSchedule}
-        routeName={
-          pendingScheduleRouteId
-            ? savedCustomRoutes.find((r) => r.id === pendingScheduleRouteId)?.name
-            : undefined
-        }
-      />
+      {activePanel !== "schedule" && (
+        <RouteCommandBar
+          enabled={!simulationPlaying}
+          onCreateRoute={handleCreateRoute}
+          onAddStop={handleAddStopFromCommandBar}
+          onAIRoute={handleAIRoute}
+          mapCenter={mapCenter}
+        />
+      )}
 
       <div ref={mapContainer} className="h-full w-full" />
     </div>
