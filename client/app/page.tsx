@@ -119,7 +119,7 @@ export default function LandingPage() {
                 Analyze and visualize GO Transit service.
               </h2>
               <p className="text-muted-foreground max-w-prose text-sm leading-6">
-                GO Pulse lets you visualize the GO Transit network, customize routes, add new lines, and simulate future expansions — all on an interactive map. It’s not just about today’s service. It’s about designing what regional transit *could* look like.
+                GO Pulse lets you visualize the GO Transit network, customize routes, add new lines, and simulate future expansions — all on an interactive map. It's not just about today's service. It's about designing what regional transit *could* look like.
               </p>
             </div>
           </Section>
@@ -231,5 +231,3 @@ function FeatureItem({ title, desc }: { title: string; desc: string }) {
     </div>
   )
 }
-
-

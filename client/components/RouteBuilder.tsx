@@ -21,6 +21,8 @@ import {
 } from "@/hooks/useRouteBuilder";
 import { fetchDirections } from "@/lib/mapboxDirections";
 import type { } from "@/lib/mapboxDirections";
+import { RouteScorecard } from "@/components/RouteScorecard";
+import type { ScheduleFrequency } from "@/hooks/useRouteBuilder";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,6 +71,8 @@ type GoStopPoint = {
   isStreet: boolean;
 };
 
+import type MapboxDraw from "@mapbox/mapbox-gl-draw";
+
 type RouteBuilderProps = {
   mapRef: React.RefObject<mapboxgl.Map | null>;
   mapReady: boolean;
@@ -79,6 +83,11 @@ type RouteBuilderProps = {
   goVariantsIndex: GoVariantsIndex | null;
   goVariantStops: Record<string, GoVariantStop[]> | null;
   showCustomNetwork?: boolean;
+  drawRef?: React.RefObject<MapboxDraw | null>;
+  isDrawing?: boolean;
+  onStartDraw?: () => void;
+  onCancelDraw?: () => void;
+  onOpenComparison?: () => void;
 };
 
 
@@ -175,9 +184,13 @@ export function RouteBuilder({
   showPanel = true,
   showSchedulePanel = false,
   onCloseSchedule,
-    goVariantsIndex,
-    goVariantStops,
+  goVariantsIndex,
+  goVariantStops,
   showCustomNetwork = true,
+  isDrawing = false,
+  onStartDraw,
+  onCancelDraw,
+  onOpenComparison,
 }: RouteBuilderProps) {
   const {
     routes,
@@ -1175,9 +1188,23 @@ export function RouteBuilder({
         <div className="px-3 py-2.5 border-b border-white/10 bg-black/40 shrink-0">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-white">Route Builder</h3>
+            {(onStartDraw || onCancelDraw) && (
+              <button
+                onClick={isDrawing ? onCancelDraw : onStartDraw}
+                className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors ${
+                  isDrawing
+                    ? "bg-red-600 text-white hover:bg-red-700 animate-pulse"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+              >
+                {isDrawing ? "Cancel Draw" : "✏ Draw Route"}
+              </button>
+            )}
           </div>
           <p className="text-[10px] text-white/50 mt-0.5">
-            Add start/end from the command bar, then generate or edit stops.
+            {isDrawing
+              ? "Click on the map to draw your route. Double-click to finish."
+              : "Add start/end from the command bar, then generate or edit stops."}
           </p>
         </div>
 
@@ -1468,8 +1495,25 @@ export function RouteBuilder({
             ))}
           </div>
         )}
+
+          {/* Route Scorecard — visible when ≥2 stops + geometry */}
+          {stops.length >= 2 && activeRoute.geometry && (
+            <RouteScorecard
+              stops={stops.map((s) => ({ lat: s.lat, lng: s.lng }))}
+              intervalMinutes={
+                activeRoute.schedule?.type === "frequency"
+                  ? (Object.values(
+                      (activeRoute.schedule as ScheduleFrequency).dayConfigs ?? {}
+                    ).find((c) => c?.enabled)?.intervalMinutes)
+                  : undefined
+              }
+              routeDistanceKm={
+                route?.distance != null ? route.distance / 1000 : undefined
+              }
+            />
+          )}
         </div>
-        <div className="px-3 py-2 border-t border-white/10 bg-black/40 shrink-0 flex items-center gap-2">
+        <div className="px-3 py-2 border-t border-white/10 bg-black/40 shrink-0 flex items-center gap-2 flex-wrap">
           <button
             onClick={saveRoute}
             disabled={stops.length < 2}
@@ -1477,6 +1521,14 @@ export function RouteBuilder({
           >
             Save route
           </button>
+          {stops.length >= 2 && onOpenComparison && (
+            <button
+              onClick={onOpenComparison}
+              className="rounded-lg bg-purple-600 text-white px-3 py-2 text-[11px] font-semibold hover:bg-purple-700 shadow-sm"
+            >
+              Compare
+            </button>
+          )}
           <button
             onClick={clearRoute}
             className="flex-1 rounded-lg bg-red-600 text-white px-3 py-2 text-[11px] font-semibold hover:bg-red-700 shadow-sm"

@@ -4,11 +4,26 @@ import { useState, useCallback } from "react";
 import { ClockIcon, CrossCircledIcon } from "@radix-ui/react-icons";
 import type { Schedule } from "@/hooks/useRouteBuilder";
 
+type OptimizerSuggestion = {
+  suggestedStartTime: string;
+  suggestedEndTime: string;
+  suggestedIntervalMinutes: number;
+  reasoning: string;
+};
+
 type ScheduleModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onSave: (schedule: Schedule) => void;
   routeName?: string;
+  // Optional context for AI optimizer
+  routeContext?: {
+    startStopName?: string;
+    endStopName?: string;
+    durationMinutes?: number;
+    stopsCount?: number;
+    nearbyGoRouteNames?: string[];
+  };
 };
 
 export function ScheduleModal({
@@ -16,14 +31,18 @@ export function ScheduleModal({
   onClose,
   onSave,
   routeName = "New Route",
+  routeContext,
 }: ScheduleModalProps) {
   const [startTime, setStartTime] = useState("06:00");
   const [endTime, setEndTime] = useState("22:00");
   const [frequency, setFrequency] = useState("30");
   const [error, setError] = useState<string | null>(null);
 
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<OptimizerSuggestion | null>(null);
+
   const validateAndSave = useCallback(() => {
-    // Validate start < end
     const [startHour, startMin] = startTime.split(":").map(Number);
     const [endHour, endMin] = endTime.split(":").map(Number);
     const startMinutes = startHour * 60 + startMin;
@@ -42,7 +61,6 @@ export function ScheduleModal({
 
     setError(null);
 
-    // Create schedule object
     const schedule: Schedule = {
       type: "frequency",
       dayConfigs: {
@@ -58,6 +76,44 @@ export function ScheduleModal({
 
     onSave(schedule);
   }, [startTime, endTime, frequency, onSave]);
+
+  const handleOptimize = useCallback(async () => {
+    setAiLoading(true);
+    setAiError(null);
+    setAiSuggestion(null);
+    try {
+      const res = await fetch("/api/schedule-optimizer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          routeName,
+          startStopName: routeContext?.startStopName ?? "",
+          endStopName: routeContext?.endStopName ?? "",
+          durationMinutes: routeContext?.durationMinutes ?? 30,
+          stopsCount: routeContext?.stopsCount ?? 2,
+          nearbyGoRouteNames: routeContext?.nearbyGoRouteNames ?? [],
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data.error ?? "Optimizer failed");
+      }
+      const suggestion = (await res.json()) as OptimizerSuggestion;
+      setAiSuggestion(suggestion);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [routeName, routeContext]);
+
+  const applySuggestion = useCallback(() => {
+    if (!aiSuggestion) return;
+    setStartTime(aiSuggestion.suggestedStartTime);
+    setEndTime(aiSuggestion.suggestedEndTime);
+    setFrequency(String(aiSuggestion.suggestedIntervalMinutes));
+    setAiSuggestion(null);
+  }, [aiSuggestion]);
 
   if (!isOpen) return null;
 
@@ -139,6 +195,48 @@ export function ScheduleModal({
             <div className="text-xs text-neutral-600">
               Service every {frequency} minutes
             </div>
+          </div>
+
+          {/* AI Optimizer */}
+          <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-violet-800">
+                ✨ AI Schedule Optimizer
+              </span>
+              <button
+                onClick={handleOptimize}
+                disabled={aiLoading}
+                className="px-3 py-1 rounded-lg bg-violet-600 text-white text-[11px] font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors"
+              >
+                {aiLoading ? "Thinking…" : "Optimize"}
+              </button>
+            </div>
+            {aiError && (
+              <p className="text-[11px] text-red-600">{aiError}</p>
+            )}
+            {aiSuggestion && (
+              <div className="rounded-lg bg-white border border-violet-200 p-2 space-y-1.5">
+                <p className="text-[11px] text-neutral-700 leading-relaxed">
+                  {aiSuggestion.reasoning}
+                </p>
+                <div className="flex gap-2 text-[10px] text-violet-700 font-medium">
+                  <span>{aiSuggestion.suggestedStartTime}–{aiSuggestion.suggestedEndTime}</span>
+                  <span>·</span>
+                  <span>Every {aiSuggestion.suggestedIntervalMinutes} min</span>
+                </div>
+                <button
+                  onClick={applySuggestion}
+                  className="w-full px-3 py-1.5 rounded-lg bg-violet-600 text-white text-[11px] font-semibold hover:bg-violet-700 transition-colors"
+                >
+                  Apply Suggestion
+                </button>
+              </div>
+            )}
+            {!aiSuggestion && !aiError && !aiLoading && (
+              <p className="text-[11px] text-violet-600">
+                Click Optimize to get AI-powered schedule recommendations based on commuter patterns.
+              </p>
+            )}
           </div>
 
           {/* Error */}

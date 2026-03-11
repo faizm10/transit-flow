@@ -19,6 +19,8 @@ import { Header } from "@/components/Header";
 import { SidePanel } from "@/components/SidePanel";
 import { NetworksPanel } from "@/components/NetworksPanel";
 import { FiltersPanel } from "@/components/FiltersPanel";
+import { ComparisonPanel } from "@/components/ComparisonPanel";
+import { useDrawableLineBuilder } from "@/hooks/useDrawableLineBuilder";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -170,10 +172,17 @@ export default function MapPage() {
   const [savedCustomRoutes, setSavedCustomRoutes] = useState<CustomRoute[]>([]);
   const [selectedCustomRouteIds, setSelectedCustomRouteIds] = useState<string[]>([]);
   
+  const drawRef = useRef<MapboxDraw | null>(null);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showCoverage, setShowCoverage] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [pendingScheduleRouteId, setPendingScheduleRouteId] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 43.6532, lng: -79.3832 });
+
+  const { isDrawing, startDraw, cancelDraw, handleDrawCreate } =
+    useDrawableLineBuilder();
 
   const handlePanelToggle = (panel: string) => {
     setActivePanel((prev) => (prev === panel ? null : panel));
@@ -1069,6 +1078,77 @@ export default function MapPage() {
     }
   }, []);
 
+  const ensureHeatmapLayer = useCallback(() => {
+    if (!map.current) return;
+    if (!map.current.getSource("go-transit-heatmap")) {
+      map.current.addSource("go-transit-heatmap", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+    }
+    if (!map.current.getLayer("go-transit-heatmap-layer")) {
+      map.current.addLayer({
+        id: "go-transit-heatmap-layer",
+        type: "heatmap",
+        source: "go-transit-heatmap",
+        paint: {
+          "heatmap-weight": [
+            "interpolate", ["linear"], ["get", "weight"],
+            0, 0, 5000, 1,
+          ],
+          "heatmap-intensity": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 1, 15, 3,
+          ],
+          "heatmap-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 2, 12, 20, 15, 30,
+          ],
+          "heatmap-color": [
+            "interpolate", ["linear"], ["heatmap-density"],
+            0, "rgba(33,102,172,0)",
+            0.2, "rgb(103,169,207)",
+            0.4, "rgb(209,229,240)",
+            0.6, "rgb(253,219,199)",
+            0.8, "rgb(239,138,98)",
+            1, "rgb(178,24,43)",
+          ],
+          "heatmap-opacity": 0.8,
+        },
+        layout: { visibility: "none" },
+      });
+    }
+  }, []);
+
+  const ensureCoverageLayer = useCallback(() => {
+    if (!map.current) return;
+    if (!map.current.getSource("go-transit-coverage")) {
+      map.current.addSource("go-transit-coverage", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+    }
+    if (!map.current.getLayer("go-transit-coverage-layer")) {
+      map.current.addLayer({
+        id: "go-transit-coverage-layer",
+        type: "circle",
+        source: "go-transit-coverage",
+        paint: {
+          "circle-radius": [
+            "interpolate", ["exponential", 2], ["zoom"],
+            7, 3, 10, 20, 13, 120, 16, 800,
+          ],
+          "circle-color": "#22c55e",
+          "circle-opacity": 0.06,
+          "circle-stroke-color": "#22c55e",
+          "circle-stroke-width": 0.5,
+          "circle-stroke-opacity": 0.3,
+        },
+        layout: { visibility: "none" },
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
@@ -1087,31 +1167,53 @@ export default function MapPage() {
     });
 
     map.current.addControl(new mapboxgl.NavigationControl(), "bottom-right");
-    map.current.addControl(
-      new MapboxDraw({
-        displayControlsDefault: false,
-        controls: { polygon: true, trash: true },
-      }),
-      "top-left",
-    );
+    const draw = new MapboxDraw({
+      displayControlsDefault: false,
+      controls: { polygon: true, trash: true },
+    });
+    map.current.addControl(draw, "top-left");
+    drawRef.current = draw;
 
     const handleStyleLoad = () => {
       ensureUnionPearsonLayers();
       ensureGOTransitLayers();
       ensureCustomRoutesLayers();
       ensureSimulationLayer();
+      ensureHeatmapLayer();
+      ensureCoverageLayer();
       setMapReady(true);
     };
 
     map.current.on("style.load", handleStyleLoad);
 
+    // Handle line drawing completion
+    map.current.on("draw.create", async (e: { features: GeoJSON.Feature[] }) => {
+      const snappedStops = await handleDrawCreate(e);
+      if (snappedStops.length > 0) {
+        // Clear the drawn geometry from the map
+        drawRef.current?.deleteAll();
+        drawRef.current?.changeMode("simple_select");
+        // Dispatch stops to the route builder one by one
+        snappedStops.forEach((stop) => {
+          window.dispatchEvent(
+            new CustomEvent("route-builder-add-stop", {
+              detail: { name: stop.name, lat: stop.lat, lng: stop.lng },
+            })
+          );
+        });
+        setActivePanel("builder");
+        window.dispatchEvent(new CustomEvent("route-builder-draw-complete"));
+      }
+    });
+
     return () => {
       map.current?.off("style.load", handleStyleLoad);
       map.current?.remove();
       map.current = null;
+      drawRef.current = null;
       setMapReady(false);
     };
-  }, [ensureUnionPearsonLayers, ensureGOTransitLayers, ensureCustomRoutesLayers, ensureSimulationLayer]);
+  }, [ensureUnionPearsonLayers, ensureGOTransitLayers, ensureCustomRoutesLayers, ensureSimulationLayer, ensureHeatmapLayer, ensureCoverageLayer, handleDrawCreate]);
 
   // Update Union Pearson Express layer visibility
   useEffect(() => {
@@ -1147,6 +1249,53 @@ export default function MapPage() {
       }
     }
   }, [showGoTransit]);
+
+  // Update heatmap layer visibility and load data on first toggle
+  useEffect(() => {
+    if (!map.current || !map.current.isStyleLoaded()) return;
+    if (map.current.getLayer("go-transit-heatmap-layer")) {
+      map.current.setLayoutProperty(
+        "go-transit-heatmap-layer",
+        "visibility",
+        showHeatmap ? "visible" : "none"
+      );
+    }
+    if (showHeatmap) {
+      const source = map.current.getSource("go-transit-heatmap") as mapboxgl.GeoJSONSource | undefined;
+      if (source) {
+        // Check if already loaded by checking features
+        fetch("/api/gotransit/heatmap")
+          .then((r) => r.json())
+          .then((data: GeoJSON.FeatureCollection) => {
+            source.setData(data);
+          })
+          .catch(console.error);
+      }
+    }
+  }, [showHeatmap, mapReady]);
+
+  // Update coverage layer visibility and load data on first toggle
+  useEffect(() => {
+    if (!map.current || !map.current.isStyleLoaded()) return;
+    if (map.current.getLayer("go-transit-coverage-layer")) {
+      map.current.setLayoutProperty(
+        "go-transit-coverage-layer",
+        "visibility",
+        showCoverage ? "visible" : "none"
+      );
+    }
+    if (showCoverage) {
+      const source = map.current.getSource("go-transit-coverage") as mapboxgl.GeoJSONSource | undefined;
+      if (source) {
+        fetch("/api/gotransit/coverage")
+          .then((r) => r.json())
+          .then((data: GeoJSON.FeatureCollection) => {
+            source.setData(data);
+          })
+          .catch(console.error);
+      }
+    }
+  }, [showCoverage, mapReady]);
 
   // Update Union Pearson Express route line data
   useEffect(() => {
@@ -2026,6 +2175,10 @@ export default function MapPage() {
           showCustomNetwork={showCustomNetwork}
           setShowCustomNetwork={setShowCustomNetwork}
           onShowAll={showAllNetworks}
+          showHeatmap={showHeatmap}
+          setShowHeatmap={setShowHeatmap}
+          showCoverage={showCoverage}
+          setShowCoverage={setShowCoverage}
         />
       </SidePanel>
 
@@ -2289,6 +2442,11 @@ export default function MapPage() {
             goVariantsIndex={goVariantsIndex}
             goVariantStops={goVariantStops}
             showCustomNetwork={showCustomNetwork}
+            drawRef={drawRef}
+            isDrawing={isDrawing}
+            onStartDraw={() => startDraw(drawRef)}
+            onCancelDraw={() => cancelDraw(drawRef)}
+            onOpenComparison={() => setShowComparison((prev) => !prev)}
           />
         )}
 
@@ -2302,6 +2460,23 @@ export default function MapPage() {
         onAIRoute={handleAIRoute}
         mapCenter={mapCenter}
       />
+
+      {/* Comparison Panel */}
+      {showComparison && (
+        <ComparisonPanel
+          customRoute={
+            savedCustomRoutes.find((r) => r.stops.length >= 2) ?? {
+              id: "",
+              name: "Custom Route",
+              color: "#3b82f6",
+              profile: "mapbox/driving" as const,
+              stops: [],
+            }
+          }
+          goRoutes={goRoutes}
+          onClose={() => setShowComparison(false)}
+        />
+      )}
 
       {/* Schedule Modal */}
       <ScheduleModal
