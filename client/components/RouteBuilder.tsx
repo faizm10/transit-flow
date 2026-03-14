@@ -22,7 +22,10 @@ import { fetchDirections } from "@/lib/mapboxDirections";
 import type { } from "@/lib/mapboxDirections";
 import { RouteScorecard } from "@/components/RouteScorecard";
 import type { ScheduleFrequency } from "@/hooks/useRouteBuilder";
-import { ScheduleBuilderModal } from "@/components/ScheduleBuilderModal";
+import {
+  ScheduleBuilderModal,
+  type ScheduleRouteTarget,
+} from "@/components/ScheduleBuilderModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -983,10 +986,52 @@ export function RouteBuilder({
     [selectedStop, stops, setStops]
   );
 
-  const handleScheduleSave = (nextSchedule: Schedule | undefined) => {
-    updateCurrent({ schedule: nextSchedule });
-    if (currentRoute?.id && routes.some((routeItem) => routeItem.id === currentRoute.id)) {
-      updateRouteById(currentRoute.id, { schedule: nextSchedule });
+  const scheduleRouteTargets = useMemo<ScheduleRouteTarget[]>(() => {
+    const targets: ScheduleRouteTarget[] = [];
+
+    if (currentRoute) {
+      targets.push({
+        key: `current:${currentRoute.id}`,
+        routeId: currentRoute.id,
+        source: "current",
+        label: currentRoute.name || "New Route",
+        route: currentRoute,
+      });
+    }
+
+    routes.forEach((savedRoute) => {
+      targets.push({
+        key: `saved:${savedRoute.id}`,
+        routeId: savedRoute.id,
+        source: "saved",
+        label: savedRoute.name || "Untitled Route",
+        route: savedRoute,
+      });
+    });
+
+    return targets;
+  }, [currentRoute, routes]);
+
+  const initialScheduleTargetKey = currentRoute
+    ? `current:${currentRoute.id}`
+    : scheduleRouteTargets[0]?.key;
+
+  const handleScheduleSave = (
+    target: ScheduleRouteTarget,
+    nextSchedule: Schedule | undefined,
+  ) => {
+    if (target.source === "current") {
+      updateCurrent({ schedule: nextSchedule });
+      if (routes.some((routeItem) => routeItem.id === target.routeId)) {
+        updateRouteById(target.routeId, { schedule: nextSchedule });
+      }
+      onCloseSchedule?.();
+      return;
+    }
+
+    updateRouteById(target.routeId, { schedule: nextSchedule });
+    if (currentRoute?.id === target.routeId) {
+      updateCurrent({ schedule: nextSchedule });
     }
     onCloseSchedule?.();
   };
@@ -1076,7 +1121,7 @@ export function RouteBuilder({
             )}
           </div>
         {/* Route name + color */}
-        <div className="flex gap-2">
+        <div className="space-y-2">
           <input
             type="text"
             value={activeRoute.name}
@@ -1084,13 +1129,13 @@ export function RouteBuilder({
             placeholder="Route name"
             className="flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
           />
-          <div className="flex gap-1 flex-wrap">
+          <div className="flex gap-1.5 flex-wrap">
             {ROUTE_COLORS.map((c) => (
               <button
                 key={c}
                 type="button"
                 onClick={() => updateCurrent({ color: c })}
-                className={`w-6 h-6 rounded-full border-2 transition-all ${
+                className={`h-6 w-6 rounded-full border-2 transition-all ${
                   activeRoute.color === c ? "scale-110 border-slate-700" : "border-slate-200"
                 }`}
                 style={{ backgroundColor: c }}
@@ -1357,15 +1402,19 @@ export function RouteBuilder({
       )}
 
       <ScheduleBuilderModal
-        key={`${activeRoute.id}-${showSchedulePanel ? "open" : "closed"}`}
+        key={`${initialScheduleTargetKey ?? "none"}-${showSchedulePanel ? "open" : "closed"}`}
         isOpen={showSchedulePanel}
-        route={activeRoute}
+        routeTargets={scheduleRouteTargets}
+        initialTargetKey={initialScheduleTargetKey}
         onClose={() => onCloseSchedule?.()}
         onSave={handleScheduleSave}
       />
 
       <AlertDialog open={showPinNameDialog} onOpenChange={setShowPinNameDialog}>
-        <AlertDialogContent size="sm">
+        <AlertDialogContent
+          size="sm"
+          className="rounded-[28px] border border-white/50 bg-[var(--glass-surface-strong)] p-6 shadow-[var(--glass-shadow)] backdrop-blur-2xl"
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Name this stop</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1377,12 +1426,13 @@ export function RouteBuilder({
               type="text"
               value={pinName}
               onChange={(e) => setPinName(e.target.value)}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="w-full rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200"
               placeholder="Pinned stop"
             />
           </div>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="mt-1 flex-col-reverse !grid-cols-1">
             <AlertDialogCancel
+              className="w-full rounded-2xl border border-slate-200 bg-white/85 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
               onClick={() => {
                 setPinCandidate(null);
                 window.dispatchEvent(new CustomEvent("route-builder-pin-complete"));
@@ -1391,6 +1441,7 @@ export function RouteBuilder({
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
               onClick={() => {
                 if (!pinCandidate) return;
                 const name = pinName.trim() || "Pinned stop";
@@ -1414,15 +1465,19 @@ export function RouteBuilder({
       </AlertDialog>
 
       <AlertDialog open={showPinSaveDialog} onOpenChange={setShowPinSaveDialog}>
-        <AlertDialogContent size="sm">
+        <AlertDialogContent
+          size="sm"
+          className="rounded-[28px] border border-white/50 bg-[var(--glass-surface-strong)] p-6 shadow-[var(--glass-shadow)] backdrop-blur-2xl"
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Save this stop?</AlertDialogTitle>
             <AlertDialogDescription>
               Saved stops appear in the command bar for quick reuse.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="mt-1 flex-col-reverse !grid-cols-1">
             <AlertDialogCancel
+              className="w-full rounded-2xl border border-slate-200 bg-white/85 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
               onClick={() => {
                 setPinCandidate(null);
                 setShowPinSaveDialog(false);
@@ -1432,6 +1487,7 @@ export function RouteBuilder({
               Skip
             </AlertDialogCancel>
             <AlertDialogAction
+              className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
               onClick={() => {
                 if (!pinCandidate) return;
                 const name = pinName.trim() || "Pinned stop";

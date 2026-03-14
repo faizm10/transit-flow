@@ -232,15 +232,14 @@ export default function MapPage() {
       // Auto-add newly saved custom route to time simulation selection
       const routeId = detail?.routeId;
       if (routeId) {
+        setShowCustomNetwork(true);
         const customValue = `custom:${routeId}`;
         setSimulationRoutes((prev) =>
           prev.includes(customValue) ? prev : [...prev, customValue]
         );
-        if (showCustomNetwork) {
-          setSelectedCustomRouteIds((prev) =>
-            prev.includes(routeId) ? prev : [...prev, routeId]
-          );
-        }
+        setSelectedCustomRouteIds((prev) =>
+          prev.includes(routeId) ? prev : [...prev, routeId]
+        );
       }
     };
     const handleDeleted = (e: Event) => {
@@ -261,7 +260,7 @@ export default function MapPage() {
       window.removeEventListener("route-builder-saved", handleSaved);
       window.removeEventListener("route-builder-deleted", handleDeleted);
     };
-  }, [showCustomNetwork]);
+  }, []);
 
   // When custom network is on and we have saved routes but none selected, default to all
   useEffect(() => {
@@ -1871,15 +1870,15 @@ export default function MapPage() {
       popup
         .setLngLat((feature.geometry as GeoJSON.Point).coordinates as [number, number])
         .setHTML(
-          `<div style="font-size:11px;line-height:1.3;min-width:220px;padding:8px 10px;">
-            <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px;">
-              <div style="font-weight:700;">Route ${route}</div>
-              <div style="font-size:10px;color:#93c5fd;">${source}</div>
+          `<div class="simulation-popup-card">
+            <div class="simulation-popup-header">
+              <div class="simulation-popup-route">Route ${route}</div>
+              <div class="simulation-popup-source">${source}</div>
             </div>
-            ${routeLongName ? `<div style="color:#cbd5e1;margin-bottom:6px;">${routeLongName}</div>` : ""}
-            <div style="color:#cbd5f5;">${startName} → ${endName}</div>
-            <div style="color:#94a3b8;margin-top:4px;">${startTime} → ${endTime}</div>
-            <div style="color:#64748b;margin-top:4px;font-size:10px;">${directionLabel}</div>
+            ${routeLongName ? `<div class="simulation-popup-long-name">${routeLongName}</div>` : ""}
+            <div class="simulation-popup-stops">${startName} → ${endName}</div>
+            <div class="simulation-popup-times">${startTime} → ${endTime}</div>
+            <div class="simulation-popup-direction">${directionLabel}</div>
           </div>`,
         )
         .addTo(map.current!);
@@ -2556,33 +2555,40 @@ export default function MapPage() {
                   </select>
                 </label>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3">
                   <button
-                    onClick={loadSimulation}
+                    onClick={() => {
+                      if (!simulationTrips.length) {
+                        loadSimulation();
+                        return;
+                      }
+                      setSimulationPlaying((prev) => !prev);
+                    }}
                     disabled={simulationLoading}
-                    className="rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                    className="w-full rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
                   >
-                    {simulationLoading ? "Loading..." : "Start"}
+                    {simulationLoading
+                      ? "Loading..."
+                      : !simulationTrips.length
+                        ? "Load trips"
+                        : simulationPlaying
+                          ? "Pause"
+                          : "Play"}
                   </button>
-                  <button
-                    onClick={() => setSimulationPlaying((prev) => !prev)}
-                    disabled={!simulationTrips.length}
-                    className="rounded-2xl border border-white/45 bg-white/65 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white/80 disabled:opacity-40"
-                  >
-                    {simulationPlaying ? "Pause" : "Play"}
-                  </button>
-                  <button
-                    onClick={clearSimulationTrackers}
-                    className="rounded-2xl border border-white/45 bg-white/65 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white/80"
-                  >
-                    Clear
-                  </button>
-                  <button
-                    onClick={resetSimulationInputs}
-                    className="rounded-2xl border border-white/45 bg-white/65 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white/80"
-                  >
-                    Reset
-                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={clearSimulationTrackers}
+                      className="rounded-2xl border border-white/45 bg-white/65 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white/80"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      onClick={resetSimulationInputs}
+                      className="rounded-2xl border border-white/45 bg-white/65 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white/80"
+                    >
+                      Reset
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

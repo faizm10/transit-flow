@@ -219,7 +219,14 @@ export function ComparisonPanel({
               GO Transit
             </div>
             {loading && (
-              <div className="pt-4 text-[11px] text-slate-500">Loading…</div>
+              <div className="space-y-2 pt-2">
+                <div className="h-4 w-4/5 animate-pulse rounded bg-slate-200" />
+                <SkeletonMetricRow />
+                <SkeletonMetricRow />
+                <SkeletonMetricRow />
+                <SkeletonMetricRow />
+                <SkeletonMetricRow />
+              </div>
             )}
             {error && (
               <div className="text-[11px] text-red-600">{error}</div>
@@ -313,6 +320,15 @@ function MetricRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between rounded-xl border border-white/40 bg-white/55 px-2.5 py-2">
       <span className="text-[10px] text-slate-500">{label}</span>
       <span className="text-[11px] font-medium text-slate-900">{value}</span>
+    </div>
+  );
+}
+
+function SkeletonMetricRow() {
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-white/40 bg-white/55 px-2.5 py-2">
+      <div className="h-3 w-16 animate-pulse rounded bg-slate-200" />
+      <div className="h-3 w-10 animate-pulse rounded bg-slate-200" />
     </div>
   );
 }

@@ -151,7 +151,7 @@
   box-shadow: var(--glass-shadow);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  padding: 0;
+  padding: 14px 16px;
 }
 
 .route-info-popup .mapboxgl-popup-tip {
@@ -162,4 +162,64 @@
   color: rgb(71 85 105);
   font-size: 16px;
   padding: 8px 10px 0 0;
+}
+
+.simulation-popup .mapboxgl-popup-content {
+  border: 1px solid rgb(255 255 255 / 0.55);
+  border-radius: 24px;
+  background: var(--glass-surface-strong);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 14px 16px;
+}
+
+.simulation-popup .mapboxgl-popup-tip {
+  border-top-color: rgb(255 255 255 / 0.7);
+}
+
+.simulation-popup-card {
+  min-width: 220px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgb(15 23 42);
+}
+
+.simulation-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.simulation-popup-route {
+  font-weight: 700;
+  color: rgb(15 23 42);
+}
+
+.simulation-popup-source {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgb(3 105 161);
+}
+
+.simulation-popup-long-name {
+  margin-bottom: 6px;
+  color: rgb(71 85 105);
+}
+
+.simulation-popup-stops {
+  color: rgb(30 41 59);
+}
+
+.simulation-popup-times {
+  margin-top: 4px;
+  color: rgb(71 85 105);
+}
+
+.simulation-popup-direction {
+  margin-top: 4px;
+  font-size: 10px;
+  color: rgb(100 116 139);
 }
