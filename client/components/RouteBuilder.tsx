@@ -1036,6 +1036,25 @@ export function RouteBuilder({
     onCloseSchedule?.();
   };
 
+  const handleSaveRoute = () => {
+    saveRoute();
+    setSelectedStopId(null);
+    setShowExtensions(false);
+    setExtensionSuggestions([]);
+    setShowGoVariantSelector(false);
+    setSelectedGoVariant(null);
+    setBuildMode("quick");
+    setQuickStyle(null);
+    setQuickStopsLoaded(false);
+    setQuickError(null);
+    setQuickNoStops(false);
+    setPinMode(false);
+    setPinCandidate(null);
+    setPinName("Pinned stop");
+    setShowPinNameDialog(false);
+    setShowPinSaveDialog(false);
+  };
+
   if (!showPanel && !showSchedulePanel) return null;
 
   return (
@@ -1377,7 +1396,7 @@ export function RouteBuilder({
         </div>
         <div className="flex shrink-0 items-center gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
           <button
-            onClick={saveRoute}
+            onClick={handleSaveRoute}
             disabled={stops.length < 2}
             className="flex-1 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
