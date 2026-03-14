@@ -1872,11 +1872,19 @@ export default function MapPage() {
         .setHTML(
           `<div class="simulation-popup-card">
             <div class="simulation-popup-header">
-              <div class="simulation-popup-route">Route ${route}</div>
+              <div class="simulation-popup-route">${route || routeLongName || "Service trip"}</div>
               <div class="simulation-popup-source">${source}</div>
             </div>
-            ${routeLongName ? `<div class="simulation-popup-long-name">${routeLongName}</div>` : ""}
-            <div class="simulation-popup-stops">${startName} → ${endName}</div>
+            ${
+              routeLongName && route && routeLongName !== route
+                ? `<div class="simulation-popup-long-name">${routeLongName}</div>`
+                : ""
+            }
+            ${
+              startName || endName
+                ? `<div class="simulation-popup-stops">${startName} → ${endName}</div>`
+                : ""
+            }
             <div class="simulation-popup-times">${startTime} → ${endTime}</div>
             <div class="simulation-popup-direction">${directionLabel}</div>
           </div>`,

@@ -171,7 +171,7 @@
   box-shadow: var(--glass-shadow);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  padding: 14px 16px;
+  padding: 18px 20px;
 }
 
 .simulation-popup .mapboxgl-popup-tip {
@@ -179,47 +179,55 @@
 }
 
 .simulation-popup-card {
-  min-width: 220px;
-  font-size: 11px;
-  line-height: 1.35;
+  min-width: 260px;
+  max-width: 300px;
+  font-size: 12px;
+  line-height: 1.5;
   color: rgb(15 23 42);
 }
 
 .simulation-popup-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
+  gap: 14px;
+  margin-bottom: 10px;
 }
 
 .simulation-popup-route {
+  flex: 1;
   font-weight: 700;
+  font-size: 16px;
+  line-height: 1.35;
   color: rgb(15 23 42);
 }
 
 .simulation-popup-source {
-  font-size: 10px;
+  flex-shrink: 0;
+  font-size: 11px;
   font-weight: 600;
   color: rgb(3 105 161);
 }
 
 .simulation-popup-long-name {
-  margin-bottom: 6px;
+  margin-bottom: 10px;
+  line-height: 1.45;
   color: rgb(71 85 105);
 }
 
 .simulation-popup-stops {
+  line-height: 1.45;
   color: rgb(30 41 59);
 }
 
 .simulation-popup-times {
-  margin-top: 4px;
+  margin-top: 10px;
+  font-weight: 500;
   color: rgb(71 85 105);
 }
 
 .simulation-popup-direction {
-  margin-top: 4px;
-  font-size: 10px;
+  margin-top: 8px;
+  font-size: 11px;
   color: rgb(100 116 139);
 }
