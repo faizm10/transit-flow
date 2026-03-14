@@ -1213,13 +1213,13 @@ export function RouteBuilder({
             {validationWarnings.map((warning) => (
               <div
                 key={warning.id}
-                className="flex items-center justify-between gap-2 text-slate-700"
+                className="flex items-start justify-between gap-3 text-slate-700"
               >
-                <span>{warning.message}</span>
+                <span className="leading-5">{warning.message}</span>
                 {warning.action && warning.actionLabel && (
                   <button
                     onClick={warning.action}
-                    className="text-[10px] font-semibold text-amber-700 hover:text-amber-900"
+                    className="shrink-0 text-[10px] font-semibold text-orange-700 hover:text-orange-900"
                   >
                     {warning.actionLabel}
                   </button>
@@ -1478,8 +1478,10 @@ function StopRow({
 }) {
   return (
     <div
-      className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 group ${
-        isSelected ? "bg-white/10 border-white/20" : "bg-black/30 border-white/10"
+      className={`group flex items-center gap-3 rounded-[22px] border px-3 py-2.5 transition ${
+        isSelected
+          ? "border-sky-200 bg-sky-50 shadow-[0_8px_20px_rgba(14,165,233,0.12)]"
+          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
       }`}
       draggable
       onDragStart={(e) => {
@@ -1504,8 +1506,10 @@ function StopRow({
         {index + 1}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-[11px] truncate">{stop.name ?? `Stop ${index + 1}`}</div>
-        <div className="text-[10px] text-white/45 truncate">
+        <div className="truncate text-[12px] font-medium text-slate-800">
+          {stop.name ?? `Stop ${index + 1}`}
+        </div>
+        <div className="truncate text-[10px] text-slate-400">
           {stop.lat.toFixed(5)}, {stop.lng.toFixed(5)}
         </div>
       </div>
@@ -1515,7 +1519,7 @@ function StopRow({
             e.stopPropagation();
             onToggleTimepoint();
           }}
-          className="p-1 rounded hover:bg-white/10 text-[10px]"
+          className="rounded p-1 text-[10px] text-slate-500 hover:bg-slate-100 hover:text-slate-800"
           title="Toggle timepoint"
         >
           {stop.timepoint ? "★" : "☆"}
@@ -1525,7 +1529,7 @@ function StopRow({
             e.stopPropagation();
             onRemove();
           }}
-          className="p-1 rounded hover:bg-red-500/30 text-red-300 text-[10px]"
+          className="rounded p-1 text-[10px] text-rose-500 hover:bg-rose-50 hover:text-rose-700"
           title="Remove"
         >
           ✕
