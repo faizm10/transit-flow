@@ -42,60 +42,68 @@ export function FiltersPanel({
   }, [selectedVariantIds]);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 pb-4 border-b border-neutral-200">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="space-y-3 rounded-[24px] border border-white/45 bg-white/42 p-4 shadow-[var(--glass-shadow-soft)]">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            Route variants
+          </div>
+          <p className="mt-2 text-xs text-slate-700">
+            Narrow active services by family, mode, or specific branch.
+          </p>
+        </div>
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             placeholder="Search routes..."
             value={goVariantFilterText}
             onChange={(e) => setGoVariantFilterText(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 text-sm bg-white rounded-lg border border-neutral-300 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
+            className="w-full rounded-2xl border border-white/45 bg-white/72 py-2.5 pl-10 pr-4 text-xs text-slate-900 placeholder-slate-400 transition-all focus:border-sky-300 focus:outline-none focus:ring-4 focus:ring-sky-100/60"
           />
         </div>
 
-        <div className="flex gap-2 mt-3">
+        <div className="flex gap-2">
           <button
             onClick={() => setShowGoTrains(!showGoTrains)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all border ${
+            className={`flex-1 rounded-2xl border py-2 text-xs font-semibold transition-all ${
               showGoTrains
-                ? "bg-blue-100 text-blue-700 border-blue-200"
-                : "bg-white text-neutral-600 border-neutral-300 hover:bg-neutral-50"
+                ? "border-sky-200 bg-sky-100/85 text-sky-800"
+                : "border-white/45 bg-white/55 text-slate-600 hover:bg-white/75"
             }`}
           >
             Trains
           </button>
           <button
             onClick={() => setShowGoBuses(!showGoBuses)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all border ${
+            className={`flex-1 rounded-2xl border py-2 text-xs font-semibold transition-all ${
               showGoBuses
-                ? "bg-blue-100 text-blue-700 border-blue-200"
-                : "bg-white text-neutral-600 border-neutral-300 hover:bg-neutral-50"
+                ? "border-sky-200 bg-sky-100/85 text-sky-800"
+                : "border-white/45 bg-white/55 text-slate-600 hover:bg-white/75"
             }`}
           >
             Buses
           </button>
         </div>
 
-        <div className="flex justify-between items-center mt-4 px-1">
+        <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
-            <div className="text-xs font-medium text-neutral-600">
-              <span className="text-neutral-900 font-semibold">{selectedCount}</span> /{" "}
+            <div className="h-1.5 w-1.5 rounded-full bg-sky-600"></div>
+            <div className="text-xs font-medium text-slate-600">
+              <span className="font-semibold text-slate-900">{selectedCount}</span> /{" "}
               {allVariantIds.length} selected
             </div>
           </div>
           <div className="flex gap-3">
             <button
               onClick={() => setSelectedVariantIds(allVariantIds)}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+              className="text-xs font-semibold text-sky-700 transition-colors hover:text-sky-900"
             >
               Select All
             </button>
             <button
               onClick={() => setSelectedVariantIds([])}
-              className="text-xs font-semibold text-neutral-500 hover:text-neutral-700 transition-colors"
+              className="text-xs font-semibold text-slate-500 transition-colors hover:text-slate-800"
             >
               Clear
             </button>
@@ -103,13 +111,16 @@ export function FiltersPanel({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pt-2">
+      <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
         {groupedGoVariants.map(({ routeShortName, items }) => (
-          <div key={routeShortName} className="mb-1">
-            <div className="px-4 py-2.5 text-xs font-semibold text-neutral-700 bg-neutral-50 sticky top-0 border-b border-neutral-200">
+          <div
+            key={routeShortName}
+            className="mb-3 overflow-hidden rounded-[24px] border border-white/45 bg-white/36 shadow-[var(--glass-shadow-soft)]"
+          >
+            <div className="sticky top-0 border-b border-white/40 bg-white/70 px-4 py-2.5 text-[11px] font-semibold text-slate-700 backdrop-blur-xl">
               Route {routeShortName}
             </div>
-            <div className="px-3 py-1 space-y-1">
+            <div className="space-y-1 px-3 py-2.5">
               {items.map(({ displayKey, variantIds }) => {
                 const isSelected = variantIds.every((id) =>
                   selectedVariantIds.includes(id)
@@ -121,24 +132,24 @@ export function FiltersPanel({
                     className="w-full text-left group"
                   >
                     <div
-                      className={`px-3 py-2.5 rounded-lg flex items-center gap-3 transition-all border ${
+                      className={`flex items-center gap-3 rounded-2xl border px-3 py-2.5 transition-all ${
                         isSelected
-                          ? "bg-blue-50 border-blue-200"
-                          : "hover:bg-neutral-50 border-transparent"
+                          ? "border-sky-200 bg-sky-100/75"
+                          : "border-transparent bg-white/20 hover:bg-white/50"
                       }`}
                     >
                       <div
-                        className={`w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${
+                        className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md transition-all ${
                           isSelected
-                            ? "bg-blue-600"
-                            : "bg-white border border-neutral-300 group-hover:border-neutral-400"
+                            ? "bg-sky-600"
+                            : "border border-white/55 bg-white/80 group-hover:border-slate-300"
                         }`}
                       >
                         {isSelected && <CheckIcon className="w-3.5 h-3.5 text-white" />}
                       </div>
                       <span
-                        className={`text-sm font-medium transition-colors ${
-                          isSelected ? "text-blue-900" : "text-neutral-700 group-hover:text-neutral-900"
+                        className={`text-xs font-medium transition-colors ${
+                          isSelected ? "text-slate-950" : "text-slate-700 group-hover:text-slate-950"
                         }`}
                       >
                         {displayKey}

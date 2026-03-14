@@ -143,27 +143,32 @@ export function ComparisonPanel({
     : [];
 
   return (
-    <div className="fixed right-4 bottom-4 z-50 w-[480px] max-w-[95vw] rounded-xl bg-black/85 border border-white/10 backdrop-blur-md shadow-2xl text-white text-sm">
+    <div className="fixed bottom-24 right-4 z-50 w-[480px] max-w-[95vw] overflow-hidden rounded-[28px] border border-white/50 bg-[var(--glass-surface-strong)] text-sm text-slate-900 shadow-[var(--glass-shadow)] backdrop-blur-2xl">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-        <span className="font-semibold text-white/90">Route Comparison</span>
+      <div className="flex items-center justify-between border-b border-white/40 px-5 py-4">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            Benchmark
+          </div>
+          <span className="mt-1 block font-semibold text-slate-950">Route Comparison</span>
+        </div>
         <button
           onClick={onClose}
-          className="text-white/50 hover:text-white transition-colors"
+          className="text-slate-400 transition-colors hover:text-slate-950"
         >
           <X size={16} />
         </button>
       </div>
 
       {/* GO Route Selector */}
-      <div className="px-4 py-3 border-b border-white/10">
-        <label className="text-[11px] text-white/50 mb-1 block uppercase tracking-wide">
+      <div className="border-b border-white/35 px-5 py-4">
+        <label className="mb-2 block text-[11px] uppercase tracking-wide text-slate-500">
           Compare against GO Transit route
         </label>
         <select
           value={selectedShortName}
           onChange={(e) => setSelectedShortName(e.target.value)}
-          className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm text-white appearance-none cursor-pointer focus:outline-none focus:border-white/40"
+          className="w-full cursor-pointer appearance-none rounded-2xl border border-white/45 bg-white/70 px-3 py-2.5 text-sm text-slate-900 focus:border-sky-300 focus:outline-none focus:ring-4 focus:ring-sky-100/60"
         >
           <option value="">Select a route…</option>
           {goRoutes.map((r) => (
@@ -175,14 +180,14 @@ export function ComparisonPanel({
       </div>
 
       {/* Side-by-side metrics */}
-      <div className="px-4 py-3">
+      <div className="px-5 py-4">
         <div className="grid grid-cols-2 gap-3">
           {/* Custom Route Column */}
-          <div className="space-y-2">
-            <div className="text-[10px] text-white/40 uppercase tracking-widest mb-1">
+          <div className="space-y-2 rounded-[22px] border border-white/45 bg-white/45 p-4">
+            <div className="mb-1 text-[10px] uppercase tracking-widest text-slate-500">
               Custom Route
             </div>
-            <div className="text-[11px] font-semibold text-white/80 truncate">
+            <div className="truncate text-[11px] font-semibold text-slate-800">
               {customRoute.name || "Untitled Route"}
             </div>
             <MetricRow label="Stops" value={String(customStops)} />
@@ -209,19 +214,19 @@ export function ComparisonPanel({
           </div>
 
           {/* GO Route Column */}
-          <div className="space-y-2">
-            <div className="text-[10px] text-white/40 uppercase tracking-widest mb-1">
+          <div className="space-y-2 rounded-[22px] border border-white/45 bg-white/45 p-4">
+            <div className="mb-1 text-[10px] uppercase tracking-widest text-slate-500">
               GO Transit
             </div>
             {loading && (
-              <div className="text-white/40 text-[11px] pt-4">Loading…</div>
+              <div className="pt-4 text-[11px] text-slate-500">Loading…</div>
             )}
             {error && (
-              <div className="text-red-400 text-[11px]">{error}</div>
+              <div className="text-[11px] text-red-600">{error}</div>
             )}
             {frequencyData && (
               <>
-                <div className="text-[11px] font-semibold text-white/80 truncate">
+                <div className="truncate text-[11px] font-semibold text-slate-800">
                   {frequencyData.route_short_name} —{" "}
                   {frequencyData.startStopName} → {frequencyData.endStopName}
                 </div>
@@ -242,7 +247,7 @@ export function ComparisonPanel({
               </>
             )}
             {!loading && !error && !frequencyData && (
-              <div className="text-white/30 text-[11px] pt-4">
+              <div className="pt-4 text-[11px] text-slate-500">
                 Select a GO route above
               </div>
             )}
@@ -252,8 +257,8 @@ export function ComparisonPanel({
 
       {/* Bar chart */}
       {frequencyData && chartData.length > 0 && (
-        <div className="px-4 pb-4 border-t border-white/10 pt-3">
-          <div className="text-[10px] text-white/40 uppercase tracking-widest mb-2">
+        <div className="border-t border-white/35 px-5 pb-5 pt-4">
+          <div className="mb-2 text-[10px] uppercase tracking-widest text-slate-500">
             Key Metrics
           </div>
           <ResponsiveContainer width="100%" height={120}>
@@ -264,36 +269,36 @@ export function ComparisonPanel({
             >
               <XAxis
                 dataKey="metric"
-                tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 9 }}
+                tick={{ fill: "rgba(71,85,105,0.8)", fontSize: 9 }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9 }}
+                tick={{ fill: "rgba(100,116,139,0.8)", fontSize: 9 }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
                 contentStyle={{
-                  background: "rgba(0,0,0,0.8)",
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  borderRadius: 6,
+                  background: "rgba(255,255,255,0.88)",
+                  border: "1px solid rgba(255,255,255,0.65)",
+                  borderRadius: 16,
                   fontSize: 11,
                 }}
-                labelStyle={{ color: "rgba(255,255,255,0.7)" }}
-                itemStyle={{ color: "rgba(255,255,255,0.9)" }}
+                labelStyle={{ color: "rgb(71,85,105)" }}
+                itemStyle={{ color: "rgb(15,23,42)" }}
               />
               <Bar dataKey="Custom" fill="#3b82f6" radius={[2, 2, 0, 0]} />
               <Bar dataKey="GO" fill="#22c55e" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-          <div className="flex gap-4 justify-center mt-1">
-            <div className="flex items-center gap-1 text-[9px] text-white/40">
-              <span className="w-2 h-2 rounded-sm bg-blue-500 inline-block" />
+          <div className="mt-1 flex justify-center gap-4">
+            <div className="flex items-center gap-1 text-[9px] text-slate-500">
+              <span className="inline-block h-2 w-2 rounded-sm bg-blue-500" />
               Custom
             </div>
-            <div className="flex items-center gap-1 text-[9px] text-white/40">
-              <span className="w-2 h-2 rounded-sm bg-green-500 inline-block" />
+            <div className="flex items-center gap-1 text-[9px] text-slate-500">
+              <span className="inline-block h-2 w-2 rounded-sm bg-green-500" />
               GO Transit
             </div>
           </div>
@@ -305,9 +310,9 @@ export function ComparisonPanel({
 
 function MetricRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between items-center">
-      <span className="text-[10px] text-white/40">{label}</span>
-      <span className="text-[11px] text-white/80 font-medium">{value}</span>
+    <div className="flex items-center justify-between rounded-xl border border-white/40 bg-white/55 px-2.5 py-2">
+      <span className="text-[10px] text-slate-500">{label}</span>
+      <span className="text-[11px] font-medium text-slate-900">{value}</span>
     </div>
   );
 }

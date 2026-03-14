@@ -17,40 +17,40 @@ export function SidePanel({
 }: SidePanelProps) {
   return (
     <>
-      {/* Backdrop overlay */}
       <div
-        className={`absolute inset-0 bg-black/40 backdrop-blur-sm z-10 transition-opacity duration-300 ${
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        className={`absolute inset-0 z-20 bg-slate-900/18 backdrop-blur-[2px] transition-opacity duration-300 md:hidden ${
+          isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={onClose}
       />
 
-      {/* Side panel */}
-      <div
-        className={`absolute top-0 left-0 h-full z-20 transition-all duration-300 transform ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        } w-96 bg-white border-r border-neutral-200 shadow-xl`}
+      <aside
+        className={`absolute z-30 transition-all duration-300 ${
+          isOpen
+            ? "pointer-events-auto translate-y-0 opacity-100 md:translate-x-0"
+            : "pointer-events-none translate-y-6 opacity-0 md:-translate-x-8"
+        } inset-x-3 bottom-20 top-[72px] md:inset-x-auto md:bottom-auto md:left-[104px] md:top-1/2 md:w-[380px] md:-translate-y-1/2 lg:left-[112px] lg:w-[400px]`}
       >
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <header className="flex items-center justify-between p-5 border-b border-neutral-200 bg-neutral-50">
-            <h2 className="text-base font-semibold text-neutral-900">
-              {title}
-            </h2>
+        <div className="flex h-full flex-col overflow-hidden rounded-[32px] border border-white/50 bg-[var(--glass-surface-strong)] shadow-[var(--glass-shadow)] backdrop-blur-2xl">
+          <header className="flex items-start justify-between gap-3 border-b border-white/40 px-5 py-5">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                Inspector
+              </div>
+              <h2 className="mt-2 text-lg font-semibold text-slate-950">{title}</h2>
+            </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900 transition-all duration-200"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/45 bg-white/40 text-slate-500 transition hover:bg-white/70 hover:text-slate-950"
+              aria-label={`Close ${title}`}
             >
-              <Cross1Icon className="w-4 h-4" />
+              <Cross1Icon className="h-4 w-4" />
             </button>
           </header>
 
-          {/* Content area */}
-          <div className="flex-1 overflow-y-auto p-5">
-            {children}
-          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
         </div>
-      </div>
+      </aside>
     </>
   );
 }

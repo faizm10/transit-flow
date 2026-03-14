@@ -1179,42 +1179,62 @@ export function RouteBuilder({
     scheduleDraft,
   ]);
 
+  useEffect(() => {
+    if (!showSchedulePanel || !onCloseSchedule) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onCloseSchedule();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showSchedulePanel, onCloseSchedule]);
+
   if (!showPanel && !showSchedulePanel) return null;
 
   return (
     <div className="flex gap-3 items-start">
       {showPanel && (
-      <div className="w-72 overflow-hidden rounded-xl bg-black/60 backdrop-blur-md border border-white/20 shadow-2xl text-white/90 flex flex-col max-h-[85vh]">
-        <div className="px-3 py-2.5 border-b border-white/10 bg-black/40 shrink-0">
+      <div className="flex max-h-[82vh] w-[320px] flex-col overflow-hidden rounded-[28px] border border-white/50 bg-[rgba(248,250,252,0.94)] text-slate-900 shadow-[0_24px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+        <div className="shrink-0 border-b border-slate-200 px-4 py-4">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-xs font-semibold text-white">Route Builder</h3>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-950">Route Builder</h3>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Build the route, review stops, then save.
+              </p>
+            </div>
             {(onStartDraw || onCancelDraw) && (
               <button
                 onClick={isDrawing ? onCancelDraw : onStartDraw}
-                className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors ${
+                className={`rounded-2xl px-3 py-2 text-[11px] font-semibold transition-colors ${
                   isDrawing
-                    ? "bg-red-600 text-white hover:bg-red-700 animate-pulse"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
+                    ? "animate-pulse bg-red-600 text-white hover:bg-red-700"
+                    : "bg-sky-600 text-white hover:bg-sky-700"
                 }`}
               >
-                {isDrawing ? "Cancel Draw" : "✏ Draw Route"}
+                {isDrawing ? "Cancel draw" : "Draw route"}
               </button>
             )}
           </div>
-          <p className="text-[10px] text-white/50 mt-0.5">
+          <p className="mt-2 text-[11px] text-slate-500">
             {isDrawing
               ? "Click on the map to draw your route. Double-click to finish."
               : "Add start/end from the command bar, then generate or edit stops."}
           </p>
         </div>
 
-        <div className="p-3 space-y-3 overflow-y-auto flex-1 min-h-0">
-          <div className="rounded-lg bg-black/30 border border-white/10 p-2 text-[11px] space-y-2">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+          <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
             <div className="flex items-center justify-between">
-              <span className="text-white/70">Load GO Transit Line</span>
+              <span className="font-medium text-slate-700">Load GO Transit line</span>
               <button
                 onClick={() => setShowGoVariantSelector((v) => !v)}
-                className="text-[10px] text-blue-300 hover:text-blue-200"
+                className="text-[10px] font-semibold text-sky-700 hover:text-sky-900"
               >
                 {showGoVariantSelector ? "Hide" : "Show"}
               </button>
@@ -1265,7 +1285,7 @@ export function RouteBuilder({
             value={activeRoute.name}
             onChange={(e) => updateCurrent({ name: e.target.value })}
             placeholder="Route name"
-            className="flex-1 rounded-lg bg-black/50 border border-white/10 px-2 py-1.5 text-xs text-white/90 placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            className="flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
           />
           <div className="flex gap-1 flex-wrap">
             {ROUTE_COLORS.map((c) => (
@@ -1274,7 +1294,7 @@ export function RouteBuilder({
                 type="button"
                 onClick={() => updateCurrent({ color: c })}
                 className={`w-6 h-6 rounded-full border-2 transition-all ${
-                  activeRoute.color === c ? "border-white scale-110" : "border-white/30"
+                  activeRoute.color === c ? "scale-110 border-slate-700" : "border-slate-200"
                 }`}
                 style={{ backgroundColor: c }}
                 title={c}
@@ -1285,20 +1305,20 @@ export function RouteBuilder({
 
         {route && (
           <div
-            className="rounded-lg px-2.5 py-2 text-xs border"
+            className="rounded-[22px] border px-3 py-3 text-sm"
             style={{
-              backgroundColor: `${routeColor}20`,
-              borderColor: `${routeColor}50`,
+              backgroundColor: `${routeColor}14`,
+              borderColor: `${routeColor}40`,
             }}
           >
             <div className="flex justify-between">
-              <span className="text-white/70">Distance</span>
+              <span className="text-slate-600">Distance</span>
               <span className="font-medium">
                 {(route.distance / 1000).toFixed(1)} km
               </span>
             </div>
             <div className="flex justify-between mt-1">
-              <span className="text-white/70">Duration</span>
+              <span className="text-slate-600">Duration</span>
               <span className="font-medium">
                 {Math.round(route.duration / 60)} min
               </span>
@@ -1307,21 +1327,21 @@ export function RouteBuilder({
         )}
 
         {loading && (
-          <div className="text-[10px] text-white/50">Calculating route...</div>
+          <div className="text-[11px] text-slate-500">Calculating route...</div>
         )}
         {error && (
-          <div className="text-[10px] text-red-300">{error}</div>
+          <div className="text-[11px] text-red-600">{error}</div>
         )}
 
         {/* Current route stops */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] text-white/60">Current route stops ({stops.length})</span>
+            <span className="text-[11px] font-medium text-slate-600">Current route stops ({stops.length})</span>
           </div>
 
-          <div className="max-h-52 overflow-y-auto space-y-1">
+          <div className="max-h-48 overflow-y-auto space-y-1">
             {stops.length === 0 ? (
-              <div className="text-[10px] text-white/40 py-4 text-center">
+              <div className="py-4 text-center text-[11px] text-slate-400">
                 Add start and end, then generate stops.
               </div>
             ) : (
@@ -1345,30 +1365,30 @@ export function RouteBuilder({
         </div>
 
         {selectedStop && (
-          <div className="rounded-lg bg-black/30 border border-white/10 p-2 text-[11px] space-y-2">
+          <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
             <div className="flex items-center justify-between">
-              <span className="text-white/70">Stop details</span>
+              <span className="font-medium text-slate-700">Stop details</span>
               <button
                 onClick={() => setSelectedStopId(null)}
-                className="text-[10px] text-white/40 hover:text-white/70"
+                className="text-[10px] text-slate-400 hover:text-slate-700"
               >
                 Close
               </button>
             </div>
-            <div className="text-white/90">{selectedStop.name ?? "Stop"}</div>
-            <div className="text-white/50">
+            <div className="text-slate-900">{selectedStop.name ?? "Stop"}</div>
+            <div className="text-slate-500">
               {selectedStop.lat.toFixed(5)}, {selectedStop.lng.toFixed(5)}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setStopAsStart(selectedStop.id)}
-                className="text-[10px] text-emerald-300 hover:text-emerald-200"
+                className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-900"
               >
                 Set as start
               </button>
               <button
                 onClick={() => setStopAsEnd(selectedStop.id)}
-                className="text-[10px] text-blue-300 hover:text-blue-200"
+                className="text-[10px] font-semibold text-sky-700 hover:text-sky-900"
               >
                 Set as end
               </button>
@@ -1376,13 +1396,13 @@ export function RouteBuilder({
                 onClick={() =>
                   updateStop(selectedStop.id, { timepoint: !selectedStop.timepoint })
                 }
-                className="text-[10px] text-amber-300 hover:text-amber-200"
+                className="text-[10px] font-semibold text-amber-700 hover:text-amber-900"
               >
                 {selectedStop.timepoint ? "Unset timepoint" : "Mark timepoint"}
               </button>
               <button
                 onClick={() => removeStop(selectedStop.id)}
-                className="text-[10px] text-red-300 hover:text-red-200"
+                className="text-[10px] font-semibold text-red-600 hover:text-red-800"
               >
                 Remove stop
               </button>
@@ -1391,18 +1411,18 @@ export function RouteBuilder({
         )}
 
         {validationWarnings.length > 0 && (
-          <div className="rounded-lg bg-black/30 border border-white/10 p-2 text-[11px] space-y-2">
-            <div className="text-white/70">Route checks</div>
+          <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+            <div className="font-medium text-slate-700">Route checks</div>
             {validationWarnings.map((warning) => (
               <div
                 key={warning.id}
-                className="flex items-center justify-between gap-2 text-white/80"
+                className="flex items-center justify-between gap-2 text-slate-700"
               >
                 <span>{warning.message}</span>
                 {warning.action && warning.actionLabel && (
                   <button
                     onClick={warning.action}
-                    className="text-[10px] text-amber-300 hover:text-amber-200"
+                    className="text-[10px] font-semibold text-amber-700 hover:text-amber-900"
                   >
                     {warning.actionLabel}
                   </button>
@@ -1412,22 +1432,22 @@ export function RouteBuilder({
           </div>
         )}
 
-        <div className="rounded-lg bg-black/30 border border-white/10 p-2 text-[11px] space-y-2">
+        <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
           <div className="flex items-center justify-between">
-            <span className="text-white/70">Suggest extension</span>
+            <span className="font-medium text-slate-700">Suggest extension</span>
             <button
               onClick={() => {
                 setExtensionSuggestions(buildExtensionSuggestions());
                 setShowExtensions((v) => !v);
               }}
-              className="text-[10px] text-blue-300 hover:text-blue-200"
+              className="text-[10px] font-semibold text-sky-700 hover:text-sky-900"
               disabled={!selectedStop}
             >
               {showExtensions ? "Hide" : "Suggest"}
             </button>
           </div>
           {!selectedStop && (
-            <div className="text-white/40">
+            <div className="text-slate-400">
               Select a stop to get extension suggestions.
             </div>
           )}
@@ -1437,7 +1457,7 @@ export function RouteBuilder({
                 <button
                   key={`${opt.name}-${opt.id}`}
                   onClick={() => applyExtension(opt)}
-                  className="w-full text-left rounded bg-black/40 border border-white/10 px-2 py-1 text-[10px] hover:bg-white/10"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-left text-[10px] hover:bg-slate-100"
                 >
                   {opt.name} · {opt.distanceKm.toFixed(0)} km away
                 </button>
@@ -1445,46 +1465,46 @@ export function RouteBuilder({
             </div>
           )}
           {showExtensions && selectedStop && extensionSuggestions.length === 0 && (
-            <div className="text-white/40">No nearby extensions found.</div>
+            <div className="text-slate-400">No nearby extensions found.</div>
           )}
         </div>
 
         {/* Saved routes */}
         {routes.length > 0 && (
           <div className="space-y-2">
-            <div className="text-[10px] text-white/60">Saved routes ({routes.length})</div>
+            <div className="text-[11px] font-medium text-slate-600">Saved routes ({routes.length})</div>
             {routes.map((r) => (
               <div
                 key={r.id}
-                className="rounded-lg bg-black/30 border border-white/10 px-2 py-2 space-y-2"
+                className="space-y-2 rounded-[22px] border border-slate-200 bg-white px-3 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.05)]"
               >
                 <div className="flex items-center gap-2">
                   <span
                     className="w-3 h-3 rounded-full shrink-0"
                     style={{ backgroundColor: r.color }}
                   />
-                  <span className="text-[11px] truncate flex-1">{r.name}</span>
+                  <span className="flex-1 truncate text-[12px] text-slate-800">{r.name}</span>
                   <button
                     onClick={() => loadRoute(r)}
-                    className="text-[10px] text-blue-400 hover:text-blue-300"
+                    className="text-[10px] font-semibold text-sky-700 hover:text-sky-900"
                   >
                     Load
                   </button>
                   <button
                     onClick={() => deleteRoute(r.id)}
-                    className="text-[10px] text-red-400 hover:text-red-300"
+                    className="text-[10px] font-semibold text-red-600 hover:text-red-800"
                   >
                     Del
                   </button>
                 </div>
                 <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
                   {r.stops.length === 0 ? (
-                    <div className="text-[10px] text-white/40">No stops saved.</div>
+                    <div className="text-[10px] text-slate-400">No stops saved.</div>
                   ) : (
                     r.stops.map((stop, idx) => (
                       <div
                         key={`${r.id}-${stop.id}-${idx}`}
-                        className="rounded bg-black/40 border border-white/10 px-2 py-1 text-[10px] text-white/80"
+                        className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 text-[10px] text-slate-700"
                       >
                         {idx + 1}. {stop.name ?? "Stop"}
                       </div>
@@ -1513,25 +1533,25 @@ export function RouteBuilder({
             />
           )}
         </div>
-        <div className="px-3 py-2 border-t border-white/10 bg-black/40 shrink-0 flex items-center gap-2 flex-wrap">
+        <div className="flex shrink-0 items-center gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
           <button
             onClick={saveRoute}
             disabled={stops.length < 2}
-            className="flex-1 rounded-lg bg-emerald-600 text-white px-3 py-2 text-[11px] font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+            className="flex-1 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Save route
           </button>
           {stops.length >= 2 && onOpenComparison && (
             <button
               onClick={onOpenComparison}
-              className="rounded-lg bg-purple-600 text-white px-3 py-2 text-[11px] font-semibold hover:bg-purple-700 shadow-sm"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
             >
               Compare
             </button>
           )}
           <button
             onClick={clearRoute}
-            className="flex-1 rounded-lg bg-red-600 text-white px-3 py-2 text-[11px] font-semibold hover:bg-red-700 shadow-sm"
+            className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100"
           >
             Clear
           </button>
@@ -1541,32 +1561,37 @@ export function RouteBuilder({
 
       {showSchedulePanel && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <div className="relative z-10 w-[1040px] max-w-[96vw] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/95 shadow-2xl text-white">
-            <div className="pointer-events-none absolute -top-32 -right-28 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-32 -left-28 h-72 w-72 rounded-full bg-amber-500/20 blur-3xl" />
-
-            <div className="relative border-b border-white/10 px-6 py-5">
+          <button
+            type="button"
+            aria-label="Close schedule builder"
+            onClick={() => onCloseSchedule?.()}
+            className="absolute inset-0 bg-slate-950/45 backdrop-blur-sm"
+          />
+          <div
+            className="relative z-10 flex max-h-[88vh] w-[980px] max-w-[94vw] flex-col overflow-hidden rounded-[28px] border border-white/50 bg-[rgba(248,250,252,0.96)] text-slate-900 shadow-[0_30px_80px_rgba(15,23,42,0.28)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="relative border-b border-white/50 px-6 py-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.24em] text-white/60">
-                    Schedule Lab
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/55 px-2.5 py-1 text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                    Schedule Builder
                   </div>
-                  <h3 className="mt-3 text-lg font-semibold">Schedule Builder</h3>
-                  <p className="text-xs text-white/60">
-                    Build a single-day A → B schedule, generate returns, and refine the departures.
+                  <h3 className="mt-3 text-xl font-semibold">Build a readable service plan</h3>
+                  <p className="text-sm text-slate-600">
+                    Set the service window, generate trips, then review or edit the final departure list.
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
                     Editing
                   </div>
-                  <div className="text-sm font-medium text-white/90">{scheduleTargetName}</div>
-                  <div className="mt-2 flex items-center justify-end gap-2 text-[11px] text-white/50">
-                    <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
+                  <div className="text-sm font-semibold text-slate-900">{scheduleTargetName}</div>
+                  <div className="mt-2 flex items-center justify-end gap-2 text-[11px] text-slate-600">
+                    <span className="rounded-full border border-white/60 bg-white/55 px-2 py-0.5">
                       {scheduleDraft.departures.length} trips
                     </span>
-                    <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
+                    <span className="rounded-full border border-white/60 bg-white/55 px-2 py-0.5">
                       {scheduleDraft.startTime}–{scheduleDraft.endTime}
                     </span>
                   </div>
@@ -1574,11 +1599,16 @@ export function RouteBuilder({
               </div>
             </div>
 
-            <div className="relative grid gap-6 p-6 lg:grid-cols-[340px_1fr]">
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[11px] uppercase tracking-[0.2em] text-white/50">
-                    Applies To
+            <div className="relative min-h-0 flex-1 overflow-hidden p-5">
+              <div className="grid h-full gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
+                <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
+                <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Step 1
+                  </div>
+                  <div className="mt-2 text-base font-semibold text-slate-950">Choose affected routes</div>
+                  <div className="mt-1 text-xs text-slate-600">
+                    Select one or more routes that should receive this schedule.
                   </div>
                   <select
                     multiple
@@ -1591,7 +1621,7 @@ export function RouteBuilder({
                         selected.length > 0 ? selected : [activeRoute.id]
                       );
                     }}
-                    className="mt-3 h-32 w-full rounded-xl bg-black/40 border border-white/10 px-2 py-2 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40"
+                    className="mt-4 h-32 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200"
                   >
                     <option value={activeRoute.id}>Current route</option>
                     {routes.map((r) => (
@@ -1600,36 +1630,58 @@ export function RouteBuilder({
                       </option>
                     ))}
                   </select>
-                  <div className="mt-2 text-[10px] text-white/40">
+                  <div className="mt-2 text-[11px] text-slate-500">
                     Hold Cmd/Ctrl to select multiple routes.
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
-                  <div className="text-[11px] uppercase tracking-[0.2em] text-white/50">
-                    Trip Window
+                <div className="space-y-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Step 2
+                    </div>
+                    <div className="mt-2 text-base font-semibold text-slate-950">Define the service pattern</div>
+                    <div className="mt-1 text-xs text-slate-600">
+                      Start with the operating window and outbound frequency.
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        First trip
+                      </div>
+                      <input
                       type="time"
                       value={scheduleDraft.startTime}
                       onChange={(e) =>
                         setScheduleDraft((prev) => ({ ...prev, startTime: e.target.value }))
                       }
-                      className="rounded-xl bg-black/40 border border-white/10 px-2.5 py-2 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40"
+                      className="mt-2 w-full bg-transparent text-sm text-slate-900 focus:outline-none"
                     />
-                    <input
+                    </label>
+                    <label className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        Last trip
+                      </div>
+                      <input
                       type="time"
                       value={scheduleDraft.endTime}
                       onChange={(e) =>
                         setScheduleDraft((prev) => ({ ...prev, endTime: e.target.value }))
                       }
-                      className="rounded-xl bg-black/40 border border-white/10 px-2.5 py-2 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40"
+                      className="mt-2 w-full bg-transparent text-sm text-slate-900 focus:outline-none"
                     />
+                    </label>
                   </div>
 
-                  <div>
-                    <div className="text-[11px] text-white/60">Outbound headway (minutes)</div>
+                  <label className="block rounded-2xl border border-slate-200 bg-white/80 px-3 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Outbound headway
+                    </div>
+                    <div className="mt-1 text-[11px] text-slate-500">
+                      Minutes between trips from A to B.
+                    </div>
                     <input
                       type="number"
                       min={0}
@@ -1640,12 +1692,12 @@ export function RouteBuilder({
                           outboundHeadway: e.target.value === "" ? 0 : Number(e.target.value),
                         }))
                       }
-                      className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-2.5 py-2 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40"
+                      className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200"
                     />
-                  </div>
+                  </label>
 
-                  <div className="border-t border-white/10 pt-3 space-y-2">
-                    <label className="flex items-center gap-2 text-xs text-white/80">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
                       <input
                         type="checkbox"
                         checked={scheduleDraft.returnEnabled}
@@ -1655,13 +1707,19 @@ export function RouteBuilder({
                             returnEnabled: e.target.checked,
                           }))
                         }
-                        className="h-4 w-4 rounded accent-emerald-400"
+                        className="h-4 w-4 rounded accent-sky-500"
                       />
-                      Include return trip to A
+                      Also generate return trips from B back to A
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <div className="text-[11px] text-white/60">Return buffer (min)</div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <label className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Turnaround buffer
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-500">
+                          Minutes to wait before the return departs.
+                        </div>
                         <input
                           type="number"
                           min={0}
@@ -1672,11 +1730,16 @@ export function RouteBuilder({
                               returnBufferMinutes: e.target.value === "" ? 0 : Number(e.target.value),
                             }))
                           }
-                          className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-2.5 py-2 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40"
+                          className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200"
                         />
-                      </div>
-                      <div>
-                        <div className="text-[11px] text-white/60">Return headway (min)</div>
+                      </label>
+                      <label className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Return headway
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-500">
+                          Leave as-is to mirror outbound frequency.
+                        </div>
                         <input
                           type="number"
                           min={0}
@@ -1692,11 +1755,11 @@ export function RouteBuilder({
                             }))
                           }
                           disabled={scheduleDraft.returnSameAsOutbound}
-                          className="mt-2 w-full rounded-xl bg-black/40 border border-white/10 px-2.5 py-2 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40 disabled:opacity-50"
+                          className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:opacity-50"
                         />
-                      </div>
+                      </label>
                     </div>
-                    <label className="flex items-center gap-2 text-xs text-white/70">
+                    <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
                       <input
                         type="checkbox"
                         checked={scheduleDraft.returnSameAsOutbound}
@@ -1706,9 +1769,9 @@ export function RouteBuilder({
                             returnSameAsOutbound: e.target.checked,
                           }))
                         }
-                        className="h-4 w-4 rounded accent-emerald-400"
+                        className="h-4 w-4 rounded accent-sky-500"
                       />
-                      Return headway same as outbound
+                      Use the same headway for outbound and return trips
                     </label>
                   </div>
 
@@ -1735,47 +1798,78 @@ export function RouteBuilder({
                         setScheduleGenerating(false);
                       }, 250);
                     }}
-                    className="w-full rounded-xl bg-gradient-to-r from-emerald-400 to-amber-300 px-3 py-2.5 text-xs font-semibold text-neutral-900 shadow-lg shadow-emerald-500/10 transition hover:from-emerald-300 hover:to-amber-200"
+                    className="w-full rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition hover:from-sky-500 hover:to-indigo-500"
                   >
-                    {scheduleGenerating ? "Generating..." : "Generate Schedule"}
+                    {scheduleGenerating ? "Generating schedule..." : "Generate schedule"}
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-white/50">
-                      Departures (editable)
+              <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Total departures
                     </div>
-                    <div className="text-xs text-white/60">
+                    <div className="mt-2 text-2xl font-semibold text-slate-950">
+                      {scheduleDraft.departures.length}
+                    </div>
+                  </div>
+                  <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Outbound
+                    </div>
+                    <div className="mt-2 text-2xl font-semibold text-slate-950">
+                      {scheduleOutboundTimes.length}
+                    </div>
+                  </div>
+                  <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Return
+                    </div>
+                    <div className="mt-2 text-2xl font-semibold text-slate-950">
+                      {scheduleReturnTimes.length}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                        Review generated trips
+                      </div>
+                      <div className="mt-1 text-sm text-slate-600">
+                        Check the auto-generated outbound and return blocks before saving.
+                      </div>
+                    </div>
+                    <div className="text-xs text-slate-500">
                       {scheduleDraft.departures.length} trips
                     </div>
                   </div>
 
                   {!scheduleHasData && (
-                    <div className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-[10px] text-amber-100">
-                      This route has no schedule yet. Generate one or paste times.
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      No schedule exists yet. Generate one with the controls on the left, or paste times manually below.
                     </div>
                   )}
-                  <div className="text-[10px] text-white/45">
-                    Outbound/Return lists are auto-generated. Custom Times override both and become
-                    the departures used for simulation.
-                  </div>
 
                   <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-xl border border-white/10 bg-black/30 p-3">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-300">
+                    <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-600">
                         Outbound A → B
                       </div>
                       {scheduleOutboundTimes.length === 0 ? (
-                        <div className="mt-3 text-[10px] text-white/40">
+                        <div className="mt-3 text-sm text-slate-500">
                           Generate a schedule to see outbound trips.
                         </div>
                       ) : (
-                        <div className="mt-3 max-h-28 space-y-1 overflow-y-auto text-xs text-white/80">
+                        <div className="mt-3 grid max-h-32 grid-cols-3 gap-2 overflow-y-auto text-sm text-slate-800">
                           {scheduleOutboundTimes.map((time) => (
-                            <div key={`out-${time}`} className="rounded-lg bg-white/5 px-2 py-1">
+                            <div
+                              key={`out-${time}`}
+                              className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-center"
+                            >
                               {time}
                             </div>
                           ))}
@@ -1783,18 +1877,21 @@ export function RouteBuilder({
                       )}
                     </div>
 
-                    <div className="rounded-xl border border-white/10 bg-black/30 p-3">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-amber-300">
+                    <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-600">
                         Return B → A
                       </div>
                       {scheduleReturnTimes.length === 0 ? (
-                        <div className="mt-3 text-[10px] text-white/40">
+                        <div className="mt-3 text-sm text-slate-500">
                           Generate a schedule to see return trips.
                         </div>
                       ) : (
-                        <div className="mt-3 max-h-28 space-y-1 overflow-y-auto text-xs text-white/80">
+                        <div className="mt-3 grid max-h-32 grid-cols-3 gap-2 overflow-y-auto text-sm text-slate-800">
                           {scheduleReturnTimes.map((time) => (
-                            <div key={`ret-${time}`} className="rounded-lg bg-white/5 px-2 py-1">
+                            <div
+                              key={`ret-${time}`}
+                              className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-center"
+                            >
                               {time}
                             </div>
                           ))}
@@ -1803,38 +1900,50 @@ export function RouteBuilder({
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-white/10 bg-black/30 p-3">
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/50">
-                      Custom Times (override)
+                  <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                          Final departure list
+                        </div>
+                        <div className="mt-1 text-sm text-slate-600">
+                          Edit these times directly if you want to override the generated pattern.
+                        </div>
+                      </div>
+                      <div className="rounded-full border border-white/60 bg-white/60 px-2.5 py-1 text-[11px] text-slate-600">
+                        One time per line or comma-separated
+                      </div>
                     </div>
-                    <textarea
-                      value={scheduleDeparturesText}
-                      onChange={(e) => setScheduleDeparturesText(e.target.value)}
-                      placeholder="HH:MM per line"
-                      className="mt-3 h-40 w-full rounded-xl bg-black/40 border border-white/10 p-3 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-emerald-300/40"
-                    />
-                    <div className="mt-2 text-[10px] text-white/40">
-                      Separate times by line or comma. Example: 06:00, 06:30, 07:00
+                    
+                  <textarea
+                    value={scheduleDeparturesText}
+                    onChange={(e) => setScheduleDeparturesText(e.target.value)}
+                    placeholder="HH:MM per line"
+                    className="mt-4 h-36 w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                  />
+                  <div className="mt-2 text-xs text-slate-500">
+                    Example: 06:00, 06:30, 07:00
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   <button
                     onClick={applyDeparturesText}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 hover:bg-white/10"
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                   >
-                    Apply Edits
+                    Apply edits
                   </button>
                   <button
                     onClick={() => {
                       applyDeparturesText();
                       onCloseSchedule?.();
                     }}
-                    className="rounded-xl bg-emerald-500 hover:bg-emerald-400 px-3 py-2 text-xs font-semibold text-neutral-900 shadow-sm transition-all"
+                    className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
-                    Save & Close
+                    Save and close
                   </button>
+                </div>
                 </div>
               </div>
             </div>
