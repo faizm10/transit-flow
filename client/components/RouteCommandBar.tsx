@@ -259,11 +259,11 @@ export function RouteCommandBar({
   if (!enabled) return null;
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4">
+    <div className="fixed bottom-[5.5rem] left-1/2 z-50 w-full max-w-2xl -translate-x-1/2 px-4 md:bottom-8">
       <div className="relative">
         {/* Search results dropdown */}
         {searchResults.length > 0 && focused && (
-          <div className="absolute bottom-full mb-3 w-full rounded-xl border border-neutral-200 bg-white shadow-xl overflow-hidden">
+          <div className="absolute bottom-full mb-3 w-full overflow-hidden rounded-[26px] border border-white/50 bg-[var(--glass-surface-strong)] shadow-[var(--glass-shadow)] backdrop-blur-2xl">
             {searchResults.map((stop, index) => (
               <button
                 key={`${stop.type}-${stop.id}`}
@@ -276,23 +276,25 @@ export function RouteCommandBar({
                   setQuery("");
                   setSearchResults([]);
                 }}
-                className={`w-full px-4 py-3 text-left transition-all border-b border-neutral-100 last:border-b-0 ${
+                className={`w-full border-b border-white/35 px-4 py-3 text-left transition-all last:border-b-0 ${
                   index === selectedIndex
-                    ? "bg-blue-50 border-l-2 border-l-blue-600"
-                    : "hover:bg-neutral-50 border-l-2 border-l-transparent"
+                    ? "border-l-2 border-l-sky-600 bg-sky-100/75"
+                    : "border-l-2 border-l-transparent hover:bg-white/45"
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
-                    stop.type === "saved" ? "bg-emerald-100" : "bg-blue-100"
+                  <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border ${
+                    stop.type === "saved"
+                      ? "border-emerald-200 bg-emerald-100/80"
+                      : "border-sky-200 bg-sky-100/80"
                   }`}>
                     <PlusIcon className="w-4 h-4 text-blue-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-neutral-900 truncate">
+                    <div className="truncate text-sm font-medium text-slate-900">
                       {stop.name}
                     </div>
-                    <div className="text-xs text-neutral-500">
+                    <div className="text-xs text-slate-500">
                       {stop.subtitle}
                     </div>
                   </div>
@@ -305,12 +307,12 @@ export function RouteCommandBar({
         {/* Command bar */}
         <form onSubmit={handleSubmit} className="relative">
           <div
-            className={`relative flex items-center gap-3 rounded-xl border bg-white shadow-lg transition-all duration-200 ${
+            className={`relative flex items-center gap-3 rounded-[28px] border bg-[var(--glass-surface-strong)] shadow-[var(--glass-shadow)] backdrop-blur-2xl transition-all duration-200 ${
               aiGenerating
-                ? "border-blue-400 ring-2 ring-blue-100"
+                ? "border-sky-300 ring-4 ring-sky-100/70"
                 : focused
-                ? "border-blue-500 ring-2 ring-blue-50"
-                : "border-neutral-300 hover:border-neutral-400"
+                ? "border-sky-300 ring-4 ring-sky-100/60"
+                : "border-white/50 hover:border-white/70"
             }`}
           >
             <div className="flex-shrink-0 pl-4">
@@ -322,7 +324,7 @@ export function RouteCommandBar({
               ) : (
                 <MagnifyingGlassIcon
                   className={`w-5 h-5 transition-colors ${
-                    focused ? "text-blue-600" : "text-neutral-400"
+                    focused ? "text-sky-600" : "text-slate-400"
                   }`}
                 />
               )}
@@ -345,7 +347,7 @@ export function RouteCommandBar({
                       : "Enter stop..."
               }
                 disabled={aiGenerating}
-                className="flex-1 bg-transparent px-0 py-3.5 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none disabled:opacity-60"
+                className="flex-1 bg-transparent px-0 py-4 text-sm text-white placeholder-white/55 focus:outline-none disabled:opacity-60"
               />
             <div className="flex-shrink-0 pr-2">
               <button
@@ -354,8 +356,10 @@ export function RouteCommandBar({
                   setPinActive(true);
                   window.dispatchEvent(new CustomEvent("route-builder-pin-start"));
                 }}
-                className={`mr-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                  pinActive ? "bg-emerald-600 text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                className={`mr-2 rounded-2xl px-3 py-2 text-xs font-semibold transition-all ${
+                  pinActive
+                    ? "bg-emerald-600 text-white"
+                    : "border border-white/45 bg-white/55 text-slate-700 hover:bg-white/80"
                 }`}
               >
                 Pin
@@ -364,7 +368,7 @@ export function RouteCommandBar({
                 <button
                   type="submit"
                   disabled={aiGenerating}
-                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  className={`rounded-2xl px-4 py-2.5 text-xs font-semibold transition-all ${
                     aiGenerating
                       ? "bg-blue-600 text-white opacity-60 cursor-wait"
                       : searchResults.length > 0
@@ -390,7 +394,7 @@ export function RouteCommandBar({
                 <button
                   type="button"
                   onClick={onCreateRoute}
-                  className="px-4 py-2 rounded-lg bg-neutral-100 text-xs font-semibold text-neutral-700 hover:bg-neutral-200 transition-all"
+                  className="rounded-2xl border border-white/45 bg-white/60 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-all hover:bg-white/80"
                 >
                   <RocketIcon className="w-3.5 h-3.5 inline mr-1.5" />
                   New Route
@@ -402,26 +406,26 @@ export function RouteCommandBar({
 
         {/* Helper text or error */}
         {aiError ? (
-          <div className="mt-3 text-center text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 font-medium">
+          <div className="mt-3 rounded-2xl border border-red-200 bg-red-50/90 px-3 py-2.5 text-center text-xs font-medium text-red-700 backdrop-blur-xl">
             {aiError}
           </div>
         ) : (
-          <div className="mt-3 text-center text-xs text-neutral-500">
+          <div className="mt-3 text-center text-xs text-slate-500">
             {aiGenerating ? (
-              <span className="text-blue-600 font-medium">
+              <span className="font-medium text-sky-600">
                 <LightningBoltIcon className="w-3 h-3 inline mr-1 animate-pulse" />
                 AI is generating your route...
               </span>
             ) : pinActive ? (
-              <span className="text-emerald-600 font-medium">
+              <span className="font-medium text-emerald-600">
                 Click on the map to pin a stop.
               </span>
             ) : focused ? (
-              <span className="text-neutral-600">↑↓ Navigate • Enter to select • Esc to cancel</span>
+              <span className="text-slate-600">↑↓ Navigate • Enter to select • Esc to cancel</span>
             ) : (
-              <span className="text-neutral-600">
+              <span className="text-slate-600">
                 <LightningBoltIcon className="w-3 h-3 inline mr-1" />
-                Search stops or <strong className="font-semibold text-neutral-700">describe a route in plain English</strong>
+                Search stops or <strong className="font-semibold text-slate-800">describe a route in plain English</strong>
               </span>
             )}
           </div>
