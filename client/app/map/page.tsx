@@ -2654,7 +2654,7 @@ export default function MapPage() {
 
       {/* Route Command Bar */}
       <RouteCommandBar
-        enabled={!simulationPlaying}
+        enabled={!simulationPlaying && !showScheduleBuilder}
         onCreateRoute={handleCreateRoute}
         onAddStop={handleAddStopFromCommandBar}
         onAIRoute={handleAIRoute}
