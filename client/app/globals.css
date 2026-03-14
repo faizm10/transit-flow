@@ -143,3 +143,23 @@
       linear-gradient(180deg, rgb(248 250 252), rgb(238 244 255));
   }
 }
+
+.route-info-popup .mapboxgl-popup-content {
+  border: 1px solid rgb(255 255 255 / 0.55);
+  border-radius: 24px;
+  background: var(--glass-surface-strong);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 0;
+}
+
+.route-info-popup .mapboxgl-popup-tip {
+  border-top-color: rgb(255 255 255 / 0.7);
+}
+
+.route-info-popup .mapboxgl-popup-close-button {
+  color: rgb(71 85 105);
+  font-size: 16px;
+  padding: 8px 10px 0 0;
+}
