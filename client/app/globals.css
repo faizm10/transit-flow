@@ -199,6 +199,8 @@
   font-weight: 700;
   font-size: 16px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   color: rgb(15 23 42);
 }
 
@@ -212,11 +214,15 @@
 .simulation-popup-long-name {
   margin-bottom: 10px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   color: rgb(71 85 105);
 }
 
 .simulation-popup-stops {
   line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   color: rgb(30 41 59);
 }
 

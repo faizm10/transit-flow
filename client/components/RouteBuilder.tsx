@@ -1012,6 +1012,18 @@ export function RouteBuilder({
     return targets;
   }, [currentRoute, routes]);
 
+  const scheduleGoVariantOptions = useMemo(
+    () =>
+      [...goVariantOptions.values()].flatMap(
+        (optionsArray: Array<{ value: string; label: string }>) =>
+          optionsArray.map((option: { value: string; label: string }) => ({
+          value: option.value,
+          label: option.label,
+          })),
+      ),
+    [goVariantOptions],
+  );
+
   const initialScheduleTargetKey = currentRoute
     ? `current:${currentRoute.id}`
     : scheduleRouteTargets[0]?.key;
@@ -1421,10 +1433,12 @@ export function RouteBuilder({
       )}
 
       <ScheduleBuilderModal
-        key={`${initialScheduleTargetKey ?? "none"}-${showSchedulePanel ? "open" : "closed"}`}
+        key={`${initialScheduleTargetKey ?? "none"}-${currentRoute?.baseVariantId ?? "manual"}-${showSchedulePanel ? "open" : "closed"}`}
         isOpen={showSchedulePanel}
         routeTargets={scheduleRouteTargets}
         initialTargetKey={initialScheduleTargetKey}
+        goVariantOptions={scheduleGoVariantOptions}
+        onLoadGoVariant={loadFromGoVariant}
         onClose={() => onCloseSchedule?.()}
         onSave={handleScheduleSave}
       />

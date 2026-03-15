@@ -18,10 +18,17 @@ export type ScheduleRouteTarget = {
   route: CustomRoute;
 };
 
+type GoVariantOption = {
+  value: string;
+  label: string;
+};
+
 type ScheduleBuilderModalProps = {
   isOpen: boolean;
   routeTargets: ScheduleRouteTarget[];
   initialTargetKey?: string;
+  goVariantOptions?: GoVariantOption[];
+  onLoadGoVariant?: (variantId: string, label: string) => void;
   onClose: () => void;
   onSave: (target: ScheduleRouteTarget, schedule: Schedule | undefined) => void;
 };
@@ -30,6 +37,8 @@ export function ScheduleBuilderModal({
   isOpen,
   routeTargets,
   initialTargetKey,
+  goVariantOptions = [],
+  onLoadGoVariant,
   onClose,
   onSave,
 }: ScheduleBuilderModalProps) {
@@ -41,6 +50,7 @@ export function ScheduleBuilderModal({
   const [draft, setDraft] = useState<ScheduleDraft>(() =>
     createScheduleDraft(initialTarget?.route.schedule),
   );
+  const [selectedGoVariant, setSelectedGoVariant] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -95,27 +105,54 @@ export function ScheduleBuilderModal({
                 Build a frequency pattern or enter fixed departures.
               </p>
             </div>
-            <div className="w-full max-w-[320px]">
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Route
+            <div className="grid w-full max-w-[360px] gap-3">
+              <div>
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Route
+                </div>
+                <select
+                  value={selectedTarget?.key ?? ""}
+                  onChange={(event) => {
+                    const nextTarget = routeTargets.find((target) => target.key === event.target.value);
+                    setSelectedTargetKey(event.target.value);
+                    setDraft(createScheduleDraft(nextTarget?.route.schedule));
+                  }}
+                  disabled={!hasTargets}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                >
+                  {routeTargets.map((target) => (
+                    <option key={target.key} value={target.key}>
+                      {target.source === "current" ? "Current route" : "Saved route"} · {target.label}
+                    </option>
+                  ))}
+                  {!hasTargets && <option value="">No routes available</option>}
+                </select>
               </div>
-              <select
-                value={selectedTarget?.key ?? ""}
-                onChange={(event) => {
-                  const nextTarget = routeTargets.find((target) => target.key === event.target.value);
-                  setSelectedTargetKey(event.target.value);
-                  setDraft(createScheduleDraft(nextTarget?.route.schedule));
-                }}
-                disabled={!hasTargets}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-              >
-                {routeTargets.map((target) => (
-                  <option key={target.key} value={target.key}>
-                    {target.source === "current" ? "Current route" : "Saved route"} · {target.label}
-                  </option>
-                ))}
-                {!hasTargets && <option value="">No routes available</option>}
-              </select>
+
+              <div>
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Load GO Transit line
+                </div>
+                <select
+                  value={selectedGoVariant}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setSelectedGoVariant(nextValue);
+                    if (!nextValue || !onLoadGoVariant) return;
+                    const selectedOption = goVariantOptions.find((option) => option.value === nextValue);
+                    if (!selectedOption) return;
+                    onLoadGoVariant(selectedOption.value, selectedOption.label);
+                  }}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                >
+                  <option value="">Select GO line…</option>
+                  {goVariantOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </div>
