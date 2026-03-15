@@ -28,12 +28,6 @@ export default function LandingPage() {
             <Link href="/map">
               <Button variant="ghost">Map</Button>
             </Link>
-            <Link href="/info">
-              <Button variant="ghost">Routes</Button>
-            </Link>
-            <Link href="/frequency">
-              <Button variant="ghost">Frequency</Button>
-            </Link>
             <Link href="/map">
               <Button>
                 Explore <ArrowRightIcon className="ml-2 size-4" />
@@ -60,9 +54,6 @@ export default function LandingPage() {
                     View Map <ArrowRightIcon className="ml-2 size-4" />
                   </Button>
                 </Link>
-                <Link href="/info">
-                  <Button variant="outline">Route Details</Button>
-                </Link>
               </div>
             </div>
 
@@ -78,8 +69,8 @@ export default function LandingPage() {
                 desc="Explore GO Transit routes and Union Pearson Express on an interactive map with filtering and variant selection."
               />
               <DashedCard
-                title="Route Analysis"
-                desc="View trip durations, stop sequences, and route details for all GO Transit variants."
+                title="Route Builder"
+                desc="Design custom routes, edit stop sequences, and test service ideas directly on the map."
               />
               <DashedCard
                 title="Bidirectional Merging"
@@ -119,27 +110,23 @@ export default function LandingPage() {
                 Analyze and visualize GO Transit service.
               </h2>
               <p className="text-muted-foreground max-w-prose text-sm leading-6">
-                GO Pulse lets you visualize the GO Transit network, customize routes, add new lines, and simulate future expansions — all on an interactive map. It's not just about today's service. It's about designing what regional transit *could* look like.
+                GO Pulse lets you visualize the GO Transit network, customize routes, add new lines, and simulate future expansions on an interactive map. It is focused on route design, network exploration, and testing future service ideas.
               </p>
             </div>
           </Section>
           <Section title="Coming Soon" className="min-h-[340px]">
             <div className="grid gap-4">
               <DashedCard
-                title="Frequency Analysis"
-                desc="Analyze service frequency, headways, and trip patterns for each route and variant."
+                title="Scenario Planning"
+                desc="Compare multiple network ideas side by side before deciding which service concept to keep."
               />
               <DashedCard
-                title="Peak Hour Analysis"
-                desc="Identify peak service periods and frequency variations throughout the day."
+                title="Ridership Signals"
+                desc="Layer demand indicators and service context onto the map to spot stronger corridor opportunities."
               />
               <DashedCard
                 title="Service Gaps"
-                desc="Identify periods with low or no service to highlight improvement opportunities."
-              />
-              <DashedCard
-                title="Route Comparison"
-                desc="Compare frequency and service levels across different routes and variants."
+                desc="Surface underserved corridors and highlight where new routes or extensions may be needed."
               />
             </div>
           </Section>
