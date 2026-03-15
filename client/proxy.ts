@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
@@ -15,7 +14,7 @@ const CONTENT_SECURITY_POLICY = [
   "worker-src 'self' blob:",
 ].join("; ");
 
-export function middleware(_request: NextRequest) {
+export function proxy() {
   const response = NextResponse.next();
   response.headers.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -25,6 +24,7 @@ export function middleware(_request: NextRequest) {
   response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
   return response;
 }
+
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],

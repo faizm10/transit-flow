@@ -4,7 +4,7 @@ import path from "path";
 import { createReadStream } from "fs";
 import { promises as fs } from "fs";
 import readline from "readline";
-import { applyRateLimit, jsonError, logApiEvent, normalizeStringArray } from "@/lib/server/api";
+import { applyRateLimit, logApiEvent, normalizeStringArray } from "@/lib/server/api";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;

@@ -26,7 +26,7 @@ See [`.env.example`](/Applications/vscode/transit-flow/client/.env.example).
 
 ## Production readiness additions
 
-- Security headers and CSP in [middleware.ts](/Applications/vscode/transit-flow/client/middleware.ts)
+- Security headers and CSP in [proxy.ts](/Applications/vscode/transit-flow/client/proxy.ts)
 - API rate limits, request validation, and timeout handling in [lib/server/api.ts](/Applications/vscode/transit-flow/client/lib/server/api.ts)
 - GTFS file caching in [gtfs-cache.ts](/Applications/vscode/transit-flow/client/lib/server/gtfs-cache.ts)
 - Vercel config in [vercel.json](/Applications/vscode/transit-flow/client/vercel.json)
