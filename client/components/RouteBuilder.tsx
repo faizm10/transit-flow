@@ -683,6 +683,7 @@ export function RouteBuilder({
     }
     return () => {
       map.off("style.load", ensureLayer);
+      if (!(map as mapboxgl.Map & { style?: unknown }).style) return;
       if (map.getLayer(ROUTE_LAYER_ID)) map.removeLayer(ROUTE_LAYER_ID);
       if (map.getSource(ROUTE_SOURCE_ID)) map.removeSource(ROUTE_SOURCE_ID);
     };
