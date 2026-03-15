@@ -62,15 +62,17 @@ export function ScheduleModal({
     setError(null);
 
     const schedule: Schedule = {
-      type: "frequency",
-      dayConfigs: {
-        monday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
-        tuesday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
-        wednesday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
-        thursday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
-        friday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
-        saturday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
-        sunday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
+      primary: {
+        type: "frequency",
+        dayConfigs: {
+          monday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
+          tuesday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
+          wednesday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
+          thursday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
+          friday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
+          saturday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
+          sunday: { enabled: true, startTime, endTime, intervalMinutes: freqNum },
+        },
       },
     };
 
