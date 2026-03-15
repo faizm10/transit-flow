@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import MapboxDraw from "@mapbox/mapbox-gl-draw";
-import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import { RouteBuilder } from "@/components/RouteBuilder";
 import { RouteCommandBar } from "@/components/RouteCommandBar";
@@ -20,7 +18,6 @@ import { SidePanel } from "@/components/SidePanel";
 import { NetworksPanel } from "@/components/NetworksPanel";
 import { FiltersPanel } from "@/components/FiltersPanel";
 import { ComparisonPanel } from "@/components/ComparisonPanel";
-import { useDrawableLineBuilder } from "@/hooks/useDrawableLineBuilder";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -190,16 +187,12 @@ export default function MapPage() {
   const [savedCustomRoutes, setSavedCustomRoutes] = useState<CustomRoute[]>([]);
   const [selectedCustomRouteIds, setSelectedCustomRouteIds] = useState<string[]>([]);
   
-  const drawRef = useRef<MapboxDraw | null>(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showCoverage, setShowCoverage] = useState(false);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [pendingScheduleRouteId, setPendingScheduleRouteId] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 43.6532, lng: -79.3832 });
-
-  const { isDrawing, startDraw, cancelDraw, handleDrawCreate } =
-    useDrawableLineBuilder();
 
   const handlePanelToggle = (panel: string) => {
     setActivePanel((prev) => (prev === panel ? null : panel));
@@ -1180,12 +1173,6 @@ export default function MapPage() {
     });
 
     map.current.addControl(new mapboxgl.NavigationControl(), "bottom-right");
-    const draw = new MapboxDraw({
-      displayControlsDefault: false,
-      controls: { polygon: true, trash: true },
-    });
-    map.current.addControl(draw, "top-left");
-    drawRef.current = draw;
 
     const handleStyleLoad = () => {
       ensureUnionPearsonLayers();
@@ -1199,34 +1186,13 @@ export default function MapPage() {
 
     map.current.on("style.load", handleStyleLoad);
 
-    // Handle line drawing completion
-    map.current.on("draw.create", async (e: { features: GeoJSON.Feature[] }) => {
-      const snappedStops = await handleDrawCreate(e);
-      if (snappedStops.length > 0) {
-        // Clear the drawn geometry from the map
-        drawRef.current?.deleteAll();
-        drawRef.current?.changeMode("simple_select");
-        // Dispatch stops to the route builder one by one
-        snappedStops.forEach((stop) => {
-          window.dispatchEvent(
-            new CustomEvent("route-builder-add-stop", {
-              detail: { name: stop.name, lat: stop.lat, lng: stop.lng },
-            })
-          );
-        });
-        setActivePanel("builder");
-        window.dispatchEvent(new CustomEvent("route-builder-draw-complete"));
-      }
-    });
-
     return () => {
       map.current?.off("style.load", handleStyleLoad);
       map.current?.remove();
       map.current = null;
-      drawRef.current = null;
       setMapReady(false);
     };
-  }, [ensureUnionPearsonLayers, ensureGOTransitLayers, ensureCustomRoutesLayers, ensureSimulationLayer, ensureHeatmapLayer, ensureCoverageLayer, handleDrawCreate]);
+  }, [ensureUnionPearsonLayers, ensureGOTransitLayers, ensureCustomRoutesLayers, ensureSimulationLayer, ensureHeatmapLayer, ensureCoverageLayer]);
 
   // Update Union Pearson Express layer visibility
   useEffect(() => {
@@ -2655,10 +2621,6 @@ export default function MapPage() {
             goVariantsIndex={goVariantsIndex}
             goVariantStops={goVariantStops}
             showCustomNetwork={showCustomNetwork}
-            drawRef={drawRef}
-            isDrawing={isDrawing}
-            onStartDraw={() => startDraw(drawRef)}
-            onCancelDraw={() => cancelDraw(drawRef)}
             onOpenComparison={() => setActivePanel("compare")}
           />
         )}

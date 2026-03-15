@@ -74,8 +74,6 @@ type GoStopPoint = {
   isStreet: boolean;
 };
 
-import type MapboxDraw from "@mapbox/mapbox-gl-draw";
-
 type RouteBuilderProps = {
   mapRef: React.RefObject<mapboxgl.Map | null>;
   mapReady: boolean;
@@ -86,10 +84,6 @@ type RouteBuilderProps = {
   goVariantsIndex: GoVariantsIndex | null;
   goVariantStops: Record<string, GoVariantStop[]> | null;
   showCustomNetwork?: boolean;
-  drawRef?: React.RefObject<MapboxDraw | null>;
-  isDrawing?: boolean;
-  onStartDraw?: () => void;
-  onCancelDraw?: () => void;
   onOpenComparison?: () => void;
 };
 
@@ -190,9 +184,6 @@ export function RouteBuilder({
   goVariantsIndex,
   goVariantStops,
   showCustomNetwork = true,
-  isDrawing = false,
-  onStartDraw,
-  onCancelDraw,
   onOpenComparison,
 }: RouteBuilderProps) {
   const {
@@ -225,10 +216,6 @@ export function RouteBuilder({
   const [includeUniversitiesExpress, ] = useState(false);
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
   const [availableStops, setAvailableStops] = useState<GoStopPoint[]>([]);
-  const [extensionSuggestions, setExtensionSuggestions] = useState<
-    Array<{ id: string; name: string; lat: number; lng: number; distanceKm: number }>
-  >([]);
-  const [showExtensions, setShowExtensions] = useState(false);
 
   const [showGoVariantSelector, setShowGoVariantSelector] = useState(false);
   const [selectedGoVariant, setSelectedGoVariant] = useState<string | null>(null);
@@ -929,63 +916,6 @@ export function RouteBuilder({
     fixExpressStops,
   ]);
 
-  const buildExtensionSuggestions = useCallback(() => {
-    if (!selectedStop || !goVariantStops) return [];
-    const candidates: Array<{ id: string; name: string; lat: number; lng: number; distanceKm: number }> = [];
-    Object.values(goVariantStops).forEach((list) => {
-      list.forEach((stop) => {
-        if (stop.stop_lat == null || stop.stop_lon == null) return;
-        const distanceKm = haversineKm(
-          { lat: selectedStop.lat, lng: selectedStop.lng },
-          { lat: stop.stop_lat, lng: stop.stop_lon }
-        );
-        if (distanceKm >= 5 && distanceKm <= 20) {
-          candidates.push({
-            id: stop.stop_id,
-            name: stop.stop_name,
-            lat: stop.stop_lat,
-            lng: stop.stop_lon,
-            distanceKm,
-          });
-        }
-      });
-    });
-    candidates.sort((a, b) => a.distanceKm - b.distanceKm);
-    const unique: Array<{ id: string; name: string; lat: number; lng: number; distanceKm: number }> = [];
-    const seen = new Set<string>();
-    for (const c of candidates) {
-      const key = `${c.name}-${c.lat.toFixed(4)}-${c.lng.toFixed(4)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      unique.push(c);
-      if (unique.length >= 3) break;
-    }
-    return unique;
-  }, [selectedStop, goVariantStops]);
-
-  useEffect(() => {
-// eslint-disable-next-line react-hooks/set-state-in-effect
-    setExtensionSuggestions(buildExtensionSuggestions());
-  }, [showExtensions, selectedStop, buildExtensionSuggestions]);
-
-  const applyExtension = useCallback(
-    (target: { name: string; lat: number; lng: number }) => {
-      if (!selectedStop) return;
-      const selectedIndex = stops.findIndex((s) => s.id === selectedStop.id);
-      if (selectedIndex < 0) return;
-      const targetStop: Stop = {
-        id: buildStopId(),
-        name: target.name,
-        lat: target.lat,
-        lng: target.lng,
-        timepoint: true,
-      };
-      const next = [...stops.slice(0, selectedIndex + 1), targetStop];
-      setStops(next);
-    },
-    [selectedStop, stops, setStops]
-  );
-
   const scheduleRouteTargets = useMemo<ScheduleRouteTarget[]>(() => {
     const targets: ScheduleRouteTarget[] = [];
 
@@ -1051,8 +981,6 @@ export function RouteBuilder({
   const handleSaveRoute = () => {
     saveRoute();
     setSelectedStopId(null);
-    setShowExtensions(false);
-    setExtensionSuggestions([]);
     setShowGoVariantSelector(false);
     setSelectedGoVariant(null);
     setBuildMode("quick");
@@ -1081,23 +1009,9 @@ export function RouteBuilder({
                 Build the route, review stops, then save.
               </p>
             </div>
-            {(onStartDraw || onCancelDraw) && (
-              <button
-                onClick={isDrawing ? onCancelDraw : onStartDraw}
-                className={`rounded-2xl px-3 py-2 text-[11px] font-semibold transition-colors ${
-                  isDrawing
-                    ? "animate-pulse bg-red-600 text-white hover:bg-red-700"
-                    : "bg-sky-600 text-white hover:bg-sky-700"
-                }`}
-              >
-                {isDrawing ? "Cancel draw" : "Draw route"}
-              </button>
-            )}
           </div>
           <p className="mt-2 text-[11px] text-slate-500">
-            {isDrawing
-              ? "Click on the map to draw your route. Double-click to finish."
-              : "Add start/end from the command bar, then generate or edit stops."}
+            Add start/end from the command bar, then generate or edit stops.
           </p>
         </div>
 
@@ -1304,43 +1218,6 @@ export function RouteBuilder({
             ))}
           </div>
         )}
-
-        <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-slate-700">Suggest extension</span>
-            <button
-              onClick={() => {
-                setExtensionSuggestions(buildExtensionSuggestions());
-                setShowExtensions((v) => !v);
-              }}
-              className="text-[10px] font-semibold text-sky-700 hover:text-sky-900"
-              disabled={!selectedStop}
-            >
-              {showExtensions ? "Hide" : "Suggest"}
-            </button>
-          </div>
-          {!selectedStop && (
-            <div className="text-slate-400">
-              Select a stop to get extension suggestions.
-            </div>
-          )}
-          {showExtensions && extensionSuggestions.length > 0 && (
-            <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
-              {extensionSuggestions.map((opt) => (
-                <button
-                  key={`${opt.name}-${opt.id}`}
-                  onClick={() => applyExtension(opt)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-left text-[10px] hover:bg-slate-100"
-                >
-                  {opt.name} · {opt.distanceKm.toFixed(0)} km away
-                </button>
-              ))}
-            </div>
-          )}
-          {showExtensions && selectedStop && extensionSuggestions.length === 0 && (
-            <div className="text-slate-400">No nearby extensions found.</div>
-          )}
-        </div>
 
         {/* Saved routes */}
         {routes.length > 0 && (
