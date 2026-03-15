@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { createReadStream } from "fs";
 import { promises as fs } from "fs";
 import readline from "readline";
+import { applyRateLimit, normalizeString } from "@/lib/server/api";
 
 const FREQUENCY_CACHE_TTL_MS = 1000 * 60 * 30;
 
@@ -751,11 +752,23 @@ async function buildFrequencyResults(): Promise<FrequencyData[]> {
     return filteredResults;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const isInternal = request.headers.get("x-transitflow-internal") === "schedule-optimizer";
+    if (!isInternal) {
+      const limited = applyRateLimit(request, {
+        bucket: "frequency",
+        limit: 16,
+        windowMs: 60_000,
+      });
+      if (limited) return limited;
+    }
+
     const now = Date.now();
     const { searchParams } = new URL(request.url);
-    const routeShortName = searchParams.get("route_short_name")?.trim();
+    const routeShortName = normalizeString(searchParams.get("route_short_name"), {
+      maxLength: 16,
+    });
 
     if (cachedFrequencyResults && cachedFrequencyResults.expiresAt > now) {
       const results = routeShortName

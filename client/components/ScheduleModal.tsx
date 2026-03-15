@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { ClockIcon, CrossCircledIcon } from "@radix-ui/react-icons";
 import type { Schedule } from "@/hooks/useRouteBuilder";
+import { trackEvent } from "@/lib/telemetry";
 
 type OptimizerSuggestion = {
   suggestedStartTime: string;
@@ -83,6 +84,9 @@ export function ScheduleModal({
     setAiLoading(true);
     setAiError(null);
     setAiSuggestion(null);
+    trackEvent("schedule_optimizer_requested", {
+      hasNearbyRoutes: Boolean(routeContext?.nearbyGoRouteNames?.length),
+    });
     try {
       const res = await fetch("/api/schedule-optimizer", {
         method: "POST",
@@ -101,8 +105,15 @@ export function ScheduleModal({
         throw new Error(data.error ?? "Optimizer failed");
       }
       const suggestion = (await res.json()) as OptimizerSuggestion;
+      trackEvent("schedule_optimizer_completed", {
+        success: true,
+        degraded: Boolean((suggestion as OptimizerSuggestion & { degraded?: boolean }).degraded),
+      });
       setAiSuggestion(suggestion);
     } catch (err) {
+      trackEvent("schedule_optimizer_completed", {
+        success: false,
+      });
       setAiError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setAiLoading(false);

@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TransitFlow Client
 
-## Getting Started
+Next.js 16 app for TransitFlow's public-beta workspace, GTFS-backed APIs, and AI-assisted planning tools.
 
-First, run the development server:
+## Local development
 
 ```bash
+cd client
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) and use `/map` for the main workspace.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Required environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `NEXT_PUBLIC_SITE_URL`
+- `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`
+- `MAPBOX_ACCESS_TOKEN`
+- `ANTHROPIC_API_KEY`
+- `GEMINI_API_KEY` only if Gemini-backed features remain enabled
+- `SENTRY_DSN` optional placeholder for external monitoring
 
-## Learn More
+See [`.env.example`](/Applications/vscode/transit-flow/client/.env.example).
 
-To learn more about Next.js, take a look at the following resources:
+## Production readiness additions
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Security headers and CSP in [middleware.ts](/Applications/vscode/transit-flow/client/middleware.ts)
+- API rate limits, request validation, and timeout handling in [lib/server/api.ts](/Applications/vscode/transit-flow/client/lib/server/api.ts)
+- GTFS file caching in [gtfs-cache.ts](/Applications/vscode/transit-flow/client/lib/server/gtfs-cache.ts)
+- Vercel config in [vercel.json](/Applications/vscode/transit-flow/client/vercel.json)
+- CI in [client-ci.yml](/Applications/vscode/transit-flow/.github/workflows/client-ci.yml)
+- Launch runbook in [production-runbook.md](/Applications/vscode/transit-flow/client/docs/production-runbook.md)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Checks
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+npm run build
+npm run test:e2e
+```

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import path from "path";
 import { createReadStream } from "fs";
 import { promises as fs } from "fs";
 import readline from "readline";
+import { applyRateLimit, jsonError, logApiEvent, normalizeStringArray } from "@/lib/server/api";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -565,10 +567,16 @@ async function buildSimulationData(options: {
   return { trips, stops: tripStops, shapes };
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const requestId = `sim-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const requestStartedAt = Date.now();
   let debug = false;
+  const limited = applyRateLimit(request, {
+    bucket: "simulation",
+    limit: 6,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
   try {
     const { searchParams } = new URL(request.url);
     debug =
@@ -605,23 +613,31 @@ export async function GET(request: Request) {
       );
     }
 
-    const routeTypeFilter =
+    const routeTypeValues =
       routeTypesParam && routeTypesParam.trim().length > 0
-        ? new Set(routeTypesParam.split(",").map((value) => value.trim()))
-        : null;
-    const routeShortNames = (
+        ? normalizeStringArray(routeTypesParam.split(","), {
+            maxItems: 8,
+            maxItemLength: 4,
+          })
+        : [];
+    const routeTypeFilter =
+      routeTypeValues.length > 0 ? new Set(routeTypeValues) : null;
+    const routeShortNames = normalizeStringArray(
       routeShortNamesParam && routeShortNamesParam.trim().length > 0
         ? routeShortNamesParam.split(",")
         : routeShortNameParam && routeShortNameParam.trim().length > 0
           ? [routeShortNameParam]
-          : []
-    )
-      .map((value) => value.trim())
-      .filter(Boolean);
+          : [],
+      {
+        maxItems: 12,
+        maxItemLength: 16,
+      },
+    );
     const routeShortNameFilter =
       routeShortNames.length > 0 ? new Set(routeShortNames) : null;
 
-    console.log(`[simulation:${requestId}] request`, {
+    logApiEvent("/api/simulation", "request", {
+      requestId,
       dateParam,
       startParam,
       endParam,
@@ -756,13 +772,17 @@ export async function GET(request: Request) {
         downsampleShapes: shouldDownsampleShapes,
       },
     };
-    console.log(`[simulation:${requestId}] success`, diagnostics);
+    logApiEvent("/api/simulation", "success", diagnostics);
 
     return NextResponse.json({
       startSeconds,
       endSeconds,
       trips: output,
       ...(debug ? { diagnostics } : {}),
+    }, {
+      headers: {
+        "Cache-Control": "no-store",
+      },
     });
   } catch (error) {
     const failure = {
@@ -771,7 +791,7 @@ export async function GET(request: Request) {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     };
-    console.error(`[simulation:${requestId}] error`, failure);
+    logApiEvent("/api/simulation", "error", failure);
     return NextResponse.json(
       {
         error: "Failed to build simulation data",

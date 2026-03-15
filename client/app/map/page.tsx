@@ -25,6 +25,7 @@ import {
   POPULATION_CENTERS,
   getPopulationCoverage,
 } from "@/lib/plannerAnalytics";
+import { trackEvent } from "@/lib/telemetry";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -140,6 +141,8 @@ function shouldShowMajorStop(
 export default function MapPage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const previousSavedRouteCount = useRef(0);
+  const hasTrackedMapLoad = useRef(false);
   const routeInfoPopupRef = useRef<mapboxgl.Popup | null>(null);
   const populationPopupRef = useRef<mapboxgl.Popup | null>(null);
   const [unionPearsonShapes, setUnionPearsonShapes] =
@@ -249,6 +252,23 @@ export default function MapPage() {
   useEffect(() => {
     setSavedCustomRoutes(getSavedCustomRoutes());
   }, []);
+
+  useEffect(() => {
+    if (!mapReady || hasTrackedMapLoad.current) return;
+    hasTrackedMapLoad.current = true;
+    trackEvent("map_loaded", {
+      hasSavedRoutes: savedCustomRoutes.length > 0,
+    });
+  }, [mapReady, savedCustomRoutes.length]);
+
+  useEffect(() => {
+    if (savedCustomRoutes.length > previousSavedRouteCount.current) {
+      trackEvent("custom_route_saved", {
+        totalRoutes: savedCustomRoutes.length,
+      });
+    }
+    previousSavedRouteCount.current = savedCustomRoutes.length;
+  }, [savedCustomRoutes]);
 
   useEffect(() => {
     const handleSaved = (e: Event) => {
@@ -2446,6 +2466,10 @@ export default function MapPage() {
             })
           );
         }
+        trackEvent("custom_route_saved", {
+          routeId: pendingScheduleRouteId,
+          hasSchedule: true,
+        });
       }
     }
     setShowScheduleModal(false);
