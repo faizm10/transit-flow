@@ -4,6 +4,16 @@ import { createReadStream } from "fs";
 import { promises as fs } from "fs";
 import readline from "readline";
 
+const FREQUENCY_CACHE_TTL_MS = 1000 * 60 * 30;
+
+let cachedFrequencyResults:
+  | {
+      expiresAt: number;
+      results: FrequencyData[];
+    }
+  | null = null;
+let frequencyComputationPromise: Promise<FrequencyData[]> | null = null;
+
 type VariantEntry = {
   variant_id: string;
   label: string;
@@ -134,8 +144,7 @@ function isWeekend(dateString: string): boolean {
   return dayOfWeek === 0 || dayOfWeek === 6;
 }
 
-export async function GET() {
-  try {
+async function buildFrequencyResults(): Promise<FrequencyData[]> {
     const basePath = path.join(
       process.cwd(),
       "public",
@@ -691,25 +700,6 @@ export async function GET() {
 
       const route = routeById.get(info.route_id);
 
-      // Debug logging for route 22
-      if (info.route_short_name === "22") {
-        console.log(`\n=== Route 22 Variant ${variantId} Debug ===`);
-        console.log(`Route variant: ${info.route_variant}, Direction: ${info.direction_id}`);
-        console.log(`Total trip times: ${tripTimes.length}`);
-        console.log(`Weekday trip times: ${tripTimesWeekday.length}`);
-        console.log(`Weekend trip times: ${tripTimesWeekend.length}`);
-        console.log(`Hour 8 trips (all): ${hourlyFrequency[8].trips}`);
-        console.log(`Hour 8 trips (weekday): ${hourlyFrequencyWeekday[8].trips}`);
-        console.log(`Hour 8 trips (weekend): ${hourlyFrequencyWeekend[8].trips}`);
-        // Show sample trip times for hour 8
-        const hour8Trips = tripTimes.filter((t) => secondsToHour(t) === 8).slice(0, 10);
-        console.log(`Sample hour 8 trip times (first 10):`, hour8Trips.map(t => {
-          const h = Math.floor(t / 3600);
-          const m = Math.floor((t % 3600) / 60);
-          return `${h}:${m.toString().padStart(2, '0')}`;
-        }));
-      }
-
       frequencyResults.push({
         variant_id: variantId,
         route_short_name: info.route_short_name,
@@ -758,7 +748,46 @@ export async function GET() {
       (item) => !specialServiceRoutes.includes(item.variant_id)
     );
 
-    return NextResponse.json({ results: filteredResults });
+    return filteredResults;
+}
+
+export async function GET() {
+  try {
+    const now = Date.now();
+    if (cachedFrequencyResults && cachedFrequencyResults.expiresAt > now) {
+      return NextResponse.json(
+        { results: cachedFrequencyResults.results },
+        {
+          headers: {
+            "Cache-Control": "public, max-age=1800, stale-while-revalidate=86400",
+          },
+        },
+      );
+    }
+
+    if (!frequencyComputationPromise) {
+      frequencyComputationPromise = buildFrequencyResults()
+        .then((results) => {
+          cachedFrequencyResults = {
+            expiresAt: Date.now() + FREQUENCY_CACHE_TTL_MS,
+            results,
+          };
+          return results;
+        })
+        .finally(() => {
+          frequencyComputationPromise = null;
+        });
+    }
+
+    const results = await frequencyComputationPromise;
+    return NextResponse.json(
+      { results },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=1800, stale-while-revalidate=86400",
+        },
+      },
+    );
   } catch (error) {
     console.error("Error calculating frequency:", error);
     return NextResponse.json(

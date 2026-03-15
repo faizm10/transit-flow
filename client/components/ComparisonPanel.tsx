@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { X } from "lucide-react";
 import type { CustomRoute, Schedule } from "@/hooks/useRouteBuilder";
@@ -152,54 +152,56 @@ export function ComparisonPanel({ customRoutes, goRoutes, onClose }: ComparisonP
   const [selectedLeft, setSelectedLeft] = useState(defaultLeft);
   const [selectedRight, setSelectedRight] = useState(defaultRight);
   const [frequencyCache, setFrequencyCache] = useState<Record<string, FrequencyData>>({});
-  const [loadingKeys, setLoadingKeys] = useState<string[]>([]);
-  const [errorByKey, setErrorByKey] = useState<Record<string, string | null>>({});
+  const [frequencyLoading, setFrequencyLoading] = useState(false);
+  const [frequencyError, setFrequencyError] = useState<string | null>(null);
 
   useEffect(() => {
     setSelectedLeft(defaultLeft);
     setSelectedRight(defaultRight);
   }, [defaultLeft, defaultRight]);
 
-  const fetchFrequency = useCallback(async (shortName: string) => {
-    if (!shortName || frequencyCache[shortName]) return;
+  useEffect(() => {
+    let cancelled = false;
 
-    setLoadingKeys((prev) => (prev.includes(shortName) ? prev : [...prev, shortName]));
-    setErrorByKey((prev) => ({ ...prev, [shortName]: null }));
+    const fetchFrequencyIndex = async () => {
+      if (Object.keys(frequencyCache).length > 0) return;
 
-    try {
-      const res = await fetch("/api/gotransit/frequency");
-      if (!res.ok) throw new Error("Failed to fetch frequency data");
-      const data = (await res.json()) as { results: FrequencyData[] };
-      const match =
-        data.results.find((item) => item.route_short_name === shortName && item.direction_id === 0) ??
-        data.results.find((item) => item.route_short_name === shortName);
+      setFrequencyLoading(true);
+      setFrequencyError(null);
 
-      if (!match) {
-        setErrorByKey((prev) => ({ ...prev, [shortName]: `No frequency data found for route ${shortName}` }));
-      } else {
-        setFrequencyCache((prev) => ({ ...prev, [shortName]: match }));
+      try {
+        const res = await fetch("/api/gotransit/frequency");
+        if (!res.ok) throw new Error("Failed to fetch frequency data");
+        const data = (await res.json()) as { results: FrequencyData[] };
+        if (cancelled) return;
+
+        const nextCache: Record<string, FrequencyData> = {};
+        data.results.forEach((item) => {
+          const existing = nextCache[item.route_short_name];
+          if (!existing || existing.direction_id !== 0) {
+            nextCache[item.route_short_name] = item;
+          }
+        });
+        setFrequencyCache(nextCache);
+      } catch (error) {
+        if (cancelled) return;
+        setFrequencyError(error instanceof Error ? error.message : "Unknown error");
+      } finally {
+        if (!cancelled) {
+          setFrequencyLoading(false);
+        }
       }
-    } catch (error) {
-      setErrorByKey((prev) => ({
-        ...prev,
-        [shortName]: error instanceof Error ? error.message : "Unknown error",
-      }));
-    } finally {
-      setLoadingKeys((prev) => prev.filter((key) => key !== shortName));
-    }
+    };
+
+    fetchFrequencyIndex();
+
+    return () => {
+      cancelled = true;
+    };
   }, [frequencyCache]);
 
   const leftOption = compareOptions.find((option) => option.value === selectedLeft) ?? null;
   const rightOption = compareOptions.find((option) => option.value === selectedRight) ?? null;
-
-  useEffect(() => {
-    if (leftOption?.kind === "go" && leftOption.goRoute?.route_short_name) {
-      fetchFrequency(leftOption.goRoute.route_short_name);
-    }
-    if (rightOption?.kind === "go" && rightOption.goRoute?.route_short_name) {
-      fetchFrequency(rightOption.goRoute.route_short_name);
-    }
-  }, [fetchFrequency, leftOption, rightOption]);
 
   const leftMetrics = buildMetrics(leftOption, frequencyCache);
   const rightMetrics = buildMetrics(rightOption, frequencyCache);
@@ -270,15 +272,15 @@ export function ComparisonPanel({ customRoutes, goRoutes, onClose }: ComparisonP
             heading="Route 1"
             option={leftOption}
             metrics={leftMetrics}
-            loading={isOptionLoading(leftOption, loadingKeys)}
-            error={getOptionError(leftOption, errorByKey)}
+            loading={isOptionLoading(leftOption, frequencyLoading, leftMetrics)}
+            error={getOptionError(leftOption, frequencyCache, frequencyError, frequencyLoading)}
           />
           <ComparisonColumn
             heading="Route 2"
             option={rightOption}
             metrics={rightMetrics}
-            loading={isOptionLoading(rightOption, loadingKeys)}
-            error={getOptionError(rightOption, errorByKey)}
+            loading={isOptionLoading(rightOption, frequencyLoading, rightMetrics)}
+            error={getOptionError(rightOption, frequencyCache, frequencyError, frequencyLoading)}
           />
         </div>
       </div>
@@ -341,13 +343,26 @@ function buildMetrics(
   return null;
 }
 
-function isOptionLoading(option: CompareOption | null, loadingKeys: string[]) {
-  return Boolean(option?.kind === "go" && option.goRoute && loadingKeys.includes(option.goRoute.route_short_name));
+function isOptionLoading(
+  option: CompareOption | null,
+  frequencyLoading: boolean,
+  metrics: RouteMetrics | null,
+) {
+  return Boolean(option?.kind === "go" && frequencyLoading && !metrics);
 }
 
-function getOptionError(option: CompareOption | null, errorByKey: Record<string, string | null>) {
+function getOptionError(
+  option: CompareOption | null,
+  frequencyCache: Record<string, FrequencyData>,
+  frequencyError: string | null,
+  frequencyLoading: boolean,
+) {
   if (option?.kind !== "go" || !option.goRoute) return null;
-  return errorByKey[option.goRoute.route_short_name] ?? null;
+  if (frequencyError) return frequencyError;
+  if (!frequencyLoading && !frequencyCache[option.goRoute.route_short_name]) {
+    return `No frequency data found for route ${option.goRoute.route_short_name}`;
+  }
+  return null;
 }
 
 function RouteSelect({
