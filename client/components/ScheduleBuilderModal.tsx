@@ -169,6 +169,8 @@ export function ScheduleBuilderModal({
   const directionLabels = buildDirectionLabels(selectedTarget?.route);
   const supportsOppositeDirection = supportsBidirectionalSchedule(selectedTarget?.route);
   const showGoTimingPreview = Boolean(selectedTarget?.route.baseVariantId);
+  const activeMode = showGoTimingPreview ? "fixed" : activeDirectionDraft.mode;
+  const previewDepartures = activeMode === "fixed" ? fixedPreview : preview.departures;
   const showLoadingState = isLoadingGoData || Boolean(pendingGoSelection);
   const displayRouteName =
     pendingGoSelection?.label ?? selectedTarget?.route.name ?? "Choose a route";
@@ -299,19 +301,6 @@ export function ScheduleBuilderModal({
               </div>
               <div className="space-y-4">
                 <LoadingStats />
-                <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Preview
-                  </div>
-                  <div className="mt-4 grid max-h-[28rem] grid-cols-3 gap-2 overflow-y-auto">
-                    {Array.from({ length: 12 }).map((_, index) => (
-                      <div
-                        key={index}
-                        className="h-14 animate-pulse rounded-xl border border-slate-200 bg-slate-100"
-                      />
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
           ) : !selectedTarget ? (
@@ -368,24 +357,30 @@ export function ScheduleBuilderModal({
                   </div>
                 )}
 
-                <div className="flex gap-2 rounded-[20px] border border-slate-200 bg-white p-1">
-                  <TabButton
-                    active={activeDirectionDraft.mode === "frequency"}
-                    label="Frequency"
-                    onClick={() =>
-                      updateSelectedDirectionDraft((current) => ({ ...current, mode: "frequency" }))
-                    }
-                  />
-                  <TabButton
-                    active={activeDirectionDraft.mode === "fixed"}
-                    label="Fixed Times"
-                    onClick={() =>
-                      updateSelectedDirectionDraft((current) => ({ ...current, mode: "fixed" }))
-                    }
-                  />
-                </div>
+                {showGoTimingPreview ? (
+                  <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                    GO routes use the imported fixed departure times from the selected line.
+                  </div>
+                ) : (
+                  <div className="flex gap-2 rounded-[20px] border border-slate-200 bg-white p-1">
+                    <TabButton
+                      active={activeDirectionDraft.mode === "frequency"}
+                      label="Frequency"
+                      onClick={() =>
+                        updateSelectedDirectionDraft((current) => ({ ...current, mode: "frequency" }))
+                      }
+                    />
+                    <TabButton
+                      active={activeDirectionDraft.mode === "fixed"}
+                      label="Fixed Times"
+                      onClick={() =>
+                        updateSelectedDirectionDraft((current) => ({ ...current, mode: "fixed" }))
+                      }
+                    />
+                  </div>
+                )}
 
-                {activeDirectionDraft.mode === "frequency" ? (
+                {activeMode === "frequency" ? (
                   <div className="space-y-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -502,68 +497,12 @@ export function ScheduleBuilderModal({
                   <InfoCard label="Editing" value={directionLabels[draft.selectedDirection]} />
                   <InfoCard
                     label="Schedule type"
-                    value={showGoTimingPreview ? "GO departures" : activeDirectionDraft.mode === "frequency" ? "Frequency" : "Fixed"}
+                    value={showGoTimingPreview ? "GO departures" : activeMode === "frequency" ? "Frequency" : "Fixed"}
                   />
                   <InfoCard
-                    label="Preview departures"
-                    value={String(preview.departures.length)}
+                    label="Departures"
+                    value={String(previewDepartures.length)}
                   />
-                </div>
-
-                <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Preview
-                  </div>
-                  {showGoTimingPreview ? (
-                    <>
-                      <div className="mt-2 text-sm text-slate-600">
-                        Scheduled GO departures · {preview.departures.length} departures
-                      </div>
-                      <div className="mt-4 grid max-h-[28rem] grid-cols-3 gap-2 overflow-y-auto">
-                        {fixedPreview.length === 0 ? (
-                          <div className="col-span-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-                            No departures available.
-                          </div>
-                        ) : (
-                          fixedPreview.map((time) => (
-                          <div
-                            key={time}
-                            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-sm text-slate-800"
-                          >
-                            {time}
-                          </div>
-                          ))
-                        )}
-                      </div>
-                    </>
-                  ) : preview.validationError ? (
-                    <>
-                      <div className="mt-2 text-sm text-slate-600">{preview.summary}</div>
-                    <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {preview.validationError}
-                    </div>
-                    </>
-                  ) : (
-                    <>
-                    <div className="mt-2 text-sm text-slate-600">{preview.summary}</div>
-                    <div className="mt-4 grid max-h-[28rem] grid-cols-3 gap-2 overflow-y-auto">
-                      {fixedPreview.length === 0 ? (
-                        <div className="col-span-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-                          No departures yet.
-                        </div>
-                      ) : (
-                        fixedPreview.map((time) => (
-                          <div
-                            key={time}
-                            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-sm text-slate-800"
-                          >
-                            {time}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                    </>
-                  )}
                 </div>
               </div>
             </div>
