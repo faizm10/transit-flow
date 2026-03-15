@@ -7,6 +7,7 @@ import {
   RocketIcon,
   TimerIcon,
 } from "@radix-ui/react-icons";
+import { GitCompareArrows } from "lucide-react";
 
 type HeaderProps = {
   activePanel: string | null;
@@ -17,6 +18,7 @@ const PANELS = [
   { id: "networks", label: "Networks", shortLabel: "Net", icon: LayersIcon },
   { id: "filters", label: "Filters", shortLabel: "Filt", icon: MixerHorizontalIcon },
   { id: "builder", label: "Builder", shortLabel: "Build", icon: PlusIcon },
+  { id: "compare", label: "Compare", shortLabel: "Comp", icon: GitCompareArrows },
   { id: "simulation", label: "Simulation", shortLabel: "Sim", icon: TimerIcon },
   { id: "schedule", label: "Schedule", shortLabel: "Sched", icon: RocketIcon },
 ] as const;
@@ -58,7 +60,7 @@ export function Header({
       </div>
 
       <div className="absolute inset-x-0 bottom-4 z-20 px-4 md:hidden">
-        <nav className="grid grid-cols-5 gap-2 rounded-[28px] border border-white/45 bg-[var(--glass-surface)] p-2 shadow-[var(--glass-shadow)] backdrop-blur-2xl">
+        <nav className="grid grid-cols-6 gap-2 rounded-[28px] border border-white/45 bg-[var(--glass-surface)] p-2 shadow-[var(--glass-shadow)] backdrop-blur-2xl">
           {PANELS.map(({ id, shortLabel, icon: Icon }) => {
             const isActive = activePanel === id;
             return (

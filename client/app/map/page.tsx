@@ -193,7 +193,6 @@ export default function MapPage() {
   const drawRef = useRef<MapboxDraw | null>(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showCoverage, setShowCoverage] = useState(false);
-  const [showComparison, setShowComparison] = useState(false);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [pendingScheduleRouteId, setPendingScheduleRouteId] = useState<string | null>(null);
@@ -2660,7 +2659,7 @@ export default function MapPage() {
             isDrawing={isDrawing}
             onStartDraw={() => startDraw(drawRef)}
             onCancelDraw={() => cancelDraw(drawRef)}
-            onOpenComparison={() => setShowComparison((prev) => !prev)}
+            onOpenComparison={() => setActivePanel("compare")}
           />
         )}
 
@@ -2676,19 +2675,11 @@ export default function MapPage() {
       />
 
       {/* Comparison Panel */}
-      {showComparison && (
+      {activePanel === "compare" && (
         <ComparisonPanel
-          customRoute={
-            savedCustomRoutes.find((r) => r.stops.length >= 2) ?? {
-              id: "",
-              name: "Custom Route",
-              color: "#3b82f6",
-              profile: "mapbox/driving" as const,
-              stops: [],
-            }
-          }
+          customRoutes={savedCustomRoutes}
           goRoutes={goRoutes}
-          onClose={() => setShowComparison(false)}
+          onClose={() => setActivePanel(null)}
         />
       )}
 
