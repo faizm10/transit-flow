@@ -154,6 +154,26 @@
   padding: 14px 16px;
 }
 
+.route-info-popup-card {
+  width: 250px;
+  max-width: 250px;
+}
+
+.route-info-popup-label {
+  margin-bottom: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgb(100 116 139);
+}
+
+.route-info-popup-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .route-info-popup .mapboxgl-popup-tip {
   border-top-color: rgb(255 255 255 / 0.7);
 }

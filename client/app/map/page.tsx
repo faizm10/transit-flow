@@ -1509,11 +1509,13 @@ export default function MapPage() {
       })
         .setLngLat(event.lngLat)
         .setHTML(`
-          <div style="min-width:220px; max-width:280px; padding:2px 0;">
-            <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.18em; color:#64748b; margin-bottom:8px;">
+          <div class="route-info-popup-card">
+            <div class="route-info-popup-label">
               ${clickedRoutes.length > 1 ? "Routes here" : "Route"}
             </div>
-            ${itemsHtml}
+            <div class="route-info-popup-list">
+              ${itemsHtml}
+            </div>
           </div>
         `)
         .addTo(map.current);
