@@ -29,7 +29,7 @@ export function SidePanel({
           isOpen
             ? "pointer-events-auto translate-y-0 opacity-100 md:translate-x-0"
             : "pointer-events-none translate-y-6 opacity-0 md:-translate-x-8"
-        } inset-x-3 bottom-20 top-[72px] md:inset-x-auto md:bottom-auto md:left-[104px] md:top-1/2 md:max-h-[calc(100vh-3rem)] md:w-[380px] md:-translate-y-1/2 lg:left-[112px] lg:w-[400px]`}
+        } inset-x-3 bottom-20 top-[72px] md:inset-x-auto md:bottom-auto md:left-[104px] md:top-1/2 md:h-[calc(100vh-3rem)] md:max-h-[calc(100vh-3rem)] md:w-[380px] md:-translate-y-1/2 lg:left-[112px] lg:w-[400px]`}
       >
         <div className="flex h-full flex-col overflow-hidden rounded-[32px] border border-white/50 bg-[var(--glass-surface-strong)] shadow-[var(--glass-shadow)] backdrop-blur-2xl">
           <header className="flex items-start justify-between gap-3 border-b border-white/40 px-5 py-5">
