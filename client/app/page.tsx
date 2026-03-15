@@ -89,6 +89,12 @@ export default function LandingPage() {
         <footer className="mx-auto flex w-full max-w-6xl flex-col items-start justify-between gap-4 border-t border-[#d8e2d4] py-6 text-sm text-slate-500 sm:flex-row sm:items-center">
           <p>TransitFlow for route design, comparison, and simulation.</p>
           <div className="flex flex-wrap items-center gap-4">
+            <Link href="/privacy" className="transition hover:text-slate-950">
+              Privacy
+            </Link>
+            <Link href="/terms" className="transition hover:text-slate-950">
+              Terms
+            </Link>
             <Link href={repoUrl} className="transition hover:text-slate-950">
               GitHub
             </Link>

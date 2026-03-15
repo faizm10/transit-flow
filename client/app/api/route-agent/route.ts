@@ -1,4 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  applyRateLimit,
+  jsonError,
+  logApiEvent,
+  normalizeString,
+  readJsonBody,
+  withTimeout,
+} from "@/lib/server/api";
+import { readPublicTextCached } from "@/lib/server/gtfs-cache";
 
 type StopData = {
   stop_id: string;
@@ -57,10 +66,7 @@ function uniqStops(stops: RouteStop[]) {
 
 async function loadStops(): Promise<StopData[]> {
   try {
-    const fs = await import("fs");
-    const path = await import("path");
-    const stopsPath = path.join(process.cwd(), "public", "gotransit", "stops.txt");
-    const content = fs.readFileSync(stopsPath, "utf-8");
+    const content = await readPublicTextCached("gotransit/stops.txt");
     const lines = content.split("\n");
     const stops: StopData[] = [];
 
@@ -107,7 +113,7 @@ async function geocodePlace(query: string) {
     query
   )}.json?access_token=${token}&limit=1&bbox=${bbox}`;
   try {
-    const response = await fetch(url);
+    const response = await withTimeout(fetch(url), 8000, "Mapbox geocoding");
     if (!response.ok) {
       return { error: `Mapbox geocoding failed (${response.status})` as const };
     }
@@ -262,7 +268,7 @@ async function getRouteGeometry(start: RouteStop, end: RouteStop) {
   const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&overview=full&access_token=${token}`;
   let response: Response;
   try {
-    response = await fetch(url);
+    response = await withTimeout(fetch(url), 8000, "Mapbox directions");
   } catch (err) {
     return { error: `Mapbox routing fetch failed (${String(err)})` as const };
   }
@@ -285,19 +291,39 @@ async function getRouteGeometry(start: RouteStop, end: RouteStop) {
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const { prompt, currentRoute } = await request.json();
+  const requestStartedAt = Date.now();
+  logApiEvent("/api/route-agent", "request");
 
-    if (!prompt || typeof prompt !== "string") {
-      return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+  const limited = applyRateLimit(request, {
+    bucket: "route-agent",
+    limit: 12,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
+  try {
+    const body = await readJsonBody<{
+      prompt?: unknown;
+      currentRoute?: RouteContext | null;
+    }>(request, { maxBytes: 12_000 });
+    if (!body.ok) return body.response;
+
+    const prompt = normalizeString(body.data.prompt, { maxLength: 320 });
+    const currentRoute = body.data.currentRoute;
+
+    if (!prompt) {
+      return jsonError(400, "Prompt is required");
     }
 
     const allStops = await loadStops();
     if (allStops.length === 0) {
-      return NextResponse.json({ error: "Failed to load stop data" }, { status: 500 });
+      return jsonError(500, "Failed to load stop data");
     }
 
     const current = currentRoute as RouteContext | null;
+    if (current?.stops && current.stops.length > 100) {
+      return jsonError(400, "Current route has too many stops");
+    }
     const addList = extractStopList(prompt);
     const removeList = extractRemoveList(prompt);
 
@@ -313,7 +339,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!startLabel || !endLabel) {
-      return NextResponse.json({ error: "Unable to determine start/end locations" }, { status: 400 });
+      return jsonError(400, "Unable to determine start/end locations");
     }
 
     const startResolved = await resolvePlace(allStops, startLabel);
@@ -359,7 +385,7 @@ export async function POST(request: NextRequest) {
 
     combined = combined.sort((a, b) => lineProjectProgress(line, a) - lineProjectProgress(line, b));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       model: "deterministic",
       route: {
@@ -369,13 +395,26 @@ export async function POST(request: NextRequest) {
           ? `Mapbox routing failed (${routingNote}). Using straight-line corridor.`
           : "Start/end resolved. Use Generate to add corridor stops.",
       },
+    }, {
+      headers: {
+        "Cache-Control": "no-store",
+      },
     });
+    logApiEvent("/api/route-agent", "success", {
+      durationMs: Date.now() - requestStartedAt,
+      degraded: Boolean(routingNote),
+    });
+    return response;
   } catch (error) {
-    console.error("Route agent error:", error);
+    logApiEvent("/api/route-agent", "error", {
+      durationMs: Date.now() - requestStartedAt,
+      message: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json(
       {
         error: "Failed to generate route",
         details: error instanceof Error ? error.message : String(error),
+        retryable: true,
       },
       { status: 500 }
     );

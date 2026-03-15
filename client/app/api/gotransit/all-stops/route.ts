@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import path from "path";
-import { promises as fs } from "fs";
+import { NextRequest, NextResponse } from "next/server";
+import { applyRateLimit, jsonError } from "@/lib/server/api";
+import { readPublicTextCached } from "@/lib/server/gtfs-cache";
 
 function parseCsvLine(line: string): string[] {
   const values: string[] = [];
@@ -30,11 +30,20 @@ function parseCsvLine(line: string): string[] {
   return values;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const limited = applyRateLimit(request, {
+    bucket: "all-stops",
+    limit: 20,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   try {
-    const stopsPath = path.join(process.cwd(), "public", "gotransit", "stops.txt");
-    const stopsContent = await fs.readFile(stopsPath, "utf8");
+    const stopsContent = await readPublicTextCached("gotransit/stops.txt");
     const stopsLines = stopsContent.split("\n").filter(Boolean);
+    if (stopsLines.length === 0) {
+      return jsonError(500, "Failed to load stops");
+    }
     const stopsHeaders = parseCsvLine(stopsLines[0]).map((h) => h.trim());
     if (stopsHeaders[0]) {
       stopsHeaders[0] = stopsHeaders[0].replace(/^\uFEFF/, "");
@@ -74,7 +83,11 @@ export async function GET() {
       features,
     };
 
-    return NextResponse.json(geojson);
+    return NextResponse.json(geojson, {
+      headers: {
+        "Cache-Control": "public, max-age=1800, stale-while-revalidate=86400",
+      },
+    });
   } catch (error) {
     console.error("Error reading stops.txt:", error);
     return NextResponse.json({ error: "Failed to load stops" }, { status: 500 });

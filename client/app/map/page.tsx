@@ -25,6 +25,7 @@ import {
   POPULATION_CENTERS,
   getPopulationCoverage,
 } from "@/lib/plannerAnalytics";
+import { trackEvent } from "@/lib/telemetry";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -140,6 +141,8 @@ function shouldShowMajorStop(
 export default function MapPage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const previousSavedRouteCount = useRef(0);
+  const hasTrackedMapLoad = useRef(false);
   const routeInfoPopupRef = useRef<mapboxgl.Popup | null>(null);
   const populationPopupRef = useRef<mapboxgl.Popup | null>(null);
   const [unionPearsonShapes, setUnionPearsonShapes] =
@@ -202,6 +205,7 @@ export default function MapPage() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [pendingScheduleRouteId, setPendingScheduleRouteId] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 43.6532, lng: -79.3832 });
+  const [mapInitError, setMapInitError] = useState<string | null>(null);
   const populationCoverage = useMemo(
     () => getPopulationCoverage(savedCustomRoutes),
     [savedCustomRoutes],
@@ -249,6 +253,23 @@ export default function MapPage() {
   useEffect(() => {
     setSavedCustomRoutes(getSavedCustomRoutes());
   }, []);
+
+  useEffect(() => {
+    if (!mapReady || hasTrackedMapLoad.current) return;
+    hasTrackedMapLoad.current = true;
+    trackEvent("map_loaded", {
+      hasSavedRoutes: savedCustomRoutes.length > 0,
+    });
+  }, [mapReady, savedCustomRoutes.length]);
+
+  useEffect(() => {
+    if (savedCustomRoutes.length > previousSavedRouteCount.current) {
+      trackEvent("custom_route_saved", {
+        totalRoutes: savedCustomRoutes.length,
+      });
+    }
+    previousSavedRouteCount.current = savedCustomRoutes.length;
+  }, [savedCustomRoutes]);
 
   useEffect(() => {
     const handleSaved = (e: Event) => {
@@ -1258,16 +1279,29 @@ export default function MapPage() {
     const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
     if (!token) {
       console.error("Missing NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN for Mapbox");
+      setMapInitError("Mapbox token is not configured.");
       return;
     }
 
-    mapboxgl.accessToken = token;
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: [-79.3832, 43.6532],
-      zoom: 10,
-    });
+    if (!mapboxgl.supported()) {
+      setMapInitError("WebGL is unavailable in this browser environment.");
+      return;
+    }
+
+    try {
+      mapboxgl.accessToken = token;
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: [-79.3832, 43.6532],
+        zoom: 10,
+      });
+      setMapInitError(null);
+    } catch (error) {
+      console.error("Failed to initialize WebGL", error);
+      setMapInitError("The interactive map is unavailable in this browser environment.");
+      return;
+    }
 
     map.current.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
@@ -2446,6 +2480,10 @@ export default function MapPage() {
             })
           );
         }
+        trackEvent("custom_route_saved", {
+          routeId: pendingScheduleRouteId,
+          hasSchedule: true,
+        });
       }
     }
     setShowScheduleModal(false);
@@ -2844,6 +2882,14 @@ export default function MapPage() {
       />
 
       <div ref={mapContainer} className="h-full w-full" />
+      {mapInitError ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+          <div className="max-w-md rounded-3xl border border-amber-200 bg-white/90 px-5 py-4 text-sm text-slate-700 shadow-[var(--glass-shadow)] backdrop-blur-xl">
+            <p className="font-semibold text-slate-950">Map unavailable</p>
+            <p className="mt-1 leading-6">{mapInitError}</p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

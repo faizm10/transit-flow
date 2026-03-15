@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import path from "path";
-import { promises as fs } from "fs";
+import { NextRequest, NextResponse } from "next/server";
+import { applyRateLimit, jsonError } from "@/lib/server/api";
+import { readPublicTextCached } from "@/lib/server/gtfs-cache";
 
 function parseCsvLine(line: string): string[] {
   const values: string[] = [];
@@ -34,12 +34,21 @@ function parseCsvLine(line: string): string[] {
   return values;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const limited = applyRateLimit(request, {
+    bucket: "union-pearson",
+    limit: 20,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   try {
-    const filePath = path.join(process.cwd(), "public", "union-pearson", "shapes.txt");
-    const fileContents = await fs.readFile(filePath, "utf8");
+    const fileContents = await readPublicTextCached("union-pearson/shapes.txt");
 
     const lines = fileContents.split("\n").filter(Boolean);
+    if (lines.length === 0) {
+      return jsonError(500, "Failed to fetch Union Pearson shapes");
+    }
     const headers = parseCsvLine(lines[0]).map((header) => header.trim());
     if (headers[0]) {
       headers[0] = headers[0].replace(/^\uFEFF/, "");
@@ -87,7 +96,11 @@ export async function GET() {
       })),
     };
 
-    return NextResponse.json(featureCollection);
+    return NextResponse.json(featureCollection, {
+      headers: {
+        "Cache-Control": "public, max-age=1800, stale-while-revalidate=86400",
+      },
+    });
   } catch (error) {
     console.error("Error fetching Union Pearson shapes:", error);
     return NextResponse.json(

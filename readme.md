@@ -1,40 +1,34 @@
-# build your own transit network
+# TransitFlow
 
-problem
-- go transit sometimes publish schedules that are not ideal for commuters such as no express trains from mount pleasant & brampton go during peak hours
-- ideal bus routes like 25W for laurier students, express to sq1 since 25C is always packed during rush hour
+TransitFlow is a transit planning workspace for designing routes, comparing service, generating schedules, and simulating GTFS-backed operations.
 
-solution
-- build your own system and see how it would play out with simulation style via machine learning
+## App layout
 
-## Getting Started
+- `client/`: production Next.js app, API routes, static GTFS assets
+- `server/`: data prep and source GTFS files
+- `scripts/`: preprocessing helpers such as GTFS subroute generation
 
-### Installation
+## Local setup
 
-1.  Navigate to the `client` directory:
-    ```bash
-    cd client
-    ```
-2.  Install the dependencies:
-    ```bash
-    npm install
-    ```
+```bash
+cd client
+npm install
+cp .env.example .env.local
+npm run dev
+```
 
-### Running the application
+Open `http://localhost:3000/map`.
 
-1.  Navigate to the `client` directory:
-    ```bash
-    cd client
-    ```
-2.  Start the development server:
-    ```bash
-    npm run dev
-    ```
-3. Open your browser and navigate to `http://localhost:3000/map` to see the application.
+## Production target
 
-## GTFS subroute preprocessing
+The repo is set up for a Vercel-first public beta:
 
-Generate route variants, lines, and ordered stops from a GTFS folder:
+- Vercel app root is `client/`
+- CI lives in [client-ci.yml](/Applications/vscode/transit-flow/.github/workflows/client-ci.yml)
+- Runtime hardening utilities live in [api.ts](/Applications/vscode/transit-flow/client/lib/server/api.ts)
+- Launch procedures live in [production-runbook.md](/Applications/vscode/transit-flow/client/docs/production-runbook.md)
+
+## GTFS preprocessing
 
 ```bash
 python3 scripts/build_subroutes.py --input_dir <path-to-gtfs> --output_dir <path-to-output>

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { MagnifyingGlassIcon, PlusIcon, RocketIcon, LightningBoltIcon } from "@radix-ui/react-icons";
 import { searchStops, loadGOTransitStops, type GTFSStop } from "@/lib/stopSearch";
 import { ROUTE_BUILDER_CURRENT_KEY } from "@/hooks/useRouteBuilder";
+import { trackEvent } from "@/lib/telemetry";
 
 type SavedStop = {
   id: string;
@@ -176,6 +177,9 @@ export function RouteCommandBar({
       // Otherwise, use AI to generate route from prompt
       setAiGenerating(true);
       setAiError(null);
+      trackEvent("route_agent_requested", {
+        promptLength: query.trim().length,
+      });
 
       try {
         let currentRoute: {
@@ -215,6 +219,11 @@ export function RouteCommandBar({
         }
 
         if (data.success && data.route) {
+          trackEvent("route_agent_completed", {
+            success: true,
+            stopCount: Array.isArray(data.route.stops) ? data.route.stops.length : 0,
+            degraded: Boolean(data.route.reasoning?.includes("straight-line corridor")),
+          });
           onAIRoute(data.route);
           setQuery("");
           setSearchResults([]);
@@ -229,6 +238,9 @@ export function RouteCommandBar({
         }
       } catch (error) {
         console.error("AI route generation error:", error);
+        trackEvent("route_agent_completed", {
+          success: false,
+        });
         setAiError(error instanceof Error ? error.message : "Failed to generate route");
       } finally {
         setAiGenerating(false);
