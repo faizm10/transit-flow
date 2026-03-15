@@ -751,12 +751,20 @@ async function buildFrequencyResults(): Promise<FrequencyData[]> {
     return filteredResults;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const now = Date.now();
+    const { searchParams } = new URL(request.url);
+    const routeShortName = searchParams.get("route_short_name")?.trim();
+
     if (cachedFrequencyResults && cachedFrequencyResults.expiresAt > now) {
+      const results = routeShortName
+        ? cachedFrequencyResults.results.filter(
+            (item) => item.route_short_name === routeShortName,
+          )
+        : cachedFrequencyResults.results;
       return NextResponse.json(
-        { results: cachedFrequencyResults.results },
+        { results },
         {
           headers: {
             "Cache-Control": "public, max-age=1800, stale-while-revalidate=86400",
@@ -780,8 +788,11 @@ export async function GET() {
     }
 
     const results = await frequencyComputationPromise;
+    const filteredResults = routeShortName
+      ? results.filter((item) => item.route_short_name === routeShortName)
+      : results;
     return NextResponse.json(
-      { results },
+      { results: filteredResults },
       {
         headers: {
           "Cache-Control": "public, max-age=1800, stale-while-revalidate=86400",

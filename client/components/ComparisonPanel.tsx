@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { X } from "lucide-react";
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { LoaderCircle, X } from "lucide-react";
 import type { CustomRoute, Schedule } from "@/hooks/useRouteBuilder";
 
 type GoRouteEntry = {
@@ -57,7 +57,7 @@ type RouteMetrics = {
 
 function getIntervalMinutes(schedule?: Schedule): number | null {
   if (!schedule || schedule.type !== "frequency") return null;
-  const configs = Object.values(schedule.dayConfigs ?? {}).filter((c) => c?.enabled);
+  const configs = Object.values(schedule.dayConfigs ?? {}).filter((config) => config?.enabled);
   if (configs.length === 0) return null;
   return configs[0]?.intervalMinutes ?? null;
 }
@@ -65,12 +65,12 @@ function getIntervalMinutes(schedule?: Schedule): number | null {
 function getDailyTripsFromSchedule(schedule?: Schedule): number {
   if (!schedule) return 0;
   if (schedule.type === "fixed") return schedule.departures.length;
-  const configs = Object.values(schedule.dayConfigs ?? {}).filter((c) => c?.enabled);
+  const configs = Object.values(schedule.dayConfigs ?? {}).filter((config) => config?.enabled);
   if (configs.length === 0) return 0;
   const config = configs[0]!;
   const hoursOfService =
-    (parseInt(config.endTime.split(":")[0]) - parseInt(config.startTime.split(":")[0])) * 60 +
-    (parseInt(config.endTime.split(":")[1]) - parseInt(config.startTime.split(":")[1]));
+    (parseInt(config.endTime.split(":")[0], 10) - parseInt(config.startTime.split(":")[0], 10)) * 60 +
+    (parseInt(config.endTime.split(":")[1], 10) - parseInt(config.startTime.split(":")[1], 10));
   return Math.floor(hoursOfService / config.intervalMinutes);
 }
 
@@ -81,7 +81,10 @@ function buildCustomMetrics(route: CustomRoute): RouteMetrics {
 
   return {
     title: route.name || "Untitled Route",
-    subtitle: route.stops.length > 1 ? `${route.stops[0]?.name ?? "Start"} → ${route.stops[route.stops.length - 1]?.name ?? "End"}` : "Custom route",
+    subtitle:
+      route.stops.length > 1
+        ? `${route.stops[0]?.name ?? "Start"} → ${route.stops[route.stops.length - 1]?.name ?? "End"}`
+        : "Custom route",
     sourceLabel: "Custom route",
     stops: String(route.stops.length),
     duration: durationMinutes != null ? `${durationMinutes} min` : "—",
@@ -147,61 +150,89 @@ export function ComparisonPanel({ customRoutes, goRoutes, onClose }: ComparisonP
 
   const defaultLeft = compareOptions[0]?.value ?? "";
   const defaultRight =
-    compareOptions.find((option) => option.value !== defaultLeft)?.value ?? compareOptions[0]?.value ?? "";
+    compareOptions.find((option) => option.value !== defaultLeft)?.value ??
+    compareOptions[0]?.value ??
+    "";
 
   const [selectedLeft, setSelectedLeft] = useState(defaultLeft);
   const [selectedRight, setSelectedRight] = useState(defaultRight);
   const [frequencyCache, setFrequencyCache] = useState<Record<string, FrequencyData>>({});
-  const [frequencyLoading, setFrequencyLoading] = useState(false);
-  const [frequencyError, setFrequencyError] = useState<string | null>(null);
+  const [loadingRoutes, setLoadingRoutes] = useState<Record<string, boolean>>({});
+  const [routeErrors, setRouteErrors] = useState<Record<string, string>>({});
+  const effectiveSelectedLeft = compareOptions.some((option) => option.value === selectedLeft)
+    ? selectedLeft
+    : defaultLeft;
+  const effectiveSelectedRight = compareOptions.some((option) => option.value === selectedRight)
+    ? selectedRight
+    : defaultRight;
 
-  useEffect(() => {
-    setSelectedLeft(defaultLeft);
-    setSelectedRight(defaultRight);
-  }, [defaultLeft, defaultRight]);
+  const leftOption = compareOptions.find((option) => option.value === effectiveSelectedLeft) ?? null;
+  const rightOption = compareOptions.find((option) => option.value === effectiveSelectedRight) ?? null;
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchFrequencyIndex = async () => {
-      if (Object.keys(frequencyCache).length > 0) return;
-
-      setFrequencyLoading(true);
-      setFrequencyError(null);
-
-      try {
-        const res = await fetch("/api/gotransit/frequency");
-        if (!res.ok) throw new Error("Failed to fetch frequency data");
-        const data = (await res.json()) as { results: FrequencyData[] };
-        if (cancelled) return;
-
-        const nextCache: Record<string, FrequencyData> = {};
-        data.results.forEach((item) => {
-          const existing = nextCache[item.route_short_name];
-          if (!existing || existing.direction_id !== 0) {
-            nextCache[item.route_short_name] = item;
-          }
-        });
-        setFrequencyCache(nextCache);
-      } catch (error) {
-        if (cancelled) return;
-        setFrequencyError(error instanceof Error ? error.message : "Unknown error");
-      } finally {
-        if (!cancelled) {
-          setFrequencyLoading(false);
-        }
+  const requiredGoRoutes = useMemo(() => {
+    const routeNames = new Set<string>();
+    [leftOption, rightOption].forEach((option) => {
+      if (option?.kind === "go" && option.goRoute?.route_short_name) {
+        routeNames.add(option.goRoute.route_short_name);
       }
-    };
+    });
+    return Array.from(routeNames);
+  }, [leftOption, rightOption]);
 
-    fetchFrequencyIndex();
+  useEffect(() => {
+    const missingRoutes = requiredGoRoutes.filter(
+      (routeShortName) => !frequencyCache[routeShortName] && !loadingRoutes[routeShortName],
+    );
+    if (missingRoutes.length === 0) return;
+
+    const controllers = missingRoutes.map(() => new AbortController());
+
+    missingRoutes.forEach((routeShortName, index) => {
+      const controller = controllers[index];
+      setLoadingRoutes((current) => ({ ...current, [routeShortName]: true }));
+      setRouteErrors((current) => {
+        const next = { ...current };
+        delete next[routeShortName];
+        return next;
+      });
+
+      fetch(`/api/gotransit/frequency?route_short_name=${encodeURIComponent(routeShortName)}`, {
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error("Failed to fetch route frequency");
+          }
+          const data = (await response.json()) as { results: FrequencyData[] };
+          const match =
+            data.results.find((item) => item.direction_id === 0) ??
+            data.results[0];
+
+          if (!match) {
+            throw new Error(`No frequency data found for route ${routeShortName}`);
+          }
+
+          setFrequencyCache((current) => ({ ...current, [routeShortName]: match }));
+        })
+        .catch((error: unknown) => {
+          if (controller.signal.aborted) return;
+          const message = error instanceof Error ? error.message : "Unknown error";
+          setRouteErrors((current) => ({ ...current, [routeShortName]: message }));
+        })
+        .finally(() => {
+          if (controller.signal.aborted) return;
+          setLoadingRoutes((current) => {
+            const next = { ...current };
+            delete next[routeShortName];
+            return next;
+          });
+        });
+    });
 
     return () => {
-      cancelled = true;
+      controllers.forEach((controller) => controller.abort());
     };
-  }, [frequencyCache]);
-
-  const leftOption = compareOptions.find((option) => option.value === selectedLeft) ?? null;
-  const rightOption = compareOptions.find((option) => option.value === selectedRight) ?? null;
+  }, [frequencyCache, loadingRoutes, requiredGoRoutes]);
 
   const leftMetrics = buildMetrics(leftOption, frequencyCache);
   const rightMetrics = buildMetrics(rightOption, frequencyCache);
@@ -209,21 +240,9 @@ export function ComparisonPanel({ customRoutes, goRoutes, onClose }: ComparisonP
   const chartData =
     leftMetrics && rightMetrics
       ? [
-          {
-            metric: "Stops",
-            route1: leftMetrics.chartStops,
-            route2: rightMetrics.chartStops,
-          },
-          {
-            metric: "Daily Trips",
-            route1: leftMetrics.chartDailyTrips,
-            route2: rightMetrics.chartDailyTrips,
-          },
-          {
-            metric: "Headway (min)",
-            route1: leftMetrics.chartHeadway,
-            route2: rightMetrics.chartHeadway,
-          },
+          { metric: "Stops", route1: leftMetrics.chartStops, route2: rightMetrics.chartStops },
+          { metric: "Daily Trips", route1: leftMetrics.chartDailyTrips, route2: rightMetrics.chartDailyTrips },
+          { metric: "Headway", route1: leftMetrics.chartHeadway, route2: rightMetrics.chartHeadway },
           {
             metric: "Peak /hr",
             route1: leftMetrics.chartPeakTripsPerHour,
@@ -233,96 +252,101 @@ export function ComparisonPanel({ customRoutes, goRoutes, onClose }: ComparisonP
       : [];
 
   return (
-    <div className="fixed bottom-24 right-4 z-50 w-[520px] max-w-[95vw] overflow-hidden rounded-[28px] border border-white/50 bg-[var(--glass-surface-strong)] text-sm text-slate-900 shadow-[var(--glass-shadow)] backdrop-blur-2xl">
-      <div className="flex items-center justify-between border-b border-white/40 px-5 py-4">
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-            Benchmark
+    <div className="fixed bottom-24 right-4 z-50 w-[min(720px,calc(100vw-1rem))] max-w-[calc(100vw-1rem)]">
+      <div className="overflow-hidden rounded-[28px] border border-white/55 bg-[var(--glass-surface-strong)] text-sm text-slate-900 shadow-[var(--glass-shadow)] backdrop-blur-2xl">
+        <div className="flex items-start justify-between border-b border-white/35 px-5 py-4">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              Benchmark
+            </div>
+            <div className="mt-1 text-[1.65rem] font-semibold tracking-tight text-slate-950">
+              Compare Routes
+            </div>
           </div>
-          <span className="mt-1 block font-semibold text-slate-950">Route Comparison</span>
+          <button
+            onClick={onClose}
+            className="rounded-full p-2 text-slate-400 transition-colors hover:bg-white/45 hover:text-slate-950"
+            aria-label="Close comparison"
+          >
+            <X size={18} />
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="text-slate-400 transition-colors hover:text-slate-950"
-        >
-          <X size={16} />
-        </button>
-      </div>
 
-      <div className="border-b border-white/35 px-5 py-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <RouteSelect
-            label="Route 1"
-            value={selectedLeft}
-            onChange={setSelectedLeft}
-            options={compareOptions}
-          />
-          <RouteSelect
-            label="Route 2"
-            value={selectedRight}
-            onChange={setSelectedRight}
-            options={compareOptions}
-          />
-        </div>
-      </div>
-
-      <div className="px-5 py-4">
-        <div className="grid grid-cols-2 gap-3">
-          <ComparisonColumn
-            heading="Route 1"
-            option={leftOption}
-            metrics={leftMetrics}
-            loading={isOptionLoading(leftOption, frequencyLoading, leftMetrics)}
-            error={getOptionError(leftOption, frequencyCache, frequencyError, frequencyLoading)}
-          />
-          <ComparisonColumn
-            heading="Route 2"
-            option={rightOption}
-            metrics={rightMetrics}
-            loading={isOptionLoading(rightOption, frequencyLoading, rightMetrics)}
-            error={getOptionError(rightOption, frequencyCache, frequencyError, frequencyLoading)}
-          />
-        </div>
-      </div>
-
-      {chartData.length > 0 && (
-        <div className="border-t border-white/35 px-5 pb-5 pt-4">
-          <div className="mb-2 text-[10px] uppercase tracking-widest text-slate-500">
-            Key Metrics
+        <div className="max-h-[min(72vh,680px)] overflow-y-auto">
+          <div className="border-b border-white/30 px-5 py-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <RouteSelect
+                label="Route 1"
+                value={effectiveSelectedLeft}
+                onChange={setSelectedLeft}
+                options={compareOptions}
+              />
+              <RouteSelect
+                label="Route 2"
+                value={effectiveSelectedRight}
+                onChange={setSelectedRight}
+                options={compareOptions}
+              />
+            </div>
           </div>
-          <ResponsiveContainer width="100%" height={120}>
-            <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barGap={4}>
-              <XAxis
-                dataKey="metric"
-                tick={{ fill: "rgba(71,85,105,0.8)", fontSize: 9 }}
-                axisLine={false}
-                tickLine={false}
+
+          <div className="px-5 py-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <ComparisonColumn
+                heading="Route 1"
+                metrics={leftMetrics}
+                loading={isOptionLoading(leftOption, loadingRoutes)}
+                error={getOptionError(leftOption, routeErrors)}
               />
-              <YAxis
-                tick={{ fill: "rgba(100,116,139,0.8)", fontSize: 9 }}
-                axisLine={false}
-                tickLine={false}
+              <ComparisonColumn
+                heading="Route 2"
+                metrics={rightMetrics}
+                loading={isOptionLoading(rightOption, loadingRoutes)}
+                error={getOptionError(rightOption, routeErrors)}
               />
-              <Tooltip
-                contentStyle={{
-                  background: "rgba(255,255,255,0.88)",
-                  border: "1px solid rgba(255,255,255,0.65)",
-                  borderRadius: 16,
-                  fontSize: 11,
-                }}
-                labelStyle={{ color: "rgb(71,85,105)" }}
-                itemStyle={{ color: "rgb(15,23,42)" }}
-              />
-              <Bar dataKey="route1" fill="#3b82f6" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="route2" fill="#22c55e" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="mt-1 flex justify-center gap-4">
-            <LegendDot color="bg-blue-500" label="Route 1" />
-            <LegendDot color="bg-green-500" label="Route 2" />
+            </div>
           </div>
+
+          {chartData.length > 0 && (
+            <div className="border-t border-white/30 px-5 pb-5 pt-4">
+              <div className="mb-3 text-[10px] uppercase tracking-widest text-slate-500">
+                Key Metrics
+              </div>
+              <ResponsiveContainer width="100%" height={168}>
+                <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barGap={8}>
+                  <XAxis
+                    dataKey="metric"
+                    tick={{ fill: "rgba(71,85,105,0.82)", fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: "rgba(100,116,139,0.8)", fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "rgba(255,255,255,0.92)",
+                      border: "1px solid rgba(255,255,255,0.7)",
+                      borderRadius: 16,
+                      fontSize: 11,
+                    }}
+                    labelStyle={{ color: "rgb(71,85,105)" }}
+                    itemStyle={{ color: "rgb(15,23,42)" }}
+                  />
+                  <Bar dataKey="route1" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="route2" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="mt-2 flex justify-center gap-4">
+                <LegendDot color="bg-blue-500" label="Route 1" />
+                <LegendDot color="bg-green-500" label="Route 2" />
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -345,24 +369,18 @@ function buildMetrics(
 
 function isOptionLoading(
   option: CompareOption | null,
-  frequencyLoading: boolean,
-  metrics: RouteMetrics | null,
+  loadingRoutes: Record<string, boolean>,
 ) {
-  return Boolean(option?.kind === "go" && frequencyLoading && !metrics);
+  if (option?.kind !== "go" || !option.goRoute) return false;
+  return Boolean(loadingRoutes[option.goRoute.route_short_name]);
 }
 
 function getOptionError(
   option: CompareOption | null,
-  frequencyCache: Record<string, FrequencyData>,
-  frequencyError: string | null,
-  frequencyLoading: boolean,
+  routeErrors: Record<string, string>,
 ) {
   if (option?.kind !== "go" || !option.goRoute) return null;
-  if (frequencyError) return frequencyError;
-  if (!frequencyLoading && !frequencyCache[option.goRoute.route_short_name]) {
-    return `No frequency data found for route ${option.goRoute.route_short_name}`;
-  }
-  return null;
+  return routeErrors[option.goRoute.route_short_name] ?? null;
 }
 
 function RouteSelect({
@@ -378,11 +396,13 @@ function RouteSelect({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-[11px] uppercase tracking-wide text-slate-500">{label}</span>
+      <span className="mb-1.5 block text-[11px] uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full cursor-pointer appearance-none rounded-2xl border border-white/45 bg-white/70 px-3 py-2.5 text-sm text-slate-900 focus:border-sky-300 focus:outline-none focus:ring-4 focus:ring-sky-100/60"
+        className="w-full cursor-pointer appearance-none rounded-2xl border border-white/50 bg-white/72 px-3 py-2.5 text-sm text-slate-900 focus:border-sky-300 focus:outline-none focus:ring-4 focus:ring-sky-100/60"
       >
         {options.length === 0 ? <option value="">No routes available</option> : null}
         {options.map((option) => (
@@ -397,43 +417,54 @@ function RouteSelect({
 
 function ComparisonColumn({
   heading,
-  option,
   metrics,
   loading,
   error,
 }: {
   heading: string;
-  option: CompareOption | null;
   metrics: RouteMetrics | null;
   loading: boolean;
   error: string | null;
 }) {
   return (
-    <div className="space-y-2 rounded-[22px] border border-white/45 bg-white/45 p-4">
-      <div className="mb-1 text-[10px] uppercase tracking-widest text-slate-500">{heading}</div>
-      {!option && <div className="pt-4 text-[11px] text-slate-500">Select a route</div>}
+    <div className="rounded-[22px] border border-white/45 bg-white/42 p-4">
+      <div className="mb-3 text-[10px] uppercase tracking-widest text-slate-500">{heading}</div>
       {loading && (
-        <div className="space-y-2 pt-2">
-          <div className="h-4 w-4/5 animate-pulse rounded bg-slate-200" />
-          <SkeletonMetricRow />
-          <SkeletonMetricRow />
-          <SkeletonMetricRow />
-          <SkeletonMetricRow />
-          <SkeletonMetricRow />
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
+            <LoaderCircle className="h-4 w-4 animate-spin text-sky-600" />
+            Loading route data
+          </div>
+          <InlineSkeleton />
+          <InlineSkeleton />
+          <InlineSkeleton />
         </div>
       )}
-      {error && <div className="text-[11px] text-red-600">{error}</div>}
+      {!loading && error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50/70 px-3 py-3 text-[11px] text-red-600">
+          {error}
+        </div>
+      )}
+      {!loading && !error && !metrics && (
+        <div className="rounded-2xl border border-white/40 bg-white/50 px-3 py-3 text-[11px] text-slate-500">
+          Select a route
+        </div>
+      )}
       {!loading && !error && metrics && (
-        <>
-          <div className="truncate text-[11px] font-semibold text-slate-800">{metrics.title}</div>
-          <div className="text-[10px] uppercase tracking-wide text-slate-500">{metrics.sourceLabel}</div>
-          <div className="text-[11px] text-slate-600">{metrics.subtitle}</div>
+        <div className="space-y-2.5">
+          <div>
+            <div className="text-base font-semibold leading-6 text-slate-950">{metrics.title}</div>
+            <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
+              {metrics.sourceLabel}
+            </div>
+            <div className="mt-2 text-[12px] leading-5 text-slate-600">{metrics.subtitle}</div>
+          </div>
           <MetricRow label="Stops" value={metrics.stops} />
           <MetricRow label="Duration" value={metrics.duration} />
           <MetricRow label="Headway" value={metrics.headway} />
-          <MetricRow label="Daily Trips" value={metrics.dailyTrips} />
-          <MetricRow label="Trips/hr (peak)" value={metrics.peakTripsPerHour} />
-        </>
+          <MetricRow label="Daily trips" value={metrics.dailyTrips} />
+          <MetricRow label="Trips/hr peak" value={metrics.peakTripsPerHour} />
+        </div>
       )}
     </div>
   );
@@ -441,18 +472,17 @@ function ComparisonColumn({
 
 function MetricRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-white/40 bg-white/55 px-2.5 py-2">
-      <span className="text-[10px] text-slate-500">{label}</span>
-      <span className="text-[11px] font-medium text-slate-900">{value}</span>
+    <div className="flex items-center justify-between rounded-xl border border-white/40 bg-white/58 px-3 py-2.5">
+      <span className="text-[11px] text-slate-500">{label}</span>
+      <span className="text-[11px] font-semibold text-slate-900">{value}</span>
     </div>
   );
 }
 
-function SkeletonMetricRow() {
+function InlineSkeleton() {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-white/40 bg-white/55 px-2.5 py-2">
-      <div className="h-3 w-16 animate-pulse rounded bg-slate-200" />
-      <div className="h-3 w-10 animate-pulse rounded bg-slate-200" />
+    <div className="rounded-xl border border-white/40 bg-white/55 px-3 py-3">
+      <div className="h-3 w-24 animate-pulse rounded bg-slate-200" />
     </div>
   );
 }
