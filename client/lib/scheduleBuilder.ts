@@ -1,4 +1,11 @@
-import type { Schedule, ScheduleFrequency, DayKey } from "@/hooks/useRouteBuilder";
+import type {
+  DayKey,
+  Schedule,
+  ScheduleDirection,
+  ScheduleDirectionKey,
+  ScheduleFrequency,
+} from "@/hooks/useRouteBuilder";
+import { getScheduleDirection, normalizeSchedule } from "@/hooks/useRouteBuilder";
 
 export type ScheduleMode = "frequency" | "fixed";
 export type ScheduleDayGroup = "weekday" | "weekend" | "all";
@@ -10,10 +17,15 @@ export type FrequencyDraft = {
   intervalMinutes: number;
 };
 
-export type ScheduleDraft = {
+export type DirectionDraft = {
   mode: ScheduleMode;
   frequency: FrequencyDraft;
   fixedText: string;
+};
+
+export type ScheduleDraft = {
+  selectedDirection: ScheduleDirectionKey;
+  directions: Record<ScheduleDirectionKey, DirectionDraft>;
 };
 
 export type SchedulePreview = {
@@ -34,6 +46,19 @@ const DAY_KEYS: DayKey[] = [
 
 const WEEKDAY_KEYS: DayKey[] = ["monday", "tuesday", "wednesday", "thursday", "friday"];
 const WEEKEND_KEYS: DayKey[] = ["saturday", "sunday"];
+
+function createEmptyDirectionDraft(): DirectionDraft {
+  return {
+    mode: "frequency",
+    frequency: {
+      dayGroup: "weekday",
+      startTime: "06:00",
+      endTime: "22:00",
+      intervalMinutes: 30,
+    },
+    fixedText: "",
+  };
+}
 
 function parseTimeToMinutes(value: string): number | null {
   const [hours, minutes] = value.split(":").map(Number);
@@ -161,27 +186,14 @@ function representativeConfig(
       ? normalized.monday
       : DAY_KEYS.map((day) => normalized[day]).find((config) => config.enabled) ?? normalized.monday;
   }
-  return normalized.monday.enabled
-    ? normalized.monday
-    : normalized.tuesday;
+  return normalized.monday.enabled ? normalized.monday : normalized.tuesday;
 }
 
-export function createScheduleDraft(schedule?: Schedule): ScheduleDraft {
-  if (!schedule) {
-    return {
-      mode: "frequency",
-      frequency: {
-        dayGroup: "weekday",
-        startTime: "06:00",
-        endTime: "22:00",
-        intervalMinutes: 30,
-      },
-      fixedText: "",
-    };
-  }
+function createDirectionDraft(direction?: ScheduleDirection): DirectionDraft {
+  if (!direction) return createEmptyDirectionDraft();
 
-  if (schedule.type === "fixed") {
-    const departures = Array.from(new Set(schedule.departures)).sort();
+  if (direction.type === "fixed") {
+    const departures = Array.from(new Set(direction.departures)).sort();
     return {
       mode: "fixed",
       frequency: {
@@ -194,7 +206,7 @@ export function createScheduleDraft(schedule?: Schedule): ScheduleDraft {
     };
   }
 
-  const normalized = normalizeFrequencySchedule(schedule);
+  const normalized = normalizeFrequencySchedule(direction);
   const dayGroup = detectDayGroup(normalized);
   const config = representativeConfig(normalized, dayGroup);
 
@@ -210,10 +222,47 @@ export function createScheduleDraft(schedule?: Schedule): ScheduleDraft {
   };
 }
 
-export function getSchedulePreview(draft: ScheduleDraft): SchedulePreview {
-  if (draft.mode === "fixed") {
-    const departures = normalizeFixedDepartures(draft.fixedText);
-    if (draft.fixedText.trim().length > 0 && departures.length === 0) {
+export function createScheduleDraft(schedule?: Schedule): ScheduleDraft {
+  const normalized = normalizeSchedule(schedule);
+  return {
+    selectedDirection: "primary",
+    directions: {
+      primary: createDirectionDraft(normalized?.primary),
+      opposite: createDirectionDraft(normalized?.opposite),
+    },
+  };
+}
+
+export function getDirectionDraft(
+  draft: ScheduleDraft,
+  direction: ScheduleDirectionKey = draft.selectedDirection,
+): DirectionDraft {
+  return draft.directions[direction];
+}
+
+export function updateDirectionDraft(
+  draft: ScheduleDraft,
+  direction: ScheduleDirectionKey,
+  next: DirectionDraft,
+): ScheduleDraft {
+  return {
+    ...draft,
+    directions: {
+      ...draft.directions,
+      [direction]: next,
+    },
+  };
+}
+
+export function getDirectionPreview(
+  draft: ScheduleDraft,
+  direction: ScheduleDirectionKey = draft.selectedDirection,
+): SchedulePreview {
+  const directionDraft = getDirectionDraft(draft, direction);
+
+  if (directionDraft.mode === "fixed") {
+    const departures = normalizeFixedDepartures(directionDraft.fixedText);
+    if (directionDraft.fixedText.trim().length > 0 && departures.length === 0) {
       return {
         departures: [],
         summary: "No valid departures",
@@ -222,12 +271,13 @@ export function getSchedulePreview(draft: ScheduleDraft): SchedulePreview {
     }
     return {
       departures,
-      summary: departures.length === 0 ? "No departures entered" : `${departures.length} departures`,
+      summary:
+        departures.length === 0 ? "No departures entered" : `${departures.length} departures`,
       validationError: null,
     };
   }
 
-  const departures = buildFrequencyDepartures(draft.frequency);
+  const departures = buildFrequencyDepartures(directionDraft.frequency);
   if (departures.length === 0) {
     return {
       departures: [],
@@ -237,32 +287,32 @@ export function getSchedulePreview(draft: ScheduleDraft): SchedulePreview {
   }
 
   const dayLabel =
-    draft.frequency.dayGroup === "all"
+    directionDraft.frequency.dayGroup === "all"
       ? "Daily"
-      : draft.frequency.dayGroup === "weekend"
+      : directionDraft.frequency.dayGroup === "weekend"
         ? "Weekend"
         : "Weekday";
 
   return {
     departures,
-    summary: `${dayLabel} service · ${departures.length} departures · every ${draft.frequency.intervalMinutes} min`,
+    summary: `${dayLabel} service · ${departures.length} departures · every ${directionDraft.frequency.intervalMinutes} min`,
     validationError: null,
   };
 }
 
-export function buildScheduleFromDraft(draft: ScheduleDraft): Schedule | undefined {
-  if (draft.mode === "fixed") {
-    const departures = normalizeFixedDepartures(draft.fixedText);
+function buildDirectionSchedule(directionDraft: DirectionDraft): ScheduleDirection | undefined {
+  if (directionDraft.mode === "fixed") {
+    const departures = normalizeFixedDepartures(directionDraft.fixedText);
     return departures.length > 0 ? { type: "fixed", departures } : undefined;
   }
 
-  const preview = getSchedulePreview(draft);
-  if (preview.validationError) return undefined;
+  const departures = buildFrequencyDepartures(directionDraft.frequency);
+  if (departures.length === 0) return undefined;
 
   const enabledDays =
-    draft.frequency.dayGroup === "all"
+    directionDraft.frequency.dayGroup === "all"
       ? DAY_KEYS
-      : draft.frequency.dayGroup === "weekend"
+      : directionDraft.frequency.dayGroup === "weekend"
         ? WEEKEND_KEYS
         : WEEKDAY_KEYS;
 
@@ -270,14 +320,74 @@ export function buildScheduleFromDraft(draft: ScheduleDraft): Schedule | undefin
   DAY_KEYS.forEach((day) => {
     dayConfigs[day] = {
       enabled: enabledDays.includes(day),
-      startTime: draft.frequency.startTime,
-      endTime: draft.frequency.endTime,
-      intervalMinutes: draft.frequency.intervalMinutes,
+      startTime: directionDraft.frequency.startTime,
+      endTime: directionDraft.frequency.endTime,
+      intervalMinutes: directionDraft.frequency.intervalMinutes,
     };
   });
 
   return {
     type: "frequency",
     dayConfigs,
+  };
+}
+
+export function buildScheduleFromDraft(draft: ScheduleDraft): Schedule | undefined {
+  const primary = buildDirectionSchedule(draft.directions.primary);
+  const opposite = buildDirectionSchedule(draft.directions.opposite);
+  if (!primary && !opposite) return undefined;
+  return { primary, opposite };
+}
+
+export function getExistingDirectionSummary(
+  schedule: Schedule | undefined,
+  direction: ScheduleDirectionKey,
+) {
+  const directionSchedule = getScheduleDirection(schedule, direction);
+  if (!directionSchedule) {
+    return {
+      type: "No schedule",
+      lines: [{ label: "Status", value: "Not configured" }],
+    };
+  }
+
+  if (directionSchedule.type === "fixed") {
+    const departures = Array.from(new Set(directionSchedule.departures)).sort();
+    const sample = departures.slice(0, 4).join(", ");
+    return {
+      type: "Fixed Times",
+      lines: [
+        { label: "Departures", value: `${departures.length}` },
+        { label: "Sample", value: sample || "None" },
+      ],
+    };
+  }
+
+  const directionDraft = createDirectionDraft(directionSchedule);
+  const preview = getDirectionPreview({
+    selectedDirection: direction,
+    directions: {
+      primary: direction === "primary" ? directionDraft : createEmptyDirectionDraft(),
+      opposite: direction === "opposite" ? directionDraft : createEmptyDirectionDraft(),
+    },
+  });
+  const dayLabel =
+    directionDraft.frequency.dayGroup === "all"
+      ? "Every day"
+      : directionDraft.frequency.dayGroup === "weekend"
+        ? "Weekend"
+        : "Weekday";
+
+  return {
+    type: "Frequency",
+    lines: [
+      { label: "Days", value: dayLabel },
+      {
+        label: "Service span",
+        value: `${directionDraft.frequency.startTime} - ${directionDraft.frequency.endTime}`,
+      },
+      { label: "Headway", value: `${directionDraft.frequency.intervalMinutes} min` },
+      { label: "Preview", value: `${preview.departures.length} departures` },
+    ],
   };
 }

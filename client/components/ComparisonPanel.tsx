@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { LoaderCircle, X } from "lucide-react";
 import type { CustomRoute, Schedule } from "@/hooks/useRouteBuilder";
+import { getScheduleDirection, supportsBidirectionalSchedule } from "@/hooks/useRouteBuilder";
 
 type GoRouteEntry = {
   route_id: string;
@@ -56,45 +57,106 @@ type RouteMetrics = {
 };
 
 function getIntervalMinutes(schedule?: Schedule): number | null {
-  if (!schedule || schedule.type !== "frequency") return null;
-  const configs = Object.values(schedule.dayConfigs ?? {}).filter((config) => config?.enabled);
-  if (configs.length === 0) return null;
-  return configs[0]?.intervalMinutes ?? null;
+  const directions = ["primary", "opposite"] as const;
+  const values = directions
+    .map((direction) => {
+      const directionSchedule = getScheduleDirection(schedule, direction);
+      if (!directionSchedule || directionSchedule.type !== "frequency") return null;
+      const configs = Object.values(directionSchedule.dayConfigs ?? {}).filter((config) => config?.enabled);
+      if (configs.length === 0) return null;
+      return configs[0]?.intervalMinutes ?? null;
+    })
+    .filter((value): value is number => value != null);
+  if (values.length === 0) return null;
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+function parseDepartureMinutes(value: string): number | null {
+  const parts = value.trim().split(":").map(Number);
+  if (parts.length < 2 || parts.some((part) => Number.isNaN(part))) return null;
+  return parts[0] * 60 + parts[1];
+}
+
+function getPeakTripsPerHourFromDepartures(departures: string[]): number | null {
+  const minuteBuckets = new Map<number, number>();
+  departures.forEach((departure) => {
+    const minutes = parseDepartureMinutes(departure);
+    if (minutes == null) return;
+    const bucket = Math.floor(minutes / 60);
+    minuteBuckets.set(bucket, (minuteBuckets.get(bucket) ?? 0) + 1);
+  });
+  if (minuteBuckets.size === 0) return null;
+  return Math.max(...minuteBuckets.values());
+}
+
+function getAverageHeadwayFromDepartures(departures: string[]): number | null {
+  const minutes = departures
+    .map(parseDepartureMinutes)
+    .filter((value): value is number => value != null)
+    .sort((a, b) => a - b);
+  if (minutes.length < 2) return null;
+  const gaps: number[] = [];
+  for (let index = 0; index < minutes.length - 1; index += 1) {
+    gaps.push(minutes[index + 1] - minutes[index]);
+  }
+  if (gaps.length === 0) return null;
+  return Math.round(gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length);
 }
 
 function getDailyTripsFromSchedule(schedule?: Schedule): number {
   if (!schedule) return 0;
-  if (schedule.type === "fixed") return schedule.departures.length;
-  const configs = Object.values(schedule.dayConfigs ?? {}).filter((config) => config?.enabled);
-  if (configs.length === 0) return 0;
-  const config = configs[0]!;
-  const hoursOfService =
-    (parseInt(config.endTime.split(":")[0], 10) - parseInt(config.startTime.split(":")[0], 10)) * 60 +
-    (parseInt(config.endTime.split(":")[1], 10) - parseInt(config.startTime.split(":")[1], 10));
-  return Math.floor(hoursOfService / config.intervalMinutes);
+  return (["primary", "opposite"] as const).reduce((total, direction) => {
+    const directionSchedule = getScheduleDirection(schedule, direction);
+    if (!directionSchedule) return total;
+    if (directionSchedule.type === "fixed") return total + directionSchedule.departures.length;
+    const configs = Object.values(directionSchedule.dayConfigs ?? {}).filter((config) => config?.enabled);
+    if (configs.length === 0) return total;
+    const config = configs[0]!;
+    const hoursOfService =
+      (parseInt(config.endTime.split(":")[0], 10) - parseInt(config.startTime.split(":")[0], 10)) * 60 +
+      (parseInt(config.endTime.split(":")[1], 10) - parseInt(config.startTime.split(":")[1], 10));
+    return total + Math.floor(hoursOfService / config.intervalMinutes);
+  }, 0);
 }
 
 function buildCustomMetrics(route: CustomRoute): RouteMetrics {
-  const headway = getIntervalMinutes(route.schedule);
+  const activeDirections = supportsBidirectionalSchedule(route)
+    ? (["primary", "opposite"] as const)
+    : (["primary"] as const);
+  const fixedDirectionDepartures = activeDirections
+    .map((direction) => getScheduleDirection(route.schedule, direction))
+    .filter((schedule): schedule is Exclude<typeof schedule, undefined> => Boolean(schedule))
+    .flatMap((schedule) => (schedule.type === "fixed" ? schedule.departures : []));
+  const headway =
+    fixedDirectionDepartures.length > 0
+      ? getAverageHeadwayFromDepartures(fixedDirectionDepartures)
+      : getIntervalMinutes(route.schedule);
   const dailyTrips = getDailyTripsFromSchedule(route.schedule);
+  const peakTripsPerHour =
+    fixedDirectionDepartures.length > 0
+      ? getPeakTripsPerHourFromDepartures(fixedDirectionDepartures)
+      : headway
+        ? Math.floor(60 / headway)
+        : null;
   const durationMinutes = route.durationSeconds ? Math.round(route.durationSeconds / 60) : null;
+  const modeLabel = route.mode === "train" ? "Custom train" : "Custom bus";
 
   return {
     title: route.name || "Untitled Route",
     subtitle:
       route.stops.length > 1
         ? `${route.stops[0]?.name ?? "Start"} → ${route.stops[route.stops.length - 1]?.name ?? "End"}`
-        : "Custom route",
-    sourceLabel: "Custom route",
+        : modeLabel,
+    sourceLabel: modeLabel,
     stops: String(route.stops.length),
     duration: durationMinutes != null ? `${durationMinutes} min` : "—",
     headway: headway != null ? `${headway} min` : "—",
     dailyTrips: dailyTrips > 0 ? String(dailyTrips) : "—",
-    peakTripsPerHour: headway ? String(Math.floor(60 / headway)) : "—",
+    peakTripsPerHour: peakTripsPerHour != null ? String(peakTripsPerHour) : "—",
     chartStops: route.stops.length,
     chartDailyTrips: dailyTrips || 0,
     chartHeadway: headway ?? undefined,
-    chartPeakTripsPerHour: headway ? Math.floor(60 / headway) : undefined,
+    chartPeakTripsPerHour: peakTripsPerHour ?? undefined,
   };
 }
 

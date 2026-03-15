@@ -12,11 +12,14 @@ import {
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
+import MapboxDraw from "@mapbox/mapbox-gl-draw";
+import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import {
   useRouteBuilder,
   ROUTE_COLORS,
   type Stop,
   type Schedule,
+  getScheduleDirection,
 } from "@/hooks/useRouteBuilder";
 import { fetchDirections } from "@/lib/mapboxDirections";
 import type { } from "@/lib/mapboxDirections";
@@ -54,6 +57,25 @@ type GoVariant = {
   route_variant: string;
 };
 
+type GoScheduleBuilderPayload = {
+  variantId: string;
+  routeShortName: string;
+  routeLabel: string;
+  directionId: number;
+  seededSchedule?: Schedule;
+  stopTimings: Array<{
+    stop_id: string;
+    stop_name: string;
+    stop_sequence: number;
+    arrival_time: string;
+    departure_time: string;
+  }>;
+  timedStopCount: number;
+  departureCount: number;
+  startStopName: string;
+  endStopName: string;
+};
+
 type GoVariantsIndex = Record<string, GoVariant[]>;
 
 type GoVariantStop = {
@@ -83,6 +105,7 @@ type RouteBuilderProps = {
   onCloseSchedule?: () => void;
   goVariantsIndex: GoVariantsIndex | null;
   goVariantStops: Record<string, GoVariantStop[]> | null;
+  goRouteTypes?: Record<string, string>;
   showCustomNetwork?: boolean;
   onOpenComparison?: () => void;
 };
@@ -183,6 +206,7 @@ export function RouteBuilder({
   onCloseSchedule,
   goVariantsIndex,
   goVariantStops,
+  goRouteTypes = {},
   showCustomNetwork = true,
   onOpenComparison,
 }: RouteBuilderProps) {
@@ -191,6 +215,8 @@ export function RouteBuilder({
     currentRoute,
     activeRoute,
     stops,
+    mode,
+    geometrySource,
     route,
     loading,
     error,
@@ -205,6 +231,8 @@ export function RouteBuilder({
     updateCurrent,
     updateRouteById,
     loadFromGoVariant,
+    setMode,
+    applyManualGeometry,
   } = useRouteBuilder(goVariantStops);
 
   const [buildMode, setBuildMode] = useState<"quick" | "manual">("quick");
@@ -219,17 +247,19 @@ export function RouteBuilder({
 
   const [showGoVariantSelector, setShowGoVariantSelector] = useState(false);
   const [selectedGoVariant, setSelectedGoVariant] = useState<string | null>(null);
+  const goScheduleCacheRef = useRef<Map<string, GoScheduleBuilderPayload>>(new Map());
 
   const goVariantOptions = useMemo(() => {
     if (!goVariantsIndex) return new Map();
-    const groupedOptions = new Map<string, { value: string; label: string }[]>();
+    const groupedOptions = new Map<string, { value: string; label: string; routeShortName: string }[]>();
 
     Object.entries(goVariantsIndex).forEach(([routeShortName, variants]) => {
-      const optionsForGroup: { value: string; label: string }[] = [];
+      const optionsForGroup: { value: string; label: string; routeShortName: string }[] = [];
       variants.forEach((variant) => {
         optionsForGroup.push({
           value: variant.variant_id,
           label: `${routeShortName} - ${variant.label}`,
+          routeShortName,
         });
       });
       if (optionsForGroup.length > 0) {
@@ -249,12 +279,15 @@ export function RouteBuilder({
   const [pinName, setPinName] = useState("Pinned stop");
   const [showPinNameDialog, setShowPinNameDialog] = useState(false);
   const [showPinSaveDialog, setShowPinSaveDialog] = useState(false);
+  const [isRailDrawing, setIsRailDrawing] = useState(false);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const drawRef = useRef<MapboxDraw | null>(null);
   const lastQuickEndpointsRef = useRef<string | null>(null);
   const lastQuickStyleKeyRef = useRef<string | null>(null);
   const rawQuickStartRef = useRef<Stop | null>(null);
   const rawQuickEndRef = useRef<Stop | null>(null);
   const routeColor = activeRoute.color;
+  const isTrainMode = mode === "train";
 
   const isActive = enabled || showCustomNetwork;
   const selectedStop = useMemo(
@@ -465,6 +498,7 @@ export function RouteBuilder({
 
   const generateQuickRoute = useCallback(
     async (style: QuickStyle, currentStops: Stop[]) => {
+      if (isTrainMode) return;
       if (currentStops.length < 2) return;
       const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
       if (!token) {
@@ -507,10 +541,11 @@ export function RouteBuilder({
       setQuickStyle(style);
       setQuickGenerating(false);
     },
-    [activeRoute.profile, availableStops.length, buildStopsFromGeometry, setStops]
+    [activeRoute.profile, availableStops.length, buildStopsFromGeometry, isTrainMode, setStops]
   );
 
   useEffect(() => {
+    if (isTrainMode) return;
     if (buildMode !== "quick") return;
     if (stops.length !== 2) {
       lastQuickEndpointsRef.current = null;
@@ -523,9 +558,10 @@ export function RouteBuilder({
     lastQuickEndpointsRef.current = key;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     generateQuickRoute("normal", stops);
-  }, [buildMode, stops, quickStopsLoaded, quickGenerating, quickStyle, generateQuickRoute]);
+  }, [buildMode, stops, quickStopsLoaded, quickGenerating, quickStyle, generateQuickRoute, isTrainMode]);
 
   useEffect(() => {
+    if (isTrainMode) return;
     if (buildMode !== "quick") return;
     if (quickStyle !== "express") return;
     if (stops.length !== 2) return;
@@ -535,7 +571,7 @@ export function RouteBuilder({
     lastQuickStyleKeyRef.current = key;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     generateQuickRoute("express", stops);
-  }, [buildMode, quickStyle, stops, quickStopsLoaded, quickGenerating, includeUniversitiesExpress, generateQuickRoute]);
+  }, [buildMode, quickStyle, stops, quickStopsLoaded, quickGenerating, includeUniversitiesExpress, generateQuickRoute, isTrainMode]);
 
   
 
@@ -648,6 +684,27 @@ export function RouteBuilder({
     [stops, setStops]
   );
 
+  const startRailDraw = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !drawRef.current || !isTrainMode || stops.length < 2) return;
+    drawRef.current.deleteAll();
+    drawRef.current.changeMode("draw_line_string");
+    map.getCanvas().style.cursor = "crosshair";
+    setIsRailDrawing(true);
+  }, [isTrainMode, mapRef, stops.length]);
+
+  const cancelRailDraw = useCallback(() => {
+    const map = mapRef.current;
+    if (drawRef.current) {
+      drawRef.current.deleteAll();
+      drawRef.current.changeMode("simple_select");
+    }
+    if (map) {
+      map.getCanvas().style.cursor = "";
+    }
+    setIsRailDrawing(false);
+  }, [mapRef]);
+
   // Ensure route layer exists when active; remove on unmount
   useEffect(() => {
     const map = mapRef.current;
@@ -683,10 +740,43 @@ export function RouteBuilder({
     }
     return () => {
       map.off("style.load", ensureLayer);
+      if (!(map as mapboxgl.Map & { style?: unknown }).style) return;
       if (map.getLayer(ROUTE_LAYER_ID)) map.removeLayer(ROUTE_LAYER_ID);
       if (map.getSource(ROUTE_SOURCE_ID)) map.removeSource(ROUTE_SOURCE_ID);
     };
   }, [mapRef, mapReady, isActive, routeColor]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !enabled) return;
+
+    if (!drawRef.current) {
+      drawRef.current = new MapboxDraw({
+        displayControlsDefault: false,
+      });
+      map.addControl(drawRef.current, "top-left");
+    }
+
+    const handleDrawCreate = (event: { features: GeoJSON.Feature[] }) => {
+      const feature = event.features[0];
+      if (!feature || feature.geometry.type !== "LineString") return;
+      applyManualGeometry({
+        type: "LineString",
+        coordinates: feature.geometry.coordinates as [number, number][],
+      });
+      cancelRailDraw();
+    };
+
+    map.on("draw.create", handleDrawCreate);
+
+    return () => {
+      map.off("draw.create", handleDrawCreate);
+      if (drawRef.current) {
+        map.removeControl(drawRef.current);
+        drawRef.current = null;
+      }
+    };
+  }, [applyManualGeometry, cancelRailDraw, enabled, mapReady, mapRef]);
 
   // Update route line geometry
   useEffect(() => {
@@ -945,10 +1035,11 @@ export function RouteBuilder({
   const scheduleGoVariantOptions = useMemo(
     () =>
       [...goVariantOptions.values()].flatMap(
-        (optionsArray: Array<{ value: string; label: string }>) =>
-          optionsArray.map((option: { value: string; label: string }) => ({
+        (optionsArray: Array<{ value: string; label: string; routeShortName: string }>) =>
+          optionsArray.map((option: { value: string; label: string; routeShortName: string }) => ({
           value: option.value,
           label: option.label,
+          routeShortName: option.routeShortName,
           })),
       ),
     [goVariantOptions],
@@ -978,6 +1069,49 @@ export function RouteBuilder({
     onCloseSchedule?.();
   };
 
+  const loadGoVariantData = useCallback(
+    async (variantId: string): Promise<GoScheduleBuilderPayload | undefined> => {
+      const cached = goScheduleCacheRef.current.get(variantId);
+      if (cached) return cached;
+
+      const response = await fetch(
+        `/api/gotransit/schedule-builder?variant_id=${encodeURIComponent(variantId)}`,
+      );
+      if (!response.ok) return undefined;
+      const payload = (await response.json()) as GoScheduleBuilderPayload;
+      goScheduleCacheRef.current.set(variantId, payload);
+      return payload;
+    },
+    [],
+  );
+
+  const loadGoVariantWithSchedule = useCallback(
+    async (variantId: string, label: string, routeShortName?: string) => {
+      const immediateMode =
+        goRouteTypes?.[routeShortName ?? ""] === "2" ? "train" : "bus";
+      loadFromGoVariant(variantId, label, immediateMode);
+
+      try {
+        const payload = await loadGoVariantData(variantId);
+        const inferredMode =
+          goRouteTypes?.[routeShortName ?? payload?.routeShortName ?? ""] === "2" ? "train" : "bus";
+        if (inferredMode !== immediateMode) {
+          loadFromGoVariant(variantId, label, inferredMode);
+        }
+        updateCurrent({ schedule: payload?.seededSchedule });
+        return {
+          schedule: payload?.seededSchedule,
+          stopTimings: payload?.stopTimings,
+          timedStopCount: payload?.timedStopCount,
+          routeLabel: payload?.routeLabel,
+        };
+      } catch {
+        return undefined;
+      }
+    },
+    [goRouteTypes, loadFromGoVariant, loadGoVariantData, updateCurrent],
+  );
+
   const handleSaveRoute = () => {
     saveRoute();
     setSelectedStopId(null);
@@ -1006,16 +1140,43 @@ export function RouteBuilder({
             <div>
               <h3 className="text-sm font-semibold text-slate-950">Route Builder</h3>
               <p className="mt-1 text-[11px] text-slate-500">
-                Build the route, review stops, then save.
+                {isTrainMode
+                  ? "Build the rail corridor, review stops, then save."
+                  : "Build the route, review stops, then save."}
               </p>
             </div>
           </div>
           <p className="mt-2 text-[11px] text-slate-500">
-            Add start/end from the command bar, then generate or edit stops.
+            {isTrainMode
+              ? "Add train stops from the command bar, then follow tracks or draw a rail corridor."
+              : "Add start/end from the command bar, then generate or edit stops."}
           </p>
         </div>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+          <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+            <div className="font-medium text-slate-700">Service mode</div>
+            <div className="grid grid-cols-2 gap-2">
+              {(["bus", "train"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    cancelRailDraw();
+                    setMode(option);
+                  }}
+                  className={`rounded-2xl px-3 py-2 text-sm font-semibold transition ${
+                    mode === option
+                      ? "bg-slate-900 text-white"
+                      : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  {option === "bus" ? "Bus" : "Train"}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
             <div className="flex items-center justify-between">
               <span className="font-medium text-slate-700">Load GO Transit line</span>
@@ -1031,13 +1192,19 @@ export function RouteBuilder({
                 value={selectedGoVariant}
                 onValueChange={(value) => {
                   setSelectedGoVariant(value);
-                  let selectedOption: { value: string; label: string } | undefined;
-                  for (const optionsArray of goVariantOptions.values()) {
-                    selectedOption = optionsArray.find((opt: { value: string; label: string }) => opt.value === value);
-                    if (selectedOption) break;
+                  let selectedOption: { value: string; label: string; routeShortName: string } | undefined;
+                  for (const [groupName, optionsArray] of goVariantOptions.entries()) {
+                    const match = optionsArray.find((opt: { value: string; label: string }) => opt.value === value);
+                    if (match) {
+                      selectedOption = { ...match, routeShortName: groupName };
+                      break;
+                    }
                   }
                   if (selectedOption) {
-                    loadFromGoVariant(selectedOption.value, selectedOption.label);
+                    const nextMode = goRouteTypes[selectedOption.routeShortName] === "2" ? "train" : "bus";
+                    cancelRailDraw();
+                    setMode(nextMode);
+                    loadFromGoVariant(selectedOption.value, selectedOption.label, nextMode);
                   }
                 }}
                 disabled={!goVariantsIndex}
@@ -1110,14 +1277,56 @@ export function RouteBuilder({
                 {Math.round(route.duration / 60)} min
               </span>
             </div>
+            <div className="mt-1 flex justify-between">
+              <span className="text-slate-600">Geometry</span>
+              <span className="font-medium capitalize">
+                {geometrySource === "manual-rail"
+                  ? "Custom rail corridor"
+                  : geometrySource === "rail-network"
+                    ? "Existing tracks"
+                    : "Road network"}
+              </span>
+            </div>
           </div>
         )}
 
         {loading && (
-          <div className="text-[11px] text-slate-500">Calculating route...</div>
+          <div className="text-[11px] text-slate-500">
+            {isTrainMode ? "Calculating rail path..." : "Calculating route..."}
+          </div>
         )}
         {error && (
           <div className="text-[11px] text-red-600">{error}</div>
+        )}
+        {isTrainMode && stops.length >= 2 && (
+          <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+            <div className="font-medium text-slate-700">Rail corridor</div>
+            <div className="text-slate-500">
+              {geometrySource === "rail-network"
+                ? "This train route is following existing GO or UP tracks."
+                : geometrySource === "manual-rail"
+                  ? "This train route is using a custom drawn rail corridor."
+                  : "No tracked rail path yet. Draw a new corridor if needed."}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={startRailDraw}
+                className="rounded-2xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                {geometrySource === "manual-rail" ? "Redraw rail corridor" : "Draw rail corridor"}
+              </button>
+              {isRailDrawing && (
+                <button
+                  type="button"
+                  onClick={cancelRailDraw}
+                  className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  Cancel draw
+                </button>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Current route stops */}
@@ -1129,7 +1338,9 @@ export function RouteBuilder({
           <div className="max-h-48 overflow-y-auto space-y-1">
             {stops.length === 0 ? (
               <div className="py-4 text-center text-[11px] text-slate-400">
-                Add start and end, then generate stops.
+                {isTrainMode
+                  ? "Add train stops, then follow tracks or draw a corridor."
+                  : "Add start and end, then generate stops."}
               </div>
             ) : (
               stops.map((stop, i) => (
@@ -1271,11 +1482,13 @@ export function RouteBuilder({
             <RouteScorecard
               stops={stops.map((s) => ({ lat: s.lat, lng: s.lng }))}
               intervalMinutes={
-                activeRoute.schedule?.type === "frequency"
-                  ? (Object.values(
-                      (activeRoute.schedule as ScheduleFrequency).dayConfigs ?? {}
-                    ).find((c) => c?.enabled)?.intervalMinutes)
-                  : undefined
+                (() => {
+                  const primarySchedule = getScheduleDirection(activeRoute.schedule, "primary");
+                  if (primarySchedule?.type !== "frequency") return undefined;
+                  return Object.values((primarySchedule as ScheduleFrequency).dayConfigs ?? {}).find(
+                    (c) => c?.enabled,
+                  )?.intervalMinutes;
+                })()
               }
               routeDistanceKm={
                 route?.distance != null ? route.distance / 1000 : undefined
@@ -1315,7 +1528,8 @@ export function RouteBuilder({
         routeTargets={scheduleRouteTargets}
         initialTargetKey={initialScheduleTargetKey}
         goVariantOptions={scheduleGoVariantOptions}
-        onLoadGoVariant={loadFromGoVariant}
+        getGoVariantData={loadGoVariantData}
+        onLoadGoVariant={loadGoVariantWithSchedule}
         onClose={() => onCloseSchedule?.()}
         onSave={handleScheduleSave}
       />

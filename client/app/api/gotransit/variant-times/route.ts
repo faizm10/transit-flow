@@ -80,8 +80,17 @@ function formatDuration(seconds: number | null): string {
   return `${minutes}m`;
 }
 
-export async function GET() {
+function formatTime(seconds: number | null): string {
+  if (seconds === null) return "";
+  const hours = Math.floor(seconds / 3600) % 24;
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const requestedVariantId = searchParams.get("variant_id")?.trim();
     const basePath = path.join(
       process.cwd(),
       "public",
@@ -154,6 +163,16 @@ export async function GET() {
       string,
       { minSeq: number; maxSeq: number; start: number | null; end: number | null }
     >();
+    const requestedStopTimings = new Map<
+      string,
+      Array<{
+        stop_id: string;
+        stop_name: string;
+        stop_sequence: number;
+        arrival_time: string;
+        departure_time: string;
+      }>
+    >();
 
     const stream = createReadStream(stopTimesPath, { encoding: "utf8" });
     const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
@@ -210,9 +229,27 @@ export async function GET() {
       } else if (sequence === current.maxSeq && current.end === null) {
         current.end = endTime;
       }
+
+      if (requestedVariantId) {
+        const variantInfo = variantLookup.get(requestedVariantId);
+        if (variantInfo?.representative_trip_id === tripId) {
+          if (!requestedStopTimings.has(requestedVariantId)) {
+            requestedStopTimings.set(requestedVariantId, []);
+          }
+          requestedStopTimings.get(requestedVariantId)!.push({
+            stop_id: row.stop_id || "",
+            stop_name: row.stop_name || "",
+            stop_sequence: sequence,
+            arrival_time: formatTime(parseTimeToSeconds(row.arrival_time)),
+            departure_time: formatTime(parseTimeToSeconds(row.departure_time || row.arrival_time)),
+          });
+        }
+      }
     }
 
-    const results = Array.from(variantLookup.entries()).map(
+    const results = Array.from(variantLookup.entries())
+      .filter(([variantId]) => !requestedVariantId || variantId === requestedVariantId)
+      .map(
       ([variantId, info]) => {
         const tripInfo = tripTimes.get(info.representative_trip_id);
         const durationSeconds =
@@ -238,6 +275,12 @@ export async function GET() {
           end_stop_name: endStop,
           duration_seconds: durationSeconds,
           duration_label: formatDuration(durationSeconds),
+          stop_timings:
+            requestedVariantId === variantId
+              ? (requestedStopTimings.get(variantId) ?? []).sort(
+                  (a, b) => a.stop_sequence - b.stop_sequence,
+                )
+              : undefined,
         };
       },
     );
