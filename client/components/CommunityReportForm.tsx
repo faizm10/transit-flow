@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { getCommunityIssuesUrl, type CommunityReportPayload, type CommunityReportType } from "@/lib/community";
+import { type CommunityReportPayload, type CommunityReportType } from "@/lib/community";
 
 type CommunityReportFormProps = {
   initialType?: CommunityReportType;
@@ -39,8 +39,6 @@ export function CommunityReportForm({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [state, setState] = useState<SubmitState>({ status: "idle" });
-
-  const communityIssuesUrl = useMemo(() => getCommunityIssuesUrl(), []);
 
   const helperCopy =
     type === "bug"
@@ -206,14 +204,6 @@ export function CommunityReportForm({
             </div>
           ) : null}
 
-          <div className="rounded-2xl border border-[#d8e2d4] bg-[#f8fbf7] px-4 py-3 text-xs leading-6 text-slate-600">
-            Before you submit, check existing issues on{" "}
-            <Link href={communityIssuesUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-[#0b6f3c] underline underline-offset-4">
-              GitHub
-            </Link>
-            . Submissions are plain text only and may become public issues.
-          </div>
-
           <div className="flex flex-wrap items-center gap-3">
             <Button
               type="submit"
@@ -222,14 +212,6 @@ export function CommunityReportForm({
             >
               {state.status === "submitting" ? "Submitting..." : type === "bug" ? "Submit bug report" : "Submit feedback"}
             </Button>
-            <Link
-              href={communityIssuesUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-medium text-slate-600 underline underline-offset-4"
-            >
-              Browse GitHub issues
-            </Link>
           </div>
         </form>
       )}
