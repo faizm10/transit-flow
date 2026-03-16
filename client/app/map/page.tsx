@@ -9,6 +9,7 @@ import { RouteBuilder } from "@/components/RouteBuilder";
 import { RouteCommandBar } from "@/components/RouteCommandBar";
 import { ScheduleModal } from "@/components/ScheduleModal";
 import { BugReportModal } from "@/components/BugReportModal";
+import { ToastStack, type ToastItem } from "@/components/ToastStack";
 import {
   getCurrentScenarioId,
   getSavedCustomRoutes,
@@ -60,6 +61,20 @@ type ClickedRouteItem = {
   source: "gotransit" | "union-pearson" | "custom";
   color: string;
 };
+
+type SimulationFetchError = Error & {
+  code?: string;
+  requestId?: string;
+  retryable?: boolean;
+  userMessage?: string;
+};
+
+function buildSimulationUserMessage(code?: string) {
+  if (code === "SIMULATION_DATA_UNAVAILABLE") {
+    return "Simulation is temporarily unavailable for GO feed data. Try again later or run custom-route-only simulation.";
+  }
+  return "Simulation is temporarily unavailable. Please try again later.";
+}
 
 function parseShortTime(value: string): number | null {
   const trimmed = value.trim();
@@ -210,6 +225,7 @@ export default function MapPage() {
   const [pendingScheduleRouteId, setPendingScheduleRouteId] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 43.6532, lng: -79.3832 });
   const [mapInitError, setMapInitError] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
   const populationCoverage = useMemo(
     () => getPopulationCoverage(savedCustomRoutes),
     [savedCustomRoutes],
@@ -238,6 +254,27 @@ export default function MapPage() {
   const handlePanelToggle = (panel: string) => {
     setActivePanel((prev) => (prev === panel ? null : panel));
   };
+
+  const pushToast = useCallback((toast: Omit<ToastItem, "id">) => {
+    setToasts((prev) => {
+      const next = prev.filter((item) => item.category !== toast.category);
+      return [
+        ...next,
+        {
+          ...toast,
+          id: Date.now() + Math.floor(Math.random() * 1000),
+        },
+      ];
+    });
+  }, []);
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
+
+  const clearSimulationToasts = useCallback(() => {
+    setToasts((prev) => prev.filter((toast) => toast.category !== "simulation"));
+  }, []);
 
   useEffect(() => {
     if (activePanel === "builder") {
@@ -2176,6 +2213,7 @@ export default function MapPage() {
     setSimulationLoading(true);
     setSimulationError(null);
     setSimulationPlaying(false);
+    clearSimulationToasts();
 
     try {
       const goRouteNames = simulationRoutes.filter((r) => !r.startsWith("custom:"));
@@ -2183,7 +2221,8 @@ export default function MapPage() {
         .filter((r) => r.startsWith("custom:"))
         .map((r) => r.replace(/^custom:/, ""));
 
-      const allTrips: SimulationTrip[] = [];
+      const customTrips: SimulationTrip[] = [];
+      const goTrips: SimulationTrip[] = [];
 
       for (const customId of customRouteIds) {
         const customRoute = savedCustomRoutes.find((r) => r.id === customId);
@@ -2194,7 +2233,7 @@ export default function MapPage() {
             endSeconds,
             simulationDate,
           );
-          allTrips.push(...trips);
+          customTrips.push(...trips);
         }
       }
 
@@ -2254,21 +2293,15 @@ export default function MapPage() {
             status: response.status,
             errorPayload,
           });
-          const requestId = errorPayload?.requestId
-            ? String(errorPayload.requestId)
-            : "n/a";
-          const apiError = errorPayload?.error ? String(errorPayload.error) : "";
-          const apiDetails =
-            errorPayload?.details &&
-            typeof errorPayload.details === "object" &&
-            "message" in errorPayload.details
-              ? String((errorPayload.details as Record<string, unknown>).message)
-              : "";
-          throw new Error(
-            `HTTP ${response.status} ${apiError}${
-              apiDetails ? ` — ${apiDetails}` : ""
-            } (chunk ${chunkIndex}/${routeChunks.length}, requestId: ${requestId})`,
-          );
+          const requestId = errorPayload?.requestId ? String(errorPayload.requestId) : undefined;
+          const code = errorPayload?.code ? String(errorPayload.code) : undefined;
+          const apiError = errorPayload?.error ? String(errorPayload.error) : buildSimulationUserMessage(code);
+          const error = new Error(apiError) as SimulationFetchError;
+          error.code = code;
+          error.requestId = requestId;
+          error.retryable = Boolean(errorPayload?.retryable);
+          error.userMessage = apiError;
+          throw error;
         }
 
         return (await response.json()) as {
@@ -2296,12 +2329,26 @@ export default function MapPage() {
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           const likelyFileMissing =
-            /ENOENT|no such file|Failed to build simulation data/i.test(message);
+            /ENOENT|no such file|Failed to build simulation data|SIMULATION_DATA_UNAVAILABLE/i.test(message);
           if (includeUpxInSimulation && likelyFileMissing) {
             console.warn(
               `[SIM] Chunk ${i + 1} failed with UPX enabled; retrying without UPX`,
             );
             payload = await fetchChunkPayload(chunk, false, i + 1);
+          } else if (customTrips.length > 0) {
+            const userMessage =
+              (error as SimulationFetchError).userMessage ||
+              "GO feed simulation is temporarily unavailable. Loaded custom-route trips only.";
+            setSimulationError("Loaded custom-route trips only.");
+            pushToast({
+              title: "GO feed unavailable",
+              description: userMessage,
+              tone: "error",
+              category: "simulation",
+            });
+            setSimulationTrips(customTrips);
+            setSimulationCurrent(effectiveStartSeconds || startSeconds);
+            return;
           } else {
             throw error;
           }
@@ -2314,7 +2361,7 @@ export default function MapPage() {
           });
         }
 
-        allTrips.push(...(payload.trips || []));
+        goTrips.push(...(payload.trips || []));
         if (typeof payload.startSeconds === "number") {
           effectiveStartSeconds = Math.min(effectiveStartSeconds, payload.startSeconds);
         }
@@ -2323,20 +2370,29 @@ export default function MapPage() {
         }
       }
 
-      setSimulationTrips(allTrips);
+      setSimulationTrips([...customTrips, ...goTrips]);
       setSimulationCurrent(effectiveStartSeconds || startSeconds);
+      clearSimulationToasts();
       console.log("[SIM] Combined result", {
         routeCount: simulationRoutes.length,
         chunkCount: routeChunks.length,
-        trips: allTrips.length,
+        trips: customTrips.length + goTrips.length,
         startSeconds: effectiveStartSeconds,
         endSeconds: effectiveEndSeconds,
       });
     } catch (error) {
       console.error("Simulation load failed:", error);
-      setSimulationError(
-        error instanceof Error ? error.message : "Failed to load simulation data.",
-      );
+      const userMessage =
+        error && typeof error === "object" && "userMessage" in error
+          ? String((error as SimulationFetchError).userMessage)
+          : "Simulation is temporarily unavailable for GO feed data. Try again later or run custom-route-only simulation.";
+      setSimulationError("Simulation is temporarily unavailable.");
+      pushToast({
+        title: "Simulation unavailable",
+        description: userMessage,
+        tone: "error",
+        category: "simulation",
+      });
     } finally {
       setSimulationLoading(false);
     }
@@ -2359,7 +2415,8 @@ export default function MapPage() {
     setFocusedSimulationTripId(null);
     setSimulationError(null);
     setSimulationCurrent(parseShortTime(simulationStart) ?? 0);
-  }, [simulationStart]);
+    clearSimulationToasts();
+  }, [clearSimulationToasts, simulationStart]);
 
   
 
@@ -2523,6 +2580,7 @@ export default function MapPage() {
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-slate-100">
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
       <div className="pointer-events-none absolute inset-0 z-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.45),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(226,232,240,0.7),transparent_28%)]" />
         <div className="absolute left-[18%] top-[16%] h-64 w-64 rounded-full bg-sky-300/20 blur-3xl" />

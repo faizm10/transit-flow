@@ -13,23 +13,27 @@ test("landing page and map shell load", async ({ page }) => {
 });
 
 test("core transit APIs return data", async ({ request }) => {
-  const [upx, coverage, frequency] = await Promise.all([
+  const [upx, coverage, frequency, simulation] = await Promise.all([
     request.get("/api/union-pearson"),
     request.get("/api/gotransit/coverage"),
     request.get("/api/gotransit/frequency"),
+    request.get("/api/simulation?date=2026-03-17&start=05:30&end=13:00&routeShortNames=BR&routeTypes=2"),
   ]);
 
   expect(upx.ok()).toBeTruthy();
   expect(coverage.ok()).toBeTruthy();
   expect(frequency.ok()).toBeTruthy();
+  expect(simulation.ok()).toBeTruthy();
 
   const upxData = await upx.json();
   const coverageData = await coverage.json();
   const frequencyData = await frequency.json();
+  const simulationData = await simulation.json();
 
   expect(Array.isArray(upxData.features)).toBeTruthy();
   expect(Array.isArray(coverageData.features)).toBeTruthy();
   expect(Array.isArray(frequencyData.results)).toBeTruthy();
+  expect(Array.isArray(simulationData.trips)).toBeTruthy();
 });
 
 test("community page submits a dry-run bug report", async ({ page, request }) => {

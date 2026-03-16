@@ -21,6 +21,8 @@ Open [http://localhost:3000](http://localhost:3000) and use `/map` for the main 
 - `ANTHROPIC_API_KEY`
 - `GEMINI_API_KEY` only if Gemini-backed features remain enabled
 - `SENTRY_DSN` optional placeholder for external monitoring
+- `SIMULATION_DATA_MODE`
+- `SIMULATION_ARTIFACT_BASE_URL` if remote simulation artifacts are used
 
 See [`.env.example`](/Applications/vscode/transit-flow/client/.env.example).
 
@@ -39,4 +41,12 @@ See [`.env.example`](/Applications/vscode/transit-flow/client/.env.example).
 npm run lint
 npm run build
 npm run test:e2e
+```
+
+## Simulation artifacts
+
+Generate route-scoped simulation artifacts for production-oriented deployments:
+
+```bash
+python3 /Applications/vscode/transit-flow/scripts/build_simulation_artifacts.py --input_dir /Applications/vscode/transit-flow/client/public/gotransit --output_dir /Applications/vscode/transit-flow/client/public/gotransit/derived/simulation --source gotransit
 ```

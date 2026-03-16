@@ -39,3 +39,9 @@ Example:
 ```bash
 python3 scripts/build_subroutes.py --input_dir client/public/gotransit --output_dir client/public/gotransit/derived
 ```
+
+Simulation artifacts for production-style deployments:
+
+```bash
+python3 scripts/build_simulation_artifacts.py --input_dir client/public/gotransit --output_dir client/public/gotransit/derived/simulation --source gotransit
+```

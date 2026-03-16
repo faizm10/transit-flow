@@ -10,6 +10,11 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 const MAX_OUTPUT_TRIPS = 300;
 const MAX_SHAPE_POINTS_PER_TRIP = 450;
+const HEADER_SCAN_BYTES = 64 * 1024;
+const SIMULATION_UNAVAILABLE_CODE = "SIMULATION_DATA_UNAVAILABLE";
+
+type SimulationDataMode = "raw" | "precomputed" | "remote";
+type SimulationArtifactSource = "raw" | "precomputed" | "remote-artifact";
 
 type RouteEntry = {
   route_id: string;
@@ -53,6 +58,150 @@ type TripStops = {
   minTime: number | null;
   maxTime: number | null;
 };
+
+type SimulationShapePoint = { lat: number; lon: number; seq: number };
+
+type SimulationBuildResult = {
+  trips: Map<string, TripMeta>;
+  stops: Map<string, TripStops>;
+  shapes: Map<string, SimulationShapePoint[]>;
+  artifactSource: SimulationArtifactSource;
+  headerMode?: string;
+};
+
+type SimulationArtifactTrip = TripMeta & {
+  service_id: string;
+  stops: TripStops["stops"];
+  shape: SimulationShapePoint[];
+  start_stop_name: string;
+  end_stop_name: string;
+  start_time: number | null;
+  end_time: number | null;
+  min_time: number | null;
+  max_time: number | null;
+};
+
+type StopTimesHeaderInfo = {
+  headers: string[];
+  headerLineIndex: number;
+  detectionMode: "stream-first-line" | "buffer-scan";
+};
+
+class SimulationRouteError extends Error {
+  constructor(
+    public status: number,
+    public code: string,
+    public safeMessage: string,
+    public retryable: boolean,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+function getSimulationDataMode(): SimulationDataMode {
+  const mode = process.env.SIMULATION_DATA_MODE?.trim().toLowerCase();
+  if (mode === "precomputed" || mode === "remote" || mode === "raw") {
+    return mode;
+  }
+  return "raw";
+}
+
+function getArtifactSourceForMode(mode: SimulationDataMode): SimulationArtifactSource {
+  return mode === "remote" ? "remote-artifact" : mode === "precomputed" ? "precomputed" : "raw";
+}
+
+function getRouteArtifactFilename(routeShortName: string) {
+  return `route-${encodeURIComponent(routeShortName)}.json`;
+}
+
+function toFeedFolder(basePath: string) {
+  return path.basename(basePath);
+}
+
+async function readSimulationArtifactJson<T>(
+  basePath: string,
+  relativePath: string,
+  mode: Exclude<SimulationDataMode, "raw">,
+): Promise<T> {
+  if (mode === "remote") {
+    const baseUrl = process.env.SIMULATION_ARTIFACT_BASE_URL?.trim();
+    if (!baseUrl) {
+      throw new SimulationRouteError(
+        503,
+        SIMULATION_UNAVAILABLE_CODE,
+        "Simulation is temporarily unavailable for GTFS feed data.",
+        true,
+        "SIMULATION_ARTIFACT_BASE_URL is not configured for remote artifact mode",
+      );
+    }
+
+    const url = `${baseUrl.replace(/\/+$/, "")}/${toFeedFolder(basePath)}/${relativePath}`;
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    if (!response.ok) {
+      throw new SimulationRouteError(
+        503,
+        SIMULATION_UNAVAILABLE_CODE,
+        "Simulation is temporarily unavailable for GTFS feed data.",
+        true,
+        `Remote simulation artifact request failed (${response.status}) for ${url}`,
+      );
+    }
+    return (await response.json()) as T;
+  }
+
+  const filePath = path.join(basePath, "derived", "simulation", relativePath);
+  try {
+    return JSON.parse(await fs.readFile(filePath, "utf8")) as T;
+  } catch (error) {
+    throw new SimulationRouteError(
+      503,
+      SIMULATION_UNAVAILABLE_CODE,
+      "Simulation is temporarily unavailable for GTFS feed data.",
+      true,
+      `Failed to read simulation artifact ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+async function readInitialTextChunk(filePath: string, maxBytes: number) {
+  const handle = await fs.open(filePath, "r");
+  try {
+    const buffer = Buffer.alloc(maxBytes);
+    const { bytesRead } = await handle.read(buffer, 0, maxBytes, 0);
+    return buffer.toString("utf8", 0, bytesRead);
+  } finally {
+    await handle.close();
+  }
+}
+
+async function detectStopTimesHeader(stopTimesPath: string): Promise<StopTimesHeaderInfo> {
+  const preview = await readInitialTextChunk(stopTimesPath, HEADER_SCAN_BYTES);
+  const lines = preview.split(/\r?\n/);
+
+  for (let index = 0; index < lines.length && index < 25; index += 1) {
+    const headers = parseHeaderLine(lines[index] ?? "");
+    if (headers.includes("trip_id") && headers.includes("stop_id")) {
+      return {
+        headers,
+        headerLineIndex: index,
+        detectionMode: index === 0 ? "stream-first-line" : "buffer-scan",
+      };
+    }
+  }
+
+  throw new SimulationRouteError(
+    503,
+    SIMULATION_UNAVAILABLE_CODE,
+    "Simulation is temporarily unavailable for GTFS feed data.",
+    true,
+    `Unable to detect a valid stop_times header in ${stopTimesPath}`,
+  );
+}
 
 function parseCsvLine(line: string): string[] {
   const values: string[] = [];
@@ -323,8 +472,9 @@ async function loadTripStops(
   basePath: string,
   tripIds: Set<string>,
   stopsMap: Map<string, StopEntry>,
-): Promise<Map<string, TripStops>> {
+): Promise<{ tripStops: Map<string, TripStops>; headerMode: StopTimesHeaderInfo["detectionMode"] }> {
   const stopTimesPath = path.join(basePath, "stop_times.txt");
+  const headerInfo = await detectStopTimesHeader(stopTimesPath);
   const stream = createReadStream(stopTimesPath, { encoding: "utf8" });
   const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
 
@@ -337,21 +487,16 @@ async function loadTripStops(
     }
   });
   let fallbackMatchedRows = 0;
-  let headers: string[] = [];
-  let isHeader = true;
+  const headers = headerInfo.headers;
+  let lineIndex = -1;
 
   for await (const line of rl) {
-    if (!line) continue;
-    if (isHeader) {
-      headers = parseHeaderLine(line);
-      if (!headers.includes("trip_id") || !headers.includes("stop_id")) {
-        throw new Error(
-          `Invalid stop_times header in ${stopTimesPath}; missing required columns`,
-        );
-      }
-      isHeader = false;
+    lineIndex += 1;
+    if (lineIndex < headerInfo.headerLineIndex) continue;
+    if (lineIndex === headerInfo.headerLineIndex) {
       continue;
     }
+    if (!line) continue;
 
     const values = parseCsvLine(line);
     const row = headers.reduce<Record<string, string>>((obj, header, index) => {
@@ -435,7 +580,10 @@ async function loadTripStops(
     });
   }
 
-  return tripStops;
+  return {
+    tripStops,
+    headerMode: headerInfo.detectionMode,
+  };
 }
 
 async function loadShapesForTrips(
@@ -527,13 +675,13 @@ function attachShapeIndices(
   });
 }
 
-async function buildSimulationData(options: {
+async function buildSimulationDataRaw(options: {
   basePath: string;
   source: TripMeta["source"];
   date: string;
   routeTypeFilter: Set<string> | null;
   routeShortNameFilter: Set<string> | null;
-}) {
+}): Promise<SimulationBuildResult> {
   const [routes, stops, serviceIds] = await Promise.all([
     loadRoutes(options.basePath),
     loadStops(options.basePath),
@@ -553,24 +701,154 @@ async function buildSimulationData(options: {
     return {
       trips: new Map<string, TripMeta>(),
       stops: new Map<string, TripStops>(),
-      shapes: new Map(),
+      shapes: new Map<string, SimulationShapePoint[]>(),
+      artifactSource: "raw",
     };
   }
 
-  const tripStops = await loadTripStops(
+  const { tripStops, headerMode } = await loadTripStops(
     options.basePath,
     new Set(trips.keys()),
     stops,
   );
   const shapes = await loadShapesForTrips(options.basePath, trips);
   attachShapeIndices(tripStops, trips, shapes);
-  return { trips, stops: tripStops, shapes };
+  return {
+    trips,
+    stops: tripStops,
+    shapes,
+    artifactSource: "raw",
+    headerMode,
+  };
+}
+
+async function buildSimulationDataFromArtifacts(options: {
+  basePath: string;
+  source: TripMeta["source"];
+  date: string;
+  routeTypeFilter: Set<string> | null;
+  routeShortNameFilter: Set<string> | null;
+  mode: Exclude<SimulationDataMode, "raw">;
+}): Promise<SimulationBuildResult> {
+  if (!options.routeShortNameFilter || options.routeShortNameFilter.size === 0) {
+    throw new SimulationRouteError(
+      503,
+      SIMULATION_UNAVAILABLE_CODE,
+      "Simulation is temporarily unavailable for GTFS feed data.",
+      true,
+      `Precomputed simulation mode requires routeShortNameFilter for ${options.basePath}`,
+    );
+  }
+
+  const activeServiceIds = new Set(
+    await readSimulationArtifactJson<string[]>(
+      options.basePath,
+      `service-dates/${options.date}.json`,
+      options.mode,
+    ),
+  );
+
+  if (activeServiceIds.size === 0) {
+    return {
+      trips: new Map<string, TripMeta>(),
+      stops: new Map<string, TripStops>(),
+      shapes: new Map<string, SimulationShapePoint[]>(),
+      artifactSource: getArtifactSourceForMode(options.mode),
+    };
+  }
+
+  const routeArtifacts = await Promise.all(
+    Array.from(options.routeShortNameFilter).map(async (routeShortName) => ({
+      routeShortName,
+      payload: await readSimulationArtifactJson<{ trips: SimulationArtifactTrip[] }>(
+        options.basePath,
+        `routes/${getRouteArtifactFilename(routeShortName)}`,
+        options.mode,
+      ),
+    })),
+  );
+
+  const trips = new Map<string, TripMeta>();
+  const stops = new Map<string, TripStops>();
+  const shapes = new Map<string, SimulationShapePoint[]>();
+
+  routeArtifacts.forEach(({ payload }) => {
+    payload.trips.forEach((trip) => {
+      if (!activeServiceIds.has(trip.service_id)) return;
+      if (options.routeTypeFilter && !options.routeTypeFilter.has(trip.route_type)) return;
+
+      trips.set(trip.trip_id, {
+        trip_id: trip.trip_id,
+        route_id: trip.route_id,
+        route_short_name: trip.route_short_name,
+        route_long_name: trip.route_long_name,
+        route_type: trip.route_type,
+        direction_id: trip.direction_id,
+        source: trip.source,
+        shape_id: trip.shape_id,
+      });
+
+      stops.set(trip.trip_id, {
+        stops: trip.stops,
+        minSeq: trip.stops.length > 0 ? Math.min(...trip.stops.map((stop) => stop.seq)) : null,
+        maxSeq: trip.stops.length > 0 ? Math.max(...trip.stops.map((stop) => stop.seq)) : null,
+        startStopName: trip.start_stop_name,
+        endStopName: trip.end_stop_name,
+        startTime: trip.start_time,
+        endTime: trip.end_time,
+        minTime: trip.min_time,
+        maxTime: trip.max_time,
+      });
+
+      if (trip.shape_id && !shapes.has(trip.shape_id)) {
+        shapes.set(trip.shape_id, trip.shape);
+      }
+    });
+  });
+
+  return {
+    trips,
+    stops,
+    shapes,
+    artifactSource: getArtifactSourceForMode(options.mode),
+  };
+}
+
+async function buildSimulationData(options: {
+  basePath: string;
+  source: TripMeta["source"];
+  date: string;
+  routeTypeFilter: Set<string> | null;
+  routeShortNameFilter: Set<string> | null;
+  mode: SimulationDataMode;
+}): Promise<SimulationBuildResult> {
+  if (options.mode === "raw") {
+    return buildSimulationDataRaw(options);
+  }
+
+  try {
+    return await buildSimulationDataFromArtifacts({
+      ...options,
+      mode: options.mode,
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      logApiEvent("/api/simulation", "error", {
+        artifactFallback: true,
+        message: error instanceof Error ? error.message : String(error),
+        source: options.source,
+      });
+      return buildSimulationDataRaw(options);
+    }
+    throw error;
+  }
 }
 
 export async function GET(request: NextRequest) {
   const requestId = `sim-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const requestStartedAt = Date.now();
   let debug = false;
+  const simulationMode = getSimulationDataMode();
   const limited = applyRateLimit(request, {
     bucket: "simulation",
     limit: 6,
@@ -645,6 +923,7 @@ export async function GET(request: NextRequest) {
       routeTypesParam,
       routeShortNames,
       debug,
+      mode: simulationMode,
     });
 
     const goBasePath = path.join(process.cwd(), "public", "gotransit");
@@ -658,6 +937,7 @@ export async function GET(request: NextRequest) {
         date: serviceDate,
         routeTypeFilter,
         routeShortNameFilter,
+        mode: simulationMode,
       }),
       includeUpx
         ? buildSimulationData({
@@ -666,11 +946,14 @@ export async function GET(request: NextRequest) {
             date: serviceDate,
             routeTypeFilter,
             routeShortNameFilter,
+            mode: simulationMode,
           })
         : Promise.resolve({
             trips: new Map<string, TripMeta>(),
             stops: new Map<string, TripStops>(),
-            shapes: new Map(),
+            shapes: new Map<string, SimulationShapePoint[]>(),
+            artifactSource: "raw" as const,
+            headerMode: undefined,
           }),
     ]);
     const buildDurationMs = Date.now() - buildStartedAt;
@@ -758,11 +1041,15 @@ export async function GET(request: NextRequest) {
         trips: goData.trips.size,
         stopSets: goData.stops.size,
         shapes: goData.shapes.size,
+        artifactSource: goData.artifactSource,
+        headerMode: goData.headerMode ?? null,
       },
       upx: {
         trips: upxData.trips.size,
         stopSets: upxData.stops.size,
         shapes: upxData.shapes.size,
+        artifactSource: upxData.artifactSource,
+        headerMode: upxData.headerMode ?? null,
       },
       outputTrips: output.length,
       truncated: wasTruncated,
@@ -792,13 +1079,39 @@ export async function GET(request: NextRequest) {
       stack: error instanceof Error ? error.stack : undefined,
     };
     logApiEvent("/api/simulation", "error", failure);
+
+    if (error instanceof SimulationRouteError) {
+      return NextResponse.json(
+        {
+          error: error.safeMessage,
+          code: error.code,
+          requestId,
+          retryable: error.retryable,
+          ...(debug ? { details: failure } : {}),
+        },
+        {
+          status: error.status,
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        },
+      );
+    }
+
     return NextResponse.json(
       {
-        error: "Failed to build simulation data",
+        error: "Simulation is temporarily unavailable for GTFS feed data.",
+        code: SIMULATION_UNAVAILABLE_CODE,
         requestId,
+        retryable: true,
         ...(debug ? { details: failure } : {}),
       },
-      { status: 500 },
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      },
     );
   }
 }
