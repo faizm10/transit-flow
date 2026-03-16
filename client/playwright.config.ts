@@ -17,6 +17,7 @@ export default defineConfig({
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,
     env: {
+      GITHUB_COMMUNITY_DRY_RUN: "1",
       NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN:
         process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ?? "test-token",
       NEXT_PUBLIC_SITE_URL:

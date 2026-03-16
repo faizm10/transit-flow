@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 
 export default function LandingPage() {
   const repoUrl = "https://github.com/faizm10/transit-flow";
-  const bugUrl = "https://github.com/faizm10/transit-flow/issues/new";
+  const communityUrl = "/community";
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#f5f8f3] text-slate-950">
@@ -59,6 +59,16 @@ export default function LandingPage() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
+              <Button asChild variant="outline" className="h-12 rounded-full border-[#cfe0cf] bg-white/82 px-6 hover:bg-white">
+                <Link href={`${communityUrl}?type=feedback`}>
+                  Send feedback
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-12 rounded-full border-[#cfe0cf] bg-white/82 px-6 hover:bg-white">
+                <Link href={`${communityUrl}?type=bug`}>
+                  Report a bug
+                </Link>
+              </Button>
             </div>
           </div>
 
@@ -95,10 +105,13 @@ export default function LandingPage() {
             <Link href="/terms" className="transition hover:text-slate-950">
               Terms
             </Link>
+            <Link href={communityUrl} className="transition hover:text-slate-950">
+              Community
+            </Link>
             <Link href={repoUrl} className="transition hover:text-slate-950">
               GitHub
             </Link>
-            <Link href={bugUrl} className="font-medium text-[#0b6f3c] transition hover:text-[#095c32]">
+            <Link href={`${communityUrl}?type=bug`} className="font-medium text-[#0b6f3c] transition hover:text-[#095c32]">
               Report a bug
             </Link>
           </div>

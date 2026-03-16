@@ -34,3 +34,9 @@
 - `route-agent` degrades to deterministic routing when Mapbox directions fail.
 - `schedule-optimizer` returns a deterministic fallback schedule when Anthropic is unavailable or rate-limited.
 - If provider costs or latency exceed budget, remove the AI key from preview first, then production.
+
+## Community Triage
+- Configure `GITHUB_COMMUNITY_TOKEN`, `GITHUB_COMMUNITY_REPO`, and `NEXT_PUBLIC_COMMUNITY_URL` before enabling the in-app form.
+- Ensure GitHub labels `bug`, `feedback`, and `community-report` exist.
+- Review new community-submitted issues daily for duplicates, severity labels, and roadmap follow-up.
+- If GitHub issue creation fails, the app returns a user-safe error and the failure is logged under `[api] /api/community/report`.

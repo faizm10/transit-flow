@@ -1,0 +1,334 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { getCommunityIssuesUrl, type CommunityReportPayload, type CommunityReportType } from "@/lib/community";
+
+type CommunityReportFormProps = {
+  initialType?: CommunityReportType;
+  source: string;
+  context?: Record<string, unknown>;
+  compact?: boolean;
+  onSubmitted?: (result: { issueUrl: string; issueNumber: number }) => void;
+};
+
+type SubmitState =
+  | { status: "idle" }
+  | { status: "submitting" }
+  | { status: "error"; message: string }
+  | { status: "success"; issueUrl: string; issueNumber: number };
+
+function randomReportId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `community-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function CommunityReportForm({
+  initialType = "bug",
+  source,
+  context,
+  compact = false,
+  onSubmitted,
+}: CommunityReportFormProps) {
+  const [type, setType] = useState<CommunityReportType>(initialType);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [stepsToReproduce, setStepsToReproduce] = useState("");
+  const [expectedBehavior, setExpectedBehavior] = useState("");
+  const [actualBehavior, setActualBehavior] = useState("");
+  const [useCase, setUseCase] = useState("");
+  const [impact, setImpact] = useState("");
+  const [state, setState] = useState<SubmitState>({ status: "idle" });
+
+  const communityIssuesUrl = useMemo(() => getCommunityIssuesUrl(), []);
+
+  const helperCopy =
+    type === "bug"
+      ? "Bug reports become public GitHub issues after validation. Do not include private data."
+      : "Feedback is converted into a public GitHub issue for triage. Keep it concise and plain text.";
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setState({ status: "submitting" });
+
+    const payload: CommunityReportPayload = {
+      type,
+      title,
+      description,
+      ...(type === "bug"
+        ? {
+            stepsToReproduce,
+            expectedBehavior,
+            actualBehavior,
+          }
+        : {
+            useCase,
+            impact,
+          }),
+      metadata: {
+        pagePath: typeof window !== "undefined" ? window.location.pathname : undefined,
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+        viewport:
+          typeof window !== "undefined"
+            ? {
+                width: window.innerWidth,
+                height: window.innerHeight,
+              }
+            : undefined,
+        appVersion:
+          process.env.NEXT_PUBLIC_APP_VERSION ||
+          process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ||
+          undefined,
+        source,
+        clientReportId: randomReportId(),
+        mapContext: context,
+      },
+    };
+
+    try {
+      const response = await fetch("/api/community/report", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = (await response.json()) as {
+        ok?: boolean;
+        issueUrl?: string;
+        issueNumber?: number;
+        error?: string;
+        details?: string;
+      };
+
+      if (!response.ok || !data.ok || !data.issueUrl || typeof data.issueNumber !== "number") {
+        throw new Error(data.error || data.details || "Failed to submit report");
+      }
+
+      setState({
+        status: "success",
+        issueUrl: data.issueUrl,
+        issueNumber: data.issueNumber,
+      });
+      onSubmitted?.({
+        issueUrl: data.issueUrl,
+        issueNumber: data.issueNumber,
+      });
+    } catch (error) {
+      setState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Failed to submit report",
+      });
+    }
+  };
+
+  return (
+    <div className={`space-y-4 ${compact ? "" : "rounded-[2rem] border border-[#d8e2d4] bg-white/84 p-5 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl"}`}>
+      <div className="space-y-2">
+        <div className="inline-flex rounded-full border border-[#cfe0cf] bg-[#f4fbf3] p-1">
+          <button
+            type="button"
+            onClick={() => setType("bug")}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              type === "bug" ? "bg-[#0b6f3c] text-white" : "text-slate-600"
+            }`}
+          >
+            Report a bug
+          </button>
+          <button
+            type="button"
+            onClick={() => setType("feedback")}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              type === "feedback" ? "bg-[#0b6f3c] text-white" : "text-slate-600"
+            }`}
+          >
+            Send feedback
+          </button>
+        </div>
+        <p className="text-xs leading-6 text-slate-600">{helperCopy}</p>
+      </div>
+
+      {state.status === "success" ? (
+        <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-sm font-semibold text-emerald-900">Report submitted</p>
+          <p className="text-xs leading-6 text-emerald-800">
+            Your submission was created as GitHub issue #{state.issueNumber}.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button asChild className="rounded-full bg-[#0b6f3c] px-4 text-white hover:bg-[#095c32]">
+              <Link href={state.issueUrl} target="_blank" rel="noopener noreferrer">
+                View issue
+              </Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => {
+                setState({ status: "idle" });
+                setTitle("");
+                setDescription("");
+                setStepsToReproduce("");
+                setExpectedBehavior("");
+                setActualBehavior("");
+                setUseCase("");
+                setImpact("");
+              }}
+            >
+              Submit another
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label htmlFor="community-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Title
+            </label>
+            <Input
+              id="community-title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder={type === "bug" ? "Short bug summary" : "Short feedback summary"}
+              maxLength={120}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="community-description" className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Description
+            </label>
+            <Textarea
+              id="community-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder={
+                type === "bug"
+                  ? "What happened, and where did it happen?"
+                  : "What do you want TransitFlow to improve?"
+              }
+              maxLength={4000}
+              required
+              rows={compact ? 4 : 5}
+            />
+          </div>
+
+          {type === "bug" ? (
+            <>
+              <div className="space-y-2">
+                <label htmlFor="community-steps" className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Steps to reproduce
+                </label>
+                <Textarea
+                  id="community-steps"
+                  value={stepsToReproduce}
+                  onChange={(event) => setStepsToReproduce(event.target.value)}
+                  placeholder="1. Open TransitFlow... 2. Click... 3. Observe..."
+                  maxLength={2500}
+                  required
+                  rows={4}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label htmlFor="community-expected" className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Expected behavior
+                  </label>
+                  <Textarea
+                    id="community-expected"
+                    value={expectedBehavior}
+                    onChange={(event) => setExpectedBehavior(event.target.value)}
+                    maxLength={1500}
+                    required
+                    rows={4}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="community-actual" className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Actual behavior
+                  </label>
+                  <Textarea
+                    id="community-actual"
+                    value={actualBehavior}
+                    onChange={(event) => setActualBehavior(event.target.value)}
+                    maxLength={1500}
+                    required
+                    rows={4}
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="community-use-case" className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Use case
+                </label>
+                <Textarea
+                  id="community-use-case"
+                  value={useCase}
+                  onChange={(event) => setUseCase(event.target.value)}
+                  placeholder="What are you trying to do in TransitFlow?"
+                  maxLength={2000}
+                  rows={4}
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="community-impact" className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Impact
+                </label>
+                <Textarea
+                  id="community-impact"
+                  value={impact}
+                  onChange={(event) => setImpact(event.target.value)}
+                  placeholder="Why does this matter?"
+                  maxLength={1200}
+                  rows={4}
+                />
+              </div>
+            </div>
+          )}
+
+          {state.status === "error" ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs leading-6 text-red-700">
+              {state.message}
+            </div>
+          ) : null}
+
+          <div className="rounded-2xl border border-[#d8e2d4] bg-[#f8fbf7] px-4 py-3 text-xs leading-6 text-slate-600">
+            Before you submit, check existing issues on{" "}
+            <Link href={communityIssuesUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-[#0b6f3c] underline underline-offset-4">
+              GitHub
+            </Link>
+            . Submissions are plain text only and may become public issues.
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="submit"
+              className="rounded-full bg-[#0b6f3c] px-5 text-white hover:bg-[#095c32]"
+              disabled={state.status === "submitting"}
+            >
+              {state.status === "submitting" ? "Submitting..." : type === "bug" ? "Submit bug report" : "Submit feedback"}
+            </Button>
+            <Link
+              href={communityIssuesUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium text-slate-600 underline underline-offset-4"
+            >
+              Browse GitHub issues
+            </Link>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}

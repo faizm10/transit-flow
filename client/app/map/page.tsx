@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
+import { MessageCircleWarning, MessagesSquare } from "lucide-react";
 import { RouteBuilder } from "@/components/RouteBuilder";
 import { RouteCommandBar } from "@/components/RouteCommandBar";
 import { ScheduleModal } from "@/components/ScheduleModal";
+import { BugReportModal } from "@/components/BugReportModal";
 import {
   getCurrentScenarioId,
   getSavedCustomRoutes,
@@ -203,6 +205,8 @@ export default function MapPage() {
   const [showCoverage, setShowCoverage] = useState(false);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showCommunityModal, setShowCommunityModal] = useState(false);
+  const [communityModalType, setCommunityModalType] = useState<"bug" | "feedback">("bug");
   const [pendingScheduleRouteId, setPendingScheduleRouteId] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 43.6532, lng: -79.3832 });
   const [mapInitError, setMapInitError] = useState<string | null>(null);
@@ -2530,15 +2534,39 @@ export default function MapPage() {
         onPanelToggle={handlePanelToggle}
       />
 
-      <a
-        href="https://github.com/faizm10/transit-flow"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="absolute right-4 top-4 z-20 inline-flex h-12 w-12 items-center justify-center rounded-[20px] border border-white/50 bg-[var(--glass-surface)] text-slate-600 shadow-[var(--glass-shadow)] backdrop-blur-2xl transition hover:bg-white/80 hover:text-slate-950"
-        aria-label="Open GitHub repository"
-      >
-        <GitHubLogoIcon width={18} height={18} />
-      </a>
+      <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setCommunityModalType("bug");
+            setShowCommunityModal(true);
+          }}
+          className="inline-flex h-12 items-center gap-2 rounded-[20px] border border-white/50 bg-[var(--glass-surface)] px-4 text-xs font-semibold text-slate-700 shadow-[var(--glass-shadow)] backdrop-blur-2xl transition hover:bg-white/80 hover:text-slate-950"
+        >
+          <MessageCircleWarning className="h-4 w-4" />
+          Report bug
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setCommunityModalType("feedback");
+            setShowCommunityModal(true);
+          }}
+          className="inline-flex h-12 items-center gap-2 rounded-[20px] border border-white/50 bg-[var(--glass-surface)] px-4 text-xs font-semibold text-slate-700 shadow-[var(--glass-shadow)] backdrop-blur-2xl transition hover:bg-white/80 hover:text-slate-950"
+        >
+          <MessagesSquare className="h-4 w-4" />
+          Feedback
+        </button>
+        <a
+          href="https://github.com/faizm10/transit-flow"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-12 w-12 items-center justify-center rounded-[20px] border border-white/50 bg-[var(--glass-surface)] text-slate-600 shadow-[var(--glass-shadow)] backdrop-blur-2xl transition hover:bg-white/80 hover:text-slate-950"
+          aria-label="Open GitHub repository"
+        >
+          <GitHubLogoIcon width={18} height={18} />
+        </a>
+      </div>
 
       <SidePanel
         title={inspectorTitle}
@@ -2879,6 +2907,20 @@ export default function MapPage() {
             ? savedCustomRoutes.find((r) => r.id === pendingScheduleRouteId)?.name
             : undefined
         }
+      />
+
+      <BugReportModal
+        isOpen={showCommunityModal}
+        onClose={() => setShowCommunityModal(false)}
+        initialType={communityModalType}
+        source="map"
+        context={{
+          activePanel,
+          mapCenter,
+          selectedRoutes: savedCustomRoutes.length,
+          showGoTransit,
+          showUnionPearson,
+        }}
       />
 
       <div ref={mapContainer} className="h-full w-full" />

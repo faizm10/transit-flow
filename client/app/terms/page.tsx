@@ -20,7 +20,7 @@ export default function TermsPage() {
           <h2 className="text-xl font-semibold">Acceptable use</h2>
           <p className="text-slate-600">
             Do not abuse the API routes, attempt to bypass rate limits, or submit
-            unlawful or harmful content through prompts or bug reports.
+            unlawful or harmful content through prompts, bug reports, or feedback forms.
           </p>
         </section>
 
@@ -29,6 +29,14 @@ export default function TermsPage() {
           <p className="text-slate-600">
             Features may change, degrade, or be disabled without notice during the beta,
             especially third-party AI functionality.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">Community reporting</h2>
+          <p className="text-slate-600">
+            Community submissions are plain-text only and may be mirrored into public GitHub
+            issues for triage. Do not include private or sensitive information.
           </p>
         </section>
 
