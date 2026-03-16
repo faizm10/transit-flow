@@ -71,11 +71,6 @@ export function prepareCommunityIssue(
 
   const title = sanitizeText(payload.title, 120);
   const description = sanitizeText(payload.description, 4000);
-  const stepsToReproduce = sanitizeText(payload.stepsToReproduce, 2500);
-  const expectedBehavior = sanitizeText(payload.expectedBehavior, 1500);
-  const actualBehavior = sanitizeText(payload.actualBehavior, 1500);
-  const useCase = sanitizeText(payload.useCase, 2000);
-  const impact = sanitizeText(payload.impact, 1200);
 
   if (payload.type !== "bug" && payload.type !== "feedback") {
     fieldErrors.type = "Report type must be bug or feedback.";
@@ -86,20 +81,10 @@ export function prepareCommunityIssue(
   if (!description) {
     fieldErrors.description = "Description is required.";
   }
-  if (payload.type === "bug") {
-    if (!stepsToReproduce) fieldErrors.stepsToReproduce = "Steps to reproduce are required.";
-    if (!expectedBehavior) fieldErrors.expectedBehavior = "Expected behavior is required.";
-    if (!actualBehavior) fieldErrors.actualBehavior = "Actual behavior is required.";
-  }
 
   const textFields = [
     title,
     description,
-    stepsToReproduce,
-    expectedBehavior,
-    actualBehavior,
-    useCase,
-    impact,
   ].filter((value): value is string => Boolean(value));
 
   for (const value of textFields) {
@@ -131,29 +116,6 @@ export function prepareCommunityIssue(
     description,
     ``,
   ];
-
-  if (payload.type === "bug") {
-    bodyLines.push(
-      "## Steps to reproduce",
-      stepsToReproduce || "Not provided",
-      "",
-      "## Expected behavior",
-      expectedBehavior || "Not provided",
-      "",
-      "## Actual behavior",
-      actualBehavior || "Not provided",
-      "",
-    );
-  } else {
-    bodyLines.push(
-      "## Use case",
-      useCase || "Not provided",
-      "",
-      "## Impact",
-      impact || "Not provided",
-      "",
-    );
-  }
 
   bodyLines.push(
     "## Captured context",

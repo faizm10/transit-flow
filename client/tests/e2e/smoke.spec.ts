@@ -47,9 +47,6 @@ test("community page submits a dry-run bug report", async ({ page, request }) =>
 
   await page.getByLabel("Title").fill("Simulation chunk failed");
   await page.getByLabel("Description").fill("The simulation route returned an error during chunk processing.");
-  await page.getByLabel("Steps to reproduce").fill("1. Open the map\n2. Run a simulation\n3. Observe the error");
-  await page.getByLabel("Expected behavior").fill("Simulation should complete.");
-  await page.getByLabel("Actual behavior").fill("Simulation returns a 500 response.");
   await page.getByRole("button", { name: "Submit bug report" }).click();
 
   await expect(page.getByText("Report submitted")).toBeVisible();

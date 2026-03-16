@@ -17,11 +17,6 @@ export type CommunityReportPayload = {
   type: CommunityReportType;
   title: string;
   description: string;
-  stepsToReproduce?: string;
-  expectedBehavior?: string;
-  actualBehavior?: string;
-  useCase?: string;
-  impact?: string;
   metadata?: CommunityReportMetadata;
 };
 

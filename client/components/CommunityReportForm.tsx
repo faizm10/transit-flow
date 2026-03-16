@@ -38,11 +38,6 @@ export function CommunityReportForm({
   const [type, setType] = useState<CommunityReportType>(initialType);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [stepsToReproduce, setStepsToReproduce] = useState("");
-  const [expectedBehavior, setExpectedBehavior] = useState("");
-  const [actualBehavior, setActualBehavior] = useState("");
-  const [useCase, setUseCase] = useState("");
-  const [impact, setImpact] = useState("");
   const [state, setState] = useState<SubmitState>({ status: "idle" });
 
   const communityIssuesUrl = useMemo(() => getCommunityIssuesUrl(), []);
@@ -60,16 +55,6 @@ export function CommunityReportForm({
       type,
       title,
       description,
-      ...(type === "bug"
-        ? {
-            stepsToReproduce,
-            expectedBehavior,
-            actualBehavior,
-          }
-        : {
-            useCase,
-            impact,
-          }),
       metadata: {
         pagePath: typeof window !== "undefined" ? window.location.pathname : undefined,
         userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
@@ -174,11 +159,6 @@ export function CommunityReportForm({
                 setState({ status: "idle" });
                 setTitle("");
                 setDescription("");
-                setStepsToReproduce("");
-                setExpectedBehavior("");
-                setActualBehavior("");
-                setUseCase("");
-                setImpact("");
               }}
             >
               Submit another
@@ -212,89 +192,13 @@ export function CommunityReportForm({
               placeholder={
                 type === "bug"
                   ? "What happened, and where did it happen?"
-                  : "What do you want TransitFlow to improve?"
+                  : "What feedback do you have for TransitFlow?"
               }
               maxLength={4000}
               required
               rows={compact ? 4 : 5}
             />
           </div>
-
-          {type === "bug" ? (
-            <>
-              <div className="space-y-2">
-                <label htmlFor="community-steps" className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Steps to reproduce
-                </label>
-                <Textarea
-                  id="community-steps"
-                  value={stepsToReproduce}
-                  onChange={(event) => setStepsToReproduce(event.target.value)}
-                  placeholder="1. Open TransitFlow... 2. Click... 3. Observe..."
-                  maxLength={2500}
-                  required
-                  rows={4}
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label htmlFor="community-expected" className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Expected behavior
-                  </label>
-                  <Textarea
-                    id="community-expected"
-                    value={expectedBehavior}
-                    onChange={(event) => setExpectedBehavior(event.target.value)}
-                    maxLength={1500}
-                    required
-                    rows={4}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="community-actual" className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Actual behavior
-                  </label>
-                  <Textarea
-                    id="community-actual"
-                    value={actualBehavior}
-                    onChange={(event) => setActualBehavior(event.target.value)}
-                    maxLength={1500}
-                    required
-                    rows={4}
-                  />
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <label htmlFor="community-use-case" className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Use case
-                </label>
-                <Textarea
-                  id="community-use-case"
-                  value={useCase}
-                  onChange={(event) => setUseCase(event.target.value)}
-                  placeholder="What are you trying to do in TransitFlow?"
-                  maxLength={2000}
-                  rows={4}
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="community-impact" className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Impact
-                </label>
-                <Textarea
-                  id="community-impact"
-                  value={impact}
-                  onChange={(event) => setImpact(event.target.value)}
-                  placeholder="Why does this matter?"
-                  maxLength={1200}
-                  rows={4}
-                />
-              </div>
-            </div>
-          )}
 
           {state.status === "error" ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs leading-6 text-red-700">
