@@ -139,7 +139,7 @@ function buildCustomMetrics(route: CustomRoute): RouteMetrics {
         ? Math.floor(60 / headway)
         : null;
   const durationMinutes = route.durationSeconds ? Math.round(route.durationSeconds / 60) : null;
-  const modeLabel = route.mode === "train" ? "Custom train" : "Custom bus";
+  const modeLabel = "Custom route";
 
   return {
     title: route.name || "Untitled Route",

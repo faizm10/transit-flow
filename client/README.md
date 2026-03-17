@@ -21,6 +21,7 @@ Open [http://localhost:3000](http://localhost:3000) and use `/map` for the main 
 - `ANTHROPIC_API_KEY`
 - `GEMINI_API_KEY` only if Gemini-backed features remain enabled
 - `SENTRY_DSN` optional placeholder for external monitoring
+- `BLOB_READ_WRITE_TOKEN` for publishing simulation artifacts to Vercel Blob
 - `SIMULATION_DATA_MODE`
 - `SIMULATION_ARTIFACT_BASE_URL` if remote simulation artifacts are used
 
@@ -50,3 +51,18 @@ Generate route-scoped simulation artifacts for production-oriented deployments:
 ```bash
 python3 /Applications/vscode/transit-flow/scripts/build_simulation_artifacts.py --input_dir /Applications/vscode/transit-flow/client/public/gotransit --output_dir /Applications/vscode/transit-flow/client/public/gotransit/derived/simulation --source gotransit
 ```
+
+Publish GO simulation artifacts to Vercel Blob for production:
+
+```bash
+cd /Applications/vscode/transit-flow/client
+npm run simulation:publish
+```
+
+Useful flags:
+
+```bash
+npm run simulation:publish -- --dry-run --skip-build
+```
+
+For the current GO Transit feed, the generated artifact set is too large to package into a Vercel app bundle. Production should use `SIMULATION_DATA_MODE=remote` with `SIMULATION_ARTIFACT_BASE_URL` set to the Blob base URL printed by the publish command.

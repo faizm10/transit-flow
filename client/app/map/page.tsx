@@ -1686,13 +1686,12 @@ export default function MapPage() {
         if (layerId === "custom-routes-layer") {
           const routeId = String(properties.route_id ?? feature.id ?? "");
           const routeName = String(properties.route_name ?? "Custom route").trim();
-          const routeMode = String(properties.route_mode ?? "bus");
           if (!routeId) return;
 
           routeMap.set(`custom:${routeId}`, {
             id: `custom:${routeId}`,
             name: routeName,
-            detail: routeMode === "train" ? "Custom train" : "Custom bus",
+            detail: "Custom route",
             source: "custom",
             color: String(properties.route_color ?? "#8b5cf6"),
           });
@@ -2913,25 +2912,29 @@ export default function MapPage() {
         </div>
       )}
 
-      {/* Panels - right side */}
-      <div className="absolute bottom-4 right-4 top-20 z-10 flex max-w-[calc(100vw-1rem)] flex-col gap-3 overflow-y-auto pr-1">
+      {/* Panels - right side.
+          The outer shell is pointer-events-none so the invisible space beside /
+          below the panel never intercepts a map drag.  Each actual panel is
+          wrapped in pointer-events-auto so it remains fully interactive. */}
+      <div className="pointer-events-none absolute bottom-4 right-4 top-20 z-10 flex max-w-[calc(100vw-1rem)] flex-col gap-3 pr-1">
         {/* Route Builder Panel - mount when building or when custom network on (to show building route) */}
         {(showRouteBuilder || showCustomNetwork || showScheduleBuilder) && (
-          <RouteBuilder
-            mapRef={map}
-            mapReady={mapReady}
-            enabled={showRouteBuilder}
-            showPanel={showRouteBuilder}
-            showSchedulePanel={showScheduleBuilder}
-            onCloseSchedule={() => setActivePanel(null)}
-            goVariantsIndex={goVariantsIndex}
-            goVariantStops={goVariantStops}
-            goRouteTypes={goRouteTypes}
-            showCustomNetwork={showCustomNetwork}
-            onOpenComparison={() => setActivePanel("compare")}
-          />
+          <div className="pointer-events-auto overflow-y-auto">
+            <RouteBuilder
+              mapRef={map}
+              mapReady={mapReady}
+              enabled={showRouteBuilder}
+              showPanel={showRouteBuilder}
+              showSchedulePanel={showScheduleBuilder}
+              onCloseSchedule={() => setActivePanel(null)}
+              goVariantsIndex={goVariantsIndex}
+              goVariantStops={goVariantStops}
+              goRouteTypes={goRouteTypes}
+              showCustomNetwork={showCustomNetwork}
+              onOpenComparison={() => setActivePanel("compare")}
+            />
+          </div>
         )}
-
       </div>
 
       {/* Route Command Bar */}

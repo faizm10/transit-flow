@@ -10,7 +10,7 @@
 2. Configure preview and production environment variables from [`.env.example`](/Applications/vscode/transit-flow/client/.env.example).
 3. Require [`.github/workflows/client-ci.yml`](/Applications/vscode/transit-flow/.github/workflows/client-ci.yml) to pass before production promotion.
 4. Promote the latest green Vercel deployment.
-5. For production simulation, generate or publish simulation artifacts before switching `SIMULATION_DATA_MODE` away from `raw`.
+5. For production simulation, publish GO simulation artifacts to Vercel Blob before deploying with `SIMULATION_DATA_MODE=remote`.
 
 ## Rollback
 1. Revert or redeploy the last healthy Vercel build.
@@ -38,13 +38,21 @@
 - If provider costs or latency exceed budget, remove the AI key from preview first, then production.
 
 ## Simulation Data
-- Default `SIMULATION_DATA_MODE=raw` keeps local development simple and uses the hardened raw GTFS parser.
-- Preferred production mode is `SIMULATION_DATA_MODE=precomputed` once route-scoped simulation artifacts have been generated.
-- Use `SIMULATION_DATA_MODE=remote` with `SIMULATION_ARTIFACT_BASE_URL` only if local artifacts pressure Vercel bundle size.
+- Local development should use `SIMULATION_DATA_MODE=raw` unless you are explicitly testing artifact-backed simulation.
+- Production should use `SIMULATION_DATA_MODE=remote` with Vercel Blob for GO simulation artifacts.
+- Use `SIMULATION_DATA_MODE=precomputed` only if the generated local artifact set is small enough for the deployment target.
 - Generate artifacts with:
   ```bash
   python3 scripts/build_simulation_artifacts.py --input_dir client/public/gotransit --output_dir client/public/gotransit/derived/simulation --source gotransit
   ```
+- Publish artifacts to Vercel Blob with:
+  ```bash
+  cd client
+  npm run simulation:publish
+  ```
+- The publish command uploads `manifest.json`, `service-dates/*.json`, and `routes/*.json` under `simulation/gotransit/...` and prints the `SIMULATION_ARTIFACT_BASE_URL` to use in Vercel.
+- Required publishing secret: `BLOB_READ_WRITE_TOKEN`.
+- The full GO Transit artifact set generated from the current feed is too large for a Vercel app bundle, so treat remote artifact hosting as the expected production path.
 - Run a deployment with `VERCEL_ANALYZE_BUILD_OUTPUT=1` to inspect whether simulation data is inflating the function bundle.
 
 ## Community Triage

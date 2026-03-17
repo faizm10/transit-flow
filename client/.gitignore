@@ -19,6 +19,7 @@
 
 # production
 /build
+/public/gotransit/derived/simulation
 
 # misc
 .DS_Store

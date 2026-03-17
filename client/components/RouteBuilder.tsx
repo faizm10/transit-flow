@@ -280,7 +280,8 @@ export function RouteBuilder({
   const [showPinNameDialog, setShowPinNameDialog] = useState(false);
   const [showPinSaveDialog, setShowPinSaveDialog] = useState(false);
   const [isRailDrawing, setIsRailDrawing] = useState(false);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  // Keyed by stop.id so we can reconcile without full teardown/rebuild.
+  const markerByIdRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const drawRef = useRef<MapboxDraw | null>(null);
   const lastQuickEndpointsRef = useRef<string | null>(null);
   const lastQuickStyleKeyRef = useRef<string | null>(null);
@@ -819,15 +820,49 @@ export function RouteBuilder({
     };
   }, [mapRef, mapReady, enabled, pinMode]);
 
-  // Markers for stops (only when panel is open)
+  // When buildMode changes, wipe the marker cache so every marker is recreated
+  // with the correct draggable setting (Mapbox Marker doesn't support setDraggable).
+  useEffect(() => {
+    const markerMap = markerByIdRef.current;
+    markerMap.forEach((m) => m.remove());
+    markerMap.clear();
+  }, [buildMode]);
+
+  // Reconcile markers by stop ID — only create/remove what actually changed.
+  // With 16 stops this previously destroyed and recreated all 16 DOM nodes on
+  // every render; now it only updates position + label for existing stops.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady || !enabled) return;
+    if (!map || !mapReady || !enabled) {
+      markerByIdRef.current.forEach((m) => m.remove());
+      markerByIdRef.current.clear();
+      return;
+    }
 
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
+    const markerMap = markerByIdRef.current;
+    const liveIds = new Set(stops.map((s) => s.id));
 
+    // Remove markers whose stops were deleted
+    for (const [id, marker] of markerMap) {
+      if (!liveIds.has(id)) {
+        marker.remove();
+        markerMap.delete(id);
+      }
+    }
+
+    // Update existing or create new
     stops.forEach((stop, index) => {
+      const existing = markerMap.get(stop.id);
+      if (existing) {
+        existing.setLngLat([stop.lng, stop.lat]);
+        const el = existing.getElement();
+        el.textContent = String(index + 1);
+        el.style.boxShadow = stop.timepoint
+          ? "0 0 0 2px rgba(255,255,255,0.8), 0 2px 6px rgba(0,0,0,0.3)"
+          : "0 2px 6px rgba(0,0,0,0.3)";
+        return;
+      }
+
       const el = document.createElement("div");
       el.className = "route-builder-marker";
       el.style.cssText = `
@@ -860,14 +895,17 @@ export function RouteBuilder({
         });
       }
 
-      markersRef.current.push(marker);
+      markerMap.set(stop.id, marker);
     });
-
-    return () => {
-      markersRef.current.forEach((m) => m.remove());
-      markersRef.current = [];
-    };
   }, [mapRef, mapReady, enabled, stops, routeColor, updateStop, buildMode, setSelectedStopId]);
+
+  // Final cleanup on unmount
+  useEffect(() => {
+    return () => {
+      markerByIdRef.current.forEach((m) => m.remove());
+      markerByIdRef.current.clear();
+    };
+  }, []);
 
   // Layer visibility when disabled or custom network hidden
   useEffect(() => {
@@ -1140,43 +1178,16 @@ export function RouteBuilder({
             <div>
               <h3 className="text-sm font-semibold text-slate-950">Route Builder</h3>
               <p className="mt-1 text-[11px] text-slate-500">
-                {isTrainMode
-                  ? "Build the rail corridor, review stops, then save."
-                  : "Build the route, review stops, then save."}
+                Build the route, review stops, then save.
               </p>
             </div>
           </div>
           <p className="mt-2 text-[11px] text-slate-500">
-            {isTrainMode
-              ? "Add train stops from the command bar, then follow tracks or draw a rail corridor."
-              : "Add start/end from the command bar, then generate or edit stops."}
+            Add start and end points from the command bar, then generate or edit stops.
           </p>
         </div>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-          <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
-            <div className="font-medium text-slate-700">Service mode</div>
-            <div className="grid grid-cols-2 gap-2">
-              {(["bus", "train"] as const).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => {
-                    cancelRailDraw();
-                    setMode(option);
-                  }}
-                  className={`rounded-2xl px-3 py-2 text-sm font-semibold transition ${
-                    mode === option
-                      ? "bg-slate-900 text-white"
-                      : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  {option === "bus" ? "Bus" : "Train"}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
             <div className="flex items-center justify-between">
               <span className="font-medium text-slate-700">Load GO Transit line</span>

@@ -72,13 +72,17 @@ type SimulationBuildResult = {
 type SimulationArtifactTrip = TripMeta & {
   service_id: string;
   stops: TripStops["stops"];
-  shape: SimulationShapePoint[];
   start_stop_name: string;
   end_stop_name: string;
   start_time: number | null;
   end_time: number | null;
   min_time: number | null;
   max_time: number | null;
+};
+
+type SimulationArtifactPayload = {
+  trips: SimulationArtifactTrip[];
+  shapes: Record<string, SimulationShapePoint[]>;
 };
 
 type StopTimesHeaderInfo = {
@@ -103,6 +107,9 @@ function getSimulationDataMode(): SimulationDataMode {
   const mode = process.env.SIMULATION_DATA_MODE?.trim().toLowerCase();
   if (mode === "precomputed" || mode === "remote" || mode === "raw") {
     return mode;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return process.env.SIMULATION_ARTIFACT_BASE_URL?.trim() ? "remote" : "precomputed";
   }
   return "raw";
 }
@@ -760,7 +767,7 @@ async function buildSimulationDataFromArtifacts(options: {
   const routeArtifacts = await Promise.all(
     Array.from(options.routeShortNameFilter).map(async (routeShortName) => ({
       routeShortName,
-      payload: await readSimulationArtifactJson<{ trips: SimulationArtifactTrip[] }>(
+      payload: await readSimulationArtifactJson<SimulationArtifactPayload>(
         options.basePath,
         `routes/${getRouteArtifactFilename(routeShortName)}`,
         options.mode,
@@ -773,6 +780,14 @@ async function buildSimulationDataFromArtifacts(options: {
   const shapes = new Map<string, SimulationShapePoint[]>();
 
   routeArtifacts.forEach(({ payload }) => {
+    // Load shapes from the artifact-level shapes dict (stored once, not per trip).
+    const artifactShapes: Record<string, SimulationShapePoint[]> = payload.shapes ?? {};
+    Object.entries(artifactShapes).forEach(([shapeId, points]) => {
+      if (!shapes.has(shapeId)) {
+        shapes.set(shapeId, points);
+      }
+    });
+
     payload.trips.forEach((trip) => {
       if (!activeServiceIds.has(trip.service_id)) return;
       if (options.routeTypeFilter && !options.routeTypeFilter.has(trip.route_type)) return;
@@ -799,10 +814,6 @@ async function buildSimulationDataFromArtifacts(options: {
         minTime: trip.min_time,
         maxTime: trip.max_time,
       });
-
-      if (trip.shape_id && !shapes.has(trip.shape_id)) {
-        shapes.set(trip.shape_id, trip.shape);
-      }
     });
   });
 
@@ -930,6 +941,14 @@ export async function GET(request: NextRequest) {
     const upxBasePath = path.join(process.cwd(), "public", "union-pearson");
     const buildStartedAt = Date.now();
 
+    const emptyFeedResult = {
+      trips: new Map<string, TripMeta>(),
+      stops: new Map<string, TripStops>(),
+      shapes: new Map<string, SimulationShapePoint[]>(),
+      artifactSource: "raw" as const,
+      headerMode: undefined,
+    };
+
     const [goData, upxData] = await Promise.all([
       buildSimulationData({
         basePath: goBasePath,
@@ -947,14 +966,15 @@ export async function GET(request: NextRequest) {
             routeTypeFilter,
             routeShortNameFilter,
             mode: simulationMode,
+          }).catch((error) => {
+            logApiEvent("/api/simulation", "error", {
+              requestId,
+              upxUnavailable: true,
+              message: error instanceof Error ? error.message : String(error),
+            });
+            return emptyFeedResult;
           })
-        : Promise.resolve({
-            trips: new Map<string, TripMeta>(),
-            stops: new Map<string, TripStops>(),
-            shapes: new Map<string, SimulationShapePoint[]>(),
-            artifactSource: "raw" as const,
-            headerMode: undefined,
-          }),
+        : Promise.resolve(emptyFeedResult),
     ]);
     const buildDurationMs = Date.now() - buildStartedAt;
 

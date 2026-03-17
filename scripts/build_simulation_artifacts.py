@@ -3,6 +3,7 @@ import argparse
 import csv
 import json
 from collections import defaultdict
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -128,7 +129,7 @@ def build_artifacts(input_dir: Path, output_dir: Path, source: str):
             json.dump(sorted(service_ids), handle, separators=(",", ":"))
 
     manifest = {
-        "generatedAt": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+        "generatedAt": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "source": source,
         "routeCount": len(trips_by_route_short_name),
     }
@@ -137,12 +138,16 @@ def build_artifacts(input_dir: Path, output_dir: Path, source: str):
 
     for route_short_name, route_trips in trips_by_route_short_name.items():
         artifact_trips = []
+        route_shape_ids: set[str] = set()
+
         for trip in route_trips:
             trip_stop_times = sorted(stop_times_by_trip.get(trip["trip_id"], []), key=lambda item: item["seq"])
             if len(trip_stop_times) < 2:
                 continue
             start_stop = trip_stop_times[0]
             end_stop = trip_stop_times[-1]
+            if trip["shape_id"]:
+                route_shape_ids.add(trip["shape_id"])
             artifact_trips.append({
                 **trip,
                 "stops": [
@@ -155,7 +160,6 @@ def build_artifacts(input_dir: Path, output_dir: Path, source: str):
                     }
                     for stop in trip_stop_times
                 ],
-                "shape": shapes_by_id.get(trip["shape_id"] or "", []),
                 "start_stop_name": start_stop["stop_name"],
                 "end_stop_name": end_stop["stop_name"],
                 "start_time": start_stop["t"],
@@ -164,10 +168,18 @@ def build_artifacts(input_dir: Path, output_dir: Path, source: str):
                 "max_time": max(stop["t"] for stop in trip_stop_times),
             })
 
+        # Store shapes once per artifact, keyed by shape_id — not duplicated per trip.
+        route_shapes = {
+            shape_id: shapes_by_id[shape_id]
+            for shape_id in route_shape_ids
+            if shape_id in shapes_by_id
+        }
+
         output = {
             "generatedAt": manifest["generatedAt"],
             "source": source,
             "routeShortName": route_short_name,
+            "shapes": route_shapes,
             "trips": artifact_trips,
         }
         with (routes_dir / route_artifact_filename(route_short_name)).open("w", encoding="utf-8") as handle:

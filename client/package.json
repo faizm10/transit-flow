@@ -4,10 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
+    "build:artifacts": "python3 ../scripts/build_simulation_artifacts.py --input_dir public/gotransit --output_dir public/gotransit/derived/simulation --source gotransit && python3 ../scripts/build_simulation_artifacts.py --input_dir public/union-pearson --output_dir public/union-pearson/derived/simulation --source union-pearson",
+    "prebuild": "npm run build:artifacts",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "simulation:publish": "node ./scripts/publish-simulation-artifacts.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.72.1",
@@ -18,6 +21,7 @@
     "@turf/area": "^7.3.2",
     "@turf/bbox": "^7.3.2",
     "@types/mapbox-gl": "^3.4.1",
+    "@vercel/blob": "^2.3.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.562.0",

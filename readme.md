@@ -45,3 +45,12 @@ Simulation artifacts for production-style deployments:
 ```bash
 python3 scripts/build_simulation_artifacts.py --input_dir client/public/gotransit --output_dir client/public/gotransit/derived/simulation --source gotransit
 ```
+
+Publish GO simulation artifacts to Vercel Blob:
+
+```bash
+cd client
+npm run simulation:publish
+```
+
+The publish command prints the `SIMULATION_ARTIFACT_BASE_URL` value to use with `SIMULATION_DATA_MODE=remote`.

@@ -759,6 +759,13 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAutoNameRef = useRef<string | null>(null);
 
+  // Stable ref always pointing at the latest activeRoute — lets recompute read
+  // current values without them being listed as deps, which previously caused a
+  // circular loop: fetch → setCurrentRoute(durationSeconds) → new recompute ref
+  // → debounce fires → another fetch → repeat.
+  const activeRouteRef = useRef(activeRoute);
+  activeRouteRef.current = activeRoute;
+
   const createEmptyRoute = useCallback((): CustomRoute => {
     return {
       id: generateId(),
@@ -820,7 +827,16 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
     };
   }, []);
 
+  // recomputeRef lets the debounce effect always call the latest recompute
+  // without listing it as a dependency (avoids a secondary retrigger).
+  const recomputeRef = useRef<() => void>(() => undefined);
+
   const recompute = useCallback(() => {
+    // Read activeRoute from the ref — always current, never a stale closure,
+    // and NOT listed as a dep so writing durationSeconds/legDurations back into
+    // currentRoute does not create a new recompute reference → no loop.
+    const ar = activeRouteRef.current;
+
     if (stops.length < 2) {
       setRoute(null);
       setError(null);
@@ -828,16 +844,16 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
     }
 
     if (
-      activeRoute.mode === "train" &&
-      activeRoute.geometrySource === "manual-rail" &&
-      activeRoute.geometry?.coordinates?.length &&
-      activeRoute.durationSeconds
+      ar.mode === "train" &&
+      ar.geometrySource === "manual-rail" &&
+      ar.geometry?.coordinates?.length &&
+      ar.durationSeconds
     ) {
       setRoute({
-        geometry: activeRoute.geometry,
-        distance: geometryDistanceMeters(activeRoute.geometry),
-        duration: activeRoute.durationSeconds,
-        legDurations: activeRoute.legDurations ?? [activeRoute.durationSeconds],
+        geometry: ar.geometry,
+        distance: geometryDistanceMeters(ar.geometry),
+        duration: ar.durationSeconds,
+        legDurations: ar.legDurations ?? [ar.durationSeconds],
         geometrySource: "manual-rail",
       });
       setError(null);
@@ -851,7 +867,7 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
     setError(null);
 
     const request =
-      activeRoute.mode === "train"
+      ar.mode === "train"
         ? fetchRailRoute(stops, abortRef.current.signal)
         : (() => {
             const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
@@ -863,9 +879,9 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
             }
             return fetchDirections(
               stops.map((s) => ({ lng: s.lng, lat: s.lat })),
-              activeRoute.profile,
+              ar.profile,
               token,
-              abortRef.current.signal
+              abortRef.current!.signal
             );
           })();
 
@@ -902,16 +918,11 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
         setLoading(false);
         abortRef.current = null;
       });
-  }, [
-    stops,
-    activeRoute.mode,
-    activeRoute.profile,
-    activeRoute.geometry,
-    activeRoute.geometrySource,
-    activeRoute.durationSeconds,
-    activeRoute.legDurations,
-    createEmptyRoute,
-  ]);
+  // Only stops and createEmptyRoute are true inputs — activeRoute is read via
+  // activeRouteRef so its sub-fields don't appear here and can't cause a loop.
+  }, [stops, createEmptyRoute]);
+
+  recomputeRef.current = recompute;
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -924,12 +935,18 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
     }
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null;
-      recompute();
+      // Call via ref so this effect never needs recompute as a dependency —
+      // listing recompute here would re-arm the debounce whenever the fetch
+      // result wrote back durationSeconds, causing a second fetch on completion.
+      recomputeRef.current();
     }, DEBOUNCE_MS);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [stops, activeRoute.profile, activeRoute.mode, activeRoute.geometrySource, recompute]);
+  // activeRoute.profile / mode / geometrySource are the real user inputs that
+  // should trigger a fresh fetch. durationSeconds / legDurations are outputs
+  // written by the fetch and must NOT appear here.
+  }, [stops, activeRoute.profile, activeRoute.mode, activeRoute.geometrySource]);
 
   const updateCurrent = useCallback((updates: Partial<CustomRoute>) => {
     setCurrentRoute((prev) => {
