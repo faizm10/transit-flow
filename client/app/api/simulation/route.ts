@@ -870,6 +870,37 @@ function attachShapeIndices(
   });
 }
 
+function attachShapeIndicesToStops(
+  entry: TripStops,
+  shape: Array<{ lat: number; lon: number; seq: number }> | undefined,
+) {
+  if (!shape || shape.length < 2) return;
+  if (entry.stops.length < 2) return;
+
+  let searchStart = 0;
+  entry.stops.forEach((stop) => {
+    if (stop.shapeIndex !== null) {
+      searchStart = Math.max(searchStart, stop.shapeIndex);
+      return;
+    }
+
+    let bestIndex = searchStart;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (let i = searchStart; i < shape.length; i += 1) {
+      const point = shape[i];
+      const dx = point.lon - stop.lon;
+      const dy = point.lat - stop.lat;
+      const dist = dx * dx + dy * dy;
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIndex = i;
+      }
+    }
+    stop.shapeIndex = bestIndex;
+    searchStart = bestIndex;
+  });
+}
+
 async function buildSimulationDataRaw(options: {
   basePath: string;
   source: TripMeta["source"];
@@ -991,10 +1022,15 @@ async function buildSimulationDataFromArtifacts(options: {
           source: trip.source,
           shape_id: trip.shape_id,
         });
-        stops.set(
+        const tripStops = createTripStopsFromPattern(
+          payload.patterns[trip.patternId],
+          trip.times,
           trip.trip_id,
-          createTripStopsFromPattern(payload.patterns[trip.patternId], trip.times, trip.trip_id),
         );
+        if (trip.shape_id) {
+          attachShapeIndicesToStops(tripStops, payload.shapes[trip.shape_id]);
+        }
+        stops.set(trip.trip_id, tripStops);
       });
       return;
     }
