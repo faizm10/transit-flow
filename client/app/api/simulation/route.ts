@@ -136,6 +136,24 @@ function toFeedFolder(basePath: string) {
   return path.basename(basePath);
 }
 
+async function readLocalSimulationArtifactJson<T>(
+  basePath: string,
+  relativePath: string,
+): Promise<T> {
+  const filePath = path.join(basePath, "derived", "simulation", relativePath);
+  try {
+    return JSON.parse(await fs.readFile(filePath, "utf8")) as T;
+  } catch (error) {
+    throw new SimulationRouteError(
+      503,
+      SIMULATION_UNAVAILABLE_CODE,
+      "Simulation is temporarily unavailable for GTFS feed data.",
+      true,
+      `Failed to read simulation artifact ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 async function readSimulationArtifactJson<T>(
   basePath: string,
   relativePath: string,
@@ -154,35 +172,41 @@ async function readSimulationArtifactJson<T>(
     }
 
     const url = `${baseUrl.replace(/\/+$/, "")}/${toFeedFolder(basePath)}/${relativePath}`;
-    const response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-      },
-    });
-    if (!response.ok) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+      if (!response.ok) {
+        if (existsSync(path.join(basePath, "derived", "simulation", relativePath))) {
+          return readLocalSimulationArtifactJson<T>(basePath, relativePath);
+        }
+        throw new SimulationRouteError(
+          503,
+          SIMULATION_UNAVAILABLE_CODE,
+          "Simulation is temporarily unavailable for GTFS feed data.",
+          true,
+          `Remote simulation artifact request failed (${response.status}) for ${url}`,
+        );
+      }
+      return (await response.json()) as T;
+    } catch (error) {
+      if (existsSync(path.join(basePath, "derived", "simulation", relativePath))) {
+        return readLocalSimulationArtifactJson<T>(basePath, relativePath);
+      }
+      if (error instanceof SimulationRouteError) throw error;
       throw new SimulationRouteError(
         503,
         SIMULATION_UNAVAILABLE_CODE,
         "Simulation is temporarily unavailable for GTFS feed data.",
         true,
-        `Remote simulation artifact request failed (${response.status}) for ${url}`,
+        `Remote simulation artifact request failed for ${url}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
-    return (await response.json()) as T;
   }
 
-  const filePath = path.join(basePath, "derived", "simulation", relativePath);
-  try {
-    return JSON.parse(await fs.readFile(filePath, "utf8")) as T;
-  } catch (error) {
-    throw new SimulationRouteError(
-      503,
-      SIMULATION_UNAVAILABLE_CODE,
-      "Simulation is temporarily unavailable for GTFS feed data.",
-      true,
-      `Failed to read simulation artifact ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
+  return readLocalSimulationArtifactJson<T>(basePath, relativePath);
 }
 
 async function readInitialTextChunk(filePath: string, maxBytes: number) {
