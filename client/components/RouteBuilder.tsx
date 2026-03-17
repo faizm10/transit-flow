@@ -901,9 +901,10 @@ export function RouteBuilder({
 
   // Final cleanup on unmount
   useEffect(() => {
+    const markerMap = markerByIdRef.current;
     return () => {
-      markerByIdRef.current.forEach((m) => m.remove());
-      markerByIdRef.current.clear();
+      markerMap.forEach((m) => m.remove());
+      markerMap.clear();
     };
   }, []);
 

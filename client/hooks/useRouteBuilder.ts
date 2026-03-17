@@ -764,7 +764,9 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
   // circular loop: fetch → setCurrentRoute(durationSeconds) → new recompute ref
   // → debounce fires → another fetch → repeat.
   const activeRouteRef = useRef(activeRoute);
-  activeRouteRef.current = activeRoute;
+  useEffect(() => {
+    activeRouteRef.current = activeRoute;
+  }, [activeRoute]);
 
   const createEmptyRoute = useCallback((): CustomRoute => {
     return {
@@ -922,16 +924,19 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
   // activeRouteRef so its sub-fields don't appear here and can't cause a loop.
   }, [stops, createEmptyRoute]);
 
-  recomputeRef.current = recompute;
+  useEffect(() => {
+    recomputeRef.current = recompute;
+  }, [recompute]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (stops.length < 2) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setRoute(null);
-      setError(null);
-      setLoading(false);
-      return;
+      const resetTimer = setTimeout(() => {
+        setRoute(null);
+        setError(null);
+        setLoading(false);
+      }, 0);
+      return () => clearTimeout(resetTimer);
     }
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null;
@@ -965,8 +970,10 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
       currentName === "New Route" || currentName === lastAutoNameRef.current;
     if (!shouldUpdate || currentName === autoName) return;
     lastAutoNameRef.current = autoName;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    updateCurrent({ name: autoName });
+    const renameTimer = setTimeout(() => {
+      updateCurrent({ name: autoName });
+    }, 0);
+    return () => clearTimeout(renameTimer);
   }, [stops, activeRoute.name, updateCurrent]);
 
   const updateRouteById = useCallback(
