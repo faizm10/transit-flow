@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import path from "path";
-import { createReadStream } from "fs";
+import { createReadStream, existsSync } from "fs";
 import { promises as fs } from "fs";
 import readline from "readline";
 import { applyRateLimit, logApiEvent, normalizeStringArray } from "@/lib/server/api";
@@ -103,6 +103,13 @@ class SimulationRouteError extends Error {
   }
 }
 
+function hasLocalSimulationArtifacts() {
+  const root = path.join(process.cwd(), "public");
+  return ["gotransit", "union-pearson"].some((feed) =>
+    existsSync(path.join(root, feed, "derived", "simulation", "manifest.json"))
+  );
+}
+
 function getSimulationDataMode(): SimulationDataMode {
   const mode = process.env.SIMULATION_DATA_MODE?.trim().toLowerCase();
   if (mode === "precomputed" || mode === "remote" || mode === "raw") {
@@ -110,6 +117,9 @@ function getSimulationDataMode(): SimulationDataMode {
   }
   if (process.env.NODE_ENV === "production") {
     return process.env.SIMULATION_ARTIFACT_BASE_URL?.trim() ? "remote" : "precomputed";
+  }
+  if (hasLocalSimulationArtifacts()) {
+    return "precomputed";
   }
   return "raw";
 }
