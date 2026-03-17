@@ -1,5 +1,7 @@
 {
-  "generatedAt": "2026-03-16T22:20:06.230778Z",
+  "generatedAt": "2026-03-17T03:41:33.410130Z",
   "source": "union-pearson",
-  "routeCount": 1
+  "routeCount": 1,
+  "artifactVersion": 2,
+  "shardTargetBytes": 8388608
 }

@@ -80,10 +80,66 @@ type SimulationArtifactTrip = TripMeta & {
   max_time: number | null;
 };
 
-type SimulationArtifactPayload = {
+type LegacySimulationArtifactPayload = {
   trips: SimulationArtifactTrip[];
   shapes: Record<string, SimulationShapePoint[]>;
 };
+
+type SimulationPatternStop = {
+  stop_id: string;
+  stop_name: string;
+  lat: number;
+  lon: number;
+  seq: number;
+  shapeIndex: number | null;
+};
+
+type SimulationArtifactPattern = {
+  stops: SimulationPatternStop[];
+};
+
+type SimulationArtifactTripV2 = TripMeta & {
+  service_id: string;
+  patternId: string;
+  times: number[];
+};
+
+type SimulationArtifactShardDescriptor = {
+  id: string;
+  file: string;
+  tripCount: number;
+};
+
+type SimulationArtifactRoutePayloadV2 = {
+  version: 2;
+  kind: "route";
+  routeShortName: string;
+  shapes: Record<string, SimulationShapePoint[]>;
+  patterns: Record<string, SimulationArtifactPattern>;
+  trips: SimulationArtifactTripV2[];
+};
+
+type SimulationArtifactRouteManifestV2 = {
+  version: 2;
+  kind: "route-manifest";
+  routeShortName: string;
+  shapes: Record<string, SimulationShapePoint[]>;
+  patterns: Record<string, SimulationArtifactPattern>;
+  shards: SimulationArtifactShardDescriptor[];
+};
+
+type SimulationArtifactRouteShardV2 = {
+  version: 2;
+  kind: "route-shard";
+  routeShortName: string;
+  shardId: string;
+  trips: SimulationArtifactTripV2[];
+};
+
+type SimulationArtifactPayload =
+  | LegacySimulationArtifactPayload
+  | SimulationArtifactRoutePayloadV2
+  | SimulationArtifactRouteManifestV2;
 
 type StopTimesHeaderInfo = {
   headers: string[];
@@ -130,6 +186,104 @@ function getArtifactSourceForMode(mode: SimulationDataMode): SimulationArtifactS
 
 function getRouteArtifactFilename(routeShortName: string) {
   return `route-${encodeURIComponent(routeShortName)}.json`;
+}
+
+function isArtifactPayloadV2(
+  payload: SimulationArtifactPayload,
+): payload is SimulationArtifactRoutePayloadV2 | SimulationArtifactRouteManifestV2 {
+  return "version" in payload && payload.version === 2 && "kind" in payload;
+}
+
+function isRoutePayloadV2(
+  payload: SimulationArtifactPayload | SimulationArtifactRoutePayloadV2,
+): payload is SimulationArtifactRoutePayloadV2 {
+  return (
+    isArtifactPayloadV2(payload as SimulationArtifactPayload) &&
+    "kind" in payload &&
+    payload.kind === "route"
+  );
+}
+
+function createTripStopsFromPattern(
+  pattern: SimulationArtifactPattern | undefined,
+  times: number[],
+  tripId: string,
+): TripStops {
+  if (!pattern) {
+    throw new SimulationRouteError(
+      503,
+      SIMULATION_UNAVAILABLE_CODE,
+      "Simulation is temporarily unavailable for GTFS feed data.",
+      true,
+      `Pattern missing for trip ${tripId}`,
+    );
+  }
+  if (pattern.stops.length !== times.length) {
+    throw new SimulationRouteError(
+      503,
+      SIMULATION_UNAVAILABLE_CODE,
+      "Simulation is temporarily unavailable for GTFS feed data.",
+      true,
+      `Pattern/time length mismatch for trip ${tripId}`,
+    );
+  }
+
+  const stops = pattern.stops.map((stop, index) => ({
+    t: times[index] ?? 0,
+    lat: stop.lat,
+    lon: stop.lon,
+    seq: stop.seq,
+    shapeIndex: stop.shapeIndex,
+  }));
+  const first = pattern.stops[0];
+  const last = pattern.stops[pattern.stops.length - 1];
+
+  return {
+    stops,
+    minSeq: stops.length > 0 ? Math.min(...stops.map((stop) => stop.seq)) : null,
+    maxSeq: stops.length > 0 ? Math.max(...stops.map((stop) => stop.seq)) : null,
+    startStopName: first?.stop_name ?? "",
+    endStopName: last?.stop_name ?? "",
+    startTime: stops[0]?.t ?? null,
+    endTime: stops[stops.length - 1]?.t ?? null,
+    minTime: stops.length > 0 ? Math.min(...stops.map((stop) => stop.t)) : null,
+    maxTime: stops.length > 0 ? Math.max(...stops.map((stop) => stop.t)) : null,
+  };
+}
+
+async function readRouteArtifactPayload(
+  basePath: string,
+  routeShortName: string,
+  mode: Exclude<SimulationDataMode, "raw">,
+): Promise<LegacySimulationArtifactPayload | SimulationArtifactRoutePayloadV2> {
+  const payload = await readSimulationArtifactJson<SimulationArtifactPayload>(
+    basePath,
+    `routes/${getRouteArtifactFilename(routeShortName)}`,
+    mode,
+  );
+
+  if (!isArtifactPayloadV2(payload) || payload.kind !== "route-manifest") {
+    return payload as LegacySimulationArtifactPayload | SimulationArtifactRoutePayloadV2;
+  }
+
+  const shards = await Promise.all(
+    payload.shards.map((shard) =>
+      readSimulationArtifactJson<SimulationArtifactRouteShardV2>(
+        basePath,
+        `routes/${shard.file}`,
+        mode,
+      )
+    ),
+  );
+
+  return {
+    version: 2,
+    kind: "route",
+    routeShortName: payload.routeShortName,
+    shapes: payload.shapes,
+    patterns: payload.patterns,
+    trips: shards.flatMap((shard) => shard.trips),
+  };
 }
 
 function toFeedFolder(basePath: string) {
@@ -801,9 +955,9 @@ async function buildSimulationDataFromArtifacts(options: {
   const routeArtifacts = await Promise.all(
     Array.from(options.routeShortNameFilter).map(async (routeShortName) => ({
       routeShortName,
-      payload: await readSimulationArtifactJson<SimulationArtifactPayload>(
+      payload: await readRouteArtifactPayload(
         options.basePath,
-        `routes/${getRouteArtifactFilename(routeShortName)}`,
+        routeShortName,
         options.mode,
       ),
     })),
@@ -821,6 +975,29 @@ async function buildSimulationDataFromArtifacts(options: {
         shapes.set(shapeId, points);
       }
     });
+
+    if (isRoutePayloadV2(payload)) {
+      payload.trips.forEach((trip) => {
+        if (!activeServiceIds.has(trip.service_id)) return;
+        if (options.routeTypeFilter && !options.routeTypeFilter.has(trip.route_type)) return;
+
+        trips.set(trip.trip_id, {
+          trip_id: trip.trip_id,
+          route_id: trip.route_id,
+          route_short_name: trip.route_short_name,
+          route_long_name: trip.route_long_name,
+          route_type: trip.route_type,
+          direction_id: trip.direction_id,
+          source: trip.source,
+          shape_id: trip.shape_id,
+        });
+        stops.set(
+          trip.trip_id,
+          createTripStopsFromPattern(payload.patterns[trip.patternId], trip.times, trip.trip_id),
+        );
+      });
+      return;
+    }
 
     payload.trips.forEach((trip) => {
       if (!activeServiceIds.has(trip.service_id)) return;
