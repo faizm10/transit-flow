@@ -143,6 +143,8 @@ export type CustomRoute = {
   profile: DirectionsProfile;
   baseVariantId?: string;
   baseVariantLabel?: string;
+  baseTrainCorridorId?: string;
+  baseTrainCorridorLabel?: string;
   stops: Stop[];
   schedule?: Schedule;
   /** Route geometry from Mapbox Directions (required for simulation) */
@@ -155,7 +157,7 @@ export type CustomRoute = {
 };
 
 export function supportsBidirectionalSchedule(route: CustomRoute | null | undefined): boolean {
-  return !route?.baseVariantId;
+  return !route?.baseVariantId && !route?.baseTrainCorridorId;
 }
 
 export type GoVariantOption = {
@@ -408,6 +410,10 @@ function normalizeCustomRoute(raw: unknown): CustomRoute {
       : DEFAULT_PROFILE,
     baseVariantId: r?.baseVariantId != null ? String(r.baseVariantId) : undefined,
     baseVariantLabel: r?.baseVariantLabel != null ? String(r.baseVariantLabel) : undefined,
+    baseTrainCorridorId:
+      r?.baseTrainCorridorId != null ? String(r.baseTrainCorridorId) : undefined,
+    baseTrainCorridorLabel:
+      r?.baseTrainCorridorLabel != null ? String(r.baseTrainCorridorLabel) : undefined,
     stops,
     schedule: normalizeSchedule(r?.schedule),
     geometry: (r?.geometry as GeoJSON.LineString | undefined) ?? undefined,
@@ -1073,6 +1079,8 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
           mode: mode ?? base.mode,
           baseVariantId: variantId,
           baseVariantLabel: label,
+          baseTrainCorridorId: undefined,
+          baseTrainCorridorLabel: undefined,
           schedule: undefined,
         });
       });
@@ -1080,8 +1088,50 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
     [clearDerivedGeometry, createEmptyRoute, goVariantStops]
   );
 
+  const loadFromTrainCorridor = useCallback(
+    (
+      corridorId: string,
+      label: string,
+      corridorStops: Array<{
+        stop_id: string;
+        stop_name: string;
+        stop_lat: number;
+        stop_lon: number;
+      }>,
+    ) => {
+      if (!corridorStops || corridorStops.length === 0) return;
+      const newStops = corridorStops.map((stop) => ({
+        id: stopId(),
+        name: stop.stop_name,
+        lng: stop.stop_lon,
+        lat: stop.stop_lat,
+        timepoint: false,
+      }));
+      setCurrentRoute((prev) => {
+        const base = prev ?? createEmptyRoute();
+        return clearDerivedGeometry({
+          ...base,
+          name: label,
+          stops: newStops,
+          mode: "train",
+          baseVariantId: undefined,
+          baseVariantLabel: undefined,
+          baseTrainCorridorId: corridorId,
+          baseTrainCorridorLabel: label,
+          schedule: undefined,
+        });
+      });
+    },
+    [clearDerivedGeometry, createEmptyRoute],
+  );
+
   const clearBaseVariant = useCallback(() => {
-    updateCurrent({ baseVariantId: undefined, baseVariantLabel: undefined });
+    updateCurrent({
+      baseVariantId: undefined,
+      baseVariantLabel: undefined,
+      baseTrainCorridorId: undefined,
+      baseTrainCorridorLabel: undefined,
+    });
   }, [updateCurrent]);
 
   const saveRoute = useCallback(() => {
@@ -1214,6 +1264,7 @@ export function useRouteBuilder(goVariantStops: Record<string, GoVariantStop[]> 
     updateCurrent,
     updateRouteById,
     loadFromGoVariant,
+    loadFromTrainCorridor,
     applyManualGeometry: (geometry: GeoJSON.LineString) => {
       const result = buildManualRailRoute(stops, geometry);
       setRoute(result);

@@ -23,6 +23,7 @@ import { SidePanel } from "@/components/SidePanel";
 import { NetworksPanel } from "@/components/NetworksPanel";
 import { FiltersPanel } from "@/components/FiltersPanel";
 import { trackEvent } from "@/lib/telemetry";
+import type { TrainCorridor } from "@/lib/trainCorridors";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -197,6 +198,7 @@ export default function MapPage() {
       }>
     > | null
   >(null);
+  const [trainCorridors, setTrainCorridors] = useState<TrainCorridor[]>([]);
   const [showGoBuses, setShowGoBuses] = useState(true);
   const [showGoTrains, setShowGoTrains] = useState(true);
   const [showGoTransit, setShowGoTransit] = useState(true);
@@ -348,6 +350,7 @@ export default function MapPage() {
   const [simulationSpeed, setSimulationSpeed] = useState(60);
   const [focusedSimulationTripId, setFocusedSimulationTripId] = useState<string | null>(null);
   const [includeUpxInSimulation, setIncludeUpxInSimulation] = useState(false);
+  const hasMergedInitialTrainCorridors = useRef(false);
   const animationFrame = useRef<number | null>(null);
   const lastFrameTime = useRef<number | null>(null);
   const lastFollowCameraUpdate = useRef<number>(0);
@@ -474,6 +477,22 @@ export default function MapPage() {
     fetchVariantStops();
   }, []);
 
+  useEffect(() => {
+    const fetchTrainCorridors = async () => {
+      try {
+        const response = await fetch("/api/train-corridors");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = (await response.json()) as { corridors?: TrainCorridor[] };
+        setTrainCorridors(data.corridors ?? []);
+      } catch (error) {
+        console.error("Failed to fetch train corridors:", error);
+      }
+    };
+    fetchTrainCorridors();
+  }, []);
+
   const routeById = useMemo(() => {
     const map = new Map<string, (typeof goRoutes)[number]>();
     goRoutes.forEach((route) => map.set(route.route_id, route));
@@ -498,14 +517,23 @@ export default function MapPage() {
       .sort((a, b) => a.localeCompare(b));
   }, [goRoutes]);
 
+  const trainCorridorById = useMemo(() => {
+    const map = new Map<string, TrainCorridor>();
+    trainCorridors.forEach((corridor) => {
+      map.set(corridor.corridorId, corridor);
+    });
+    return map;
+  }, [trainCorridors]);
+
+  const upxCorridor = useMemo(
+    () => trainCorridors.find((corridor) => corridor.source === "upx") ?? null,
+    [trainCorridors],
+  );
+
   const simulationRouteOptions = useMemo(() => {
-    const trainCodes = goRoutes
-      .filter((route) => String(route.route_type) === "2")
-      .map((route) => route.route_short_name)
-      .filter(Boolean);
-    const requestedTrainCodes = ["KI", "LW", "LE", "BR", "ST", "RH", "MI"];
+    const trainCodes = trainCorridors.map((corridor) => corridor.routeShortName).filter(Boolean);
     const goOptions = Array.from(
-      new Set([...busRoutes, ...trainCodes, ...requestedTrainCodes]),
+      new Set([...busRoutes, ...trainCodes]),
     )
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
       .map((v) => ({ value: v, label: v }));
@@ -519,7 +547,7 @@ export default function MapPage() {
       if (!aCustom && bCustom) return 1;
       return a.label.localeCompare(b.label, undefined, { numeric: true });
     });
-  }, [busRoutes, goRoutes, savedCustomRoutes]);
+  }, [busRoutes, savedCustomRoutes, trainCorridors]);
 
   const variantLookup = useMemo(() => {
     const map = new Map<
@@ -629,14 +657,14 @@ export default function MapPage() {
 
   const displayVariantLines = useMemo(() => {
     if (!goVariantLines) return null;
-    return {
-      type: "FeatureCollection",
-      features: goVariantLines.features.map((feature) => {
+    const busFeatures = goVariantLines.features
+      .map((feature) => {
         const props = feature.properties as Record<string, string>;
         const routeId = props.route_id || "";
         const routeShortName = props.route_short_name || "";
         const routeInfo = routeById.get(routeId);
         const routeType = routeInfo ? String(routeInfo.route_type) : "";
+        if (routeType === "2") return null;
         const routeColor = colorForRoute(routeShortName || routeId);
         return {
           ...feature,
@@ -646,17 +674,44 @@ export default function MapPage() {
             route_color: routeColor,
           },
         } as GeoJSON.Feature;
-      }),
+      })
+      .filter(Boolean) as GeoJSON.Feature[];
+
+    const goTrainCorridorFeatures = trainCorridors
+      .filter((corridor) => corridor.source === "go-train")
+      .map((corridor) => ({
+        type: "Feature",
+        geometry: corridor.geometry,
+        properties: {
+          variant_id: corridor.corridorId,
+          route_id: corridor.corridorId,
+          route_short_name: corridor.routeShortName,
+          route_type: "2",
+          route_color: corridor.routeColor,
+          label: corridor.routeLabel,
+          route_variant: corridor.routeLabel,
+        },
+      })) as GeoJSON.Feature[];
+
+    return {
+      type: "FeatureCollection",
+      features: [...busFeatures, ...goTrainCorridorFeatures],
     } as GeoJSON.FeatureCollection;
-  }, [goVariantLines, routeById, colorForRoute]);
+  }, [goVariantLines, routeById, colorForRoute, trainCorridors]);
 
   const allVariantIds = useMemo(() => {
     const ids: string[] = [];
     Object.values(goVariantsIndex).forEach((variants) => {
-      variants.forEach((variant) => ids.push(variant.variant_id));
+      variants.forEach((variant) => {
+        const routeInfo = routeById.get(variant.route_id);
+        if (String(routeInfo?.route_type ?? "") !== "2") {
+          ids.push(variant.variant_id);
+        }
+      });
     });
+    trainCorridors.forEach((corridor) => ids.push(corridor.corridorId));
     return ids;
-  }, [goVariantsIndex]);
+  }, [goVariantsIndex, routeById, trainCorridors]);
 
   useEffect(() => {
     if (!hasInitializedGoVariants.current && allVariantIds.length > 0) {
@@ -666,16 +721,29 @@ export default function MapPage() {
   }, [allVariantIds]);
 
   useEffect(() => {
+    if (!hasInitializedGoVariants.current) return;
+    if (hasMergedInitialTrainCorridors.current) return;
+    if (trainCorridors.length === 0) return;
+
+    const trainIds = trainCorridors.map((corridor) => corridor.corridorId);
+    setSelectedVariantIds((prev) => Array.from(new Set([...prev, ...trainIds])));
+    hasMergedInitialTrainCorridors.current = true;
+  }, [trainCorridors]);
+
+  useEffect(() => {
     const selectedRoutes = simulationRoutes.map((route) => route.trim()).filter(Boolean);
     if (selectedRoutes.length === 0) {
-      setSelectedVariantIds([]);
       return;
     }
 
     const goRoutesOnly = selectedRoutes.filter((r) => !r.startsWith("custom:"));
-    const variantIds = goRoutesOnly.flatMap(
-      (route) => (goVariantsIndex[route] || []).map((variant) => variant.variant_id),
-    );
+    const variantIds = goRoutesOnly.flatMap((route) => {
+      const matchedCorridor = trainCorridors.find((corridor) => corridor.routeShortName === route);
+      if (matchedCorridor) {
+        return [matchedCorridor.corridorId];
+      }
+      return (goVariantsIndex[route] || []).map((variant) => variant.variant_id);
+    });
     const uniqueVariantIds = Array.from(new Set(variantIds));
     setSelectedVariantIds((prev) => {
       if (
@@ -686,250 +754,16 @@ export default function MapPage() {
       }
       return uniqueVariantIds;
     });
-  }, [simulationRoutes, goVariantsIndex]);
-
-  // Helper function to check if two stop sequences are reversed
-  const areStopsReversed = useCallback(
-    (stops1: Array<{ stop_id: string }>, stops2: Array<{ stop_id: string }>) => {
-      if (!stops1 || !stops2 || stops1.length === 0 || stops2.length === 0) {
-        return false;
-      }
-      
-      // If lengths don't match, they can't be exact reverses, but check if one is contained in the reverse of the other
-      if (stops1.length !== stops2.length) {
-        // Check if the shorter sequence matches the reverse of the longer one
-        const shorter = stops1.length < stops2.length ? stops1 : stops2;
-        const longer = stops1.length >= stops2.length ? stops1 : stops2;
-        const reversedLonger = [...longer].reverse();
-        
-        // Check if shorter sequence matches the start or end of reversed longer sequence
-        let matchesStart = true;
-        let matchesEnd = true;
-        for (let i = 0; i < shorter.length; i += 1) {
-          if (shorter[i].stop_id !== reversedLonger[i]?.stop_id) {
-            matchesStart = false;
-          }
-          if (shorter[i].stop_id !== reversedLonger[reversedLonger.length - shorter.length + i]?.stop_id) {
-            matchesEnd = false;
-          }
-        }
-        return matchesStart || matchesEnd;
-      }
-      
-      // Check if stops1 reversed equals stops2 (exact match)
-      for (let i = 0; i < stops1.length; i += 1) {
-        if (stops1[i]?.stop_id !== stops2[stops2.length - 1 - i]?.stop_id) {
-          return false;
-        }
-      }
-      return true;
-    },
-    [],
-  );
-
-  // Helper function to create a better name for merged bidirectional routes
-  const createMergedRouteName = useCallback(
-    (
-      stops1: Array<{ stop_name: string }>,
-      stops2: Array<{ stop_name: string }>,
-    ) => {
-      if (!stops1 || !stops2 || stops1.length === 0 || stops2.length === 0) {
-        return "";
-      }
-
-      const getStopShortName = (fullName: string): string => {
-        if (!fullName) return "";
-        // Extract key parts of stop names
-        // e.g., "Union Station" -> "Union", "Mount Pleasant GO" -> "Mount Pleasant"
-        const name = fullName.toLowerCase().trim();
-        
-        // Common stop name patterns
-        if (name.includes("union")) return "Union";
-        if (name.includes("mount pleasant")) return "Mount Pleasant";
-        if (name.includes("bramalea")) return "Bramalea";
-        if (name.includes("brampton")) return "Brampton";
-        if (name.includes("kitchener")) return "Kitchener";
-        if (name.includes("guelph")) return "Guelph";
-        if (name.includes("georgetown")) return "Georgetown";
-        if (name.includes("acton")) return "Acton";
-        if (name.includes("milton")) return "Milton";
-        if (name.includes("oakville")) return "Oakville";
-        if (name.includes("burlington")) return "Burlington";
-        if (name.includes("hamilton")) return "Hamilton";
-        if (name.includes("stouffville")) return "Stouffville";
-        if (name.includes("richmond hill")) return "Richmond Hill";
-        if (name.includes("barrie")) return "Barrie";
-        if (name.includes("allandale")) return "Allandale";
-        
-        // Remove common suffixes
-        const cleaned = fullName
-          .replace(/\s+GO\s*$/i, "")
-          .replace(/\s+Station\s*$/i, "")
-          .replace(/\s+Stop\s*$/i, "")
-          .trim();
-        
-        // If still long, take first 2 words max
-        const words = cleaned.split(/\s+/);
-        if (words.length > 2) {
-          return words.slice(0, 2).join(" ");
-        }
-        return cleaned || fullName;
-      };
-
-      const start1 = getStopShortName(stops1[0]?.stop_name || "");
-      const end1 = getStopShortName(stops1[stops1.length - 1]?.stop_name || "");
-      // Use the first direction's stops for naming (stops1)
-      // Format: "Start - End"
-      const name = `${start1} - ${end1}`;
-
-      // Check if it's an express route (fewer stops than typical)
-      // Typical routes have 6+ stops, express routes have 5 or fewer
-      const isExpress = stops1.length <= 5 || stops2.length <= 5;
-      const expressSuffix = isExpress ? " (Express)" : "";
-
-      return name + expressSuffix;
-    },
-    [],
-  );
+  }, [simulationRoutes, goVariantsIndex, trainCorridors]);
 
   const groupedGoVariants = useMemo(() => {
     const term = goVariantFilterText.trim().toLowerCase();
-    return Object.entries(goVariantsIndex)
+    const busGroups = Object.entries(goVariantsIndex)
       .map(([routeShortName, variants]) => {
         const routeInfo = routeByShortName.get(routeShortName);
-        const isTrain = routeInfo && String(routeInfo.route_type) === "2";
-
-        // For trains, try to merge bidirectional routes
-        if (isTrain && goVariantStops) {
-          const merged = new Map<
-            string,
-            {
-              displayKey: string;
-              variantIds: string[];
-              labels: string[];
-            }
-          >();
-          const processed = new Set<string>();
-
-          // Try to find and merge bidirectional pairs across all variants
-          // Look for pairs with different direction_ids that have reversed stops
-          const dir0 = variants.filter((v) => v.direction_id === 0);
-          const dir1 = variants.filter((v) => v.direction_id === 1);
-
-          // Try to find matching pairs
-          for (const v0 of dir0) {
-            if (processed.has(v0.variant_id)) continue;
-
-            for (const v1 of dir1) {
-              if (processed.has(v1.variant_id)) continue;
-
-              const stops0 = goVariantStops[v0.variant_id] || [];
-              const stops1 = goVariantStops[v1.variant_id] || [];
-
-              if (areStopsReversed(stops0, stops1)) {
-                // Found a bidirectional match - merge them
-                const mergedName = createMergedRouteName(stops0, stops1);
-                const displayKey = mergedName || routeShortName;
-
-                const haystack = `${routeShortName} ${displayKey} ${v0.label} ${v1.label}`
-                  .trim()
-                  .toLowerCase();
-                if (term && !haystack.includes(term)) {
-                  processed.add(v0.variant_id);
-                  processed.add(v1.variant_id);
-                  continue;
-                }
-
-                merged.set(displayKey, {
-                  displayKey,
-                  variantIds: [v0.variant_id, v1.variant_id],
-                  labels: [v0.label, v1.label].filter(Boolean),
-                });
-                processed.add(v0.variant_id);
-                processed.add(v1.variant_id);
-                break; // Found a match for v0, move to next
-              }
-            }
-          }
-
-          // Add unmerged variants
-          variants.forEach((variant) => {
-            if (processed.has(variant.variant_id)) return;
-
-            // For unmerged variants, create a display key based on stops if available
-            let displayKey = variant.route_variant || variant.variant_id || routeShortName;
-            
-            // Try to create a better name from stops if available
-            const stops = goVariantStops[variant.variant_id];
-            if (stops && stops.length > 0) {
-              const firstStop = stops[0]?.stop_name || "";
-              const lastStop = stops[stops.length - 1]?.stop_name || "";
-              if (firstStop && lastStop) {
-                const getStopShortName = (fullName: string): string => {
-                  if (!fullName) return "";
-                  const name = fullName.toLowerCase().trim();
-                  if (name.includes("union")) return "Union";
-                  if (name.includes("mount pleasant")) return "Mount Pleasant";
-                  if (name.includes("bramalea")) return "Bramalea";
-                  if (name.includes("brampton")) return "Brampton";
-                  if (name.includes("kitchener")) return "Kitchener";
-                  if (name.includes("guelph")) return "Guelph";
-                  if (name.includes("georgetown")) return "Georgetown";
-                  if (name.includes("acton")) return "Acton";
-                  if (name.includes("milton")) return "Milton";
-                  if (name.includes("oakville")) return "Oakville";
-                  if (name.includes("burlington")) return "Burlington";
-                  if (name.includes("hamilton")) return "Hamilton";
-                  if (name.includes("stouffville")) return "Stouffville";
-                  if (name.includes("richmond hill")) return "Richmond Hill";
-                  if (name.includes("barrie")) return "Barrie";
-                  if (name.includes("allandale")) return "Allandale";
-                  const cleaned = fullName
-                    .replace(/\s+GO\s*$/i, "")
-                    .replace(/\s+Station\s*$/i, "")
-                    .replace(/\s+Stop\s*$/i, "")
-                    .trim();
-                  const words = cleaned.split(/\s+/);
-                  if (words.length > 2) {
-                    return words.slice(0, 2).join(" ");
-                  }
-                  return cleaned || fullName;
-                };
-                const start = getStopShortName(firstStop);
-                const end = getStopShortName(lastStop);
-                if (start && end) {
-                  const isExpress = stops.length <= 5;
-                  displayKey = `${start} - ${end}${isExpress ? " (Express)" : ""}`;
-                }
-              }
-            }
-            
-            const haystack = `${routeShortName} ${displayKey} ${variant.label}`
-              .trim()
-              .toLowerCase();
-            if (term && !haystack.includes(term)) return;
-
-            if (!merged.has(displayKey)) {
-              merged.set(displayKey, {
-                displayKey,
-                variantIds: [],
-                labels: [],
-              });
-            }
-            const entry = merged.get(displayKey)!;
-            entry.variantIds.push(variant.variant_id);
-            if (variant.label) {
-              entry.labels.push(variant.label);
-            }
-          });
-
-          const items = Array.from(merged.values()).sort((a, b) =>
-            a.displayKey.localeCompare(b.displayKey),
-          );
-          return { routeShortName, items };
+        if (routeInfo && String(routeInfo.route_type) === "2") {
+          return null;
         }
-
-        // For non-trains or when stops data isn't available, use original logic
         const grouped = new Map<
           string,
           {
@@ -963,19 +797,32 @@ export default function MapPage() {
 
         const items = Array.from(grouped.values()).sort((a, b) =>
           a.displayKey.localeCompare(b.displayKey),
-        );
+          );
         return { routeShortName, items };
       })
+      .filter(Boolean) as Array<{ routeShortName: string; items: { displayKey: string; variantIds: string[]; labels: string[] }[] }>;
+
+    const trainGroups = trainCorridors
+      .map((corridor) => {
+        const haystack = `${corridor.routeShortName} ${corridor.routeLabel}`.toLowerCase();
+        if (term && !haystack.includes(term)) return null;
+        return {
+          routeShortName: corridor.routeShortName,
+          items: [
+            {
+              displayKey: corridor.routeLabel,
+              variantIds: [corridor.corridorId],
+              labels: [corridor.routeLabel],
+            },
+          ],
+        };
+      })
+      .filter(Boolean) as Array<{ routeShortName: string; items: { displayKey: string; variantIds: string[]; labels: string[] }[] }>;
+
+    return [...busGroups, ...trainGroups]
       .filter((group) => group.items.length > 0)
       .sort((a, b) => a.routeShortName.localeCompare(b.routeShortName));
-  }, [
-    goVariantsIndex,
-    goVariantFilterText,
-    goVariantStops,
-    routeByShortName,
-    areStopsReversed,
-    createMergedRouteName,
-  ]);
+  }, [goVariantFilterText, goVariantsIndex, routeByShortName, trainCorridors]);
 
   
 
@@ -1287,15 +1134,18 @@ export default function MapPage() {
   useEffect(() => {
     if (map.current && map.current.isStyleLoaded()) {
       if (map.current.getLayer("union-pearson-express-layer")) {
+        const upxSelected =
+          !hasInitializedGoVariants.current ||
+          (upxCorridor ? selectedVariantIds.includes(upxCorridor.corridorId) : true);
         map.current.setLayoutProperty(
           "union-pearson-express-layer",
           "visibility",
-          showUnionPearson ? "visible" : "none",
+          showUnionPearson && showGoTrains && upxSelected ? "visible" : "none",
         );
       }
 
     }
-  }, [showUnionPearson]);
+  }, [selectedVariantIds, showGoTrains, showUnionPearson, upxCorridor]);
 
   // Update GO Transit layer visibility
   useEffect(() => {
@@ -1417,9 +1267,33 @@ export default function MapPage() {
   }, [mapReady, ensureSimulationLayer]);
 
   const selectedVariantStops = useMemo(() => {
-    if (!goVariantStops) return null;
     const features: GeoJSON.Feature[] = [];
     selectedVariantIds.forEach((variantId) => {
+      const corridor = trainCorridorById.get(variantId);
+      if (corridor) {
+        corridor.stations.forEach((stop) => {
+          if (!shouldShowMajorStop(stop.stop_name, corridor.routeShortName, "2")) {
+            return;
+          }
+          features.push({
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: [stop.stop_lon, stop.stop_lat],
+            },
+            properties: {
+              variant_id: corridor.corridorId,
+              stop_id: stop.stop_id,
+              stop_name: stop.stop_name,
+              stop_sequence: stop.stop_sequence,
+              route_short_name: corridor.routeShortName,
+              route_type: "2",
+            },
+          });
+        });
+        return;
+      }
+      if (!goVariantStops) return;
       const stops = goVariantStops[variantId] || [];
       const lookup = variantLookup.get(variantId);
       const routeInfo = lookup ? routeById.get(lookup.route_id) : null;
@@ -1459,7 +1333,7 @@ export default function MapPage() {
       type: "FeatureCollection",
       features,
     } as GeoJSON.FeatureCollection;
-  }, [goVariantStops, selectedVariantIds, variantLookup, routeById]);
+  }, [goVariantStops, selectedVariantIds, trainCorridorById, variantLookup, routeById]);
 
   const customRoutesGeoJSON = useMemo(() => {
     const features: GeoJSON.Feature<GeoJSON.LineString>[] = [];
@@ -2766,6 +2640,7 @@ export default function MapPage() {
               goVariantsIndex={goVariantsIndex}
               goVariantStops={goVariantStops}
               goRouteTypes={goRouteTypes}
+              trainCorridors={trainCorridors}
               showCustomNetwork={showCustomNetwork}
             />
           </div>

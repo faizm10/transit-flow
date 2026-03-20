@@ -46,10 +46,10 @@ export function FiltersPanel({
       <div className="space-y-3 rounded-[22px] border border-white/45 bg-white/42 p-3 shadow-[var(--glass-shadow-soft)]">
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-            Route variants
+            Transit lines
           </div>
           <p className="mt-1.5 text-[11px] text-slate-700">
-            Narrow active services by family, mode, or specific branch.
+            Narrow active services by family, mode, or specific line.
           </p>
         </div>
         <div className="relative">

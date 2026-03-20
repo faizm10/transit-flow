@@ -25,6 +25,7 @@ import { fetchDirections } from "@/lib/mapboxDirections";
 import type { } from "@/lib/mapboxDirections";
 import { RouteScorecard } from "@/components/RouteScorecard";
 import type { ScheduleFrequency } from "@/hooks/useRouteBuilder";
+import type { TrainCorridor } from "@/lib/trainCorridors";
 import {
   ScheduleBuilderModal,
   type ScheduleRouteTarget,
@@ -63,6 +64,12 @@ type GoScheduleBuilderPayload = {
   routeLabel: string;
   directionId: number;
   seededSchedule?: Schedule;
+  stationTimings?: Array<{
+    stop_id: string;
+    stop_name: string;
+    stop_sequence: number;
+    departureTimes: string[];
+  }>;
   stopTimings: Array<{
     stop_id: string;
     stop_name: string;
@@ -106,6 +113,7 @@ type RouteBuilderProps = {
   goVariantsIndex: GoVariantsIndex | null;
   goVariantStops: Record<string, GoVariantStop[]> | null;
   goRouteTypes?: Record<string, string>;
+  trainCorridors?: TrainCorridor[];
   showCustomNetwork?: boolean;
 };
 
@@ -118,6 +126,7 @@ const QUICK_STYLE_CONFIG = {
 } as const;
 
 type QuickStyle = keyof typeof QUICK_STYLE_CONFIG;
+type BuilderInteractionState = "idle" | "pinning" | "dragging" | "drawing-rail";
 
 function buildStopId(): string {
   return `stop-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -206,6 +215,7 @@ export function RouteBuilder({
   goVariantsIndex,
   goVariantStops,
   goRouteTypes = {},
+  trainCorridors = [],
   showCustomNetwork = true,
 }: RouteBuilderProps) {
   const {
@@ -229,6 +239,7 @@ export function RouteBuilder({
     updateCurrent,
     updateRouteById,
     loadFromGoVariant,
+    loadFromTrainCorridor,
     setMode,
     applyManualGeometry,
   } = useRouteBuilder(goVariantStops);
@@ -248,16 +259,32 @@ export function RouteBuilder({
   const goScheduleCacheRef = useRef<Map<string, GoScheduleBuilderPayload>>(new Map());
 
   const goVariantOptions = useMemo(() => {
-    if (!goVariantsIndex) return new Map();
-    const groupedOptions = new Map<string, { value: string; label: string; routeShortName: string }[]>();
+    const groupedOptions = new Map<
+      string,
+      {
+        value: string;
+        label: string;
+        routeShortName: string;
+        kind: "variant" | "train-corridor";
+      }[]
+    >();
 
-    Object.entries(goVariantsIndex).forEach(([routeShortName, variants]) => {
-      const optionsForGroup: { value: string; label: string; routeShortName: string }[] = [];
+    Object.entries(goVariantsIndex ?? {}).forEach(([routeShortName, variants]) => {
+      const optionsForGroup: Array<{
+        value: string;
+        label: string;
+        routeShortName: string;
+        kind: "variant" | "train-corridor";
+      }> = [];
       variants.forEach((variant) => {
+        if (goRouteTypes[routeShortName] === "2") {
+          return;
+        }
         optionsForGroup.push({
           value: variant.variant_id,
           label: `${routeShortName} - ${variant.label}`,
           routeShortName,
+          kind: "variant",
         });
       });
       if (optionsForGroup.length > 0) {
@@ -265,10 +292,42 @@ export function RouteBuilder({
       }
     });
 
+    trainCorridors.forEach((corridor) => {
+      groupedOptions.set(corridor.routeShortName, [
+        {
+          value: corridor.corridorId,
+          label: corridor.routeLabel,
+          routeShortName: corridor.routeShortName,
+          kind: "train-corridor",
+        },
+      ]);
+    });
+
     return new Map([...groupedOptions.entries()].sort((a, b) => a[0].localeCompare(b[0])));
-  }, [goVariantsIndex]);
+  }, [goRouteTypes, goVariantsIndex, trainCorridors]);
+
+  const builderImportOptions = useMemo(() => {
+    const next = new Map<
+      string,
+      {
+        value: string;
+        label: string;
+        routeShortName: string;
+        kind: "variant" | "train-corridor";
+      }[]
+    >();
+    goVariantOptions.forEach((options, groupName) => {
+      const filtered = options.filter((option) =>
+        mode === "train" ? option.kind === "train-corridor" : option.kind === "variant",
+      );
+      if (filtered.length > 0) {
+        next.set(groupName, filtered);
+      }
+    });
+    return next;
+  }, [goVariantOptions, mode]);
   
-  const [pinMode, setPinMode] = useState(false);
+  const [interactionState, setInteractionState] = useState<BuilderInteractionState>("idle");
   const [pinCandidate, setPinCandidate] = useState<{
     id: string;
     lat: number;
@@ -277,7 +336,6 @@ export function RouteBuilder({
   const [pinName, setPinName] = useState("Pinned stop");
   const [showPinNameDialog, setShowPinNameDialog] = useState(false);
   const [showPinSaveDialog, setShowPinSaveDialog] = useState(false);
-  const [isRailDrawing, setIsRailDrawing] = useState(false);
   // Keyed by stop.id so we can reconcile without full teardown/rebuild.
   const markerByIdRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const drawRef = useRef<MapboxDraw | null>(null);
@@ -287,6 +345,13 @@ export function RouteBuilder({
   const rawQuickEndRef = useRef<Stop | null>(null);
   const routeColor = activeRoute.color;
   const isTrainMode = mode === "train";
+  const isPinning = interactionState === "pinning";
+  const isRailDrawing = interactionState === "drawing-rail";
+  const canDragStops =
+    !isTrainMode &&
+    buildMode === "manual" &&
+    interactionState !== "pinning" &&
+    interactionState !== "drawing-rail";
 
   const isActive = enabled || showCustomNetwork;
   const selectedStop = useMemo(
@@ -595,7 +660,11 @@ export function RouteBuilder({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const startPin = () => {
-      setPinMode(true);
+      if (drawRef.current) {
+        drawRef.current.deleteAll();
+        drawRef.current.changeMode("simple_select");
+      }
+      setInteractionState("pinning");
       setSelectedStopId(null);
     };
     window.addEventListener("route-builder-pin-start", startPin);
@@ -606,10 +675,10 @@ export function RouteBuilder({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!showPanel && pinMode) {
+    if (!showPanel && interactionState === "pinning") {
       window.dispatchEvent(new CustomEvent("route-builder-open"));
     }
-  }, [pinMode, showPanel]);
+  }, [interactionState, showPanel]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -685,24 +754,45 @@ export function RouteBuilder({
 
   const startRailDraw = useCallback(() => {
     const map = mapRef.current;
-    if (!map || !drawRef.current || !isTrainMode || stops.length < 2) return;
+    if (!map || !mapReady || !enabled || !isTrainMode || stops.length < 2) return;
+    if (!drawRef.current) {
+      drawRef.current = new MapboxDraw({
+        displayControlsDefault: false,
+      });
+      map.addControl(drawRef.current, "top-left");
+    }
     drawRef.current.deleteAll();
     drawRef.current.changeMode("draw_line_string");
-    map.getCanvas().style.cursor = "crosshair";
-    setIsRailDrawing(true);
-  }, [isTrainMode, mapRef, stops.length]);
+    setInteractionState("drawing-rail");
+    setSelectedStopId(null);
+  }, [enabled, isTrainMode, mapReady, mapRef, stops.length]);
 
   const cancelRailDraw = useCallback(() => {
-    const map = mapRef.current;
     if (drawRef.current) {
       drawRef.current.deleteAll();
       drawRef.current.changeMode("simple_select");
     }
-    if (map) {
-      map.getCanvas().style.cursor = "";
-    }
-    setIsRailDrawing(false);
-  }, [mapRef]);
+    setInteractionState((current) => (current === "drawing-rail" ? "idle" : current));
+  }, []);
+
+  const startPinPlacement = useCallback(() => {
+    cancelRailDraw();
+    setInteractionState("pinning");
+    setSelectedStopId(null);
+  }, [cancelRailDraw]);
+
+  const selectBuilderMode = useCallback(
+    (nextMode: "bus" | "train") => {
+      cancelRailDraw();
+      setMode(nextMode);
+      setBuildMode("manual");
+      setInteractionState("idle");
+      setShowGoVariantSelector(nextMode === "train");
+      setSelectedGoVariant(null);
+      setSelectedStopId(null);
+    },
+    [cancelRailDraw, setMode],
+  );
 
   // Ensure route layer exists when active; remove on unmount
   useEffect(() => {
@@ -765,11 +855,18 @@ export function RouteBuilder({
       });
       cancelRailDraw();
     };
+    const handleDrawModeChange = (event: { mode: string }) => {
+      if (event.mode !== "draw_line_string") {
+        setInteractionState((current) => (current === "drawing-rail" ? "idle" : current));
+      }
+    };
 
     map.on("draw.create", handleDrawCreate);
+    map.on("draw.modechange", handleDrawModeChange);
 
     return () => {
       map.off("draw.create", handleDrawCreate);
+      map.off("draw.modechange", handleDrawModeChange);
       if (drawRef.current) {
         map.removeControl(drawRef.current);
         drawRef.current = null;
@@ -797,26 +894,34 @@ export function RouteBuilder({
     }
   }, [mapRef, mapReady, isActive, route?.geometry, activeRoute.geometry]);
 
-  // Map click to pin stop (only when pin mode is active)
+  // Map click to pin stop (only when pinning is active)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady || (!enabled && !pinMode) || !pinMode) return;
+    if (!map || !mapReady || (!enabled && !isPinning) || !isPinning) return;
 
     const handleClick = (e: mapboxgl.MapMouseEvent) => {
       const { lng, lat } = e.lngLat;
       setPinCandidate({ id: buildStopId(), lat, lng });
       setPinName("Pinned stop");
       setShowPinNameDialog(true);
-      setPinMode(false);
+      setInteractionState("idle");
     };
 
     map.on("click", handleClick);
-    map.getCanvas().style.cursor = "crosshair";
     return () => {
       map.off("click", handleClick);
+    };
+  }, [mapRef, mapReady, enabled, isPinning]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    map.getCanvas().style.cursor =
+      interactionState === "pinning" || interactionState === "drawing-rail" ? "crosshair" : "";
+    return () => {
       map.getCanvas().style.cursor = "";
     };
-  }, [mapRef, mapReady, enabled, pinMode]);
+  }, [interactionState, mapReady, mapRef]);
 
   // When buildMode changes, wipe the marker cache so every marker is recreated
   // with the correct draggable setting (Mapbox Marker doesn't support setDraggable).
@@ -824,7 +929,7 @@ export function RouteBuilder({
     const markerMap = markerByIdRef.current;
     markerMap.forEach((m) => m.remove());
     markerMap.clear();
-  }, [buildMode]);
+  }, [buildMode, canDragStops, interactionState, mode]);
 
   // Reconcile markers by stop ID — only create/remove what actually changed.
   // With 16 stops this previously destroyed and recreated all 16 DOM nodes on
@@ -855,6 +960,8 @@ export function RouteBuilder({
         existing.setLngLat([stop.lng, stop.lat]);
         const el = existing.getElement();
         el.textContent = String(index + 1);
+        el.style.cursor = canDragStops ? "grab" : "pointer";
+        el.style.pointerEvents = isRailDrawing ? "none" : "auto";
         el.style.boxShadow = stop.timepoint
           ? "0 0 0 2px rgba(255,255,255,0.8), 0 2px 6px rgba(0,0,0,0.3)"
           : "0 2px 6px rgba(0,0,0,0.3)";
@@ -866,10 +973,11 @@ export function RouteBuilder({
       el.style.cssText = `
         width: 24px; height: 24px; border-radius: 50%;
         background: ${routeColor}; border: 2px solid white;
-        cursor: grab; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        cursor: ${canDragStops ? "grab" : "pointer"}; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         display: flex; align-items: center; justify-content: center;
         color: white; font-size: 10px; font-weight: 700;
       `;
+      el.style.pointerEvents = isRailDrawing ? "none" : "auto";
       if (stop.timepoint) {
         el.style.boxShadow = "0 0 0 2px rgba(255,255,255,0.8), 0 2px 6px rgba(0,0,0,0.3)";
       }
@@ -881,21 +989,35 @@ export function RouteBuilder({
 
       const marker = new mapboxgl.Marker({
         element: el,
-        draggable: buildMode === "manual",
+        draggable: canDragStops,
       })
         .setLngLat([stop.lng, stop.lat])
         .addTo(map);
 
-      if (buildMode === "manual") {
+      if (canDragStops) {
+        marker.on("dragstart", () => {
+          setInteractionState("dragging");
+        });
         marker.on("dragend", () => {
           const pos = marker.getLngLat();
           updateStop(stop.id, { lng: pos.lng, lat: pos.lat });
+          setInteractionState("idle");
         });
       }
 
       markerMap.set(stop.id, marker);
     });
-  }, [mapRef, mapReady, enabled, stops, routeColor, updateStop, buildMode, setSelectedStopId]);
+  }, [
+    mapRef,
+    mapReady,
+    enabled,
+    stops,
+    routeColor,
+    updateStop,
+    canDragStops,
+    isRailDrawing,
+    setSelectedStopId,
+  ]);
 
   // Final cleanup on unmount
   useEffect(() => {
@@ -1072,11 +1194,19 @@ export function RouteBuilder({
   const scheduleGoVariantOptions = useMemo(
     () =>
       [...goVariantOptions.values()].flatMap(
-        (optionsArray: Array<{ value: string; label: string; routeShortName: string }>) =>
-          optionsArray.map((option: { value: string; label: string; routeShortName: string }) => ({
+        (
+          optionsArray: Array<{
+            value: string;
+            label: string;
+            routeShortName: string;
+            kind: "variant" | "train-corridor";
+          }>,
+        ) =>
+          optionsArray.map((option) => ({
           value: option.value,
           label: option.label,
           routeShortName: option.routeShortName,
+          kind: option.kind,
           })),
       ),
     [goVariantOptions],
@@ -1107,9 +1237,38 @@ export function RouteBuilder({
   };
 
   const loadGoVariantData = useCallback(
-    async (variantId: string): Promise<GoScheduleBuilderPayload | undefined> => {
+    async (
+      variantId: string,
+      kind: "variant" | "train-corridor" = "variant",
+    ): Promise<GoScheduleBuilderPayload | undefined> => {
       const cached = goScheduleCacheRef.current.get(variantId);
       if (cached) return cached;
+
+      if (kind === "train-corridor") {
+        const corridor = trainCorridors.find((entry) => entry.corridorId === variantId);
+        if (!corridor) return undefined;
+        const payload: GoScheduleBuilderPayload = {
+          variantId: corridor.corridorId,
+          routeShortName: corridor.routeShortName,
+          routeLabel: corridor.routeLabel,
+          directionId: 0,
+          seededSchedule: corridor.seededSchedule,
+          stationTimings: corridor.stations.map((station) => ({
+            stop_id: station.stop_id,
+            stop_name: station.stop_name,
+            stop_sequence: station.stop_sequence,
+            departureTimes: station.departureTimes,
+          })),
+          stopTimings: [],
+          timedStopCount: corridor.stations.length,
+          departureCount: corridor.stations[0]?.departureTimes.length ?? 0,
+          startStopName: corridor.stations[0]?.stop_name ?? corridor.routeLabel,
+          endStopName:
+            corridor.stations[corridor.stations.length - 1]?.stop_name ?? corridor.routeLabel,
+        };
+        goScheduleCacheRef.current.set(variantId, payload);
+        return payload;
+      }
 
       const response = await fetch(
         `/api/gotransit/schedule-builder?variant_id=${encodeURIComponent(variantId)}`,
@@ -1119,17 +1278,42 @@ export function RouteBuilder({
       goScheduleCacheRef.current.set(variantId, payload);
       return payload;
     },
-    [],
+    [trainCorridors],
   );
 
   const loadGoVariantWithSchedule = useCallback(
-    async (variantId: string, label: string, routeShortName?: string) => {
+    async (
+      variantId: string,
+      label: string,
+      routeShortName?: string,
+      kind: "variant" | "train-corridor" = "variant",
+    ) => {
+      if (kind === "train-corridor") {
+        const corridor = trainCorridors.find((entry) => entry.corridorId === variantId);
+        if (!corridor) return undefined;
+        cancelRailDraw();
+        setMode("train");
+        loadFromTrainCorridor(corridor.corridorId, corridor.routeLabel, corridor.stations);
+        updateCurrent({ schedule: corridor.seededSchedule });
+        return {
+          schedule: corridor.seededSchedule,
+          stationTimings: corridor.stations.map((station) => ({
+            stop_id: station.stop_id,
+            stop_name: station.stop_name,
+            stop_sequence: station.stop_sequence,
+            departureTimes: station.departureTimes,
+          })),
+          timedStopCount: corridor.stations.length,
+          routeLabel: corridor.routeLabel,
+        };
+      }
+
       const immediateMode =
         goRouteTypes?.[routeShortName ?? ""] === "2" ? "train" : "bus";
       loadFromGoVariant(variantId, label, immediateMode);
 
       try {
-        const payload = await loadGoVariantData(variantId);
+        const payload = await loadGoVariantData(variantId, kind);
         const inferredMode =
           goRouteTypes?.[routeShortName ?? payload?.routeShortName ?? ""] === "2" ? "train" : "bus";
         if (inferredMode !== immediateMode) {
@@ -1146,7 +1330,16 @@ export function RouteBuilder({
         return undefined;
       }
     },
-    [goRouteTypes, loadFromGoVariant, loadGoVariantData, updateCurrent],
+    [
+      cancelRailDraw,
+      goRouteTypes,
+      loadFromGoVariant,
+      loadFromTrainCorridor,
+      loadGoVariantData,
+      setMode,
+      trainCorridors,
+      updateCurrent,
+    ],
   );
 
   const handleSaveRoute = () => {
@@ -1159,7 +1352,7 @@ export function RouteBuilder({
     setQuickStopsLoaded(false);
     setQuickError(null);
     setQuickNoStops(false);
-    setPinMode(false);
+    setInteractionState("idle");
     setPinCandidate(null);
     setPinName("Pinned stop");
     setShowPinNameDialog(false);
@@ -1177,19 +1370,97 @@ export function RouteBuilder({
             <div>
               <h3 className="text-sm font-semibold text-slate-950">Route Builder</h3>
               <p className="mt-1 text-[11px] text-slate-500">
-                Build the route, review stops, then save.
+                Switch between bus stop placement and train line drawing.
               </p>
             </div>
           </div>
           <p className="mt-2 text-[11px] text-slate-500">
-            Add start and end points from the command bar, then generate or edit stops.
+            {isTrainMode
+              ? "Train routes are corridor-first: load a line or add stations, then draw or follow rail."
+              : "Bus routes are stop-first: add existing stops or pin custom locations on the map."}
           </p>
         </div>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+          <div className="flex gap-2 rounded-[22px] border border-slate-200 bg-white p-1 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+            <button
+              type="button"
+              onClick={() => selectBuilderMode("bus")}
+              className={`flex-1 rounded-[18px] px-3 py-2 text-sm font-semibold transition ${
+                !isTrainMode
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              Bus
+            </button>
+            <button
+              type="button"
+              onClick={() => selectBuilderMode("train")}
+              className={`flex-1 rounded-[18px] px-3 py-2 text-sm font-semibold transition ${
+                isTrainMode
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              Train
+            </button>
+          </div>
+
+          {!isTrainMode ? (
+            <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+              <div className="font-medium text-slate-700">Bus stop placement</div>
+              <div className="text-slate-500">
+                Buses are built from stops, not drawing. Use the command bar to add existing stops,
+                or pin custom locations directly on the map.
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={startPinPlacement}
+                  className="rounded-2xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Pin stop on map
+                </button>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                  Search existing stops from the command bar.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+              <div className="font-medium text-slate-700">Train line drawing</div>
+              <div className="text-slate-500">
+                Train routes are mainly drawing-based. Import a corridor or add stations, then draw
+                the rail alignment you want to follow.
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={startRailDraw}
+                  disabled={stops.length < 2}
+                  className="rounded-2xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {geometrySource === "manual-rail" ? "Redraw rail corridor" : "Draw rail corridor"}
+                </button>
+                {isRailDrawing && (
+                  <button
+                    type="button"
+                    onClick={cancelRailDraw}
+                    className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Cancel draw
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2 rounded-[22px] border border-slate-200 bg-white p-3 text-[11px] shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
             <div className="flex items-center justify-between">
-              <span className="font-medium text-slate-700">Load GO Transit line</span>
+              <span className="font-medium text-slate-700">
+                {isTrainMode ? "Load train corridor" : "Load GO bus line"}
+              </span>
               <button
                 onClick={() => setShowGoVariantSelector((v) => !v)}
                 className="text-[10px] font-semibold text-sky-700 hover:text-sky-900"
@@ -1202,35 +1473,57 @@ export function RouteBuilder({
                 value={selectedGoVariant}
                 onValueChange={(value) => {
                   setSelectedGoVariant(value);
-                  let selectedOption: { value: string; label: string; routeShortName: string } | undefined;
-                  for (const [groupName, optionsArray] of goVariantOptions.entries()) {
-                    const match = optionsArray.find((opt: { value: string; label: string }) => opt.value === value);
+                  let selectedOption:
+                    | {
+                        value: string;
+                        label: string;
+                        routeShortName: string;
+                        kind: "variant" | "train-corridor";
+                      }
+                    | undefined;
+                  for (const [groupName, optionsArray] of builderImportOptions.entries()) {
+                    const match = optionsArray.find((opt) => opt.value === value);
                     if (match) {
                       selectedOption = { ...match, routeShortName: groupName };
                       break;
                     }
                   }
                   if (selectedOption) {
-                    const nextMode = goRouteTypes[selectedOption.routeShortName] === "2" ? "train" : "bus";
                     cancelRailDraw();
+                    if (selectedOption.kind === "train-corridor") {
+                      const corridor = trainCorridors.find(
+                        (entry) => entry.corridorId === selectedOption?.value,
+                      );
+                      if (!corridor) return;
+                      setMode("train");
+                      loadFromTrainCorridor(
+                        corridor.corridorId,
+                        corridor.routeLabel,
+                        corridor.stations,
+                      );
+                      return;
+                    }
+                    const nextMode = goRouteTypes[selectedOption.routeShortName] === "2" ? "train" : "bus";
                     setMode(nextMode);
                     loadFromGoVariant(selectedOption.value, selectedOption.label, nextMode);
                   }
                 }}
-                disabled={!goVariantsIndex}
+                disabled={builderImportOptions.size === 0}
               >
-                <ComboboxInput placeholder="Search GO Transit Lines..." />
+                <ComboboxInput
+                  placeholder={isTrainMode ? "Search train corridors..." : "Search GO bus lines..."}
+                />
                 <ComboboxContent>
                   <ComboboxList>
-                    {goVariantOptions.size === 0 && (
+                    {builderImportOptions.size === 0 && (
                       <ComboboxItem value="no-options" disabled>
-                        No GO Transit Lines found.
+                        {isTrainMode ? "No train corridors found." : "No GO bus lines found."}
                       </ComboboxItem>
                     )}
-                    {[...goVariantOptions.entries()].map(([groupName, options]) => (
+                    {[...builderImportOptions.entries()].map(([groupName, options]) => (
                       <ComboboxGroup key={groupName}>
                         <ComboboxLabel>{groupName}</ComboboxLabel>
-                        {options.map((option: { value: string; label: string }) => (
+                        {options.map((option) => (
                           <ComboboxItem key={option.value} value={option.value}>
                             {option.label}
                           </ComboboxItem>
@@ -1319,22 +1612,9 @@ export function RouteBuilder({
                   : "No tracked rail path yet. Draw a new corridor if needed."}
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={startRailDraw}
-                className="rounded-2xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                {geometrySource === "manual-rail" ? "Redraw rail corridor" : "Draw rail corridor"}
-              </button>
-              {isRailDrawing && (
-                <button
-                  type="button"
-                  onClick={cancelRailDraw}
-                  className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                >
-                  Cancel draw
-                </button>
-              )}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                Use the train tab controls above to draw or redraw the corridor.
+              </div>
             </div>
           </div>
         )}
@@ -1349,8 +1629,8 @@ export function RouteBuilder({
             {stops.length === 0 ? (
               <div className="py-4 text-center text-[11px] text-slate-400">
                 {isTrainMode
-                  ? "Add train stops, then follow tracks or draw a corridor."
-                  : "Add start and end, then generate stops."}
+                  ? "Add train stations, then draw the corridor."
+                  : "Add existing stops or pin custom bus stops."}
               </div>
             ) : (
               stops.map((stop, i) => (
@@ -1525,7 +1805,7 @@ export function RouteBuilder({
       )}
 
       <ScheduleBuilderModal
-        key={`${initialScheduleTargetKey ?? "none"}-${currentRoute?.baseVariantId ?? "manual"}-${showSchedulePanel ? "open" : "closed"}`}
+        key={`${initialScheduleTargetKey ?? "none"}-${currentRoute?.baseTrainCorridorId ?? currentRoute?.baseVariantId ?? "manual"}-${showSchedulePanel ? "open" : "closed"}`}
         isOpen={showSchedulePanel}
         routeTargets={scheduleRouteTargets}
         initialTargetKey={initialScheduleTargetKey}

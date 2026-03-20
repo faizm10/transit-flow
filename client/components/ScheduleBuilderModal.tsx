@@ -23,15 +23,24 @@ export type ScheduleRouteTarget = {
   route: CustomRoute;
 };
 
+type ImportedStationTiming = {
+  stop_id: string;
+  stop_name: string;
+  stop_sequence: number;
+  departureTimes: string[];
+};
+
 type GoVariantOption = {
   value: string;
   label: string;
   routeShortName?: string;
+  kind?: "variant" | "train-corridor";
 };
 
 type GoVariantLoadResult = {
   schedule?: Schedule;
   stopTimings?: unknown[];
+  stationTimings?: ImportedStationTiming[];
   timedStopCount?: number;
   routeLabel?: string;
 };
@@ -39,6 +48,7 @@ type GoVariantLoadResult = {
 type PendingGoSelection = {
   variantId: string;
   label: string;
+  kind: "variant" | "train-corridor";
 };
 
 type ScheduleBuilderModalProps = {
@@ -48,11 +58,13 @@ type ScheduleBuilderModalProps = {
   goVariantOptions?: GoVariantOption[];
   getGoVariantData?: (
     variantId: string,
+    kind?: "variant" | "train-corridor",
   ) => Promise<GoVariantLoadResult | undefined> | GoVariantLoadResult | undefined;
   onLoadGoVariant?: (
     variantId: string,
     label: string,
     routeShortName?: string,
+    kind?: "variant" | "train-corridor",
   ) => Promise<GoVariantLoadResult | undefined> | GoVariantLoadResult | undefined;
   onClose: () => void;
   onSave: (target: ScheduleRouteTarget, schedule: Schedule | undefined) => void;
@@ -80,6 +92,7 @@ export function ScheduleBuilderModal({
   const [pendingGoSelection, setPendingGoSelection] = useState<PendingGoSelection | null>(null);
   const [pendingGoSchedule, setPendingGoSchedule] = useState<Schedule | undefined>(undefined);
   const [pendingGoResolved, setPendingGoResolved] = useState(false);
+  const [stationTimings, setStationTimings] = useState<ImportedStationTiming[]>([]);
   const selectedTarget =
     routeTargets.find((target) => target.key === selectedTargetKey) ??
     (selectedTargetKey ? null : fallbackTarget);
@@ -101,9 +114,16 @@ export function ScheduleBuilderModal({
     if (!isOpen) return;
     if (pendingGoSelection) return;
 
-    const variantId = selectedTarget?.route.baseVariantId;
-    if (!variantId) {
+    const variantId =
+      selectedTarget?.route.baseTrainCorridorId ?? selectedTarget?.route.baseVariantId;
+    const variantKind = selectedTarget?.route.baseTrainCorridorId
+      ? "train-corridor"
+      : selectedTarget?.route.baseVariantId
+        ? "variant"
+        : null;
+    if (!variantId || !variantKind) {
       setIsLoadingGoData(false);
+      setStationTimings([]);
       return;
     }
 
@@ -111,12 +131,14 @@ export function ScheduleBuilderModal({
 
     const run = async () => {
       try {
-        const data = await getGoVariantData?.(variantId);
+        const data = await getGoVariantData?.(variantId, variantKind);
         if (!data) throw new Error("Failed to load GO stop timetable");
         if (cancelled) return;
+        setStationTimings(data.stationTimings ?? []);
         setIsLoadingGoData(false);
       } catch {
         if (cancelled) return;
+        setStationTimings([]);
         setIsLoadingGoData(false);
       }
     };
@@ -126,14 +148,22 @@ export function ScheduleBuilderModal({
     return () => {
       cancelled = true;
     };
-  }, [getGoVariantData, isOpen, pendingGoSelection, selectedTarget?.route.baseVariantId]);
+  }, [
+    getGoVariantData,
+    isOpen,
+    pendingGoSelection,
+    selectedTarget?.route.baseTrainCorridorId,
+    selectedTarget?.route.baseVariantId,
+  ]);
 
   useEffect(() => {
     if (!pendingGoSelection) return;
     if (!pendingGoResolved) return;
 
     const matchedTarget = routeTargets.find(
-      (target) => target.route.baseVariantId === pendingGoSelection.variantId,
+      (target) =>
+        target.route.baseVariantId === pendingGoSelection.variantId ||
+        target.route.baseTrainCorridorId === pendingGoSelection.variantId,
     );
     if (!matchedTarget) return;
 
@@ -168,14 +198,16 @@ export function ScheduleBuilderModal({
   const hasTargets = routeTargets.length > 0;
   const directionLabels = buildDirectionLabels(selectedTarget?.route);
   const supportsOppositeDirection = supportsBidirectionalSchedule(selectedTarget?.route);
-  const showGoTimingPreview = Boolean(selectedTarget?.route.baseVariantId);
+  const showGoTimingPreview = Boolean(
+    selectedTarget?.route.baseVariantId || selectedTarget?.route.baseTrainCorridorId,
+  );
   const activeMode = showGoTimingPreview ? "fixed" : activeDirectionDraft.mode;
   const previewDepartures = activeMode === "fixed" ? fixedPreview : preview.departures;
   const showLoadingState = isLoadingGoData || Boolean(pendingGoSelection);
   const displayRouteName =
     pendingGoSelection?.label ?? selectedTarget?.route.name ?? "Choose a route";
   const selectValue = pendingGoSelection
-    ? `go:${pendingGoSelection.variantId}`
+    ? `go:${pendingGoSelection.kind}:${pendingGoSelection.variantId}`
     : selectedTargetKey;
 
   const updateSelectedDirectionDraft = (updater: (current: DirectionDraft) => DirectionDraft) => {
@@ -220,16 +252,22 @@ export function ScheduleBuilderModal({
                   onChange={async (event) => {
                     const nextValue = event.target.value;
                     if (nextValue.startsWith("go:")) {
-                      const variantId = nextValue.slice(3);
-                      const selectedOption = goVariantOptions.find((option) => option.value === variantId);
+                      const [, nextKind, variantId] = nextValue.split(":");
+                      const selectedOption = goVariantOptions.find(
+                        (option) =>
+                          option.value === variantId &&
+                          (option.kind ?? "variant") === nextKind,
+                      );
                       if (!selectedOption || !onLoadGoVariant) return;
                       const previousTarget = selectedTarget;
                       setPendingGoSelection({
                         variantId: selectedOption.value,
                         label: selectedOption.label,
+                        kind: selectedOption.kind ?? "variant",
                       });
                       setPendingGoSchedule(undefined);
                       setPendingGoResolved(false);
+                      setStationTimings([]);
                       setSelectedTargetKey(nextValue);
                       setDraft(createScheduleDraft(undefined));
                       setIsLoadingGoData(true);
@@ -238,13 +276,16 @@ export function ScheduleBuilderModal({
                           selectedOption.value,
                           selectedOption.label,
                           selectedOption.routeShortName,
+                          selectedOption.kind ?? "variant",
                         );
                         setPendingGoSchedule(result?.schedule);
+                        setStationTimings(result?.stationTimings ?? []);
                         setPendingGoResolved(true);
                       } catch {
                         setPendingGoSelection(null);
                         setPendingGoSchedule(undefined);
                         setPendingGoResolved(false);
+                        setStationTimings([]);
                         setSelectedTargetKey(previousTarget?.key ?? fallbackTarget?.key ?? "");
                         setDraft(createScheduleDraft(previousTarget?.route.schedule));
                         setIsLoadingGoData(false);
@@ -253,7 +294,10 @@ export function ScheduleBuilderModal({
                     }
                     const nextTarget = routeTargets.find((target) => target.key === nextValue);
                     setPendingGoSelection(null);
-                    setIsLoadingGoData(Boolean(nextTarget?.route.baseVariantId));
+                    setStationTimings([]);
+                    setIsLoadingGoData(
+                      Boolean(nextTarget?.route.baseVariantId || nextTarget?.route.baseTrainCorridorId),
+                    );
                     setSelectedTargetKey(nextValue);
                     setDraft(createScheduleDraft(nextTarget?.route.schedule));
                   }}
@@ -272,7 +316,10 @@ export function ScheduleBuilderModal({
                   {goVariantOptions.length > 0 && (
                     <optgroup label="GO Transit lines">
                       {goVariantOptions.map((option) => (
-                        <option key={option.value} value={`go:${option.value}`}>
+                        <option
+                          key={`${option.kind ?? "variant"}:${option.value}`}
+                          value={`go:${option.kind ?? "variant"}:${option.value}`}
+                        >
                           {option.label}
                         </option>
                       ))}
@@ -359,7 +406,7 @@ export function ScheduleBuilderModal({
 
                 {showGoTimingPreview ? (
                   <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-                    GO routes use the imported fixed departure times from the selected line.
+                    Imported rail lines use the loaded fixed departures from the selected corridor.
                   </div>
                 ) : (
                   <div className="flex gap-2 rounded-[20px] border border-slate-200 bg-white p-1">
@@ -497,13 +544,43 @@ export function ScheduleBuilderModal({
                   <InfoCard label="Editing" value={directionLabels[draft.selectedDirection]} />
                   <InfoCard
                     label="Schedule type"
-                    value={showGoTimingPreview ? "GO departures" : activeMode === "frequency" ? "Frequency" : "Fixed"}
+                    value={
+                      showGoTimingPreview
+                        ? "Imported departures"
+                        : activeMode === "frequency"
+                          ? "Frequency"
+                          : "Fixed"
+                    }
                   />
                   <InfoCard
                     label="Departures"
                     value={String(previewDepartures.length)}
                   />
                 </div>
+                {stationTimings.length > 0 && (
+                  <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Station departures
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      {stationTimings.map((station) => (
+                        <div
+                          key={station.stop_id}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                        >
+                          <div className="text-sm font-semibold text-slate-900">
+                            {station.stop_name}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-600">
+                            {station.departureTimes.length > 0
+                              ? station.departureTimes.join(", ")
+                              : "No departures available"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
