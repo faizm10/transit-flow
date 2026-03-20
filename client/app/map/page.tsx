@@ -22,12 +22,6 @@ import { Header } from "@/components/Header";
 import { SidePanel } from "@/components/SidePanel";
 import { NetworksPanel } from "@/components/NetworksPanel";
 import { FiltersPanel } from "@/components/FiltersPanel";
-import { ComparisonPanel } from "@/components/ComparisonPanel";
-import { PlannerPanel } from "@/components/PlannerPanel";
-import {
-  POPULATION_CENTERS,
-  getPopulationCoverage,
-} from "@/lib/plannerAnalytics";
 import { trackEvent } from "@/lib/telemetry";
 import {
   DropdownMenu,
@@ -161,7 +155,6 @@ export default function MapPage() {
   const previousSavedRouteCount = useRef(0);
   const hasTrackedMapLoad = useRef(false);
   const routeInfoPopupRef = useRef<mapboxgl.Popup | null>(null);
-  const populationPopupRef = useRef<mapboxgl.Popup | null>(null);
   const [unionPearsonShapes, setUnionPearsonShapes] =
     useState<GeoJSON.FeatureCollection | null>(null);
   const [showUnionPearson, setShowUnionPearson] = useState(true);
@@ -213,7 +206,6 @@ export default function MapPage() {
   const [showScheduleBuilder, setShowScheduleBuilder] = useState(false);
   const [showCustomNetwork, setShowCustomNetwork] = useState(true);
   const [savedCustomRoutes, setSavedCustomRoutes] = useState<CustomRoute[]>([]);
-  const [showDemandLayer, setShowDemandLayer] = useState(false);
   const [selectedCustomRouteIds, setSelectedCustomRouteIds] = useState<string[]>([]);
   
   const [showHeatmap, setShowHeatmap] = useState(false);
@@ -226,30 +218,6 @@ export default function MapPage() {
   const [mapCenter, setMapCenter] = useState({ lat: 43.6532, lng: -79.3832 });
   const [mapInitError, setMapInitError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const populationCoverage = useMemo(
-    () => getPopulationCoverage(savedCustomRoutes),
-    [savedCustomRoutes],
-  );
-  const demandProxyGeoJson = useMemo<GeoJSON.FeatureCollection>(() => ({
-    type: "FeatureCollection",
-    features: POPULATION_CENTERS.map((center) => {
-      const coverage = populationCoverage.coverageByCity.find((city) => city.id === center.id);
-      return {
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [center.lng, center.lat],
-        },
-        properties: {
-          id: center.id,
-          name: center.name,
-          population: center.population,
-          serviceRadiusKm: center.serviceRadiusKm,
-          served: coverage?.served ? "yes" : "no",
-        },
-      } as GeoJSON.Feature;
-    }),
-  }), [populationCoverage]);
 
   const handlePanelToggle = (panel: string) => {
     setActivePanel((prev) => (prev === panel ? null : panel));
@@ -1263,57 +1231,6 @@ export default function MapPage() {
     }
   }, []);
 
-  const ensureDemandLayer = useCallback(() => {
-    if (!map.current) return;
-    if (!map.current.getSource("planner-demand-proxy")) {
-      map.current.addSource("planner-demand-proxy", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-    }
-    if (!map.current.getLayer("planner-demand-proxy-layer")) {
-      map.current.addLayer({
-        id: "planner-demand-proxy-layer",
-        type: "circle",
-        source: "planner-demand-proxy",
-        paint: {
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["get", "population"],
-            20000,
-            6,
-            100000,
-            10,
-            300000,
-            15,
-            750000,
-            22,
-            2800000,
-            30,
-          ],
-          "circle-color": [
-            "match",
-            ["get", "served"],
-            "yes",
-            "#0f766e",
-            "#94a3b8",
-          ],
-          "circle-opacity": 0.82,
-          "circle-stroke-width": [
-            "match",
-            ["get", "served"],
-            "yes",
-            1.8,
-            1,
-          ],
-          "circle-stroke-color": "#ffffff",
-        },
-        layout: { visibility: "none" },
-      });
-    }
-  }, []);
-
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
@@ -1353,7 +1270,6 @@ export default function MapPage() {
       ensureSimulationLayer();
       ensureHeatmapLayer();
       ensureCoverageLayer();
-      ensureDemandLayer();
       setMapReady(true);
     };
 
@@ -1365,7 +1281,7 @@ export default function MapPage() {
       map.current = null;
       setMapReady(false);
     };
-  }, [ensureUnionPearsonLayers, ensureGOTransitLayers, ensureCustomRoutesLayers, ensureSimulationLayer, ensureHeatmapLayer, ensureCoverageLayer, ensureDemandLayer]);
+  }, [ensureUnionPearsonLayers, ensureGOTransitLayers, ensureCustomRoutesLayers, ensureSimulationLayer, ensureHeatmapLayer, ensureCoverageLayer]);
 
   // Update Union Pearson Express layer visibility
   useEffect(() => {
@@ -1448,76 +1364,6 @@ export default function MapPage() {
       }
     }
   }, [showCoverage, mapReady]);
-
-  useEffect(() => {
-    if (!map.current || !map.current.isStyleLoaded()) return;
-    if (map.current.getLayer("planner-demand-proxy-layer")) {
-      map.current.setLayoutProperty(
-        "planner-demand-proxy-layer",
-        "visibility",
-        showDemandLayer ? "visible" : "none",
-      );
-    }
-    if (showDemandLayer) {
-      const source = map.current.getSource("planner-demand-proxy") as mapboxgl.GeoJSONSource | undefined;
-      source?.setData(demandProxyGeoJson);
-    }
-  }, [showDemandLayer, demandProxyGeoJson, mapReady]);
-
-  useEffect(() => {
-    if (!mapReady || !map.current) return;
-    ensureDemandLayer();
-
-    const popup = new mapboxgl.Popup({
-      closeButton: false,
-      closeOnClick: false,
-      offset: 12,
-      className: "population-popup",
-    });
-    populationPopupRef.current = popup;
-
-    const handleMove = (event: mapboxgl.MapLayerMouseEvent) => {
-      if (!event.features || event.features.length === 0 || !map.current) return;
-      const feature = event.features[0];
-      const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
-      const props = feature.properties || {};
-      const cityName = String(props.name || "City");
-      const population = Number(props.population || 0);
-      const served = props.served === "yes";
-
-      popup
-        .setLngLat(coordinates)
-        .setHTML(
-          `<div class="population-popup-card">
-            <div class="population-popup-name">${escapeHtml(cityName)}</div>
-            <div class="population-popup-population">${new Intl.NumberFormat("en-CA").format(population)} residents</div>
-            <div class="population-popup-status ${served ? "is-served" : "is-unserved"}">${served ? "Served by current network" : "Not yet served"}</div>
-          </div>`,
-        )
-        .addTo(map.current);
-
-      map.current.getCanvas().style.cursor = "pointer";
-    };
-
-    const handleLeave = () => {
-      if (map.current) {
-        map.current.getCanvas().style.cursor = "";
-      }
-      popup.remove();
-    };
-
-    map.current.on("mousemove", "planner-demand-proxy-layer", handleMove);
-    map.current.on("mouseleave", "planner-demand-proxy-layer", handleLeave);
-
-    return () => {
-      map.current?.off("mousemove", "planner-demand-proxy-layer", handleMove);
-      map.current?.off("mouseleave", "planner-demand-proxy-layer", handleLeave);
-      popup.remove();
-      if (populationPopupRef.current === popup) {
-        populationPopupRef.current = null;
-      }
-    };
-  }, [mapReady, ensureDemandLayer]);
 
   // Update Union Pearson Express route line data
   useEffect(() => {
@@ -2565,7 +2411,7 @@ export default function MapPage() {
     };
   }, []);
 
-  const inspectorOpen = ["networks", "filters", "simulation", "planner"].includes(activePanel ?? "");
+  const inspectorOpen = ["networks", "filters", "simulation"].includes(activePanel ?? "");
   const inspectorTitle =
     activePanel === "networks"
       ? "Networks"
@@ -2573,8 +2419,6 @@ export default function MapPage() {
         ? "Route Filters"
         : activePanel === "simulation"
           ? "Simulation"
-          : activePanel === "planner"
-            ? "Planner Lab"
           : "";
 
   return (
@@ -2888,14 +2732,6 @@ export default function MapPage() {
             </div>
           </div>
         )}
-
-        {activePanel === "planner" && (
-          <PlannerPanel
-            currentRoutes={savedCustomRoutes}
-            showDemandLayer={showDemandLayer}
-            onToggleDemandLayer={() => setShowDemandLayer((prev) => !prev)}
-          />
-        )}
       </SidePanel>
 
       {(simulationTrips.length > 0 || simulationPlaying) && (
@@ -2931,7 +2767,6 @@ export default function MapPage() {
               goVariantStops={goVariantStops}
               goRouteTypes={goRouteTypes}
               showCustomNetwork={showCustomNetwork}
-              onOpenComparison={() => setActivePanel("compare")}
             />
           </div>
         )}
@@ -2945,16 +2780,6 @@ export default function MapPage() {
         onAIRoute={handleAIRoute}
         mapCenter={mapCenter}
       />
-
-      {/* Comparison Panel */}
-      {activePanel === "compare" && (
-        <ComparisonPanel
-          customRoutes={savedCustomRoutes}
-          goRoutes={goRoutes}
-          onClose={() => setActivePanel(null)}
-        />
-      )}
-
       {/* Schedule Modal */}
       <ScheduleModal
         isOpen={showScheduleModal}

@@ -107,7 +107,6 @@ type RouteBuilderProps = {
   goVariantStops: Record<string, GoVariantStop[]> | null;
   goRouteTypes?: Record<string, string>;
   showCustomNetwork?: boolean;
-  onOpenComparison?: () => void;
 };
 
 
@@ -208,7 +207,6 @@ export function RouteBuilder({
   goVariantStops,
   goRouteTypes = {},
   showCustomNetwork = true,
-  onOpenComparison,
 }: RouteBuilderProps) {
   const {
     routes,
@@ -1516,14 +1514,6 @@ export function RouteBuilder({
           >
             Save route
           </button>
-          {stops.length >= 2 && onOpenComparison && (
-            <button
-              onClick={onOpenComparison}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-            >
-              Compare
-            </button>
-          )}
           <button
             onClick={clearRoute}
             className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100"

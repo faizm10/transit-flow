@@ -49,7 +49,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="mt-5 max-w-lg text-lg leading-8 text-slate-600">
-              Routes, compare, schedules, simulation.
+              Routes, schedules, simulation.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
