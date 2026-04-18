@@ -71,8 +71,6 @@ async function getRoutesCache() {
 
 export default function MapPage() {
   const mapRef = useRef<MapHandle | null>(null);
-  const drawRef = useRef<unknown>(null);
-
   const [mode, setMode] = useState<Mode>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [hoveredRoute, setHoveredRoute] = useState<{ shortName: string; variantId: string } | null>(null);
@@ -193,53 +191,20 @@ export default function MapPage() {
 
   // ── Draw mode handlers ──────────────────────────────────────────────────
   function startDrawing() {
-    const map = mapRef.current?.getMap();
-    if (!map) return;
-    import("@mapbox/mapbox-gl-draw").then(({ default: MapboxDraw }) => {
-      const draw = new MapboxDraw({
-        displayControlsDefault: false,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        modes: MapboxDraw.modes as any,
-      });
-      map.addControl(draw as unknown as mapboxgl.IControl);
-      draw.changeMode("draw_line_string");
-      drawRef.current = draw;
-      map.on("draw.create", (e: { features: GeoJSON.Feature[] }) => {
-        const feature = e.features[0] as GeoJSON.Feature<GeoJSON.LineString>;
-        if (feature?.geometry?.coordinates) {
-          setDrawnGeometry(feature.geometry.coordinates as [number, number][]);
-        }
-        setIsDrawing(false);
-        map.removeControl(draw as unknown as mapboxgl.IControl);
-        drawRef.current = null;
-      });
+    mapRef.current?.startDraw((coords) => {
+      setDrawnGeometry(coords);
+      setIsDrawing(false);
     });
     setIsDrawing(true);
   }
 
   function cancelDrawing() {
-    const map = mapRef.current?.getMap();
-    if (map && drawRef.current) {
-      map.removeControl(drawRef.current as mapboxgl.IControl);
-      drawRef.current = null;
-    }
+    mapRef.current?.stopDraw();
     setIsDrawing(false);
   }
 
   function finishDrawing() {
-    const draw = drawRef.current as { getAll?: () => GeoJSON.FeatureCollection } | null;
-    if (draw?.getAll) {
-      const fc = draw.getAll();
-      const feature = fc.features[0] as GeoJSON.Feature<GeoJSON.LineString> | undefined;
-      if (feature?.geometry?.coordinates) {
-        setDrawnGeometry(feature.geometry.coordinates as [number, number][]);
-      }
-    }
-    const map = mapRef.current?.getMap();
-    if (map && drawRef.current) {
-      map.removeControl(drawRef.current as mapboxgl.IControl);
-      drawRef.current = null;
-    }
+    mapRef.current?.finishDraw();
     setIsDrawing(false);
   }
 
