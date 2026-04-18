@@ -95,14 +95,16 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         // Set crosshair cursor
         map.getCanvas().style.cursor = "crosshair";
 
-        // Listen for line completion (double-click / Enter)
+        // Listen for line completion (double-click / Enter).
+        // Defer removeControl to the next tick — calling it synchronously
+        // inside draw.create tears down MapboxDraw while it's still handling
+        // its own event, which causes "Cannot read properties of null (reading 'dragPan')".
         const onCreate = (e: { features: GeoJSON.Feature[] }) => {
           const feature = e.features[0] as GeoJSON.Feature<GeoJSON.LineString> | undefined;
           const coords = feature?.geometry?.coordinates as [number, number][] | undefined;
-          cleanupDraw(map, draw);
-          if (coords && coords.length >= 2) {
-            drawCompleteCallbackRef.current?.(coords);
-          }
+          const cb = drawCompleteCallbackRef.current;
+          setTimeout(() => cleanupDraw(map, draw), 0);
+          if (coords && coords.length >= 2) cb?.(coords);
         };
         map.on("draw.create", onCreate);
         // Store cleanup reference
