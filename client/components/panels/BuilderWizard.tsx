@@ -90,8 +90,10 @@ export default function BuilderWizard({
   const [stopQuery, setStopQuery] = useState("");
   const [stopResults, setStopResults] = useState<CustomStop[]>([]);
   const [searching, setSearching] = useState(false);
+  // "banded" schedules (from SchedulePanel) behave like "frequency" inside the wizard
+  const existingScheduleType = existingRoute?.schedule?.type;
   const [scheduleType, setScheduleType] = useState<"frequency" | "fixed">(
-    existingRoute?.schedule?.type ?? "frequency"
+    existingScheduleType === "fixed" ? "fixed" : "frequency"
   );
   const [frequencyInterval, setFrequencyInterval] = useState(15);
   const [fixedDepartures, setFixedDepartures] = useState<string[]>(

@@ -87,13 +87,21 @@ export default function MapPage() {
   const [selectedVehicleTripId, setSelectedVehicleTripId] = useState<string | null>(null);
 
   const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
+
+  // Patch just the schedule field of a custom route
+  const handleSaveSchedule = useCallback((routeId: string, schedule: CustomSchedule) => {
+    const route = customRoutes.find((r) => r.id === routeId);
+    if (!route) return;
+    saveRoute({ ...route, schedule });
+    toast.success("Schedule saved");
+  }, [customRoutes, saveRoute]);
   const sim = useSimulation();
 
   // ── Read URL mode param on mount ────────────────────────────────────────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const m = params.get("mode") as Mode;
-    if (m && ["browse", "build", "simulate"].includes(m)) {
+    if (m && ["browse", "build", "schedule", "simulate"].includes(m)) {
       setMode(m);
       if (m === "simulate") {
         setTimeout(() => sim.loadSimulation(), 500);
@@ -344,7 +352,7 @@ export default function MapPage() {
     });
   }
 
-  const panelOpen = mode === "browse" || mode === "build";
+  const panelOpen = mode === "browse" || mode === "build" || mode === "schedule";
   // Hide info card when browse panel is open (panel shows richer info)
   const showInfoCard = clickedRoute && !isDrawing && mode !== "browse";
 
@@ -400,6 +408,12 @@ export default function MapPage() {
               <BrowsePanel
                 onRouteSelect={handleRouteSelect}
                 onRouteClear={handleRouteClear}
+              />
+            )}
+            {mode === "schedule" && (
+              <SchedulePanel
+                routes={customRoutes}
+                onSaveSchedule={handleSaveSchedule}
               />
             )}
             {mode === "build" && (
