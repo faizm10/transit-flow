@@ -5,6 +5,7 @@ import json
 import os
 import sys
 from collections import defaultdict
+from datetime import datetime, timedelta
 
 
 def parse_int(value, default=0):
@@ -19,6 +20,17 @@ def parse_float(value):
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def parse_service_date(value):
+    try:
+        return datetime.strptime(value, "%Y%m%d").date()
+    except (TypeError, ValueError):
+        return None
+
+
+def format_service_date(value):
+    return value.strftime("%Y-%m-%d") if value else None
 
 
 def open_csv(path):
@@ -82,12 +94,14 @@ def load_trips(trips_path):
             if not trip_id:
                 continue
             route_id = (row.get("route_id") or "").strip()
+            service_id = (row.get("service_id") or "").strip()
             direction_id = parse_int((row.get("direction_id") or "").strip(), 0)
             shape_id = (row.get("shape_id") or "").strip() or None
             trip_headsign = (row.get("trip_headsign") or "").strip()
             route_variant = (row.get("route_variant") or "").strip()
             trips[trip_id] = {
                 "route_id": route_id,
+                "service_id": service_id,
                 "direction_id": direction_id,
                 "shape_id": shape_id,
                 "trip_headsign": trip_headsign,
@@ -147,7 +161,76 @@ def load_shapes(shapes_path, shape_ids):
     return shape_points
 
 
-def build_variants(trips, trip_stop_times):
+def find_latest_service_week(calendar_dates_path):
+    if not os.path.exists(calendar_dates_path):
+        return None, {
+            "basis": "full_feed_no_calendar_dates",
+            "start_date": None,
+            "end_date": None,
+            "service_dates": [],
+            "service_day_count": 0,
+        }
+
+    service_dates = defaultdict(set)
+    with open_csv(calendar_dates_path) as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            service_id = (row.get("service_id") or "").strip()
+            service_date = parse_service_date((row.get("date") or "").strip())
+            if not service_id or service_date is None:
+                continue
+
+            exception_type = (row.get("exception_type") or "1").strip()
+            if exception_type == "2":
+                service_dates[service_id].discard(service_date)
+            else:
+                service_dates[service_id].add(service_date)
+
+    active_dates = sorted({date for dates in service_dates.values() for date in dates})
+    if not active_dates:
+        return None, {
+            "basis": "full_feed_no_service_dates",
+            "start_date": None,
+            "end_date": None,
+            "service_dates": [],
+            "service_day_count": 0,
+        }
+
+    active_date_set = set(active_dates)
+    min_date = active_dates[0]
+    max_date = active_dates[-1]
+    candidate = max_date - timedelta(days=max_date.weekday())
+    selected_dates = None
+    basis = "latest_full_week"
+
+    while candidate >= min_date:
+        week_dates = [candidate + timedelta(days=offset) for offset in range(7)]
+        if all(date in active_date_set for date in week_dates):
+            selected_dates = week_dates
+            break
+        candidate -= timedelta(days=7)
+
+    if selected_dates is None:
+        basis = "latest_seven_available_dates"
+        selected_dates = active_dates[-7:]
+
+    selected_date_set = set(selected_dates)
+    weekly_service_ids = {
+        service_id
+        for service_id, dates in service_dates.items()
+        if dates.intersection(selected_date_set)
+    }
+    metadata = {
+        "basis": basis,
+        "start_date": format_service_date(min(selected_dates)),
+        "end_date": format_service_date(max(selected_dates)),
+        "service_dates": [format_service_date(date) for date in selected_dates],
+        "service_day_count": len(selected_dates),
+    }
+    return weekly_service_ids, metadata
+
+
+def build_variants(trips, trip_stop_times, weekly_service_ids):
     variants = {}
 
     for trip_id in sorted(trip_stop_times.keys()):
@@ -173,6 +256,7 @@ def build_variants(trips, trip_stop_times):
                 "direction_id": direction_id,
                 "signature": signature,
                 "trip_count": 0,
+                "weekly_trip_count": 0,
                 "representative_trip_id": trip_id,
                 "shape_id": shape_id,
                 "headsign": headsign if headsign else "",
@@ -200,6 +284,8 @@ def build_variants(trips, trip_stop_times):
                 group["route_variant_trip_id"] = trip_id
 
         group["trip_count"] += 1
+        if weekly_service_ids is None or trip["service_id"] in weekly_service_ids:
+            group["weekly_trip_count"] += 1
 
     return variants
 
@@ -216,6 +302,7 @@ def main():
     routes_path = os.path.join(input_dir, "routes.txt")
     trips_path = os.path.join(input_dir, "trips.txt")
     stop_times_path = os.path.join(input_dir, "stop_times.txt")
+    calendar_dates_path = os.path.join(input_dir, "calendar_dates.txt")
     stops_path = os.path.join(input_dir, "stops.txt")
     shapes_path = os.path.join(input_dir, "shapes.txt")
 
@@ -232,9 +319,10 @@ def main():
     routes, route_id_to_short, _, _ = load_routes(routes_path)
     trips = load_trips(trips_path)
     trip_stop_times = load_stop_times(stop_times_path)
+    weekly_service_ids, trip_count_basis = find_latest_service_week(calendar_dates_path)
     stops = load_stops(stops_path)
 
-    variants = build_variants(trips, trip_stop_times)
+    variants = build_variants(trips, trip_stop_times, weekly_service_ids)
 
     excluded_variants = {"18M", "18N", "18R", "18L"}
     variants_by_short = defaultdict(list)
@@ -284,6 +372,7 @@ def main():
                 "direction_id": group["direction_id"],
                 "shape_id": group["shape_id"],
                 "trip_count": group["trip_count"],
+                "weekly_trip_count": group["weekly_trip_count"],
                 "representative_trip_id": group["representative_trip_id"],
                 "route_variant": group["route_variant"],
             }
@@ -322,6 +411,7 @@ def main():
                 "direction_id": entry["direction_id"],
                 "shape_id": shape_id,
                 "trip_count": entry["trip_count"],
+                "weekly_trip_count": entry["weekly_trip_count"],
             },
         }
         variant_lines["features"].append(feature)
@@ -357,6 +447,10 @@ def main():
         os.path.join(output_dir, "variant_stops.json"), "w", encoding="utf-8"
     ) as f:
         json.dump(variant_stops, f, indent=2, ensure_ascii=True)
+    with open(
+        os.path.join(output_dir, "trip_count_basis.json"), "w", encoding="utf-8"
+    ) as f:
+        json.dump(trip_count_basis, f, indent=2, ensure_ascii=True)
 
 
 if __name__ == "__main__":

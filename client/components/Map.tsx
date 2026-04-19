@@ -1,0 +1,576 @@
+"use client";
+
+import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
+import { GO_RAIL_LINES, PINK_BUS_COLOR, PURPLE_BUS_COLOR } from "@/lib/routeColors";
+
+const KITCHENER_BUS_ROUTES = ["30", "31", "32", "33", "34", "35", "36", "37", "38", "39"];
+const BARRIE_BUS_ROUTES = ["65", "68"];
+const STOUFFVILLE_BUS_ROUTES = ["70", "71", "72", "73", "74", "75", "76", "77", "78", "79"];
+const MILTON_BUS_ROUTES = ["17", "21", "22", "25", "27"];
+const LAKESHORE_EAST_BUS_ROUTES = ["88", "90", "92", "96"];
+const LAKESHORE_WEST_BUS_ROUTES = ["11", "12", "16", "18"];
+const PINK_BUS_ROUTES = ["40", "41", "47", "48", "94"];
+const PURPLE_BUS_ROUTES = ["52", "56"];
+
+export interface MapHandle {
+  getMap: () => mapboxgl.Map | null;
+  flyTo: (options: Parameters<mapboxgl.Map["flyTo"]>[0]) => void;
+  setRouteHighlight: (variantIds: string[] | null) => void;
+  /** Show a dashed preview line on the map (wizard use). */
+  showPreviewRoute: (coords: [number, number][], color: string) => void;
+  /** Remove the preview line. */
+  clearPreviewRoute: () => void;
+  /** Activate draw_line_string mode. onComplete fires with coordinates when the line is finished. */
+  startDraw: (onComplete: (coords: [number, number][]) => void) => void;
+  /** Programmatically finish the current draw (same as double-click). */
+  finishDraw: () => void;
+  /** Cancel / remove the draw control without saving. */
+  stopDraw: () => void;
+  /**
+   * Load coords into MapboxDraw direct_select so the user can drag vertices.
+   * onChange fires on every vertex release with updated coords.
+   */
+  startEdit: (coords: [number, number][], onChange: (coords: [number, number][]) => void) => void;
+  /** Finalise edit: fires onChange one last time with final geometry then cleans up. */
+  stopEdit: () => void;
+}
+
+interface MapProps {
+  onLoad?: (map: mapboxgl.Map) => void;
+  onRouteClick?: (variantId: string, routeShortName: string) => void;
+  onRouteHover?: (variantId: string | null, routeShortName: string | null) => void;
+  onVehicleClick?: (tripId: string) => void;
+  onVehicleHover?: (tripId: string | null) => void;
+}
+
+const TORONTO_CENTER: [number, number] = [-79.385, 43.693];
+const DEFAULT_ZOOM = 9.5;
+
+const Map = forwardRef<MapHandle, MapProps>(function Map(
+  { onLoad, onRouteClick, onRouteHover, onVehicleClick, onVehicleHover },
+  ref
+) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const hoveredVariantRef = useRef<string | null>(null);
+  const hoveredTripRef = useRef<string | null>(null);
+  const hoveredTripNumericIdRef = useRef<number | null>(null);
+  const vehiclePopupRef = useRef<mapboxgl.Popup | null>(null);
+
+  // Draw / edit state — stored in refs so handlers don't close over stale values
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const drawRef = useRef<any>(null);
+  const isDrawingRef = useRef(false); // true during both draw AND edit modes
+  const drawCompleteCallbackRef = useRef<((coords: [number, number][]) => void) | null>(null);
+  const editOnChangeRef = useRef<((coords: [number, number][]) => void) | null>(null);
+
+  // ── Imperative handle ──────────────────────────────────────────────────────
+  useImperativeHandle(ref, () => ({
+    getMap: () => mapRef.current,
+    flyTo: (options) => mapRef.current?.flyTo(options),
+
+    setRouteHighlight: (variantIds) => {
+      const map = mapRef.current;
+      if (!map || !map.isStyleLoaded()) return;
+      if (!variantIds || variantIds.length === 0) {
+        map.setPaintProperty("go-routes-line", "line-opacity", 1);
+        map.setPaintProperty("go-routes-line", "line-width", 2);
+        return;
+      }
+      map.setPaintProperty("go-routes-line", "line-opacity", [
+        "case",
+        ["in", ["get", "variant_id"], ["literal", variantIds]],
+        1,
+        0.15,
+      ]);
+      map.setPaintProperty("go-routes-line", "line-width", [
+        "case",
+        ["in", ["get", "variant_id"], ["literal", variantIds]],
+        5,
+        2,
+      ]);
+    },
+
+    // ── Preview route (wizard) ───────────────────────────────────────────────
+    showPreviewRoute: (coords, color) => {
+      const map = mapRef.current;
+      if (!map) return;
+      const src = map.getSource("route-preview") as mapboxgl.GeoJSONSource | undefined;
+      src?.setData({
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          geometry: { type: "LineString", coordinates: coords },
+          properties: { color },
+        }],
+      });
+    },
+
+    clearPreviewRoute: () => {
+      const map = mapRef.current;
+      if (!map) return;
+      const src = map.getSource("route-preview") as mapboxgl.GeoJSONSource | undefined;
+      src?.setData({ type: "FeatureCollection", features: [] });
+    },
+
+    // ── Draw (train initial line) ────────────────────────────────────────────
+    startDraw: (onComplete) => {
+      const map = mapRef.current;
+      if (!map || isDrawingRef.current) return;
+
+      import("@mapbox/mapbox-gl-draw").then(({ default: MapboxDraw }) => {
+        const draw = new MapboxDraw({
+          displayControlsDefault: false,
+          defaultMode: "draw_line_string",
+        });
+
+        drawCompleteCallbackRef.current = onComplete;
+        isDrawingRef.current = true;
+        map.addControl(draw as unknown as mapboxgl.IControl);
+        drawRef.current = draw;
+
+        requestAnimationFrame(() => {
+          try { draw.changeMode("draw_line_string"); } catch { /* already in mode */ }
+        });
+
+        map.getCanvas().style.cursor = "crosshair";
+
+        const onCreate = (e: { features: GeoJSON.Feature[] }) => {
+          const feature = e.features[0] as GeoJSON.Feature<GeoJSON.LineString> | undefined;
+          const coords = feature?.geometry?.coordinates as [number, number][] | undefined;
+          const cb = drawCompleteCallbackRef.current;
+          // Defer removeControl — calling it synchronously inside draw.create crashes dragPan
+          setTimeout(() => cleanupDraw(map, draw), 0);
+          if (coords && coords.length >= 2) cb?.(coords);
+        };
+        map.on("draw.create", onCreate);
+        (draw as unknown as Record<string, unknown>).__onCreateRef = onCreate;
+      });
+    },
+
+    finishDraw: () => {
+      const map = mapRef.current;
+      const draw = drawRef.current;
+      if (!map || !draw) return;
+      try {
+        const fc = draw.getAll?.() as GeoJSON.FeatureCollection | undefined;
+        const feature = fc?.features?.[0] as GeoJSON.Feature<GeoJSON.LineString> | undefined;
+        const coords = feature?.geometry?.coordinates as [number, number][] | undefined;
+        cleanupDraw(map, draw);
+        if (coords && coords.length >= 2) {
+          drawCompleteCallbackRef.current?.(coords);
+        }
+      } catch {
+        cleanupDraw(map, draw);
+      }
+    },
+
+    stopDraw: () => {
+      const map = mapRef.current;
+      const draw = drawRef.current;
+      if (!map || !draw) return;
+      cleanupDraw(map, draw);
+    },
+
+    // ── Edit (drag vertices of an existing line) ─────────────────────────────
+    startEdit: (coords, onChange) => {
+      const map = mapRef.current;
+      if (!map || isDrawingRef.current) return;
+
+      // Hide preview while MapboxDraw renders the editable line
+      const previewSrc = map.getSource("route-preview") as mapboxgl.GeoJSONSource | undefined;
+      previewSrc?.setData({ type: "FeatureCollection", features: [] });
+
+      import("@mapbox/mapbox-gl-draw").then(({ default: MapboxDraw }) => {
+        const draw = new MapboxDraw({ displayControlsDefault: false });
+        editOnChangeRef.current = onChange;
+        isDrawingRef.current = true;
+        map.addControl(draw as unknown as mapboxgl.IControl);
+        drawRef.current = draw;
+
+        // Load geometry as an editable feature
+        const [featureId] = draw.add({
+          type: "Feature",
+          geometry: { type: "LineString", coordinates: coords },
+          properties: {},
+        } as GeoJSON.Feature);
+
+        // Enter direct_select so vertices are immediately visible + draggable
+        requestAnimationFrame(() => {
+          try { draw.changeMode("direct_select", { featureId }); } catch { /* ignore */ }
+        });
+
+        // Re-enter direct_select if user accidentally deselects by clicking the map
+        const onSelectionChange = () => {
+          const selected = draw.getSelectedIds?.() as string[] | undefined;
+          if (!selected || selected.length === 0) {
+            requestAnimationFrame(() => {
+              try { draw.changeMode("direct_select", { featureId }); } catch { /* ignore */ }
+            });
+          }
+        };
+        map.on("draw.selectionchange", onSelectionChange);
+        (draw as unknown as Record<string, unknown>).__onSelectionChangeRef = onSelectionChange;
+
+        // Fire onChange after every vertex drag
+        const onUpdate = (e: { features: GeoJSON.Feature[] }) => {
+          const feat = e.features[0] as GeoJSON.Feature<GeoJSON.LineString> | undefined;
+          const newCoords = feat?.geometry?.coordinates as [number, number][] | undefined;
+          if (newCoords) editOnChangeRef.current?.(newCoords);
+        };
+        map.on("draw.update", onUpdate);
+        (draw as unknown as Record<string, unknown>).__onUpdateRef = onUpdate;
+      });
+    },
+
+    stopEdit: () => {
+      const map = mapRef.current;
+      const draw = drawRef.current;
+      if (!map || !draw) return;
+
+      // Capture final geometry before teardown
+      try {
+        const fc = draw.getAll?.() as GeoJSON.FeatureCollection | undefined;
+        const feat = fc?.features?.[0] as GeoJSON.Feature<GeoJSON.LineString> | undefined;
+        const coords = feat?.geometry?.coordinates as [number, number][] | undefined;
+        if (coords) editOnChangeRef.current?.(coords);
+      } catch { /* ignore */ }
+
+      cleanupDraw(map, draw);
+      editOnChangeRef.current = null;
+    },
+  }));
+
+  // ── Shared draw/edit cleanup ───────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function cleanupDraw(map: mapboxgl.Map, draw: any) {
+    const d = draw as Record<string, unknown>;
+
+    const onCreate = d.__onCreateRef as ((e: { features: GeoJSON.Feature[] }) => void) | undefined;
+    if (onCreate) map.off("draw.create", onCreate);
+
+    const onUpdate = d.__onUpdateRef as ((e: { features: GeoJSON.Feature[] }) => void) | undefined;
+    if (onUpdate) map.off("draw.update", onUpdate);
+
+    const onSel = d.__onSelectionChangeRef as (() => void) | undefined;
+    if (onSel) map.off("draw.selectionchange", onSel);
+
+    try { map.removeControl(draw as unknown as mapboxgl.IControl); } catch { /* already removed */ }
+    drawRef.current = null;
+    isDrawingRef.current = false;
+    drawCompleteCallbackRef.current = null;
+    map.getCanvas().style.cursor = "";
+  }
+
+  // ── Map init ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (mapRef.current) return;
+
+    const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+    if (!token || token === "your_public_mapbox_token") {
+      console.error("Mapbox token missing — set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN in .env.local");
+      return;
+    }
+    mapboxgl.accessToken = token;
+
+    const map = new mapboxgl.Map({
+      container: containerRef.current,
+      style: "mapbox://styles/mapbox/light-v11",
+      center: TORONTO_CENTER,
+      zoom: DEFAULT_ZOOM,
+      minZoom: 7,
+      maxZoom: 18,
+      attributionControl: false,
+    });
+
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
+    map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-left");
+
+    map.on("load", () => {
+      // ── GO Transit routes layer ────────────────────────────────────────────
+      map.addSource("go-routes", {
+        type: "geojson",
+        data: "/gotransit/derived/variant_lines.geojson",
+      });
+
+      map.addLayer({
+        id: "go-routes-casing",
+        type: "line",
+        source: "go-routes",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 5,
+          "line-opacity": 0.6,
+        },
+      });
+
+      map.addLayer({
+        id: "go-routes-line",
+        type: "line",
+        source: "go-routes",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": [
+            "match", ["get", "route_short_name"],
+            "BR", GO_RAIL_LINES.BR.color, "KI", GO_RAIL_LINES.KI.color, "LE", GO_RAIL_LINES.LE.color,
+            "LW", GO_RAIL_LINES.LW.color, "MI", GO_RAIL_LINES.MI.color, "RH", GO_RAIL_LINES.RH.color,
+            "ST", GO_RAIL_LINES.ST.color, "UP", GO_RAIL_LINES.UP.color,
+            MILTON_BUS_ROUTES, GO_RAIL_LINES.MI.color,
+            "29", GO_RAIL_LINES.KI.color,
+            KITCHENER_BUS_ROUTES, GO_RAIL_LINES.KI.color,
+            "61", GO_RAIL_LINES.RH.color,
+            BARRIE_BUS_ROUTES, GO_RAIL_LINES.BR.color,
+            STOUFFVILLE_BUS_ROUTES, GO_RAIL_LINES.ST.color,
+            LAKESHORE_EAST_BUS_ROUTES, GO_RAIL_LINES.LE.color,
+            LAKESHORE_WEST_BUS_ROUTES, GO_RAIL_LINES.LW.color,
+            PINK_BUS_ROUTES, PINK_BUS_COLOR,
+            PURPLE_BUS_ROUTES, PURPLE_BUS_COLOR,
+            "#4a6fa5",
+          ],
+          "line-width": [
+            "match", ["get", "route_short_name"],
+            "BR", 3, "KI", 3, "LE", 3, "LW", 3,
+            "MI", 3, "RH", 3, "ST", 3, "UP", 3,
+            2,
+          ],
+          "line-opacity": 1,
+        },
+      });
+
+      // Wider invisible hit area for clicks
+      map.addLayer({
+        id: "go-routes-hit",
+        type: "line",
+        source: "go-routes",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "transparent",
+          "line-width": 12,
+        },
+      });
+
+      // ── Custom routes (saved) ──────────────────────────────────────────────
+      map.addSource("custom-routes", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "custom-routes-line",
+        type: "line",
+        source: "custom-routes",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": ["get", "color"],
+          "line-width": 3,
+          "line-dasharray": [2, 1],
+          "line-opacity": 0.9,
+        },
+      });
+
+      // ── Route preview (wizard: shown while designing, before saving) ───────
+      map.addSource("route-preview", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      // White casing for legibility over any map background
+      map.addLayer({
+        id: "route-preview-casing",
+        type: "line",
+        source: "route-preview",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: { "line-color": "#ffffff", "line-width": 6, "line-opacity": 0.7 },
+      });
+      map.addLayer({
+        id: "route-preview-line",
+        type: "line",
+        source: "route-preview",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": ["get", "color"],
+          "line-width": 3.5,
+          "line-dasharray": [4, 2.5],
+          "line-opacity": 0.95,
+        },
+      });
+
+      // ── Simulation vehicles ────────────────────────────────────────────────
+      map.addSource("sim-vehicles", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.addLayer({
+        id: "sim-vehicles-halo",
+        type: "circle",
+        source: "sim-vehicles",
+        paint: {
+          "circle-radius": 11,
+          "circle-color": ["get", "color"],
+          "circle-opacity": 0.25,
+          "circle-stroke-width": 0,
+        },
+      });
+
+      map.addLayer({
+        id: "sim-vehicles-dot",
+        type: "circle",
+        source: "sim-vehicles",
+        paint: {
+          "circle-radius": [
+            "case", ["boolean", ["feature-state", "hovered"], false], 10, 7,
+          ],
+          "circle-color": ["get", "color"],
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff",
+        },
+      });
+
+      map.addLayer({
+        id: "sim-vehicles-label",
+        type: "symbol",
+        source: "sim-vehicles",
+        layout: {
+          "text-field": ["get", "routeName"],
+          "text-size": 9,
+          "text-font": ["DIN Offc Pro Bold", "Arial Unicode MS Bold"],
+          "text-offset": [0, 2.2],
+          "text-anchor": "top",
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+        },
+        paint: {
+          "text-color": ["get", "color"],
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 1.5,
+        },
+      });
+
+      onLoad?.(map);
+    });
+
+    // ── Route hover ────────────────────────────────────────────────────────
+    map.on("mousemove", "go-routes-hit", (e) => {
+      if (isDrawingRef.current) return;
+      if (!e.features?.length) return;
+      const f = e.features[0];
+      const variantId = f.properties?.variant_id as string;
+      const shortName = f.properties?.route_short_name as string;
+      if (variantId !== hoveredVariantRef.current) {
+        hoveredVariantRef.current = variantId;
+        map.getCanvas().style.cursor = "pointer";
+        onRouteHover?.(variantId, shortName);
+      }
+    });
+
+    map.on("mouseleave", "go-routes-hit", () => {
+      if (isDrawingRef.current) return;
+      hoveredVariantRef.current = null;
+      map.getCanvas().style.cursor = "";
+      onRouteHover?.(null, null);
+    });
+
+    // ── Route click ────────────────────────────────────────────────────────
+    map.on("click", "go-routes-hit", (e) => {
+      if (isDrawingRef.current) return;
+      if (!e.features?.length) return;
+      const f = e.features[0];
+      onRouteClick?.(f.properties?.variant_id as string, f.properties?.route_short_name as string);
+    });
+
+    // ── Vehicle hover ──────────────────────────────────────────────────────
+    map.on("mousemove", "sim-vehicles-dot", (e) => {
+      if (isDrawingRef.current) return;
+      if (!e.features?.length) return;
+
+      const feat = e.features[0];
+      const tripId = feat.properties?.tripId as string;
+      const numericId = feat.id as number;
+      const props = feat.properties as {
+        color: string; routeName: string; lineName: string; destination: string;
+        startTime: string; endTime: string; nextStopName: string; secsToNextStop: number;
+      };
+      const coords = (feat.geometry as GeoJSON.Point).coordinates as [number, number];
+
+      if (tripId !== hoveredTripRef.current) {
+        if (hoveredTripNumericIdRef.current !== null) {
+          map.setFeatureState({ source: "sim-vehicles", id: hoveredTripNumericIdRef.current }, { hovered: false });
+        }
+        hoveredTripRef.current = tripId;
+        hoveredTripNumericIdRef.current = numericId;
+        map.setFeatureState({ source: "sim-vehicles", id: numericId }, { hovered: true });
+        map.getCanvas().style.cursor = "pointer";
+        onVehicleHover?.(tripId);
+      }
+
+      // ── Hover tooltip ────────────────────────────────────────────────────
+      if (!vehiclePopupRef.current) {
+        vehiclePopupRef.current = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          offset: 14,
+          anchor: "bottom",
+          className: "vehicle-hover-popup",
+        });
+      }
+      const secsToNext = props.secsToNextStop ?? 0;
+      const minToNext = secsToNext < 60 ? "< 1 min" : `${Math.round(secsToNext / 60)} min`;
+      const nextLine = props.nextStopName
+        ? `<div class="vhp-row vhp-next"><span class="vhp-next-dot"></span>${props.nextStopName}<span class="vhp-eta">${minToNext}</span></div>`
+        : "";
+      const timingLine = props.startTime && props.endTime
+        ? `<div class="vhp-row vhp-timing">${props.startTime} → ${props.endTime}</div>`
+        : "";
+
+      vehiclePopupRef.current
+        .setLngLat(coords)
+        .setHTML(
+          `<div class="vhp-inner">` +
+            `<span class="vhp-badge" style="background:${props.color}">${props.routeName}</span>` +
+            `<div class="vhp-body">` +
+              `<div class="vhp-dest">${props.destination || props.lineName}</div>` +
+              nextLine +
+              timingLine +
+            `</div>` +
+          `</div>`
+        )
+        .addTo(map);
+    });
+
+    map.on("mouseleave", "sim-vehicles-dot", () => {
+      if (isDrawingRef.current) return;
+      if (hoveredTripNumericIdRef.current !== null) {
+        map.setFeatureState({ source: "sim-vehicles", id: hoveredTripNumericIdRef.current }, { hovered: false });
+        hoveredTripNumericIdRef.current = null;
+      }
+      hoveredTripRef.current = null;
+      map.getCanvas().style.cursor = "";
+      onVehicleHover?.(null);
+      vehiclePopupRef.current?.remove();
+      vehiclePopupRef.current = null;
+    });
+
+    // ── Vehicle click ──────────────────────────────────────────────────────
+    map.on("click", "sim-vehicles-dot", (e) => {
+      if (isDrawingRef.current) return;
+      e.preventDefault();
+      if (!e.features?.length) return;
+      onVehicleClick?.(e.features[0].properties?.tripId as string);
+    });
+
+    mapRef.current = map;
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [onLoad, onRouteClick, onRouteHover]);
+
+  return <div ref={containerRef} className="w-full h-full" />;
+});
+
+export default Map;

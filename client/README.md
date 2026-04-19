@@ -1,68 +1,36 @@
-# TransitFlow Client
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Next.js 16 app for TransitFlow's public-beta workspace, GTFS-backed APIs, and AI-assisted planning tools.
+## Getting Started
 
-## Local development
+First, run the development server:
 
 ```bash
-cd client
-npm install
-cp .env.example .env.local
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and use `/map` for the main workspace.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Required environment variables
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-- `NEXT_PUBLIC_SITE_URL`
-- `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`
-- `MAPBOX_ACCESS_TOKEN`
-- `ANTHROPIC_API_KEY`
-- `GEMINI_API_KEY` only if Gemini-backed features remain enabled
-- `SENTRY_DSN` optional placeholder for external monitoring
-- `BLOB_READ_WRITE_TOKEN` for publishing simulation artifacts to Vercel Blob
-- `SIMULATION_DATA_MODE`
-- `SIMULATION_ARTIFACT_BASE_URL` if remote simulation artifacts are used
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-See [`.env.example`](/Applications/vscode/transit-flow/client/.env.example).
+## Learn More
 
-## Production readiness additions
+To learn more about Next.js, take a look at the following resources:
 
-- Security headers and CSP in [proxy.ts](/Applications/vscode/transit-flow/client/proxy.ts)
-- API rate limits, request validation, and timeout handling in [lib/server/api.ts](/Applications/vscode/transit-flow/client/lib/server/api.ts)
-- GTFS file caching in [gtfs-cache.ts](/Applications/vscode/transit-flow/client/lib/server/gtfs-cache.ts)
-- Vercel config in [vercel.json](/Applications/vscode/transit-flow/client/vercel.json)
-- CI in [client-ci.yml](/Applications/vscode/transit-flow/.github/workflows/client-ci.yml)
-- Launch runbook in [production-runbook.md](/Applications/vscode/transit-flow/client/docs/production-runbook.md)
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## Checks
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-```bash
-npm run lint
-npm run build
-npm run test:e2e
-```
+## Deploy on Vercel
 
-## Simulation artifacts
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-Generate route-scoped simulation artifacts for production-oriented deployments:
-
-```bash
-python3 /Applications/vscode/transit-flow/scripts/build_simulation_artifacts.py --input_dir /Applications/vscode/transit-flow/client/public/gotransit --output_dir /Applications/vscode/transit-flow/client/public/gotransit/derived/simulation --source gotransit
-```
-
-Publish GO simulation artifacts to Vercel Blob for production:
-
-```bash
-cd /Applications/vscode/transit-flow/client
-npm run simulation:publish
-```
-
-Useful flags:
-
-```bash
-npm run simulation:publish -- --dry-run --skip-build
-```
-
-For the current GO Transit feed, the generated artifact set is too large to package into a Vercel app bundle. Production should use `SIMULATION_DATA_MODE=remote` with `SIMULATION_ARTIFACT_BASE_URL` set to the Blob base URL printed by the publish command.
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

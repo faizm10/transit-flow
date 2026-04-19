@@ -7,6 +7,7 @@
       "direction_id": 0,
       "shape_id": "421253",
       "trip_count": 616,
+      "weekly_trip_count": 40,
       "representative_trip_id": "20260106-11-11440",
       "route_variant": "11"
     },
@@ -17,6 +18,7 @@
       "direction_id": 1,
       "shape_id": "421252",
       "trip_count": 616,
+      "weekly_trip_count": 40,
       "representative_trip_id": "20260106-11-11061",
       "route_variant": "11"
     }
@@ -29,6 +31,7 @@
       "direction_id": 0,
       "shape_id": "421255",
       "trip_count": 1930,
+      "weekly_trip_count": 124,
       "representative_trip_id": "20260106-12-12080",
       "route_variant": "12"
     },
@@ -39,6 +42,7 @@
       "direction_id": 1,
       "shape_id": "421254",
       "trip_count": 1930,
+      "weekly_trip_count": 124,
       "representative_trip_id": "20260106-12-12121",
       "route_variant": "12"
     },
@@ -49,6 +53,7 @@
       "direction_id": 0,
       "shape_id": "421258",
       "trip_count": 1263,
+      "weekly_trip_count": 81,
       "representative_trip_id": "20260106-12-12402",
       "route_variant": "12B"
     },
@@ -59,6 +64,7 @@
       "direction_id": 1,
       "shape_id": "421257",
       "trip_count": 1077,
+      "weekly_trip_count": 69,
       "representative_trip_id": "20260106-12-12283",
       "route_variant": "12B"
     },
@@ -69,6 +75,7 @@
       "direction_id": 1,
       "shape_id": "421260",
       "trip_count": 173,
+      "weekly_trip_count": 11,
       "representative_trip_id": "20260106-12-12651",
       "route_variant": "12D"
     },
@@ -79,6 +86,7 @@
       "direction_id": 0,
       "shape_id": "421259",
       "trip_count": 160,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260110-12-12324",
       "route_variant": "12D"
     },
@@ -89,6 +97,7 @@
       "direction_id": 0,
       "shape_id": "421256",
       "trip_count": 77,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-12-12050",
       "route_variant": "12A"
     }
@@ -101,6 +110,7 @@
       "direction_id": 0,
       "shape_id": "421262",
       "trip_count": 1039,
+      "weekly_trip_count": 67,
       "representative_trip_id": "20260106-15-15160",
       "route_variant": "15"
     },
@@ -111,6 +121,7 @@
       "direction_id": 1,
       "shape_id": "421261",
       "trip_count": 962,
+      "weekly_trip_count": 62,
       "representative_trip_id": "20260106-15-15091",
       "route_variant": "15"
     },
@@ -121,6 +132,7 @@
       "direction_id": 0,
       "shape_id": "421264",
       "trip_count": 327,
+      "weekly_trip_count": 21,
       "representative_trip_id": "20260106-15-15292",
       "route_variant": "15B"
     },
@@ -131,6 +143,7 @@
       "direction_id": 1,
       "shape_id": "421265",
       "trip_count": 327,
+      "weekly_trip_count": 21,
       "representative_trip_id": "20260106-15-15043",
       "route_variant": "15B"
     },
@@ -141,6 +154,7 @@
       "direction_id": 0,
       "shape_id": "421263",
       "trip_count": 120,
+      "weekly_trip_count": 6,
       "representative_trip_id": "20260109-15-15504",
       "route_variant": "15A"
     },
@@ -151,6 +165,7 @@
       "direction_id": 1,
       "shape_id": "421266",
       "trip_count": 109,
+      "weekly_trip_count": 7,
       "representative_trip_id": "20260106-15-15115",
       "route_variant": "15A"
     }
@@ -163,6 +178,7 @@
       "direction_id": 0,
       "shape_id": "421268",
       "trip_count": 1961,
+      "weekly_trip_count": 125,
       "representative_trip_id": "20260106-16-16090",
       "route_variant": "16"
     },
@@ -173,6 +189,7 @@
       "direction_id": 1,
       "shape_id": "421267",
       "trip_count": 1897,
+      "weekly_trip_count": 121,
       "representative_trip_id": "20260106-16-16051",
       "route_variant": "16"
     }
@@ -185,6 +202,7 @@
       "direction_id": 0,
       "shape_id": "421269",
       "trip_count": 1078,
+      "weekly_trip_count": 70,
       "representative_trip_id": "20260106-17-17071",
       "route_variant": "17"
     },
@@ -195,6 +213,7 @@
       "direction_id": 1,
       "shape_id": "421270",
       "trip_count": 1078,
+      "weekly_trip_count": 70,
       "representative_trip_id": "20260106-17-17030",
       "route_variant": "17"
     }
@@ -207,6 +226,7 @@
       "direction_id": 1,
       "shape_id": "421278",
       "trip_count": 827,
+      "weekly_trip_count": 53,
       "representative_trip_id": "20260106-18-18121",
       "route_variant": "18"
     },
@@ -217,6 +237,7 @@
       "direction_id": 0,
       "shape_id": "421277",
       "trip_count": 455,
+      "weekly_trip_count": 29,
       "representative_trip_id": "20260106-18-18340",
       "route_variant": "18"
     },
@@ -227,6 +248,7 @@
       "direction_id": 1,
       "shape_id": "421286",
       "trip_count": 173,
+      "weekly_trip_count": 11,
       "representative_trip_id": "20260106-18-18951",
       "route_variant": "18J"
     },
@@ -237,6 +259,7 @@
       "direction_id": 1,
       "shape_id": "421285",
       "trip_count": 169,
+      "weekly_trip_count": 11,
       "representative_trip_id": "20260106-18-18051",
       "route_variant": "18C"
     },
@@ -247,6 +270,7 @@
       "direction_id": 0,
       "shape_id": "421276",
       "trip_count": 139,
+      "weekly_trip_count": 9,
       "representative_trip_id": "20260106-18-18880",
       "route_variant": "18E"
     },
@@ -257,6 +281,7 @@
       "direction_id": 1,
       "shape_id": "421280",
       "trip_count": 111,
+      "weekly_trip_count": 7,
       "representative_trip_id": "20260106-18-18931",
       "route_variant": "18F"
     },
@@ -267,6 +292,7 @@
       "direction_id": 1,
       "shape_id": "421287",
       "trip_count": 109,
+      "weekly_trip_count": 7,
       "representative_trip_id": "20260106-18-18921",
       "route_variant": "18H"
     },
@@ -277,6 +303,7 @@
       "direction_id": 0,
       "shape_id": "421281",
       "trip_count": 96,
+      "weekly_trip_count": 6,
       "representative_trip_id": "20260110-18-18060",
       "route_variant": "18J"
     },
@@ -287,6 +314,7 @@
       "direction_id": 0,
       "shape_id": "421271",
       "trip_count": 79,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-18-18022",
       "route_variant": "18H"
     },
@@ -297,6 +325,7 @@
       "direction_id": 0,
       "shape_id": "421279",
       "trip_count": 77,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-18-18020",
       "route_variant": "18G"
     },
@@ -307,6 +336,7 @@
       "direction_id": 1,
       "shape_id": "421272",
       "trip_count": 34,
+      "weekly_trip_count": 2,
       "representative_trip_id": "20260110-18-18983",
       "route_variant": "18D"
     },
@@ -317,6 +347,7 @@
       "direction_id": 0,
       "shape_id": "421282",
       "trip_count": 32,
+      "weekly_trip_count": 2,
       "representative_trip_id": "20260110-18-18050",
       "route_variant": "18B"
     },
@@ -327,6 +358,7 @@
       "direction_id": 0,
       "shape_id": "421284",
       "trip_count": 32,
+      "weekly_trip_count": 2,
       "representative_trip_id": "20260110-18-18090",
       "route_variant": "18A"
     },
@@ -337,6 +369,7 @@
       "direction_id": 1,
       "shape_id": "421283",
       "trip_count": 32,
+      "weekly_trip_count": 2,
       "representative_trip_id": "20260110-18-18111",
       "route_variant": "18A"
     }
@@ -349,6 +382,7 @@
       "direction_id": 0,
       "shape_id": "421293",
       "trip_count": 3117,
+      "weekly_trip_count": 201,
       "representative_trip_id": "20260106-19-19040",
       "route_variant": "19"
     },
@@ -359,6 +393,7 @@
       "direction_id": 1,
       "shape_id": "421294",
       "trip_count": 3008,
+      "weekly_trip_count": 194,
       "representative_trip_id": "20260106-19-19091",
       "route_variant": "19"
     },
@@ -369,6 +404,7 @@
       "direction_id": 1,
       "shape_id": "421976",
       "trip_count": 77,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-19-19351",
       "route_variant": "19"
     }
@@ -381,6 +417,7 @@
       "direction_id": 0,
       "shape_id": "421299",
       "trip_count": 1263,
+      "weekly_trip_count": 81,
       "representative_trip_id": "20260106-21-21240",
       "route_variant": "21C"
     },
@@ -391,6 +428,7 @@
       "direction_id": 1,
       "shape_id": "421295",
       "trip_count": 1199,
+      "weekly_trip_count": 77,
       "representative_trip_id": "20260106-21-21381",
       "route_variant": "21C"
     },
@@ -401,6 +439,7 @@
       "direction_id": 1,
       "shape_id": "421304",
       "trip_count": 1109,
+      "weekly_trip_count": 71,
       "representative_trip_id": "20260106-21-21385",
       "route_variant": "21A"
     },
@@ -411,6 +450,7 @@
       "direction_id": 0,
       "shape_id": "421296",
       "trip_count": 1077,
+      "weekly_trip_count": 69,
       "representative_trip_id": "20260106-21-21244",
       "route_variant": "21A"
     },
@@ -421,6 +461,7 @@
       "direction_id": 0,
       "shape_id": "421300",
       "trip_count": 924,
+      "weekly_trip_count": 60,
       "representative_trip_id": "20260106-21-21000",
       "route_variant": "21"
     },
@@ -431,6 +472,7 @@
       "direction_id": 1,
       "shape_id": "421308",
       "trip_count": 770,
+      "weekly_trip_count": 50,
       "representative_trip_id": "20260106-21-21051",
       "route_variant": "21"
     },
@@ -441,6 +483,7 @@
       "direction_id": 0,
       "shape_id": "421301",
       "trip_count": 462,
+      "weekly_trip_count": 30,
       "representative_trip_id": "20260106-21-21332",
       "route_variant": "21E"
     },
@@ -451,6 +494,7 @@
       "direction_id": 1,
       "shape_id": "421297",
       "trip_count": 416,
+      "weekly_trip_count": 26,
       "representative_trip_id": "20260110-21-21233",
       "route_variant": "21D"
     },
@@ -461,6 +505,7 @@
       "direction_id": 1,
       "shape_id": "421307",
       "trip_count": 385,
+      "weekly_trip_count": 25,
       "representative_trip_id": "20260106-21-21433",
       "route_variant": "21B"
     },
@@ -471,6 +516,7 @@
       "direction_id": 0,
       "shape_id": "421303",
       "trip_count": 384,
+      "weekly_trip_count": 24,
       "representative_trip_id": "20260110-21-21172",
       "route_variant": "21D"
     },
@@ -481,6 +527,7 @@
       "direction_id": 0,
       "shape_id": "421302",
       "trip_count": 288,
+      "weekly_trip_count": 18,
       "representative_trip_id": "20260110-21-21020",
       "route_variant": "21F"
     },
@@ -491,6 +538,7 @@
       "direction_id": 1,
       "shape_id": "421306",
       "trip_count": 231,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-21-21393",
       "route_variant": "21E"
     },
@@ -501,6 +549,7 @@
       "direction_id": 1,
       "shape_id": "421305",
       "trip_count": 224,
+      "weekly_trip_count": 14,
       "representative_trip_id": "20260110-21-21151",
       "route_variant": "21F"
     },
@@ -511,6 +560,7 @@
       "direction_id": 0,
       "shape_id": "421298",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-21-21242",
       "route_variant": "21B"
     }
@@ -523,6 +573,7 @@
       "direction_id": 0,
       "shape_id": "421309",
       "trip_count": 539,
+      "weekly_trip_count": 35,
       "representative_trip_id": "20260106-22-22191",
       "route_variant": "22"
     },
@@ -533,6 +584,7 @@
       "direction_id": 1,
       "shape_id": "421310",
       "trip_count": 539,
+      "weekly_trip_count": 35,
       "representative_trip_id": "20260106-22-22130",
       "route_variant": "22"
     }
@@ -545,6 +597,7 @@
       "direction_id": 1,
       "shape_id": "421316",
       "trip_count": 1764,
+      "weekly_trip_count": 114,
       "representative_trip_id": "20260106-25-25061",
       "route_variant": "25"
     },
@@ -555,6 +608,7 @@
       "direction_id": 0,
       "shape_id": "421311",
       "trip_count": 1686,
+      "weekly_trip_count": 109,
       "representative_trip_id": "20260106-25-25040",
       "route_variant": "25"
     },
@@ -565,6 +619,7 @@
       "direction_id": 0,
       "shape_id": "421312",
       "trip_count": 1102,
+      "weekly_trip_count": 70,
       "representative_trip_id": "20260106-25-25532",
       "route_variant": "25C"
     },
@@ -575,6 +630,7 @@
       "direction_id": 1,
       "shape_id": "421313",
       "trip_count": 1041,
+      "weekly_trip_count": 66,
       "representative_trip_id": "20260106-25-25513",
       "route_variant": "25C"
     },
@@ -585,6 +641,7 @@
       "direction_id": 0,
       "shape_id": "421315",
       "trip_count": 417,
+      "weekly_trip_count": 27,
       "representative_trip_id": "20260106-25-25482",
       "route_variant": "25A"
     },
@@ -595,6 +652,7 @@
       "direction_id": 1,
       "shape_id": "421318",
       "trip_count": 385,
+      "weekly_trip_count": 25,
       "representative_trip_id": "20260106-25-25133",
       "route_variant": "25A"
     },
@@ -605,6 +663,7 @@
       "direction_id": 0,
       "shape_id": "421314",
       "trip_count": 384,
+      "weekly_trip_count": 24,
       "representative_trip_id": "20260110-25-25230",
       "route_variant": "25L"
     },
@@ -615,6 +674,7 @@
       "direction_id": 1,
       "shape_id": "421317",
       "trip_count": 384,
+      "weekly_trip_count": 24,
       "representative_trip_id": "20260110-25-25241",
       "route_variant": "25L"
     }
@@ -627,6 +687,7 @@
       "direction_id": 0,
       "shape_id": "421320",
       "trip_count": 1341,
+      "weekly_trip_count": 87,
       "representative_trip_id": "20260106-27-27060",
       "route_variant": "27A"
     },
@@ -637,6 +698,7 @@
       "direction_id": 1,
       "shape_id": "421321",
       "trip_count": 1297,
+      "weekly_trip_count": 83,
       "representative_trip_id": "20260106-27-27161",
       "route_variant": "27B"
     },
@@ -647,6 +709,7 @@
       "direction_id": 1,
       "shape_id": "421322",
       "trip_count": 1187,
+      "weekly_trip_count": 77,
       "representative_trip_id": "20260106-27-27051",
       "route_variant": "27A"
     },
@@ -657,6 +720,7 @@
       "direction_id": 0,
       "shape_id": "421319",
       "trip_count": 1175,
+      "weekly_trip_count": 75,
       "representative_trip_id": "20260106-27-27080",
       "route_variant": "27B"
     }
@@ -669,6 +733,7 @@
       "direction_id": 1,
       "shape_id": "421325",
       "trip_count": 1744,
+      "weekly_trip_count": 112,
       "representative_trip_id": "20260106-29-29121",
       "route_variant": "29"
     },
@@ -679,6 +744,7 @@
       "direction_id": 0,
       "shape_id": "421324",
       "trip_count": 1667,
+      "weekly_trip_count": 107,
       "representative_trip_id": "20260106-29-29130",
       "route_variant": "29"
     },
@@ -689,6 +755,7 @@
       "direction_id": 1,
       "shape_id": "421326",
       "trip_count": 462,
+      "weekly_trip_count": 30,
       "representative_trip_id": "20260106-29-29103",
       "route_variant": "29A"
     },
@@ -699,6 +766,7 @@
       "direction_id": 0,
       "shape_id": "421323",
       "trip_count": 308,
+      "weekly_trip_count": 20,
       "representative_trip_id": "20260106-29-29632",
       "route_variant": "29A"
     }
@@ -711,6 +779,7 @@
       "direction_id": 1,
       "shape_id": "421332",
       "trip_count": 1943,
+      "weekly_trip_count": 125,
       "representative_trip_id": "20260106-30-30101",
       "route_variant": "30"
     },
@@ -721,6 +790,7 @@
       "direction_id": 0,
       "shape_id": "421330",
       "trip_count": 1804,
+      "weekly_trip_count": 116,
       "representative_trip_id": "20260106-30-30020",
       "route_variant": "30"
     },
@@ -731,6 +801,7 @@
       "direction_id": 1,
       "shape_id": "421328",
       "trip_count": 1079,
+      "weekly_trip_count": 69,
       "representative_trip_id": "20260106-30-30093",
       "route_variant": "30A"
     },
@@ -741,6 +812,7 @@
       "direction_id": 0,
       "shape_id": "421327",
       "trip_count": 888,
+      "weekly_trip_count": 57,
       "representative_trip_id": "20260106-30-30472",
       "route_variant": "30A"
     },
@@ -751,6 +823,7 @@
       "direction_id": 0,
       "shape_id": "421331",
       "trip_count": 145,
+      "weekly_trip_count": 9,
       "representative_trip_id": "20260109-30-30304",
       "route_variant": "30E"
     },
@@ -761,6 +834,7 @@
       "direction_id": 1,
       "shape_id": "421329",
       "trip_count": 107,
+      "weekly_trip_count": 7,
       "representative_trip_id": "20260108-30-30425",
       "route_variant": "30E"
     }
@@ -773,6 +847,7 @@
       "direction_id": 0,
       "shape_id": "421345",
       "trip_count": 327,
+      "weekly_trip_count": 21,
       "representative_trip_id": "20260106-31-31020",
       "route_variant": "31E"
     },
@@ -783,6 +858,7 @@
       "direction_id": 1,
       "shape_id": "421334",
       "trip_count": 250,
+      "weekly_trip_count": 16,
       "representative_trip_id": "20260106-31-31951",
       "route_variant": "31E"
     },
@@ -793,6 +869,7 @@
       "direction_id": 0,
       "shape_id": "421344",
       "trip_count": 231,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-31-31570",
       "route_variant": "31B"
     },
@@ -803,6 +880,7 @@
       "direction_id": 1,
       "shape_id": "421335",
       "trip_count": 231,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-31-31081",
       "route_variant": "31M"
     },
@@ -813,6 +891,7 @@
       "direction_id": 1,
       "shape_id": "421333",
       "trip_count": 218,
+      "weekly_trip_count": 14,
       "representative_trip_id": "20260106-31-31881",
       "route_variant": "31L"
     },
@@ -823,6 +902,7 @@
       "direction_id": 1,
       "shape_id": "421336",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-31-31131",
       "route_variant": "31B"
     },
@@ -833,6 +913,7 @@
       "direction_id": 0,
       "shape_id": "421338",
       "trip_count": 109,
+      "weekly_trip_count": 7,
       "representative_trip_id": "20260106-31-31040",
       "route_variant": "31L"
     },
@@ -843,6 +924,7 @@
       "direction_id": 0,
       "shape_id": "421346",
       "trip_count": 109,
+      "weekly_trip_count": 7,
       "representative_trip_id": "20260106-31-31030",
       "route_variant": "31F"
     },
@@ -853,6 +935,7 @@
       "direction_id": 1,
       "shape_id": "421339",
       "trip_count": 109,
+      "weekly_trip_count": 7,
       "representative_trip_id": "20260106-31-31923",
       "route_variant": "31A"
     },
@@ -863,6 +946,7 @@
       "direction_id": 1,
       "shape_id": "421342",
       "trip_count": 109,
+      "weekly_trip_count": 7,
       "representative_trip_id": "20260106-31-31883",
       "route_variant": "31K"
     },
@@ -873,6 +957,7 @@
       "direction_id": 0,
       "shape_id": "421341",
       "trip_count": 96,
+      "weekly_trip_count": 6,
       "representative_trip_id": "20260110-31-31020",
       "route_variant": "31K"
     },
@@ -883,6 +968,7 @@
       "direction_id": 1,
       "shape_id": "421337",
       "trip_count": 77,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-31-31101",
       "route_variant": "31"
     },
@@ -893,6 +979,7 @@
       "direction_id": 0,
       "shape_id": "421343",
       "trip_count": 32,
+      "weekly_trip_count": 2,
       "representative_trip_id": "20260110-31-31030",
       "route_variant": "31X"
     },
@@ -903,6 +990,7 @@
       "direction_id": 1,
       "shape_id": "421340",
       "trip_count": 32,
+      "weekly_trip_count": 2,
       "representative_trip_id": "20260110-31-31931",
       "route_variant": "31X"
     }
@@ -915,6 +1003,7 @@
       "direction_id": 0,
       "shape_id": "421349",
       "trip_count": 1694,
+      "weekly_trip_count": 110,
       "representative_trip_id": "20260106-32-32060",
       "route_variant": "32"
     },
@@ -925,6 +1014,7 @@
       "direction_id": 1,
       "shape_id": "421347",
       "trip_count": 1463,
+      "weekly_trip_count": 95,
       "representative_trip_id": "20260106-32-32261",
       "route_variant": "32"
     },
@@ -935,6 +1025,7 @@
       "direction_id": 0,
       "shape_id": "421350",
       "trip_count": 308,
+      "weekly_trip_count": 20,
       "representative_trip_id": "20260106-32-32132",
       "route_variant": "32B"
     },
@@ -945,6 +1036,7 @@
       "direction_id": 1,
       "shape_id": "421348",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-32-32453",
       "route_variant": "32B"
     }
@@ -957,6 +1049,7 @@
       "direction_id": 1,
       "shape_id": "421354",
       "trip_count": 1257,
+      "weekly_trip_count": 81,
       "representative_trip_id": "20260106-33-33261",
       "route_variant": "33"
     },
@@ -967,6 +1060,7 @@
       "direction_id": 0,
       "shape_id": "421355",
       "trip_count": 1078,
+      "weekly_trip_count": 70,
       "representative_trip_id": "20260106-33-33090",
       "route_variant": "33B"
     },
@@ -977,6 +1071,7 @@
       "direction_id": 1,
       "shape_id": "421356",
       "trip_count": 770,
+      "weekly_trip_count": 50,
       "representative_trip_id": "20260106-33-33481",
       "route_variant": "33B"
     },
@@ -987,6 +1082,7 @@
       "direction_id": 1,
       "shape_id": "421357",
       "trip_count": 616,
+      "weekly_trip_count": 40,
       "representative_trip_id": "20260106-33-33541",
       "route_variant": "33E"
     },
@@ -997,6 +1093,7 @@
       "direction_id": 0,
       "shape_id": "421358",
       "trip_count": 487,
+      "weekly_trip_count": 31,
       "representative_trip_id": "20260106-33-33150",
       "route_variant": "33"
     },
@@ -1007,6 +1104,7 @@
       "direction_id": 0,
       "shape_id": "421351",
       "trip_count": 462,
+      "weekly_trip_count": 30,
       "representative_trip_id": "20260106-33-33100",
       "route_variant": "33A"
     },
@@ -1017,6 +1115,7 @@
       "direction_id": 0,
       "shape_id": "421359",
       "trip_count": 462,
+      "weekly_trip_count": 30,
       "representative_trip_id": "20260106-33-33050",
       "route_variant": "33E"
     },
@@ -1027,6 +1126,7 @@
       "direction_id": 0,
       "shape_id": "421360",
       "trip_count": 462,
+      "weekly_trip_count": 30,
       "representative_trip_id": "20260106-33-33320",
       "route_variant": "33F"
     },
@@ -1037,6 +1137,7 @@
       "direction_id": 1,
       "shape_id": "421352",
       "trip_count": 231,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-33-33151",
       "route_variant": "33A"
     },
@@ -1047,6 +1148,7 @@
       "direction_id": 0,
       "shape_id": "421362",
       "trip_count": 141,
+      "weekly_trip_count": 9,
       "representative_trip_id": "20260106-33-33780",
       "route_variant": "33G"
     },
@@ -1057,6 +1159,7 @@
       "direction_id": 1,
       "shape_id": "421353",
       "trip_count": 128,
+      "weekly_trip_count": 8,
       "representative_trip_id": "20260110-33-33251",
       "route_variant": "33G"
     },
@@ -1067,6 +1170,7 @@
       "direction_id": 0,
       "shape_id": "421361",
       "trip_count": 77,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-33-33850",
       "route_variant": "33H"
     }
@@ -1079,6 +1183,7 @@
       "direction_id": 0,
       "shape_id": "421363",
       "trip_count": 2143,
+      "weekly_trip_count": 137,
       "representative_trip_id": "20260106-36-36040",
       "route_variant": "36B"
     },
@@ -1089,6 +1194,7 @@
       "direction_id": 1,
       "shape_id": "421364",
       "trip_count": 2113,
+      "weekly_trip_count": 135,
       "representative_trip_id": "20260106-36-36061",
       "route_variant": "36B"
     }
@@ -1101,6 +1207,7 @@
       "direction_id": 0,
       "shape_id": "421366",
       "trip_count": 385,
+      "weekly_trip_count": 25,
       "representative_trip_id": "20260106-37-37371",
       "route_variant": "37"
     },
@@ -1111,6 +1218,7 @@
       "direction_id": 1,
       "shape_id": "421365",
       "trip_count": 308,
+      "weekly_trip_count": 20,
       "representative_trip_id": "20260106-37-37150",
       "route_variant": "37"
     },
@@ -1121,6 +1229,7 @@
       "direction_id": 1,
       "shape_id": "421368",
       "trip_count": 231,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-37-37740",
       "route_variant": "37B"
     },
@@ -1131,6 +1240,7 @@
       "direction_id": 0,
       "shape_id": "421367",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-37-37031",
       "route_variant": "37A"
     }
@@ -1143,6 +1253,7 @@
       "direction_id": 0,
       "shape_id": "421369",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-38-38631",
       "route_variant": "38"
     },
@@ -1153,6 +1264,7 @@
       "direction_id": 1,
       "shape_id": "421370",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-38-38170",
       "route_variant": "38"
     }
@@ -1165,6 +1277,7 @@
       "direction_id": 0,
       "shape_id": "421371",
       "trip_count": 3969,
+      "weekly_trip_count": 255,
       "representative_trip_id": "20260106-40-40010",
       "route_variant": "40"
     },
@@ -1175,6 +1288,7 @@
       "direction_id": 1,
       "shape_id": "421372",
       "trip_count": 3969,
+      "weekly_trip_count": 255,
       "representative_trip_id": "20260106-40-40021",
       "route_variant": "40"
     },
@@ -1185,6 +1299,7 @@
       "direction_id": 0,
       "shape_id": "421375",
       "trip_count": 616,
+      "weekly_trip_count": 40,
       "representative_trip_id": "20260106-40-40084",
       "route_variant": "40M"
     },
@@ -1195,6 +1310,7 @@
       "direction_id": 1,
       "shape_id": "421376",
       "trip_count": 539,
+      "weekly_trip_count": 35,
       "representative_trip_id": "20260106-40-40175",
       "route_variant": "40M"
     },
@@ -1205,6 +1321,7 @@
       "direction_id": 1,
       "shape_id": "421373",
       "trip_count": 231,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-40-40333",
       "route_variant": "40H"
     },
@@ -1215,6 +1332,7 @@
       "direction_id": 0,
       "shape_id": "421374",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-40-40262",
       "route_variant": "40H"
     }
@@ -1227,6 +1345,7 @@
       "direction_id": 0,
       "shape_id": "421382",
       "trip_count": 2541,
+      "weekly_trip_count": 165,
       "representative_trip_id": "20260106-41-41000",
       "route_variant": "41"
     },
@@ -1237,6 +1356,7 @@
       "direction_id": 1,
       "shape_id": "421383",
       "trip_count": 2541,
+      "weekly_trip_count": 165,
       "representative_trip_id": "20260106-41-41031",
       "route_variant": "41"
     },
@@ -1247,6 +1367,7 @@
       "direction_id": 0,
       "shape_id": "421381",
       "trip_count": 1567,
+      "weekly_trip_count": 80,
       "representative_trip_id": "20260106-41-41014",
       "route_variant": "41C"
     },
@@ -1257,6 +1378,7 @@
       "direction_id": 1,
       "shape_id": "421377",
       "trip_count": 1463,
+      "weekly_trip_count": 95,
       "representative_trip_id": "20260106-41-41313",
       "route_variant": "41A"
     },
@@ -1267,6 +1389,7 @@
       "direction_id": 0,
       "shape_id": "421379",
       "trip_count": 1078,
+      "weekly_trip_count": 70,
       "representative_trip_id": "20260106-41-41342",
       "route_variant": "41B"
     },
@@ -1277,6 +1400,7 @@
       "direction_id": 0,
       "shape_id": "421380",
       "trip_count": 1078,
+      "weekly_trip_count": 70,
       "representative_trip_id": "20260106-41-41002",
       "route_variant": "41A"
     },
@@ -1287,6 +1411,7 @@
       "direction_id": 1,
       "shape_id": "421378",
       "trip_count": 817,
+      "weekly_trip_count": 40,
       "representative_trip_id": "20260106-41-41375",
       "route_variant": "41C"
     },
@@ -1297,6 +1422,7 @@
       "direction_id": 0,
       "shape_id": "421385",
       "trip_count": 385,
+      "weekly_trip_count": 25,
       "representative_trip_id": "20260106-41-41038",
       "route_variant": "41F"
     },
@@ -1307,6 +1433,7 @@
       "direction_id": 1,
       "shape_id": "421384",
       "trip_count": 231,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-41-41507",
       "route_variant": "41F"
     }
@@ -1319,6 +1446,7 @@
       "direction_id": 1,
       "shape_id": "421391",
       "trip_count": 1582,
+      "weekly_trip_count": 100,
       "representative_trip_id": "20260106-47-47001",
       "route_variant": "47"
     },
@@ -1329,6 +1457,7 @@
       "direction_id": 0,
       "shape_id": "421387",
       "trip_count": 1527,
+      "weekly_trip_count": 60,
       "representative_trip_id": "20260106-47-47374",
       "route_variant": "47G"
     },
@@ -1339,6 +1468,7 @@
       "direction_id": 0,
       "shape_id": "421390",
       "trip_count": 1505,
+      "weekly_trip_count": 95,
       "representative_trip_id": "20260106-47-47740",
       "route_variant": "47"
     },
@@ -1349,6 +1479,7 @@
       "direction_id": 0,
       "shape_id": "421389",
       "trip_count": 1376,
+      "weekly_trip_count": 85,
       "representative_trip_id": "20260106-47-47416",
       "route_variant": "47D"
     },
@@ -1359,6 +1490,7 @@
       "direction_id": 1,
       "shape_id": "421386",
       "trip_count": 1336,
+      "weekly_trip_count": 65,
       "representative_trip_id": "20260106-47-47025",
       "route_variant": "47G"
     },
@@ -1369,6 +1501,7 @@
       "direction_id": 1,
       "shape_id": "421388",
       "trip_count": 1078,
+      "weekly_trip_count": 70,
       "representative_trip_id": "20260106-47-47033",
       "route_variant": "47D"
     },
@@ -1379,6 +1512,7 @@
       "direction_id": 0,
       "shape_id": "421392",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-47-47162",
       "route_variant": "47A"
     },
@@ -1389,6 +1523,7 @@
       "direction_id": 1,
       "shape_id": "421393",
       "trip_count": 77,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-47-47463",
       "route_variant": "47A"
     }
@@ -1401,6 +1536,7 @@
       "direction_id": 0,
       "shape_id": "421394",
       "trip_count": 1309,
+      "weekly_trip_count": 85,
       "representative_trip_id": "20260106-48-48100",
       "route_variant": "48"
     },
@@ -1411,6 +1547,7 @@
       "direction_id": 1,
       "shape_id": "421395",
       "trip_count": 1232,
+      "weekly_trip_count": 80,
       "representative_trip_id": "20260106-48-48061",
       "route_variant": "48"
     }
@@ -1423,6 +1560,7 @@
       "direction_id": 0,
       "shape_id": "421397",
       "trip_count": 416,
+      "weekly_trip_count": 26,
       "representative_trip_id": "20260110-52-52151",
       "route_variant": "52"
     },
@@ -1433,6 +1571,7 @@
       "direction_id": 1,
       "shape_id": "421396",
       "trip_count": 416,
+      "weekly_trip_count": 26,
       "representative_trip_id": "20260110-52-52210",
       "route_variant": "52"
     },
@@ -1443,6 +1582,7 @@
       "direction_id": 1,
       "shape_id": "421398",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-52-52122",
       "route_variant": "52A"
     },
@@ -1453,6 +1593,7 @@
       "direction_id": 0,
       "shape_id": "421399",
       "trip_count": 77,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-52-52033",
       "route_variant": "52A"
     }
@@ -1465,6 +1606,7 @@
       "direction_id": 0,
       "shape_id": "421402",
       "trip_count": 2541,
+      "weekly_trip_count": 165,
       "representative_trip_id": "20260106-56-56041",
       "route_variant": "56"
     },
@@ -1475,6 +1617,7 @@
       "direction_id": 1,
       "shape_id": "421403",
       "trip_count": 2541,
+      "weekly_trip_count": 165,
       "representative_trip_id": "20260106-56-56000",
       "route_variant": "56"
     },
@@ -1485,6 +1628,7 @@
       "direction_id": 0,
       "shape_id": "421404",
       "trip_count": 231,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-56-56053",
       "route_variant": "56A"
     },
@@ -1495,6 +1639,7 @@
       "direction_id": 1,
       "shape_id": "421400",
       "trip_count": 231,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-56-56004",
       "route_variant": "56B"
     },
@@ -1505,6 +1650,7 @@
       "direction_id": 1,
       "shape_id": "421405",
       "trip_count": 231,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-56-56422",
       "route_variant": "56A"
     },
@@ -1515,6 +1661,7 @@
       "direction_id": 0,
       "shape_id": "421401",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-56-56527",
       "route_variant": "56C"
     },
@@ -1525,6 +1672,7 @@
       "direction_id": 0,
       "shape_id": "421406",
       "trip_count": 77,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-56-56665",
       "route_variant": "56B"
     }
@@ -1537,6 +1685,7 @@
       "direction_id": 0,
       "shape_id": "421407",
       "trip_count": 770,
+      "weekly_trip_count": 50,
       "representative_trip_id": "20260106-61-61341",
       "route_variant": "61"
     },
@@ -1547,6 +1696,7 @@
       "direction_id": 1,
       "shape_id": "421408",
       "trip_count": 462,
+      "weekly_trip_count": 30,
       "representative_trip_id": "20260106-61-61050",
       "route_variant": "61"
     }
@@ -1559,6 +1709,7 @@
       "direction_id": 1,
       "shape_id": "421411",
       "trip_count": 494,
+      "weekly_trip_count": 32,
       "representative_trip_id": "20260106-65-65060",
       "route_variant": "65"
     },
@@ -1569,6 +1720,7 @@
       "direction_id": 0,
       "shape_id": "421410",
       "trip_count": 267,
+      "weekly_trip_count": 17,
       "representative_trip_id": "20260106-65-65881",
       "route_variant": "65E"
     },
@@ -1579,6 +1731,7 @@
       "direction_id": 0,
       "shape_id": "421409",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-65-65031",
       "route_variant": "65"
     },
@@ -1589,6 +1742,7 @@
       "direction_id": 1,
       "shape_id": "421414",
       "trip_count": 141,
+      "weekly_trip_count": 9,
       "representative_trip_id": "20260106-65-65910",
       "route_variant": "65E"
     },
@@ -1599,6 +1753,7 @@
       "direction_id": 1,
       "shape_id": "421413",
       "trip_count": 77,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-65-65062",
       "route_variant": "65A"
     },
@@ -1609,6 +1764,7 @@
       "direction_id": 0,
       "shape_id": "421412",
       "trip_count": 32,
+      "weekly_trip_count": 2,
       "representative_trip_id": "20260110-65-65141",
       "route_variant": "65C"
     }
@@ -1621,6 +1777,7 @@
       "direction_id": 1,
       "shape_id": "421415",
       "trip_count": 308,
+      "weekly_trip_count": 20,
       "representative_trip_id": "20260106-67-67110",
       "route_variant": "67"
     },
@@ -1631,6 +1788,7 @@
       "direction_id": 0,
       "shape_id": "421416",
       "trip_count": 231,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-67-67481",
       "route_variant": "67"
     }
@@ -1643,6 +1801,7 @@
       "direction_id": 0,
       "shape_id": "421419",
       "trip_count": 622,
+      "weekly_trip_count": 40,
       "representative_trip_id": "20260106-68-68021",
       "route_variant": "68"
     },
@@ -1653,6 +1812,7 @@
       "direction_id": 1,
       "shape_id": "421420",
       "trip_count": 436,
+      "weekly_trip_count": 28,
       "representative_trip_id": "20260106-68-68500",
       "route_variant": "68"
     },
@@ -1663,6 +1823,7 @@
       "direction_id": 1,
       "shape_id": "421421",
       "trip_count": 340,
+      "weekly_trip_count": 22,
       "representative_trip_id": "20260106-68-68130",
       "route_variant": "68B"
     },
@@ -1673,6 +1834,7 @@
       "direction_id": 0,
       "shape_id": "421418",
       "trip_count": 263,
+      "weekly_trip_count": 17,
       "representative_trip_id": "20260106-68-68031",
       "route_variant": "68B"
     },
@@ -1683,6 +1845,7 @@
       "direction_id": 0,
       "shape_id": "421417",
       "trip_count": 77,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-68-68711",
       "route_variant": "68E"
     }
@@ -1695,6 +1858,7 @@
       "direction_id": 0,
       "shape_id": "421425",
       "trip_count": 808,
+      "weekly_trip_count": 52,
       "representative_trip_id": "20260106-70-70261",
       "route_variant": "70D"
     },
@@ -1705,6 +1869,7 @@
       "direction_id": 1,
       "shape_id": "421423",
       "trip_count": 577,
+      "weekly_trip_count": 37,
       "representative_trip_id": "20260106-70-70300",
       "route_variant": "70D"
     },
@@ -1715,6 +1880,7 @@
       "direction_id": 1,
       "shape_id": "421422",
       "trip_count": 263,
+      "weekly_trip_count": 17,
       "representative_trip_id": "20260106-70-70060",
       "route_variant": "70B"
     },
@@ -1725,6 +1891,7 @@
       "direction_id": 0,
       "shape_id": "421424",
       "trip_count": 141,
+      "weekly_trip_count": 9,
       "representative_trip_id": "20260106-70-70651",
       "route_variant": "70B"
     },
@@ -1735,6 +1902,7 @@
       "direction_id": 1,
       "shape_id": "421426",
       "trip_count": 77,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-70-70650",
       "route_variant": "70"
     }
@@ -1747,6 +1915,7 @@
       "direction_id": 0,
       "shape_id": "421428",
       "trip_count": 327,
+      "weekly_trip_count": 21,
       "representative_trip_id": "20260106-71-71111",
       "route_variant": "71C"
     },
@@ -1757,6 +1926,7 @@
       "direction_id": 1,
       "shape_id": "421430",
       "trip_count": 295,
+      "weekly_trip_count": 19,
       "representative_trip_id": "20260106-71-71050",
       "route_variant": "71"
     },
@@ -1767,6 +1937,7 @@
       "direction_id": 1,
       "shape_id": "421429",
       "trip_count": 218,
+      "weekly_trip_count": 14,
       "representative_trip_id": "20260106-71-71630",
       "route_variant": "71C"
     },
@@ -1777,6 +1948,7 @@
       "direction_id": 0,
       "shape_id": "421431",
       "trip_count": 109,
+      "weekly_trip_count": 7,
       "representative_trip_id": "20260106-71-71171",
       "route_variant": "71"
     },
@@ -1787,6 +1959,7 @@
       "direction_id": 1,
       "shape_id": "421427",
       "trip_count": 77,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-71-71620",
       "route_variant": "71E"
     }
@@ -1799,6 +1972,7 @@
       "direction_id": 0,
       "shape_id": "421962",
       "trip_count": 1026,
+      "weekly_trip_count": 66,
       "representative_trip_id": "20260106-88-88070",
       "route_variant": "88"
     },
@@ -1809,6 +1983,7 @@
       "direction_id": 1,
       "shape_id": "421964",
       "trip_count": 949,
+      "weekly_trip_count": 61,
       "representative_trip_id": "20260106-88-88111",
       "route_variant": "88"
     },
@@ -1819,6 +1994,7 @@
       "direction_id": 0,
       "shape_id": "421965",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-88-88720",
       "route_variant": "88B"
     },
@@ -1829,6 +2005,7 @@
       "direction_id": 1,
       "shape_id": "421963",
       "trip_count": 154,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-88-88021",
       "route_variant": "88B"
     },
@@ -1839,6 +2016,7 @@
       "direction_id": 0,
       "shape_id": "421960",
       "trip_count": 141,
+      "weekly_trip_count": 9,
       "representative_trip_id": "20260109-88-88380",
       "route_variant": "88C"
     },
@@ -1849,6 +2027,7 @@
       "direction_id": 1,
       "shape_id": "421961",
       "trip_count": 141,
+      "weekly_trip_count": 9,
       "representative_trip_id": "20260109-88-88361",
       "route_variant": "88C"
     }
@@ -1861,6 +2040,7 @@
       "direction_id": 0,
       "shape_id": "421967",
       "trip_count": 440,
+      "weekly_trip_count": 28,
       "representative_trip_id": "20260106-90-90052",
       "route_variant": "90B"
     },
@@ -1871,6 +2051,7 @@
       "direction_id": 1,
       "shape_id": "421966",
       "trip_count": 314,
+      "weekly_trip_count": 20,
       "representative_trip_id": "20260106-90-90001",
       "route_variant": "90B"
     }
@@ -1883,6 +2064,7 @@
       "direction_id": 0,
       "shape_id": "421971",
       "trip_count": 2039,
+      "weekly_trip_count": 131,
       "representative_trip_id": "20260106-92-92021",
       "route_variant": "92"
     },
@@ -1893,6 +2075,7 @@
       "direction_id": 1,
       "shape_id": "421970",
       "trip_count": 2007,
+      "weekly_trip_count": 129,
       "representative_trip_id": "20260106-92-92010",
       "route_variant": "92"
     },
@@ -1903,6 +2086,7 @@
       "direction_id": 0,
       "shape_id": "421968",
       "trip_count": 308,
+      "weekly_trip_count": 20,
       "representative_trip_id": "20260106-92-92523",
       "route_variant": "92A"
     },
@@ -1913,6 +2097,7 @@
       "direction_id": 1,
       "shape_id": "421969",
       "trip_count": 231,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-92-92052",
       "route_variant": "92A"
     }
@@ -1925,6 +2110,7 @@
       "direction_id": 1,
       "shape_id": "421973",
       "trip_count": 2103,
+      "weekly_trip_count": 135,
       "representative_trip_id": "20260106-94-94020",
       "route_variant": "94"
     },
@@ -1935,6 +2121,7 @@
       "direction_id": 0,
       "shape_id": "421972",
       "trip_count": 2058,
+      "weekly_trip_count": 132,
       "representative_trip_id": "20260106-94-94001",
       "route_variant": "94"
     }
@@ -1947,6 +2134,7 @@
       "direction_id": 0,
       "shape_id": "421975",
       "trip_count": 1678,
+      "weekly_trip_count": 108,
       "representative_trip_id": "20260106-96-96071",
       "route_variant": "96B"
     },
@@ -1957,6 +2145,7 @@
       "direction_id": 1,
       "shape_id": "421974",
       "trip_count": 1601,
+      "weekly_trip_count": 103,
       "representative_trip_id": "20260106-96-96030",
       "route_variant": "96B"
     }
@@ -1969,6 +2158,7 @@
       "direction_id": 0,
       "shape_id": "UNAD",
       "trip_count": 891,
+      "weekly_trip_count": 57,
       "representative_trip_id": "20260106-BR-6627",
       "route_variant": ""
     },
@@ -1979,6 +2169,7 @@
       "direction_id": 1,
       "shape_id": "ADUN",
       "trip_count": 891,
+      "weekly_trip_count": 57,
       "representative_trip_id": "20260106-BR-6606",
       "route_variant": ""
     },
@@ -1989,6 +2180,7 @@
       "direction_id": 1,
       "shape_id": "AUUN",
       "trip_count": 823,
+      "weekly_trip_count": 53,
       "representative_trip_id": "20260106-BR-6108",
       "route_variant": ""
     },
@@ -1999,6 +2191,7 @@
       "direction_id": 0,
       "shape_id": "UNAU",
       "trip_count": 793,
+      "weekly_trip_count": 51,
       "representative_trip_id": "20260106-BR-6313",
       "route_variant": ""
     },
@@ -2009,6 +2202,7 @@
       "direction_id": 0,
       "shape_id": "UNBD",
       "trip_count": 109,
+      "weekly_trip_count": 7,
       "representative_trip_id": "20260106-BR-6521",
       "route_variant": ""
     },
@@ -2019,6 +2213,7 @@
       "direction_id": 1,
       "shape_id": "BDUN",
       "trip_count": 79,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-BR-6504",
       "route_variant": ""
     }
@@ -2031,6 +2226,7 @@
       "direction_id": 0,
       "shape_id": "UNBE",
       "trip_count": 1604,
+      "weekly_trip_count": 103,
       "representative_trip_id": "20260106-GT-3007",
       "route_variant": ""
     },
@@ -2041,6 +2237,7 @@
       "direction_id": 1,
       "shape_id": "BEUN",
       "trip_count": 1343,
+      "weekly_trip_count": 85,
       "representative_trip_id": "20260106-GT-3008",
       "route_variant": ""
     },
@@ -2051,6 +2248,7 @@
       "direction_id": 1,
       "shape_id": "MOUN",
       "trip_count": 894,
+      "weekly_trip_count": 58,
       "representative_trip_id": "20260106-GT-3514",
       "route_variant": ""
     },
@@ -2061,6 +2259,7 @@
       "direction_id": 0,
       "shape_id": "UNMO",
       "trip_count": 632,
+      "weekly_trip_count": 40,
       "representative_trip_id": "20260106-GT-3513",
       "route_variant": ""
     },
@@ -2071,6 +2270,7 @@
       "direction_id": 1,
       "shape_id": "BEUN",
       "trip_count": 577,
+      "weekly_trip_count": 38,
       "representative_trip_id": "20260106-GT-3026",
       "route_variant": ""
     },
@@ -2081,6 +2281,7 @@
       "direction_id": 1,
       "shape_id": "KIUN",
       "trip_count": 474,
+      "weekly_trip_count": 30,
       "representative_trip_id": "20260106-GT-3858",
       "route_variant": ""
     },
@@ -2091,6 +2292,7 @@
       "direction_id": 0,
       "shape_id": "UNMO",
       "trip_count": 420,
+      "weekly_trip_count": 28,
       "representative_trip_id": "20260110-GT-3509",
       "route_variant": ""
     },
@@ -2101,6 +2303,7 @@
       "direction_id": 0,
       "shape_id": "UNKI",
       "trip_count": 395,
+      "weekly_trip_count": 25,
       "representative_trip_id": "20260106-GT-3911",
       "route_variant": ""
     },
@@ -2111,6 +2314,7 @@
       "direction_id": 0,
       "shape_id": "UNKI",
       "trip_count": 316,
+      "weekly_trip_count": 20,
       "representative_trip_id": "20260106-GT-3875",
       "route_variant": ""
     },
@@ -2121,6 +2325,7 @@
       "direction_id": 1,
       "shape_id": "KIUN",
       "trip_count": 297,
+      "weekly_trip_count": 19,
       "representative_trip_id": "20260106-GT-3918",
       "route_variant": ""
     },
@@ -2131,6 +2336,7 @@
       "direction_id": 0,
       "shape_id": "UNBE",
       "trip_count": 158,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-GT-3025",
       "route_variant": ""
     },
@@ -2141,6 +2347,7 @@
       "direction_id": 0,
       "shape_id": "UNGE",
       "trip_count": 158,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-GT-3625",
       "route_variant": ""
     },
@@ -2151,6 +2358,7 @@
       "direction_id": 0,
       "shape_id": "UNKI",
       "trip_count": 79,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-GT-3977",
       "route_variant": ""
     },
@@ -2161,6 +2369,7 @@
       "direction_id": 1,
       "shape_id": "GEUN",
       "trip_count": 79,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-GT-3704",
       "route_variant": ""
     },
@@ -2171,6 +2380,7 @@
       "direction_id": 1,
       "shape_id": "GEUN",
       "trip_count": 79,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-GT-3756",
       "route_variant": ""
     },
@@ -2181,6 +2391,7 @@
       "direction_id": 1,
       "shape_id": "KIUN",
       "trip_count": 79,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-GT-3806",
       "route_variant": ""
     },
@@ -2191,6 +2402,7 @@
       "direction_id": 0,
       "shape_id": "UNKI",
       "trip_count": 60,
+      "weekly_trip_count": 4,
       "representative_trip_id": "20260110-GT-3925",
       "route_variant": ""
     }
@@ -2203,6 +2415,7 @@
       "direction_id": 0,
       "shape_id": "UNOS",
       "trip_count": 4215,
+      "weekly_trip_count": 271,
       "representative_trip_id": "20260106-LE-9004",
       "route_variant": ""
     },
@@ -2213,6 +2426,7 @@
       "direction_id": 1,
       "shape_id": "OSUN",
       "trip_count": 4215,
+      "weekly_trip_count": 271,
       "representative_trip_id": "20260106-LE-9005",
       "route_variant": ""
     },
@@ -2223,6 +2437,7 @@
       "direction_id": 0,
       "shape_id": "UNWH",
       "trip_count": 237,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-LE-9624",
       "route_variant": ""
     },
@@ -2233,6 +2448,7 @@
       "direction_id": 1,
       "shape_id": "WHUN",
       "trip_count": 237,
+      "weekly_trip_count": 15,
       "representative_trip_id": "20260106-LE-9609",
       "route_variant": ""
     }
@@ -2245,6 +2461,7 @@
       "direction_id": 1,
       "shape_id": "ALUN",
       "trip_count": 1743,
+      "weekly_trip_count": 117,
       "representative_trip_id": "20260106-LW-1004",
       "route_variant": ""
     },
@@ -2255,6 +2472,7 @@
       "direction_id": 0,
       "shape_id": "UNAL",
       "trip_count": 1678,
+      "weekly_trip_count": 113,
       "representative_trip_id": "20260106-LW-1005",
       "route_variant": ""
     },
@@ -2265,6 +2483,7 @@
       "direction_id": 0,
       "shape_id": "UNWR",
       "trip_count": 1502,
+      "weekly_trip_count": 100,
       "representative_trip_id": "20260106-LW-1705",
       "route_variant": ""
     },
@@ -2275,6 +2494,7 @@
       "direction_id": 1,
       "shape_id": "WRUN",
       "trip_count": 1361,
+      "weekly_trip_count": 90,
       "representative_trip_id": "20260106-LW-1704",
       "route_variant": ""
     },
@@ -2285,6 +2505,7 @@
       "direction_id": 1,
       "shape_id": "APUN",
       "trip_count": 395,
+      "weekly_trip_count": 25,
       "representative_trip_id": "20260106-LW-1108",
       "route_variant": ""
     },
@@ -2295,6 +2516,7 @@
       "direction_id": 0,
       "shape_id": "UNHA",
       "trip_count": 316,
+      "weekly_trip_count": 20,
       "representative_trip_id": "20260106-LW-1873",
       "route_variant": ""
     },
@@ -2305,6 +2527,7 @@
       "direction_id": 0,
       "shape_id": "UNOA",
       "trip_count": 316,
+      "weekly_trip_count": 20,
       "representative_trip_id": "20260106-LW-1125",
       "route_variant": ""
     },
@@ -2315,6 +2538,7 @@
       "direction_id": 1,
       "shape_id": "HAUN",
       "trip_count": 316,
+      "weekly_trip_count": 20,
       "representative_trip_id": "20260106-LW-1854",
       "route_variant": ""
     },
@@ -2325,6 +2549,7 @@
       "direction_id": 1,
       "shape_id": "CFUN",
       "trip_count": 284,
+      "weekly_trip_count": 20,
       "representative_trip_id": "20260106-LW-1616",
       "route_variant": ""
     },
@@ -2335,6 +2560,7 @@
       "direction_id": 0,
       "shape_id": "UNNI",
       "trip_count": 261,
+      "weekly_trip_count": 18,
       "representative_trip_id": "20260106-LW-1961",
       "route_variant": ""
     },
@@ -2345,6 +2571,7 @@
       "direction_id": 1,
       "shape_id": "NIUN",
       "trip_count": 257,
+      "weekly_trip_count": 18,
       "representative_trip_id": "20260106-LW-1972",
       "route_variant": ""
     },
@@ -2355,6 +2582,7 @@
       "direction_id": 0,
       "shape_id": "UNCF",
       "trip_count": 204,
+      "weekly_trip_count": 14,
       "representative_trip_id": "20260106-LW-1615",
       "route_variant": ""
     },
@@ -2365,6 +2593,7 @@
       "direction_id": 0,
       "shape_id": "UNAL",
       "trip_count": 158,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-LW-1075",
       "route_variant": ""
     },
@@ -2375,6 +2604,7 @@
       "direction_id": 1,
       "shape_id": "ALUN",
       "trip_count": 158,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-LW-1256",
       "route_variant": ""
     },
@@ -2385,6 +2615,7 @@
       "direction_id": 1,
       "shape_id": "CFUN",
       "trip_count": 158,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-LW-1656",
       "route_variant": ""
     },
@@ -2395,6 +2626,7 @@
       "direction_id": 0,
       "shape_id": "UNAP",
       "trip_count": 79,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-LW-1327",
       "route_variant": ""
     },
@@ -2405,6 +2637,7 @@
       "direction_id": 0,
       "shape_id": "UNCF",
       "trip_count": 79,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-LW-1675",
       "route_variant": ""
     },
@@ -2415,6 +2648,7 @@
       "direction_id": 0,
       "shape_id": "UNNI",
       "trip_count": 79,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-LW-1977",
       "route_variant": ""
     },
@@ -2425,6 +2659,7 @@
       "direction_id": 0,
       "shape_id": "UNWR",
       "trip_count": 79,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-LW-1775",
       "route_variant": ""
     },
@@ -2435,6 +2670,7 @@
       "direction_id": 1,
       "shape_id": "NIUN",
       "trip_count": 79,
+      "weekly_trip_count": 5,
       "representative_trip_id": "20260106-LW-1960",
       "route_variant": ""
     },
@@ -2445,6 +2681,7 @@
       "direction_id": 0,
       "shape_id": "UNMI",
       "trip_count": 68,
+      "weekly_trip_count": 0,
       "representative_trip_id": "20260116-LW-1439",
       "route_variant": ""
     },
@@ -2455,6 +2692,7 @@
       "direction_id": 1,
       "shape_id": "MIUN",
       "trip_count": 68,
+      "weekly_trip_count": 0,
       "representative_trip_id": "20260117-LW-1508",
       "route_variant": ""
     },
@@ -2465,6 +2703,7 @@
       "direction_id": 0,
       "shape_id": null,
       "trip_count": 66,
+      "weekly_trip_count": 0,
       "representative_trip_id": "20260116-LW-1041",
       "route_variant": ""
     },
@@ -2475,6 +2714,7 @@
       "direction_id": 1,
       "shape_id": null,
       "trip_count": 64,
+      "weekly_trip_count": 0,
       "representative_trip_id": "20260117-LW-1010",
       "route_variant": ""
     },
@@ -2485,6 +2725,7 @@
       "direction_id": 0,
       "shape_id": null,
       "trip_count": 62,
+      "weekly_trip_count": 0,
       "representative_trip_id": "20260116-LW-1739",
       "route_variant": ""
     },
@@ -2495,6 +2736,7 @@
       "direction_id": 1,
       "shape_id": null,
       "trip_count": 48,
+      "weekly_trip_count": 0,
       "representative_trip_id": "20260116-LW-1740",
       "route_variant": ""
     },
@@ -2505,6 +2747,7 @@
       "direction_id": 1,
       "shape_id": null,
       "trip_count": 20,
+      "weekly_trip_count": 0,
       "representative_trip_id": "20260117-LW-1608",
       "route_variant": ""
     },
@@ -2515,6 +2758,7 @@
       "direction_id": 0,
       "shape_id": null,
       "trip_count": 16,
+      "weekly_trip_count": 0,
       "representative_trip_id": "20260117-LW-1961",
       "route_variant": ""
     },
@@ -2525,6 +2769,7 @@
       "direction_id": 1,
       "shape_id": null,
       "trip_count": 16,
+      "weekly_trip_count": 0,
       "representative_trip_id": "20260117-LW-1970",
       "route_variant": ""
     },
@@ -2535,6 +2780,7 @@
       "direction_id": 0,
       "shape_id": null,
       "trip_count": 8,
+      "weekly_trip_count": 0,
       "representative_trip_id": "20260117-LW-1621",
       "route_variant": ""
     },
@@ -2545,6 +2791,7 @@
       "direction_id": 1,
       "shape_id": "NIUN",
       "trip_count": 5,
+      "weekly_trip_count": 0,
       "representative_trip_id": "20260108-LW-1972",
       "route_variant": ""
     },
@@ -2555,6 +2802,7 @@
       "direction_id": 0,
       "shape_id": "UNNI",
       "trip_count": 1,
+      "weekly_trip_count": 0,
       "representative_trip_id": "20260110-LW-1965",
       "route_variant": ""
     }
@@ -2567,6 +2815,7 @@
       "direction_id": 0,
       "shape_id": "UNML",
       "trip_count": 790,
+      "weekly_trip_count": 50,
       "representative_trip_id": "20260106-MI-2723",
       "route_variant": ""
     },
@@ -2577,6 +2826,7 @@
       "direction_id": 1,
       "shape_id": "MLUN",
       "trip_count": 790,
+      "weekly_trip_count": 50,
       "representative_trip_id": "20260106-MI-2706",
       "route_variant": ""
     }
@@ -2589,6 +2839,7 @@
       "direction_id": 0,
       "shape_id": "UNBM",
       "trip_count": 395,
+      "weekly_trip_count": 25,
       "representative_trip_id": "20260106-RH-5127",
       "route_variant": ""
     },
@@ -2599,6 +2850,7 @@
       "direction_id": 1,
       "shape_id": "BMUN",
       "trip_count": 316,
+      "weekly_trip_count": 20,
       "representative_trip_id": "20260106-RH-5006",
       "route_variant": ""
     }
@@ -2611,6 +2863,7 @@
       "direction_id": 0,
       "shape_id": "UNMJ",
       "trip_count": 1229,
+      "weekly_trip_count": 79,
       "representative_trip_id": "20260106-ST-7410",
       "route_variant": ""
     },
@@ -2621,6 +2874,7 @@
       "direction_id": 1,
       "shape_id": "MJUN",
       "trip_count": 1150,
+      "weekly_trip_count": 74,
       "representative_trip_id": "20260106-ST-7415",
       "route_variant": ""
     },
@@ -2631,6 +2885,7 @@
       "direction_id": 0,
       "shape_id": "UNLI",
       "trip_count": 643,
+      "weekly_trip_count": 41,
       "representative_trip_id": "20260106-ST-7622",
       "route_variant": ""
     },
@@ -2641,6 +2896,7 @@
       "direction_id": 1,
       "shape_id": "LIUN",
       "trip_count": 643,
+      "weekly_trip_count": 41,
       "representative_trip_id": "20260106-ST-7705",
       "route_variant": ""
     },
@@ -2651,6 +2907,7 @@
       "direction_id": 0,
       "shape_id": "UNUI",
       "trip_count": 158,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-ST-7222",
       "route_variant": ""
     },
@@ -2661,6 +2918,7 @@
       "direction_id": 1,
       "shape_id": "UIUN",
       "trip_count": 158,
+      "weekly_trip_count": 10,
       "representative_trip_id": "20260106-ST-7129",
       "route_variant": ""
     }
