@@ -125,41 +125,52 @@ function GORouteCard({ route }: { route: EnrichedRoute }) {
   const Icon = route.is_rail ? Train : Bus;
   const weeklyTrips = route.weekly_trips ?? route.total_trips ?? 0;
 
-  // Rough daily estimate: divide weekly by number of active days
-  const dailyEst = Math.round(weeklyTrips / 5);
+  // For bus routes display the number prominently; for rail use the line name
+  const displayName = route.is_rail
+    ? (route.long_name || route.short_name)
+    : route.long_name || route.short_name;
+  const routeNumber = !route.is_rail ? route.short_name : null;
 
   return (
-    <div className={`rounded-2xl border overflow-hidden transition-all ${expanded ? "border-slate-200 shadow-sm" : "border-slate-100 hover:border-slate-200"}`}>
-      {/* Header */}
-      <button
+    <div className={`rounded-2xl border transition-all ${expanded ? "border-slate-200 shadow-sm" : "border-slate-100 hover:border-slate-200"}`}>
+      {/* Header — use div+onClick so overflow-hidden never collapses the row */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center gap-3 px-3.5 py-3 text-left hover:bg-slate-50/60 transition-colors"
+        onKeyDown={(e) => e.key === "Enter" && setExpanded((v) => !v)}
+        className="flex items-center gap-3 px-3.5 py-3 cursor-pointer hover:bg-slate-50 rounded-2xl transition-colors"
       >
-        {/* Coloured icon */}
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
-          style={{ backgroundColor: route.color }}>
-          <Icon className="w-4 h-4" />
-        </div>
+        {/* Icon — for bus show the number badge, for rail show icon */}
+        {routeNumber ? (
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-white font-bold text-sm"
+            style={{ backgroundColor: route.color }}
+          >
+            {routeNumber}
+          </div>
+        ) : (
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-white"
+            style={{ backgroundColor: route.color }}
+          >
+            <Icon className="w-4 h-4" />
+          </div>
+        )}
 
-        {/* Info */}
+        {/* Name + stops */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="text-sm font-semibold text-slate-900 truncate">
-              {route.long_name || route.short_name}
+          <p className="text-sm font-semibold text-slate-900 leading-snug truncate">{displayName}</p>
+          {route.from_stop && route.to_stop && (
+            <p className="text-[11px] text-slate-400 truncate mt-0.5">
+              {route.from_stop} → {route.to_stop}
             </p>
-          </div>
-          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-            {route.from_stop && route.to_stop ? (
-              <span className="text-[11px] text-slate-400 truncate">
-                {route.from_stop} → {route.to_stop}
-              </span>
-            ) : null}
-          </div>
+          )}
         </div>
 
-        {/* Trip count badge */}
+        {/* Trip count */}
         <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-          <span className="text-xs font-semibold tabular-nums" style={{ color: route.color }}>
+          <span className="text-xs font-bold tabular-nums" style={{ color: route.color }}>
             {fmtTrips(weeklyTrips)}
           </span>
           <span className="text-[9px] text-slate-400">trips/wk</span>
@@ -168,27 +179,24 @@ function GORouteCard({ route }: { route: EnrichedRoute }) {
         {expanded
           ? <ChevronUp className="w-4 h-4 text-slate-400 flex-shrink-0 ml-1" />
           : <ChevronDown className="w-4 h-4 text-slate-300 flex-shrink-0 ml-1" />}
-      </button>
+      </div>
 
       {/* Expanded: variant breakdown */}
       {expanded && (
-        <div className="px-3.5 pb-3.5 border-t border-slate-100">
+        <div className="px-3.5 pb-3.5 pt-0 border-t border-slate-100 mx-0">
           <div className="pt-3 flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
-                Route variants
-              </p>
-              <span className="text-[10px] text-slate-400">{route.variants.length} variants</span>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Variants</p>
+              <span className="text-[10px] text-slate-400">{route.variants.length} total</span>
             </div>
-
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               {route.variants.slice(0, 6).map((v) => {
                 const trips = v.weekly_trip_count ?? v.trip_count ?? 0;
                 const barPct = weeklyTrips > 0 ? Math.round((trips / weeklyTrips) * 100) : 0;
                 return (
                   <div key={v.variant_id} className="flex items-center gap-2">
                     <p className="text-[11px] text-slate-600 flex-1 truncate">{v.label}</p>
-                    <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden flex-shrink-0">
+                    <div className="w-14 h-1.5 bg-slate-100 rounded-full overflow-hidden flex-shrink-0">
                       <div className="h-full rounded-full" style={{ width: `${barPct}%`, backgroundColor: route.color, opacity: 0.7 }} />
                     </div>
                     <span className="text-[10px] text-slate-400 tabular-nums w-10 text-right flex-shrink-0">
@@ -198,15 +206,10 @@ function GORouteCard({ route }: { route: EnrichedRoute }) {
                 );
               })}
               {route.variants.length > 6 && (
-                <p className="text-[10px] text-slate-400 text-center mt-1">
-                  +{route.variants.length - 6} more variants
-                </p>
+                <p className="text-[10px] text-slate-400 text-center mt-0.5">+{route.variants.length - 6} more</p>
               )}
             </div>
-
-            <div className="flex items-center gap-1.5 mt-1 pt-2 border-t border-slate-50">
-              <span className="text-[10px] text-slate-400">GO Transit GTFS data · read-only</span>
-            </div>
+            <p className="text-[10px] text-slate-300 pt-1 border-t border-slate-50">GO Transit GTFS · read-only</p>
           </div>
         </div>
       )}
@@ -607,15 +610,14 @@ export default function SchedulePanel({ routes: customRoutes, onSaveSchedule }: 
 
   // Filter GO routes
   const filteredGO = goRoutes.filter((r) => {
-    const matchesFilter =
-      filter === "all" ||
-      filter === "custom" ? false :
-      filter === "train" ? r.is_rail :
-      filter === "bus"   ? !r.is_rail : true;
-    const matchesSearch = !search ||
+    if (filter === "custom") return false;
+    if (filter === "train" && !r.is_rail) return false;
+    if (filter === "bus"   &&  r.is_rail) return false;
+    if (!search) return true;
+    return (
       r.long_name.toLowerCase().includes(search.toLowerCase()) ||
-      r.short_name.toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
+      r.short_name.toLowerCase().includes(search.toLowerCase())
+    );
   });
 
   // Filter custom routes
