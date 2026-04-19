@@ -50,12 +50,13 @@ export default function VehicleInfoPopup({
   const secsToDestination = Math.max(0, trip.arriveSec - currentTime);
 
   return (
-    <div className="absolute top-20 right-4 z-30 w-72 animate-in fade-in slide-in-from-right-3 duration-200">
-      <div className="bg-white/97 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
+    // top-20 = below nav bar; bottom-[88px] = above the simulation HUD (never overlap)
+    <div className="absolute top-20 bottom-[88px] right-4 z-30 w-72 flex flex-col justify-start animate-in fade-in slide-in-from-right-3 duration-200">
+      <div className="bg-white/97 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-xl overflow-hidden flex flex-col min-h-0">
         {/* Color header */}
         <div className="h-1.5 w-full" style={{ backgroundColor: color }} />
 
-        <div className="p-4">
+        <div className="p-4 overflow-y-auto flex-1">
           {/* Header */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-2.5">

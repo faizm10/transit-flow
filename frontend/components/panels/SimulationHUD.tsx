@@ -143,9 +143,12 @@ export default function SimulationHUD({
               {selectedRoutes.length} routes
               <ChevronUp className="w-3 h-3" />
             </SheetTrigger>
-            <SheetContent side="bottom" className="rounded-t-2xl max-h-[70vh]">
-              <SheetHeader className="pb-2">
-                <SheetTitle className="text-base">Select routes</SheetTitle>
+            <SheetContent
+              side="bottom"
+              className="max-h-[56vh] gap-2 overflow-y-auto rounded-t-lg sm:!bottom-4 sm:!left-1/2 sm:!right-auto sm:!w-[min(540px,calc(100vw-32px))] sm:!-translate-x-1/2 sm:rounded-lg sm:border"
+            >
+              <SheetHeader className="px-4 pb-1 pt-3">
+                <SheetTitle className="text-sm">Select routes</SheetTitle>
               </SheetHeader>
               <RoutePicker
                 selected={selectedRoutes}
@@ -262,12 +265,12 @@ function RoutePicker({
   }
 
   return (
-    <div className="flex flex-col gap-4 pt-1 pb-6">
+    <div className="flex flex-col gap-3 px-4 pb-4 pt-0">
       {/* Train lines */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-            <Train className="w-4 h-4" /> Train lines
+        <div className="mb-2 flex items-center justify-between">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
+            <Train className="h-3.5 w-3.5" /> Train lines
           </p>
           <button
             className="text-xs text-[#007A33] font-medium"
@@ -276,7 +279,7 @@ function RoutePicker({
             {allRailSelected ? "Deselect all" : "Select all"}
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           {RAIL_CODES.map((code) => {
             const info = GO_RAIL_LINES[code];
             const on = local.includes(code);
@@ -284,7 +287,7 @@ function RoutePicker({
               <button
                 key={code}
                 onClick={() => toggle(code)}
-                className={`flex items-center gap-2 rounded-xl border p-2.5 text-left transition-all ${
+                className={`flex min-h-10 items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-all ${
                   on
                     ? "border-transparent ring-2 ring-offset-1"
                     : "border-slate-100 hover:border-slate-200"
@@ -292,12 +295,12 @@ function RoutePicker({
                 style={on ? { outlineColor: info.color } : {}}
               >
                 <div
-                  className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
+                  className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-[11px] font-bold text-white"
                   style={{ backgroundColor: info.color }}
                 >
                   {code}
                 </div>
-                <span className="text-xs font-medium text-slate-800 truncate">
+                <span className="truncate text-xs font-medium text-slate-800">
                   {info.name.replace(" Line", "")}
                 </span>
                 {on && <div className="ml-auto w-2 h-2 rounded-full bg-emerald-500" />}
@@ -308,7 +311,7 @@ function RoutePicker({
       </div>
 
       <Button
-        className="w-full rounded-xl bg-[#007A33] hover:bg-[#005f28] text-white"
+        className="h-9 w-full rounded-lg bg-[#007A33] text-sm text-white hover:bg-[#005f28]"
         onClick={() => onApply(local)}
         disabled={local.length === 0}
       >
