@@ -10,6 +10,10 @@ interface RouteInfoCardProps {
   fromStop?: string;
   toStop?: string;
   tripCount?: number;
+  color?: string;
+  routeType?: "bus" | "train";
+  title?: string;
+  actionLabel?: string;
   onClose: () => void;
   onExplore: () => void;
 }
@@ -21,13 +25,17 @@ export default function RouteInfoCard({
   fromStop,
   toStop,
   tripCount,
+  color: colorOverride,
+  routeType,
+  title,
+  actionLabel = "Explore this route",
   onClose,
   onExplore,
 }: RouteInfoCardProps) {
   const lineInfo = GO_RAIL_LINES[shortName];
-  const isRail = !!lineInfo;
-  const color = lineInfo?.color ?? colorForRoute(shortName);
-  const displayName = lineInfo?.name ?? (variantLabel || `Route ${shortName}`);
+  const isRail = routeType ? routeType === "train" : !!lineInfo;
+  const color = colorOverride ?? lineInfo?.color ?? colorForRoute(shortName);
+  const displayName = title ?? lineInfo?.name ?? (variantLabel || `Route ${shortName}`);
 
   return (
     <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-[min(360px,calc(100vw-32px))] pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
@@ -83,7 +91,7 @@ export default function RouteInfoCard({
             className="w-full flex items-center justify-center gap-1.5 text-sm font-medium rounded-xl py-2.5 transition-colors text-white"
             style={{ backgroundColor: color }}
           >
-            Explore this route <ArrowRight className="w-3.5 h-3.5" />
+            {actionLabel} <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

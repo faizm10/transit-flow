@@ -29,6 +29,9 @@ interface ClickedRoute {
   fromStop?: string;
   toStop?: string;
   tripCount?: number;
+  color?: string;
+  routeType?: "bus" | "train";
+  isCustom?: boolean;
 }
 
 const NAV_ITEMS = [
@@ -136,7 +139,14 @@ export default function MapPage() {
         .map((r) => ({
           type: "Feature",
           geometry: { type: "LineString", coordinates: r.geometry! },
-          properties: { color: r.color, name: r.name, id: r.id },
+          properties: {
+            color: r.color,
+            name: r.name || "Custom route",
+            id: r.id,
+            type: r.type,
+            fromStop: r.stops[0]?.name ?? "",
+            toStop: r.stops[r.stops.length - 1]?.name ?? "",
+          },
         })),
     });
   }, [customRoutes, mapLoaded]);
@@ -169,6 +179,27 @@ export default function MapPage() {
     if (routeData?.variants) {
       // Highlight all variants of this route in the browse panel selection
     }
+  }, []);
+
+  const handleCustomRouteClick = useCallback((route: {
+    id: string;
+    name: string;
+    color: string;
+    type: "bus" | "train";
+    fromStop?: string;
+    toStop?: string;
+  }) => {
+    mapRef.current?.setRouteHighlight(null);
+    setClickedRoute({
+      shortName: route.name,
+      variantId: route.id,
+      variantLabel: route.type === "train" ? "Custom train route" : "Custom bus route",
+      fromStop: route.fromStop,
+      toStop: route.toStop,
+      color: route.color,
+      routeType: route.type,
+      isCustom: true,
+    });
   }, []);
 
   const handleRouteHover = useCallback((variantId: string | null, shortName: string | null) => {
@@ -265,6 +296,15 @@ export default function MapPage() {
   // Clicking "Explore this route" on info card opens browse panel
   function handleExploreFromCard() {
     if (!clickedRoute) return;
+    if (clickedRoute.isCustom) {
+      const route = customRoutes.find((r) => r.id === clickedRoute.variantId);
+      if (route) {
+        setEditingRoute(route);
+        setDrawnGeometry(route.geometry ?? null);
+        setMode("build");
+      }
+      return;
+    }
     setMode("browse");
     // Keep highlight active
   }
@@ -281,6 +321,7 @@ export default function MapPage() {
           ref={mapRef}
           onLoad={handleMapLoad}
           onRouteClick={handleRouteClick}
+          onCustomRouteClick={handleCustomRouteClick}
           onRouteHover={handleRouteHover}
           onVehicleClick={handleVehicleClick}
           onVehicleHover={handleVehicleHover}
@@ -366,6 +407,10 @@ export default function MapPage() {
           fromStop={clickedRoute.fromStop}
           toStop={clickedRoute.toStop}
           tripCount={clickedRoute.tripCount}
+          color={clickedRoute.color}
+          routeType={clickedRoute.routeType}
+          title={clickedRoute.isCustom ? clickedRoute.shortName : undefined}
+          actionLabel={clickedRoute.isCustom ? "Edit this route" : undefined}
           onClose={() => {
             setClickedRoute(null);
             mapRef.current?.setRouteHighlight(null);

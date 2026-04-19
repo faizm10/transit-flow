@@ -41,6 +41,14 @@ export interface MapHandle {
 interface MapProps {
   onLoad?: (map: mapboxgl.Map) => void;
   onRouteClick?: (variantId: string, routeShortName: string) => void;
+  onCustomRouteClick?: (route: {
+    id: string;
+    name: string;
+    color: string;
+    type: "bus" | "train";
+    fromStop?: string;
+    toStop?: string;
+  }) => void;
   onRouteHover?: (variantId: string | null, routeShortName: string | null) => void;
   onVehicleClick?: (tripId: string) => void;
   onVehicleHover?: (tripId: string | null) => void;
@@ -50,7 +58,7 @@ const TORONTO_CENTER: [number, number] = [-79.385, 43.693];
 const DEFAULT_ZOOM = 9.5;
 
 const Map = forwardRef<MapHandle, MapProps>(function Map(
-  { onLoad, onRouteClick, onRouteHover, onVehicleClick, onVehicleHover },
+  { onLoad, onRouteClick, onCustomRouteClick, onRouteHover, onVehicleClick, onVehicleHover },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -371,6 +379,16 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           "line-opacity": 0.9,
         },
       });
+      map.addLayer({
+        id: "custom-routes-hit",
+        type: "line",
+        source: "custom-routes",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "transparent",
+          "line-width": 14,
+        },
+      });
 
       // ── Route preview (wizard: shown while designing, before saving) ───────
       map.addSource("route-preview", {
@@ -478,8 +496,39 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
     map.on("click", "go-routes-hit", (e) => {
       if (isDrawingRef.current) return;
       if (!e.features?.length) return;
+      if (map.getLayer("custom-routes-hit")) {
+        const customFeatures = map.queryRenderedFeatures(e.point, { layers: ["custom-routes-hit"] });
+        if (customFeatures.length > 0) return;
+      }
       const f = e.features[0];
       onRouteClick?.(f.properties?.variant_id as string, f.properties?.route_short_name as string);
+    });
+
+    // ── Custom route hover/click ───────────────────────────────────────────
+    map.on("mousemove", "custom-routes-hit", () => {
+      if (isDrawingRef.current) return;
+      map.getCanvas().style.cursor = "pointer";
+    });
+
+    map.on("mouseleave", "custom-routes-hit", () => {
+      if (isDrawingRef.current) return;
+      map.getCanvas().style.cursor = "";
+    });
+
+    map.on("click", "custom-routes-hit", (e) => {
+      if (isDrawingRef.current) return;
+      e.preventDefault();
+      if (!e.features?.length) return;
+      const props = e.features[0].properties as Record<string, string> | undefined;
+      if (!props?.id) return;
+      onCustomRouteClick?.({
+        id: props.id,
+        name: props.name || "Custom route",
+        color: props.color || "#8b5cf6",
+        type: props.type === "train" ? "train" : "bus",
+        fromStop: props.fromStop || undefined,
+        toStop: props.toStop || undefined,
+      });
     });
 
     // ── Vehicle hover ──────────────────────────────────────────────────────
@@ -568,7 +617,7 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       map.remove();
       mapRef.current = null;
     };
-  }, [onLoad, onRouteClick, onRouteHover]);
+  }, [onLoad, onRouteClick, onCustomRouteClick, onRouteHover, onVehicleClick, onVehicleHover]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 });
