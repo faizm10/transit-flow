@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bus, ChevronDown, ChevronUp, Pencil, Plus, Train } from "lucide-react";
+import { Bus, ChevronDown, ChevronUp, Pencil, Train } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
@@ -10,7 +10,6 @@ import { type CustomRoute, type EnrichedRoute, type RouteFilters } from "@/lib/g
 interface BrowsePanelProps {
   onRouteSelect: (shortName: string, variantIds: string[]) => void;
   onRouteClear: () => void;
-  onExtendRoute?: (route: EnrichedRoute) => void;
   customRoutes: CustomRoute[];
   routeFilters: RouteFilters;
   onRouteFilterChange: (filters: RouteFilters) => void;
@@ -19,7 +18,6 @@ interface BrowsePanelProps {
 export default function BrowsePanel({
   onRouteSelect,
   onRouteClear,
-  onExtendRoute,
   customRoutes,
   routeFilters,
   onRouteFilterChange,
@@ -208,17 +206,6 @@ export default function BrowsePanel({
                             </p>
                           )}
                         </div>
-
-                        {onExtendRoute && (
-                          <div className="mt-2 pt-2 border-t border-slate-50">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); onExtendRoute(route); }}
-                              className="flex items-center gap-1 text-xs font-medium text-[#007A33] hover:text-[#005f28] transition-colors"
-                            >
-                              <Plus className="w-3 h-3" /> Extend route
-                            </button>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -272,16 +259,6 @@ export default function BrowsePanel({
                         )}
                       </div>
                     </button>
-
-                    {onExtendRoute && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onExtendRoute(route); }}
-                        className="mr-1 flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[10px] font-medium text-[#007A33] hover:bg-white hover:text-[#005f28] transition-colors"
-                      >
-                        <Plus className="w-2.5 h-2.5" /> Extend
-                      </button>
-                    )}
-
                     <VisibilityCheckbox
                       checked={visible}
                       label={`Show ${route.long_name || route.short_name} on map`}

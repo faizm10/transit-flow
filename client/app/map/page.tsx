@@ -8,8 +8,7 @@ import { Train, Map as MapIcon, PlayCircle, Pencil, CalendarClock } from "lucide
 import { toast } from "sonner";
 import { MapHandle } from "@/components/Map";
 import BrowsePanel from "@/components/panels/BrowsePanel";
-import BuilderWizard from "@/components/panels/BuilderWizard";
-import ExtendRouteWizard from "@/components/panels/ExtendRouteWizard";
+import DesignPanel, { type DesignTab } from "@/components/panels/DesignPanel";
 import SchedulePanel from "@/components/panels/SchedulePanel";
 import SimulationHUD from "@/components/panels/SimulationHUD";
 import RouteTooltip from "@/components/overlays/RouteTooltip";
@@ -19,7 +18,7 @@ import DrawGuide from "@/components/overlays/DrawGuide";
 import RouteFilterControl from "@/components/overlays/RouteFilterControl";
 import { useRoutes } from "@/hooks/useRoutes";
 import { useSimulation } from "@/hooks/useSimulation";
-import { type CustomRoute, type CustomSchedule, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
+import { type CustomRoute, type CustomSchedule, type RouteFilters } from "@/lib/gtfs";
 
 // Dynamically import Map to avoid SSR issues with mapbox-gl
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
@@ -86,8 +85,8 @@ export default function MapPage() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnGeometry, setDrawnGeometry] = useState<[number, number][] | null>(null);
   const [editingRoute, setEditingRoute] = useState<CustomRoute | undefined>();
+  const [designTab, setDesignTab] = useState<DesignTab>("existing");
   const [selectedVehicleTripId, setSelectedVehicleTripId] = useState<string | null>(null);
-  const [extendBaseRoute, setExtendBaseRoute] = useState<EnrichedRoute | undefined>();
   const [routeFilters, setRouteFilters] = useState<RouteFilters>({
     goRouteShortNames: null,
     customRouteIds: null,
@@ -309,7 +308,30 @@ export default function MapPage() {
     setMode(null);
     setEditingRoute(undefined);
     setDrawnGeometry(null);
-    setExtendBaseRoute(undefined);
+  }
+
+  function cleanupDesignTools() {
+    mapRef.current?.stopDraw();
+    mapRef.current?.stopEdit();
+    mapRef.current?.stopPinMode();
+    mapRef.current?.clearPreviewRoute();
+    setIsDrawing(false);
+  }
+
+  function handleDesignTabChange(tab: DesignTab) {
+    cleanupDesignTools();
+    setDesignTab(tab);
+    if (tab === "existing") {
+      setEditingRoute(undefined);
+      setDrawnGeometry(null);
+    }
+  }
+
+  function closeDesignPanel() {
+    cleanupDesignTools();
+    setMode(null);
+    setEditingRoute(undefined);
+    setDrawnGeometry(null);
   }
 
   // ── Mode switcher ───────────────────────────────────────────────────────
@@ -318,8 +340,15 @@ export default function MapPage() {
       setMode(null);
       mapRef.current?.setRouteHighlight(null);
       setClickedRoute(null);
+      if (m === "build") closeDesignPanel();
     } else {
+      if (mode === "build") closeDesignPanel();
       setMode(m);
+      if (m === "build") {
+        setDesignTab("existing");
+        setEditingRoute(undefined);
+        setDrawnGeometry(null);
+      }
       // Clear route info card when switching to build/simulate
       if (m !== "browse") setClickedRoute(null);
       if (m !== "browse") mapRef.current?.setRouteHighlight(null);
@@ -334,6 +363,7 @@ export default function MapPage() {
       if (route) {
         setEditingRoute(route);
         setDrawnGeometry(route.geometry ?? null);
+        setDesignTab("new");
         setMode("build");
       }
       return;
@@ -444,10 +474,6 @@ export default function MapPage() {
                 customRoutes={customRoutes}
                 routeFilters={routeFilters}
                 onRouteFilterChange={handleRouteFilterChange}
-                onExtendRoute={(route) => {
-                  setExtendBaseRoute(route);
-                  setMode("build");
-                }}
               />
             )}
             {mode === "schedule" && (
@@ -457,44 +483,21 @@ export default function MapPage() {
               />
             )}
             {mode === "build" && (
-              extendBaseRoute ? (
-                <ExtendRouteWizard
-                  initialRoute={extendBaseRoute}
-                  onSave={(route) => {
-                    handleSaveRoute(route);
-                    setExtendBaseRoute(undefined);
-                    setMode("browse");
-                  }}
-                  onPreviewRoute={handlePreviewRoute}
-                  onClearPreview={handleClearPreview}
-                  onStartPinMode={(cb) => mapRef.current?.startPinMode(cb)}
-                  onStopPinMode={() => mapRef.current?.stopPinMode()}
-                  onCancel={() => {
-                    setExtendBaseRoute(undefined);
-                    mapRef.current?.clearPreviewRoute();
-                    mapRef.current?.stopPinMode();
-                    setMode("browse");
-                  }}
-                />
-              ) : (
-                <BuilderWizard
-                  onSave={handleSaveRoute}
-                  onDrawRequest={startDrawing}
-                  onEditRequest={handleEditRequest}
-                  onEditDone={handleEditDone}
-                  onPreviewRoute={handlePreviewRoute}
-                  onClearPreview={handleClearPreview}
-                  onCancel={() => {
-                    mapRef.current?.stopEdit();
-                    mapRef.current?.clearPreviewRoute();
-                    setMode(null);
-                    setEditingRoute(undefined);
-                    setDrawnGeometry(null);
-                  }}
-                  drawGeometry={drawnGeometry ?? undefined}
-                  existingRoute={editingRoute}
-                />
-              )
+              <DesignPanel
+                activeTab={designTab}
+                onActiveTabChange={handleDesignTabChange}
+                onSaveRoute={handleSaveRoute}
+                onDrawRequest={startDrawing}
+                onEditRequest={handleEditRequest}
+                onEditDone={handleEditDone}
+                onPreviewRoute={handlePreviewRoute}
+                onClearPreview={handleClearPreview}
+                onStartPinMode={(cb) => mapRef.current?.startPinMode(cb)}
+                onStopPinMode={() => mapRef.current?.stopPinMode()}
+                onCancel={closeDesignPanel}
+                drawGeometry={drawnGeometry ?? undefined}
+                editingRoute={editingRoute}
+              />
             )}
           </div>
         </div>
@@ -585,7 +588,10 @@ export default function MapPage() {
       {customRoutes.length > 0 && !panelOpen && (
         <div className="absolute bottom-20 right-4 z-20">
           <button
-            onClick={() => setMode("build")}
+            onClick={() => {
+              setDesignTab("new");
+              setMode("build");
+            }}
             className="bg-white/95 backdrop-blur-xl rounded-xl border border-slate-200 shadow-md px-3 py-2 text-xs font-medium text-slate-700 flex items-center gap-1.5 hover:shadow-lg transition-shadow"
           >
             <Pencil className="w-3.5 h-3.5 text-slate-400" />
