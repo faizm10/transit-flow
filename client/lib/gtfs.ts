@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from "uuid";
+
 export interface GTFSRoute {
   route_id: string;
   route_short_name: string;
@@ -113,8 +115,6 @@ function timeStringToHM(t: string): { h: number; m: number } {
   const [h, m] = t.split(":").map(Number);
   return { h: h ?? 0, m: m ?? 0 };
 }
-
-import { v4 as uuidv4 } from "uuid";
 
 /** Convert a legacy `frequency` schedule to the richer `banded` format. */
 export function migrateLegacySchedule(s: CustomSchedule): CustomSchedule {
