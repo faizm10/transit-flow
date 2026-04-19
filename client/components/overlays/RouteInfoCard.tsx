@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Train, Bus, ArrowRight, MapPin } from "lucide-react";
+import { X, Train, Bus, ArrowRight, MapPin, Trash2 } from "lucide-react";
 import { colorForRoute, GO_RAIL_LINES } from "@/lib/routeColors";
 
 interface RouteInfoCardProps {
@@ -14,6 +14,8 @@ interface RouteInfoCardProps {
   routeType?: "bus" | "train";
   title?: string;
   actionLabel?: string;
+  deleteLabel?: string;
+  onDelete?: () => void;
   onClose: () => void;
   onExplore: () => void;
 }
@@ -29,6 +31,8 @@ export default function RouteInfoCard({
   routeType,
   title,
   actionLabel = "Explore this route",
+  deleteLabel = "Delete route",
+  onDelete,
   onClose,
   onExplore,
 }: RouteInfoCardProps) {
@@ -93,6 +97,16 @@ export default function RouteInfoCard({
           >
             {actionLabel} <ArrowRight className="w-3.5 h-3.5" />
           </button>
+
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-100 bg-red-50 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {deleteLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>

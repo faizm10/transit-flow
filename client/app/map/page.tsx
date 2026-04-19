@@ -4,10 +4,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import mapboxgl from "mapbox-gl";
-import { Train, Map as MapIcon, PlayCircle, Pencil } from "lucide-react";
+import { Train, Map as MapIcon, PlayCircle, Pencil, CalendarClock } from "lucide-react";
+import { toast } from "sonner";
 import { MapHandle } from "@/components/Map";
 import BrowsePanel from "@/components/panels/BrowsePanel";
 import BuilderWizard from "@/components/panels/BuilderWizard";
+import SchedulePanel from "@/components/panels/SchedulePanel";
 import SimulationHUD from "@/components/panels/SimulationHUD";
 import RouteTooltip from "@/components/overlays/RouteTooltip";
 import RouteInfoCard from "@/components/overlays/RouteInfoCard";
@@ -15,12 +17,12 @@ import VehicleInfoPopup from "@/components/overlays/VehicleInfoPopup";
 import DrawGuide from "@/components/overlays/DrawGuide";
 import { useRoutes } from "@/hooks/useRoutes";
 import { useSimulation } from "@/hooks/useSimulation";
-import { CustomRoute } from "@/lib/gtfs";
+import { CustomRoute, CustomSchedule } from "@/lib/gtfs";
 
 // Dynamically import Map to avoid SSR issues with mapbox-gl
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
-type Mode = "browse" | "build" | "simulate" | null;
+type Mode = "browse" | "build" | "schedule" | "simulate" | null;
 
 interface ClickedRoute {
   shortName: string;
@@ -35,9 +37,10 @@ interface ClickedRoute {
 }
 
 const NAV_ITEMS = [
-  { mode: "browse" as Mode, icon: MapIcon, label: "Explore" },
-  { mode: "build" as Mode, icon: Pencil, label: "Design" },
-  { mode: "simulate" as Mode, icon: PlayCircle, label: "Simulate" },
+  { mode: "browse" as Mode,   icon: MapIcon,       label: "Explore"   },
+  { mode: "build" as Mode,    icon: Pencil,        label: "Design"    },
+  { mode: "schedule" as Mode, icon: CalendarClock, label: "Schedules" },
+  { mode: "simulate" as Mode, icon: PlayCircle,    label: "Simulate"  },
 ];
 
 /** Stable numeric id from a trip_id string (for Mapbox feature-state) */
@@ -83,7 +86,7 @@ export default function MapPage() {
   const [editingRoute, setEditingRoute] = useState<CustomRoute | undefined>();
   const [selectedVehicleTripId, setSelectedVehicleTripId] = useState<string | null>(null);
 
-  const { routes: customRoutes, saveRoute } = useRoutes();
+  const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
   const sim = useSimulation();
 
   // ── Read URL mode param on mount ────────────────────────────────────────
@@ -309,6 +312,38 @@ export default function MapPage() {
     // Keep highlight active
   }
 
+  function deleteCustomRoute(routeId: string) {
+    deleteRoute(routeId);
+    if (editingRoute?.id === routeId) {
+      setEditingRoute(undefined);
+      setDrawnGeometry(null);
+      setMode(null);
+    }
+    mapRef.current?.stopEdit();
+    mapRef.current?.clearPreviewRoute();
+    mapRef.current?.setRouteHighlight(null);
+    setClickedRoute(null);
+    toast.success("Route deleted");
+  }
+
+  function handleDeleteFromCard() {
+    if (!clickedRoute?.isCustom) return;
+    const routeName = clickedRoute.shortName;
+    const routeId = clickedRoute.variantId;
+
+    toast.warning(`Delete "${routeName}"?`, {
+      description: "This removes the saved custom route from this browser.",
+      action: {
+        label: "Delete",
+        onClick: () => deleteCustomRoute(routeId),
+      },
+      cancel: {
+        label: "Cancel",
+        onClick: () => undefined,
+      },
+    });
+  }
+
   const panelOpen = mode === "browse" || mode === "build";
   // Hide info card when browse panel is open (panel shows richer info)
   const showInfoCard = clickedRoute && !isDrawing && mode !== "browse";
@@ -411,6 +446,8 @@ export default function MapPage() {
           routeType={clickedRoute.routeType}
           title={clickedRoute.isCustom ? clickedRoute.shortName : undefined}
           actionLabel={clickedRoute.isCustom ? "Edit this route" : undefined}
+          deleteLabel={clickedRoute.isCustom ? "Delete route" : undefined}
+          onDelete={clickedRoute.isCustom ? handleDeleteFromCard : undefined}
           onClose={() => {
             setClickedRoute(null);
             mapRef.current?.setRouteHighlight(null);

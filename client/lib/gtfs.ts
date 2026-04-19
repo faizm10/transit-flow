@@ -71,14 +71,107 @@ export interface CustomStop {
   sequence: number;
 }
 
+// ─── Rich schedule types ───────────────────────────────────────────────────
+
+/** A single contiguous service window within a day (e.g. "Morning peak 6–9 AM every 10 min") */
+export interface ServiceBand {
+  id: string;
+  label: string;       // display name, e.g. "Morning peak"
+  startHour: number;   // 0–23
+  startMin: number;    // 0 or 30
+  endHour: number;
+  endMin: number;
+  headwayMins: number; // minutes between trips
+}
+
+/** Schedule for one day type (weekday / saturday / sunday) */
+export interface DaySchedule {
+  active: boolean;       // false = no service on this day type
+  bands: ServiceBand[];
+}
+
 export interface CustomSchedule {
-  type: "frequency" | "fixed";
+  /** banded = frequency bands per day; fixed = explicit departure list */
+  type: "banded" | "frequency" | "fixed";
+  // ── banded mode ───────────────────────────────────────────────────────────
+  weekday?: DaySchedule;
+  saturday?: DaySchedule;
+  sunday?: DaySchedule;
+  // ── legacy frequency mode (still accepted, migrated on read) ─────────────
   frequency?: {
     weekday: { start: string; end: string; interval: number } | null;
     weekend: { start: string; end: string; interval: number } | null;
   };
+  // ── fixed mode ────────────────────────────────────────────────────────────
   fixedDepartures?: string[]; // HH:MM
   direction: "one-way" | "two-way";
+}
+
+// ─── Schedule helpers ──────────────────────────────────────────────────────
+
+function timeStringToHM(t: string): { h: number; m: number } {
+  const [h, m] = t.split(":").map(Number);
+  return { h: h ?? 0, m: m ?? 0 };
+}
+
+import { v4 as uuidv4 } from "uuid";
+
+/** Convert a legacy `frequency` schedule to the richer `banded` format. */
+export function migrateLegacySchedule(s: CustomSchedule): CustomSchedule {
+  if (s.type === "banded") return s;
+  if (s.type === "fixed") {
+    return {
+      ...s,
+      type: "fixed",
+      weekday: { active: true, bands: [] },
+      saturday: { active: true, bands: [] },
+      sunday: { active: true, bands: [] },
+    };
+  }
+  // type === "frequency" → build one band per day type from the flat fields
+  function freqToBands(
+    entry: { start: string; end: string; interval: number } | null | undefined
+  ): ServiceBand[] {
+    if (!entry) return [];
+    const { h: sh, m: sm } = timeStringToHM(entry.start);
+    const { h: eh, m: em } = timeStringToHM(entry.end);
+    return [
+      {
+        id: uuidv4(),
+        label: "All day",
+        startHour: sh, startMin: sm,
+        endHour: eh, endMin: em,
+        headwayMins: entry.interval,
+      },
+    ];
+  }
+  return {
+    ...s,
+    type: "banded",
+    weekday: { active: true, bands: freqToBands(s.frequency?.weekday) },
+    saturday: { active: true, bands: freqToBands(s.frequency?.weekend) },
+    sunday: { active: true, bands: freqToBands(s.frequency?.weekend) },
+  };
+}
+
+/** Create a blank banded schedule with sensible default bands. */
+export function defaultBandedSchedule(): CustomSchedule {
+  const makeBand = (label: string, sh: number, sm: number, eh: number, em: number, headway: number): ServiceBand => ({
+    id: uuidv4(), label, startHour: sh, startMin: sm, endHour: eh, endMin: em, headwayMins: headway,
+  });
+  const weekdayBands: ServiceBand[] = [
+    makeBand("Morning peak",   6,  0,  9,  0, 10),
+    makeBand("Midday",         9,  0, 15,  0, 20),
+    makeBand("Afternoon peak", 15, 0, 19,  0, 12),
+    makeBand("Evening",        19, 0, 23,  0, 30),
+  ];
+  return {
+    type: "banded",
+    direction: "two-way",
+    weekday:  { active: true,  bands: weekdayBands },
+    saturday: { active: true,  bands: [makeBand("All day", 7, 0, 22, 0, 30)] },
+    sunday:   { active: false, bands: [] },
+  };
 }
 
 // ─── Time helpers ───────────────────────────────────────────────────────────
