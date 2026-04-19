@@ -60,18 +60,29 @@ export default function SimulationHUD({
     ? (currentTime - startTime) / (endTime - startTime)
     : 0;
 
-  // ── Onboarding state ──────────────────────────────────────────────────────
+  // ── Onboarding / empty state ──────────────────────────────────────────────
+  // Distinguish "never started" from "started but no service on this date"
+  const hasLoadedOnce = startTime !== endTime || error !== null;
+
   if (!hasTrips && !loading) {
+    const noServiceOnDate = hasLoadedOnce && !error;
+
     return (
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 w-[min(480px,calc(100vw-32px))]">
         <div className="bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-xl p-5">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <Train className="w-5 h-5 text-emerald-700" />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${noServiceOnDate ? "bg-amber-100" : "bg-emerald-100"}`}>
+              <Train className={`w-5 h-5 ${noServiceOnDate ? "text-amber-700" : "text-emerald-700"}`} />
             </div>
             <div>
-              <p className="font-semibold text-slate-900 text-sm">Watch GO trains in real time</p>
-              <p className="text-xs text-slate-400">Morning rush · {RAIL_CODES.length} rail lines</p>
+              <p className="font-semibold text-slate-900 text-sm">
+                {noServiceOnDate ? "No service on this date" : "Watch GO trains in real time"}
+              </p>
+              <p className="text-xs text-slate-400">
+                {noServiceOnDate
+                  ? "Try a weekday — some lines only run Mon–Fri"
+                  : `Real GTFS schedule · ${RAIL_CODES.length} rail lines`}
+              </p>
             </div>
           </div>
 
@@ -81,6 +92,8 @@ export default function SimulationHUD({
             <input
               type="date"
               value={date}
+              min="2026-01-06"
+              max="2026-04-24"
               onChange={(e) => onDateChange(e.target.value)}
               className="flex-1 text-xs rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#007A33]/30"
             />
@@ -199,6 +212,8 @@ export default function SimulationHUD({
               autoFocus
               type="date"
               defaultValue={date}
+              min="2026-01-06"
+              max="2026-04-24"
               onBlur={(e) => handleDateChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleDateChange((e.target as HTMLInputElement).value);
