@@ -218,9 +218,31 @@ export default function MapPage() {
     setIsDrawing(false);
   }
 
+  // ── Route edit / preview handlers (fed into BuilderWizard) ────────────────
+  const handleEditRequest = useCallback(
+    (coords: [number, number][], onChange: (coords: [number, number][]) => void) => {
+      mapRef.current?.startEdit(coords, onChange);
+    },
+    []
+  );
+
+  const handleEditDone = useCallback(() => {
+    mapRef.current?.stopEdit();
+  }, []);
+
+  const handlePreviewRoute = useCallback((coords: [number, number][], color: string) => {
+    mapRef.current?.showPreviewRoute(coords, color);
+  }, []);
+
+  const handleClearPreview = useCallback(() => {
+    mapRef.current?.clearPreviewRoute();
+  }, []);
+
   // ── Builder handlers ────────────────────────────────────────────────────
   function handleSaveRoute(route: CustomRoute) {
     saveRoute(route);
+    mapRef.current?.stopEdit();     // clean up if edit was active
+    mapRef.current?.clearPreviewRoute();
     setMode(null);
     setEditingRoute(undefined);
     setDrawnGeometry(null);
@@ -308,7 +330,17 @@ export default function MapPage() {
               <BuilderWizard
                 onSave={handleSaveRoute}
                 onDrawRequest={startDrawing}
-                onCancel={() => setMode(null)}
+                onEditRequest={handleEditRequest}
+                onEditDone={handleEditDone}
+                onPreviewRoute={handlePreviewRoute}
+                onClearPreview={handleClearPreview}
+                onCancel={() => {
+                  mapRef.current?.stopEdit();
+                  mapRef.current?.clearPreviewRoute();
+                  setMode(null);
+                  setEditingRoute(undefined);
+                  setDrawnGeometry(null);
+                }}
                 drawGeometry={drawnGeometry ?? undefined}
                 existingRoute={editingRoute}
               />
