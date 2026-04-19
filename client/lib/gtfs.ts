@@ -32,6 +32,13 @@ export interface GTFSStop {
 export type VariantsIndex = Record<string, GTFSVariant[]>;
 export type VariantStops = Record<string, GTFSStop[]>;
 
+// ─── Route visibility filters ───────────────────────────────────────────────
+
+export interface RouteFilters {
+  goRouteShortNames: string[] | null;
+  customRouteIds: string[] | null;
+}
+
 // ─── Enriched types used across the app ────────────────────────────────────
 
 export interface EnrichedRoute {
@@ -52,6 +59,18 @@ export interface EnrichedRoute {
   weekly_trips: number;
 }
 
+export interface ExtensionMeta {
+  parentRouteShortName: string;   // e.g. "30"
+  parentRouteName: string;        // e.g. "Route 30 - Kitchener"
+  parentRouteColor: string;
+  parentWeeklyTrips: number;
+  branchSuffix: string;           // e.g. "R" → displayed as "30R"
+  scheduleMultiplier: number;     // 0.5 = half parent frequency
+  keepOriginalRunning: boolean;   // whether original GO route runs concurrently in simulation
+  extensionTravelTimeMins: number; // from Directions API
+  baseStopCount: number;          // how many stops came from parent (first N stops)
+}
+
 export interface CustomRoute {
   id: string;
   name: string;
@@ -63,6 +82,7 @@ export interface CustomRoute {
   geometry?: [number, number][];
   schedule?: CustomSchedule;
   createdAt: string;
+  extension?: ExtensionMeta;
 }
 
 export interface CustomStop {

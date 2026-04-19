@@ -9,15 +9,17 @@ import { toast } from "sonner";
 import { MapHandle } from "@/components/Map";
 import BrowsePanel from "@/components/panels/BrowsePanel";
 import BuilderWizard from "@/components/panels/BuilderWizard";
+import ExtendRouteWizard from "@/components/panels/ExtendRouteWizard";
 import SchedulePanel from "@/components/panels/SchedulePanel";
 import SimulationHUD from "@/components/panels/SimulationHUD";
 import RouteTooltip from "@/components/overlays/RouteTooltip";
 import RouteInfoCard from "@/components/overlays/RouteInfoCard";
 import VehicleInfoPopup from "@/components/overlays/VehicleInfoPopup";
 import DrawGuide from "@/components/overlays/DrawGuide";
+import RouteFilterControl from "@/components/overlays/RouteFilterControl";
 import { useRoutes } from "@/hooks/useRoutes";
 import { useSimulation } from "@/hooks/useSimulation";
-import { CustomRoute, CustomSchedule } from "@/lib/gtfs";
+import { type CustomRoute, type CustomSchedule, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
 
 // Dynamically import Map to avoid SSR issues with mapbox-gl
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
@@ -85,6 +87,11 @@ export default function MapPage() {
   const [drawnGeometry, setDrawnGeometry] = useState<[number, number][] | null>(null);
   const [editingRoute, setEditingRoute] = useState<CustomRoute | undefined>();
   const [selectedVehicleTripId, setSelectedVehicleTripId] = useState<string | null>(null);
+  const [extendBaseRoute, setExtendBaseRoute] = useState<EnrichedRoute | undefined>();
+  const [routeFilters, setRouteFilters] = useState<RouteFilters>({
+    goRouteShortNames: null,
+    customRouteIds: null,
+  });
 
   const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
 
@@ -158,9 +165,15 @@ export default function MapPage() {
             fromStop: r.stops[0]?.name ?? "",
             toStop: r.stops[r.stops.length - 1]?.name ?? "",
           },
-        })),
+      })),
     });
   }, [customRoutes, mapLoaded]);
+
+  // ── Sync route visibility filters to map layers ─────────────────────────
+  useEffect(() => {
+    if (!mapLoaded) return;
+    mapRef.current?.setVisibleRouteFilter(routeFilters.goRouteShortNames, routeFilters.customRouteIds);
+  }, [mapLoaded, routeFilters]);
 
   // ── Map event handlers ──────────────────────────────────────────────────
   const handleMapLoad = useCallback((_map: mapboxgl.Map) => {
@@ -241,6 +254,14 @@ export default function MapPage() {
     setClickedRoute(null);
   }, []);
 
+  const handleRouteFilterChange = useCallback((filters: RouteFilters) => {
+    setRouteFilters(filters);
+    mapRef.current?.setVisibleRouteFilter(filters.goRouteShortNames, filters.customRouteIds);
+    mapRef.current?.setRouteHighlight(null);
+    setHoveredRoute(null);
+    setClickedRoute(null);
+  }, []);
+
   // ── Draw mode handlers ──────────────────────────────────────────────────
   function startDrawing() {
     mapRef.current?.startDraw((coords) => {
@@ -288,6 +309,7 @@ export default function MapPage() {
     setMode(null);
     setEditingRoute(undefined);
     setDrawnGeometry(null);
+    setExtendBaseRoute(undefined);
   }
 
   // ── Mode switcher ───────────────────────────────────────────────────────
@@ -322,6 +344,9 @@ export default function MapPage() {
 
   function deleteCustomRoute(routeId: string) {
     deleteRoute(routeId);
+    setRouteFilters((current) => current.customRouteIds === null
+      ? current
+      : { ...current, customRouteIds: current.customRouteIds.filter((id) => id !== routeId) });
     if (editingRoute?.id === routeId) {
       setEditingRoute(undefined);
       setDrawnGeometry(null);
@@ -400,6 +425,14 @@ export default function MapPage() {
         </div>
       </div>
 
+      {!isDrawing && (
+        <RouteFilterControl
+          customRoutes={customRoutes}
+          routeFilters={routeFilters}
+          onRouteFilterChange={handleRouteFilterChange}
+        />
+      )}
+
       {/* ── Left side panel ─────────────────────────────────────────────── */}
       {panelOpen && (
         <div className="absolute left-4 top-20 bottom-4 z-20 w-72">
@@ -408,6 +441,13 @@ export default function MapPage() {
               <BrowsePanel
                 onRouteSelect={handleRouteSelect}
                 onRouteClear={handleRouteClear}
+                customRoutes={customRoutes}
+                routeFilters={routeFilters}
+                onRouteFilterChange={handleRouteFilterChange}
+                onExtendRoute={(route) => {
+                  setExtendBaseRoute(route);
+                  setMode("build");
+                }}
               />
             )}
             {mode === "schedule" && (
@@ -417,23 +457,44 @@ export default function MapPage() {
               />
             )}
             {mode === "build" && (
-              <BuilderWizard
-                onSave={handleSaveRoute}
-                onDrawRequest={startDrawing}
-                onEditRequest={handleEditRequest}
-                onEditDone={handleEditDone}
-                onPreviewRoute={handlePreviewRoute}
-                onClearPreview={handleClearPreview}
-                onCancel={() => {
-                  mapRef.current?.stopEdit();
-                  mapRef.current?.clearPreviewRoute();
-                  setMode(null);
-                  setEditingRoute(undefined);
-                  setDrawnGeometry(null);
-                }}
-                drawGeometry={drawnGeometry ?? undefined}
-                existingRoute={editingRoute}
-              />
+              extendBaseRoute ? (
+                <ExtendRouteWizard
+                  initialRoute={extendBaseRoute}
+                  onSave={(route) => {
+                    handleSaveRoute(route);
+                    setExtendBaseRoute(undefined);
+                    setMode("browse");
+                  }}
+                  onPreviewRoute={handlePreviewRoute}
+                  onClearPreview={handleClearPreview}
+                  onStartPinMode={(cb) => mapRef.current?.startPinMode(cb)}
+                  onStopPinMode={() => mapRef.current?.stopPinMode()}
+                  onCancel={() => {
+                    setExtendBaseRoute(undefined);
+                    mapRef.current?.clearPreviewRoute();
+                    mapRef.current?.stopPinMode();
+                    setMode("browse");
+                  }}
+                />
+              ) : (
+                <BuilderWizard
+                  onSave={handleSaveRoute}
+                  onDrawRequest={startDrawing}
+                  onEditRequest={handleEditRequest}
+                  onEditDone={handleEditDone}
+                  onPreviewRoute={handlePreviewRoute}
+                  onClearPreview={handleClearPreview}
+                  onCancel={() => {
+                    mapRef.current?.stopEdit();
+                    mapRef.current?.clearPreviewRoute();
+                    setMode(null);
+                    setEditingRoute(undefined);
+                    setDrawnGeometry(null);
+                  }}
+                  drawGeometry={drawnGeometry ?? undefined}
+                  existingRoute={editingRoute}
+                />
+              )
             )}
           </div>
         </div>

@@ -14,11 +14,17 @@ const LAKESHORE_EAST_BUS_ROUTES = ["88", "90", "92", "96"];
 const LAKESHORE_WEST_BUS_ROUTES = ["11", "12", "16", "18"];
 const PINK_BUS_ROUTES = ["40", "41", "47", "48", "94"];
 const PURPLE_BUS_ROUTES = ["52", "56"];
+const GO_ROUTE_LAYER_IDS = ["go-routes-casing", "go-routes-line", "go-routes-hit"];
+const CUSTOM_ROUTE_LAYER_IDS = ["custom-routes-line", "custom-routes-hit"];
+const EMPTY_ROUTE_FILTER_VALUE = "__transit_flow_no_routes__";
+
+type LayerFilter = Parameters<mapboxgl.Map["setFilter"]>[1];
 
 export interface MapHandle {
   getMap: () => mapboxgl.Map | null;
   flyTo: (options: Parameters<mapboxgl.Map["flyTo"]>[0]) => void;
   setRouteHighlight: (variantIds: string[] | null) => void;
+  setVisibleRouteFilter: (goRouteShortNames: string[] | null, customRouteIds: string[] | null) => void;
   /** Show a dashed preview line on the map (wizard use). */
   showPreviewRoute: (coords: [number, number][], color: string) => void;
   /** Remove the preview line. */
@@ -36,6 +42,26 @@ export interface MapHandle {
   startEdit: (coords: [number, number][], onChange: (coords: [number, number][]) => void) => void;
   /** Finalise edit: fires onChange one last time with final geometry then cleans up. */
   stopEdit: () => void;
+  /** Enable map-click mode to pin a stop. Callback fires with {lat, lon} on each click. */
+  startPinMode: (onPin: (lat: number, lon: number) => void) => void;
+  /** Disable pin mode. */
+  stopPinMode: () => void;
+}
+
+function makeVisibilityFilter(propertyName: string, values: string[] | null): LayerFilter {
+  if (values === null) return null;
+  if (values.length === 0) {
+    return ["==", ["get", propertyName], EMPTY_ROUTE_FILTER_VALUE] as LayerFilter;
+  }
+  return ["in", ["get", propertyName], ["literal", values]] as LayerFilter;
+}
+
+function applyLayerFilter(map: mapboxgl.Map, layerIds: string[], filter: LayerFilter) {
+  for (const layerId of layerIds) {
+    if (map.getLayer(layerId)) {
+      map.setFilter(layerId, filter);
+    }
+  }
 }
 
 interface MapProps {
@@ -75,6 +101,9 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
   const drawCompleteCallbackRef = useRef<((coords: [number, number][]) => void) | null>(null);
   const editOnChangeRef = useRef<((coords: [number, number][]) => void) | null>(null);
 
+  // Pin mode state
+  const pinListenerRef = useRef<((e: mapboxgl.MapMouseEvent) => void) | null>(null);
+
   // ── Imperative handle ──────────────────────────────────────────────────────
   useImperativeHandle(ref, () => ({
     getMap: () => mapRef.current,
@@ -100,6 +129,14 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         5,
         2,
       ]);
+    },
+
+    setVisibleRouteFilter: (goRouteShortNames, customRouteIds) => {
+      const map = mapRef.current;
+      if (!map || !map.isStyleLoaded()) return;
+
+      applyLayerFilter(map, GO_ROUTE_LAYER_IDS, makeVisibilityFilter("route_short_name", goRouteShortNames));
+      applyLayerFilter(map, CUSTOM_ROUTE_LAYER_IDS, makeVisibilityFilter("id", customRouteIds));
     },
 
     // ── Preview route (wizard) ───────────────────────────────────────────────
@@ -249,6 +286,39 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 
       cleanupDraw(map, draw);
       editOnChangeRef.current = null;
+    },
+
+    // ── Pin mode (ExtendRouteWizard) ─────────────────────────────────────────
+    startPinMode: (onPin) => {
+      const map = mapRef.current;
+      if (!map || isDrawingRef.current) return;
+
+      // Remove any existing pin listener first
+      if (pinListenerRef.current) {
+        map.off("click", pinListenerRef.current);
+        pinListenerRef.current = null;
+      }
+
+      map.getCanvas().style.cursor = "crosshair";
+
+      const listener = (e: mapboxgl.MapMouseEvent) => {
+        onPin(e.lngLat.lat, e.lngLat.lng);
+      };
+
+      map.on("click", listener);
+      pinListenerRef.current = listener;
+    },
+
+    stopPinMode: () => {
+      const map = mapRef.current;
+      if (!map) return;
+
+      if (pinListenerRef.current) {
+        map.off("click", pinListenerRef.current);
+        pinListenerRef.current = null;
+      }
+
+      map.getCanvas().style.cursor = "";
     },
   }));
 
