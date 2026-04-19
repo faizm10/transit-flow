@@ -119,6 +119,10 @@ export interface ActiveVehicle {
   lineName: string;
   /** Final destination stop name */
   destination: string;
+  /** Scheduled departure time HH:MM */
+  startTime: string;
+  /** Scheduled arrival time HH:MM */
+  endTime: string;
   /** fraction 0-1 of trip completed */
   progress: number;
   /** seconds until next stop */
@@ -180,6 +184,8 @@ export function getActiveVehicles(
         routeName: trip.route_short_name,
         lineName: trip.route_long_name || trip.route_short_name,
         destination: trip.end_stop_name,
+        startTime: trip.start_time,
+        endTime: trip.end_time,
         progress: result.progress,
         secsToNextStop: result.secsToNextStop,
         nextStopName: result.nextStopName,

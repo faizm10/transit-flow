@@ -335,6 +335,7 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       const numericId = feat.id as number;
       const props = feat.properties as {
         color: string; routeName: string; lineName: string; destination: string;
+        startTime: string; endTime: string; nextStopName: string; secsToNextStop: number;
       };
       const coords = (feat.geometry as GeoJSON.Point).coordinates as [number, number];
 
@@ -359,14 +360,25 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           className: "vehicle-hover-popup",
         });
       }
+      const secsToNext = props.secsToNextStop ?? 0;
+      const minToNext = secsToNext < 60 ? "< 1 min" : `${Math.round(secsToNext / 60)} min`;
+      const nextLine = props.nextStopName
+        ? `<div class="vhp-row vhp-next"><span class="vhp-next-dot"></span>${props.nextStopName}<span class="vhp-eta">${minToNext}</span></div>`
+        : "";
+      const timingLine = props.startTime && props.endTime
+        ? `<div class="vhp-row vhp-timing">${props.startTime} → ${props.endTime}</div>`
+        : "";
+
       vehiclePopupRef.current
         .setLngLat(coords)
         .setHTML(
           `<div class="vhp-inner">` +
-          `<span class="vhp-badge" style="background:${props.color}">${props.routeName}</span>` +
-          `<div class="vhp-text">` +
-          `<span class="vhp-dest">${props.destination || props.lineName}</span>` +
-          `</div>` +
+            `<span class="vhp-badge" style="background:${props.color}">${props.routeName}</span>` +
+            `<div class="vhp-body">` +
+              `<div class="vhp-dest">${props.destination || props.lineName}</div>` +
+              nextLine +
+              timingLine +
+            `</div>` +
           `</div>`
         )
         .addTo(map);
