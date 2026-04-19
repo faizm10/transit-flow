@@ -28,9 +28,11 @@ export const PURPLE_BUS_COLOR = "#a855f7";
 const BUS_ROUTE_LINE_COLORS: Record<string, string> = {
   "11": GO_RAIL_LINES.LW.color,
   "12": GO_RAIL_LINES.LW.color,
+  "15": GO_RAIL_LINES.LW.color,
   "16": GO_RAIL_LINES.LW.color,
   "17": GO_RAIL_LINES.MI.color,
   "18": GO_RAIL_LINES.LW.color,
+  "19": GO_RAIL_LINES.MI.color,
   "21": GO_RAIL_LINES.MI.color,
   "22": GO_RAIL_LINES.MI.color,
   "25": GO_RAIL_LINES.MI.color,

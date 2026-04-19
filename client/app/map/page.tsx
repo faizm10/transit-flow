@@ -102,7 +102,7 @@ export default function MapPage() {
     saveRoute({ ...route, schedule });
     toast.success("Schedule saved");
   }, [customRoutes, saveRoute]);
-  const sim = useSimulation();
+  const sim = useSimulation(customRoutes);
 
   // ── Read URL mode param on mount ────────────────────────────────────────
   useEffect(() => {
@@ -561,6 +561,7 @@ export default function MapPage() {
           loading={sim.loading}
           error={sim.error}
           selectedRoutes={sim.selectedRoutes}
+          customRoutes={customRoutes}
           date={sim.date}
           onTogglePlay={sim.togglePlay}
           onScrub={sim.setCurrentTime}

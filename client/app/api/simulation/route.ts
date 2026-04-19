@@ -11,12 +11,14 @@ const PUBLIC_DIR = join(process.cwd(), "public/gotransit/derived");
 
 const MAX_OUTPUT_TRIPS = 300;
 const MAX_SHAPE_POINTS = 300;
-const RAIL_SHORT_NAMES = new Set(["BR", "KI", "LE", "LW", "MI", "RH", "ST", "UP"]);
 
 // ── Internal types ─────────────────────────────────────────────────────────────
 interface StopInfo { lat: number; lon: number; name: string }
+interface RouteInfo { shortName: string; longName: string; type: number }
 interface RawTrip {
   route_short_name: string;
+  route_long_name: string;
+  route_type: number;
   trip_id: string;
   headsign: string;
   shape_id: string;
@@ -30,11 +32,11 @@ interface AppData {
   stops: Map<string, StopInfo>;
   shapesByShapeId: Map<string, [number, number][]>;
   tripsByServiceId: Map<string, RawTrip[]>;
-  stopTimesByTripId: Map<string, RawStopTime[]>;
 }
 
 // ── Module-level cache (populated once per server process) ────────────────────
 let appData: AppData | null = null;
+const stopTimesByServiceIdCache = new Map<string, Map<string, RawStopTime[]>>();
 
 function gtfsTimeToSecs(t: string): number {
   const [h, m, s] = t.split(":").map(Number);
@@ -62,16 +64,21 @@ function loadData(): AppData {
     }
   }
 
-  // 2 ── Route id → short_name  (e.g. "01260426-GT" → "KI")
-  const routeShortNames = new Map<string, string>();
+  // 2 ── Route id → metadata  (e.g. "01260426-GT" → Kitchener rail)
+  const routesById = new Map<string, RouteInfo>();
   {
     const lines = parseLines(readFileSync(join(GTFS_DIR, "routes.txt"), "utf-8"));
     const h = lines[0].split(",");
     const iId = h.indexOf("route_id"), iShort = h.indexOf("route_short_name");
+    const iLong = h.indexOf("route_long_name"), iType = h.indexOf("route_type");
     for (let i = 1; i < lines.length; i++) {
       const p = lines[i].split(",");
       if (p.length < 2) continue;
-      routeShortNames.set(p[iId], p[iShort]);
+      routesById.set(p[iId], {
+        shortName: p[iShort],
+        longName: p[iLong] ?? p[iShort],
+        type: Number(p[iType] ?? 3),
+      });
     }
   }
 
@@ -101,9 +108,12 @@ function loadData(): AppData {
       const p = lines[i].split(",");
       if (p.length < 5) continue;
       const serviceId = p[iServiceId];
-      const shortName = routeShortNames.get(p[iRouteId]) ?? p[iRouteId].split("-").pop() ?? "";
+      const routeInfo = routesById.get(p[iRouteId]);
+      const shortName = routeInfo?.shortName ?? p[iRouteId].split("-").pop() ?? "";
       const trip: RawTrip = {
         route_short_name: shortName,
+        route_long_name: routeInfo?.longName ?? shortName,
+        route_type: routeInfo?.type ?? 3,
         trip_id: p[iTripId],
         headsign: p[iHeadsign],
         shape_id: p[iShapeId],
@@ -113,36 +123,42 @@ function loadData(): AppData {
     }
   }
 
-  // 5 ── Stop times (rail routes only — matched via trip_id pattern for speed)
-  //   Rail trip_ids contain "-MI-", "-GT-" (KI), "-LE-", "-LW-", "-BR-", "-ST-", "-RH-", "-UP-"
+  appData = { stops, shapesByShapeId, tripsByServiceId };
+  return appData;
+}
+
+function loadStopTimesForService(serviceId: string, tripsForDate: RawTrip[]): Map<string, RawStopTime[]> {
+  const cached = stopTimesByServiceIdCache.get(serviceId);
+  if (cached) return cached;
+
+  const tripIdsForDate = new Set(tripsForDate.map((trip) => trip.trip_id));
   const stopTimesByTripId = new Map<string, RawStopTime[]>();
-  {
-    const railPattern = /-(MI|GT|LE|LW|BR|ST|RH|UP)-/;
-    const lines = parseLines(readFileSync(join(GTFS_DIR, "stop_times.txt"), "utf-8"));
-    const h = lines[0].split(",");
-    const iTripId = h.indexOf("trip_id"), iDepart = h.indexOf("departure_time");
-    const iStopId = h.indexOf("stop_id"), iSeq = h.indexOf("stop_sequence");
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
-      if (!railPattern.test(line)) continue; // fast-skip bus rows
-      const p = line.split(",");
-      if (p.length < 5) continue;
-      const tripId = p[iTripId];
-      const st: RawStopTime = {
-        stop_id: p[iStopId],
-        departure_secs: gtfsTimeToSecs(p[iDepart]),
-        stop_sequence: parseInt(p[iSeq]),
-      };
-      if (!stopTimesByTripId.has(tripId)) stopTimesByTripId.set(tripId, []);
-      stopTimesByTripId.get(tripId)!.push(st);
-    }
-    for (const times of stopTimesByTripId.values()) {
-      times.sort((a, b) => a.stop_sequence - b.stop_sequence);
-    }
+  const lines = parseLines(readFileSync(join(GTFS_DIR, "stop_times.txt"), "utf-8"));
+  const h = lines[0].split(",");
+  const iTripId = h.indexOf("trip_id"), iDepart = h.indexOf("departure_time");
+  const iStopId = h.indexOf("stop_id"), iSeq = h.indexOf("stop_sequence");
+
+  for (let i = 1; i < lines.length; i++) {
+    const p = lines[i].split(",");
+    if (p.length < 5) continue;
+    const tripId = p[iTripId];
+    if (!tripIdsForDate.has(tripId)) continue;
+
+    const st: RawStopTime = {
+      stop_id: p[iStopId],
+      departure_secs: gtfsTimeToSecs(p[iDepart]),
+      stop_sequence: parseInt(p[iSeq]),
+    };
+    if (!stopTimesByTripId.has(tripId)) stopTimesByTripId.set(tripId, []);
+    stopTimesByTripId.get(tripId)!.push(st);
   }
 
-  appData = { stops, shapesByShapeId, tripsByServiceId, stopTimesByTripId };
-  return appData;
+  for (const times of stopTimesByTripId.values()) {
+    times.sort((a, b) => a.stop_sequence - b.stop_sequence);
+  }
+
+  stopTimesByServiceIdCache.set(serviceId, stopTimesByTripId);
+  return stopTimesByTripId;
 }
 
 // ── Shape helpers ─────────────────────────────────────────────────────────────
@@ -199,13 +215,13 @@ export async function GET(req: NextRequest) {
   const serviceId = dateParam.replace(/-/g, "");
 
   try {
-    const { stops, shapesByShapeId, tripsByServiceId, stopTimesByTripId } = loadData();
+    const { stops, shapesByShapeId, tripsByServiceId } = loadData();
     const tripsForDate = tripsByServiceId.get(serviceId) ?? [];
+    const stopTimesByTripId = loadStopTimesForService(serviceId, tripsForDate);
     const trips: SimTrip[] = [];
 
     for (const raw of tripsForDate) {
       if (trips.length >= MAX_OUTPUT_TRIPS) break;
-      if (!RAIL_SHORT_NAMES.has(raw.route_short_name)) continue;
       if (!requestedRoutes.has(raw.route_short_name)) continue;
 
       const rawStopTimes = stopTimesByTripId.get(raw.trip_id);
@@ -253,9 +269,9 @@ export async function GET(req: NextRequest) {
       trips.push({
         trip_id:          raw.trip_id,
         route_short_name: raw.route_short_name,
-        route_long_name:  raw.headsign,
-        route_type:       2, // rail
-        color:            colorForRoute(raw.route_short_name),
+        route_long_name:  raw.headsign || raw.route_long_name,
+        route_type:       raw.route_type,
+        color:            colorForRoute(raw.route_short_name, raw.route_type),
         source:           "gotransit",
         stops:            timedStops,
         shape,

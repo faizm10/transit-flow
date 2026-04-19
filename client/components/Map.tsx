@@ -9,9 +9,9 @@ import { GO_RAIL_LINES, PINK_BUS_COLOR, PURPLE_BUS_COLOR } from "@/lib/routeColo
 const KITCHENER_BUS_ROUTES = ["30", "31", "32", "33", "34", "35", "36", "37", "38", "39"];
 const BARRIE_BUS_ROUTES = ["65", "68"];
 const STOUFFVILLE_BUS_ROUTES = ["70", "71", "72", "73", "74", "75", "76", "77", "78", "79"];
-const MILTON_BUS_ROUTES = ["17", "21", "22", "25", "27"];
+const MILTON_BUS_ROUTES = ["17", "19", "21", "22", "25", "27"];
 const LAKESHORE_EAST_BUS_ROUTES = ["88", "90", "92", "96"];
-const LAKESHORE_WEST_BUS_ROUTES = ["11", "12", "16", "18"];
+const LAKESHORE_WEST_BUS_ROUTES = ["11", "12", "15", "16", "18"];
 const PINK_BUS_ROUTES = ["40", "41", "47", "48", "94"];
 const PURPLE_BUS_ROUTES = ["52", "56"];
 const GO_ROUTE_LAYER_IDS = ["go-routes-casing", "go-routes-line", "go-routes-hit"];
@@ -357,18 +357,38 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: "mapbox://styles/mapbox/light-v11",
+      style: "mapbox://styles/mapbox/outdoors-v12",
       center: TORONTO_CENTER,
       zoom: DEFAULT_ZOOM,
+      pitch: 40,
+      bearing: -10,
       minZoom: 7,
       maxZoom: 18,
       attributionControl: false,
     });
 
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), "bottom-right");
     map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-left");
 
     map.on("load", () => {
+      // ── 3D terrain ────────────────────────────────────────────────────────
+      map.addSource("mapbox-dem", {
+        type: "raster-dem",
+        url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+        tileSize: 512,
+        maxzoom: 14,
+      });
+      map.setTerrain({ source: "mapbox-dem", exaggeration: 1.5 });
+      map.addLayer({
+        id: "sky",
+        type: "sky",
+        paint: {
+          "sky-type": "atmosphere",
+          "sky-atmosphere-sun": [0.0, 90.0],
+          "sky-atmosphere-sun-intensity": 15,
+        },
+      });
+
       // ── GO Transit routes layer ────────────────────────────────────────────
       map.addSource("go-routes", {
         type: "geojson",

@@ -8,17 +8,19 @@ import {
   ShapeCache,
   ActiveVehicle,
   buildSimulationUrl,
+  buildCustomSimulationTrips,
   buildShapeCache,
+  getCustomRouteIdFromSelection,
   getActiveVehicles,
   nextSpeed,
 } from "@/lib/simulation";
-import { timeToSeconds } from "@/lib/gtfs";
+import { timeToSeconds, type CustomRoute } from "@/lib/gtfs";
 
 const DEFAULT_ROUTES = ["KI", "LW", "LE", "BR", "ST", "RH", "MI"];
 const DEFAULT_START = "06:00";
 const DEFAULT_END = "22:00";
 
-export function useSimulation() {
+export function useSimulation(customRoutes: CustomRoute[] = []) {
   const [state, setState] = useState<SimulationState>({
     trips: [],
     currentTime: timeToSeconds("06:00"),
@@ -90,19 +92,33 @@ export function useSimulation() {
       const start = params?.start ?? DEFAULT_START;
       const end = params?.end ?? DEFAULT_END;
       const d = params?.date ?? date;
+      const customRouteIds = routes
+        .map(getCustomRouteIdFromSelection)
+        .filter((id): id is string => id !== null);
+      const goRoutes = routes.filter((route) => getCustomRouteIdFromSelection(route) === null);
 
       setState((prev) => ({ ...prev, loading: true, error: null, playing: false, trips: [] }));
       shapeCachesRef.current.clear();
 
       try {
-        const url = buildSimulationUrl({ routes, start, end, date: d });
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: SimulationData = await res.json();
+        const customTrips = buildCustomSimulationTrips(customRoutes, customRouteIds, { start, end, date: d });
+        let data: SimulationData = {
+          startSeconds: timeToSeconds(start),
+          endSeconds: timeToSeconds(end),
+          trips: [],
+        };
+
+        if (goRoutes.length > 0) {
+          const url = buildSimulationUrl({ routes: goRoutes, start, end, date: d });
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          data = await res.json();
+        }
+        const trips = [...data.trips, ...customTrips];
 
         // Pre-compute shape caches for all trips (done once, not per frame)
         const caches = new Map<string, ShapeCache>();
-        for (const trip of data.trips) {
+        for (const trip of trips) {
           if (trip.shape.length > 1) {
             caches.set(trip.trip_id, buildShapeCache(trip.shape));
           }
@@ -111,7 +127,7 @@ export function useSimulation() {
 
         setState((prev) => ({
           ...prev,
-          trips: data.trips,
+          trips,
           startTime: data.startSeconds,
           endTime: data.endSeconds,
           currentTime: data.startSeconds,
@@ -125,7 +141,7 @@ export function useSimulation() {
         }));
       }
     },
-    [selectedRoutes, date]
+    [selectedRoutes, date, customRoutes]
   );
 
   // ── Computed (called every render during animation) ────────────────────────

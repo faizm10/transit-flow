@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { Play, Pause, Loader2, Train, Bus, ChevronUp } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Play, Pause, Loader2, Train, Bus, ChevronUp, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { formatSimTime } from "@/lib/simulation";
+import { customRouteSelectionId, formatSimTime } from "@/lib/simulation";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
-
-const RAIL_CODES = Object.keys(GO_RAIL_LINES).filter((k) => k !== "UP");
+import { type CustomRoute, type EnrichedRoute } from "@/lib/gtfs";
 
 interface SimulationHUDProps {
   trips: { trip_id: string }[];
@@ -19,6 +18,7 @@ interface SimulationHUDProps {
   loading: boolean;
   error: string | null;
   selectedRoutes: string[];
+  customRoutes: CustomRoute[];
   date: string;
   onTogglePlay: () => void;
   onScrub: (t: number) => void;
@@ -38,6 +38,7 @@ export default function SimulationHUD({
   loading,
   error,
   selectedRoutes,
+  customRoutes,
   date,
   onTogglePlay,
   onScrub,
@@ -49,6 +50,8 @@ export default function SimulationHUD({
   const [routePickerOpen, setRoutePickerOpen] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
   const hasTrips = trips.length > 0;
+  const selectedHasBus = selectedRoutes.some((route) => /^\d/.test(route))
+    || customRoutes.some((route) => route.type === "bus" && selectedRoutes.includes(customRouteSelectionId(route.id)));
 
   function handleDateChange(newDate: string) {
     onDateChange(newDate);
@@ -76,12 +79,12 @@ export default function SimulationHUD({
             </div>
             <div>
               <p className="font-semibold text-slate-900 text-sm">
-                {noServiceOnDate ? "No service on this date" : "Watch GO trains in real time"}
+                {noServiceOnDate ? "No service on this date" : "Watch GO service in real time"}
               </p>
               <p className="text-xs text-slate-400">
                 {noServiceOnDate
                   ? "Try a weekday — some lines only run Mon–Fri"
-                  : `Real GTFS schedule · ${RAIL_CODES.length} rail lines`}
+                  : "Real GTFS schedule · trains and buses"}
               </p>
             </div>
           </div>
@@ -103,9 +106,35 @@ export default function SimulationHUD({
             <p className="text-xs text-red-500 mb-3 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}
 
+          <Sheet open={routePickerOpen} onOpenChange={setRoutePickerOpen}>
+            <SheetTrigger className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100">
+              <Bus className="h-4 w-4 text-slate-500" />
+              {selectedRoutes.length} selected route{selectedRoutes.length !== 1 ? "s" : ""}
+              <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
+            </SheetTrigger>
+            <SheetContent
+              side="bottom"
+              className="max-h-[64vh] gap-2 overflow-y-auto rounded-t-lg sm:!bottom-4 sm:!left-1/2 sm:!right-auto sm:!w-[min(580px,calc(100vw-32px))] sm:!-translate-x-1/2 sm:rounded-lg sm:border"
+            >
+              <SheetHeader className="px-4 pb-1 pt-3">
+                <SheetTitle className="text-sm">Select routes</SheetTitle>
+              </SheetHeader>
+              <RoutePicker
+                selected={selectedRoutes}
+                customRoutes={customRoutes}
+                onChange={onRoutesChange}
+                onApply={(routes) => {
+                  onRoutesChange(routes);
+                  setRoutePickerOpen(false);
+                }}
+              />
+            </SheetContent>
+          </Sheet>
+
           <Button
             className="w-full rounded-xl bg-[#007A33] hover:bg-[#005f28] text-white h-10"
             onClick={() => onLoadSimulation()}
+            disabled={selectedRoutes.length === 0}
           >
             <Play className="w-4 h-4 mr-2" /> Start simulation
           </Button>
@@ -139,7 +168,7 @@ export default function SimulationHUD({
           {/* Route picker */}
           <Sheet open={routePickerOpen} onOpenChange={setRoutePickerOpen}>
             <SheetTrigger className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg px-2.5 py-1.5 transition-colors">
-              <Train className="w-3.5 h-3.5" />
+              {selectedHasBus ? <Bus className="w-3.5 h-3.5" /> : <Train className="w-3.5 h-3.5" />}
               {selectedRoutes.length} routes
               <ChevronUp className="w-3 h-3" />
             </SheetTrigger>
@@ -152,6 +181,7 @@ export default function SimulationHUD({
               </SheetHeader>
               <RoutePicker
                 selected={selectedRoutes}
+                customRoutes={customRoutes}
                 onChange={onRoutesChange}
                 onApply={(routes) => {
                   onRoutesChange(routes);
@@ -241,16 +271,41 @@ export default function SimulationHUD({
 // ── Route picker sub-component ───────────────────────────────────────────────
 function RoutePicker({
   selected,
+  customRoutes,
   onChange,
   onApply,
 }: {
   selected: string[];
+  customRoutes: CustomRoute[];
   onChange: (r: string[]) => void;
   onApply: (r: string[]) => void;
 }) {
   const [local, setLocal] = useState<string[]>(selected);
+  const [routes, setRoutes] = useState<EnrichedRoute[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const allRailSelected = RAIL_CODES.every((c) => local.includes(c));
+  useEffect(() => {
+    setLocal(selected);
+  }, [selected]);
+
+  useEffect(() => {
+    fetch("/api/routes")
+      .then((r) => r.json())
+      .then((d) => {
+        setRoutes(d.routes ?? []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const railRoutes = routes.filter((route) => route.is_rail && route.short_name !== "UP");
+  const busRoutes = routes.filter((route) => !route.is_rail);
+  const railCodes = railRoutes.map((route) => route.short_name);
+  const busCodes = busRoutes.map((route) => route.short_name);
+  const customCodes = customRoutes.map((route) => customRouteSelectionId(route.id));
+  const allRailSelected = railCodes.length > 0 && railCodes.every((c) => local.includes(c));
+  const allBusSelected = busCodes.length > 0 && busCodes.every((c) => local.includes(c));
+  const allCustomSelected = customCodes.length > 0 && customCodes.every((c) => local.includes(c));
 
   function toggle(code: string) {
     setLocal((prev) =>
@@ -258,15 +313,16 @@ function RoutePicker({
     );
   }
 
-  function toggleAllRail() {
+  function toggleGroup(codes: string[], selectedAll: boolean) {
     setLocal((prev) =>
-      allRailSelected ? prev.filter((c) => !RAIL_CODES.includes(c)) : [...new Set([...prev, ...RAIL_CODES])]
+      selectedAll
+        ? prev.filter((c) => !codes.includes(c))
+        : [...new Set([...prev, ...codes])]
     );
   }
 
   return (
     <div className="flex flex-col gap-3 px-4 pb-4 pt-0">
-      {/* Train lines */}
       <div>
         <div className="mb-2 flex items-center justify-between">
           <p className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
@@ -274,40 +330,95 @@ function RoutePicker({
           </p>
           <button
             className="text-xs text-[#007A33] font-medium"
-            onClick={toggleAllRail}
+            onClick={() => toggleGroup(railCodes, allRailSelected)}
+            disabled={railCodes.length === 0}
           >
             {allRailSelected ? "Deselect all" : "Select all"}
           </button>
         </div>
         <div className="grid grid-cols-2 gap-1.5">
-          {RAIL_CODES.map((code) => {
-            const info = GO_RAIL_LINES[code];
-            const on = local.includes(code);
-            return (
-              <button
-                key={code}
-                onClick={() => toggle(code)}
-                className={`flex min-h-10 items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-all ${
-                  on
-                    ? "bg-slate-50 shadow-sm"
-                    : "border-slate-100 hover:border-slate-200"
-                }`}
-                style={on ? { borderColor: info.color } : {}}
-              >
-                <div
-                  className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-[11px] font-bold text-white"
-                  style={{ backgroundColor: info.color }}
-                >
-                  {code}
-                </div>
-                <span className="truncate text-xs font-medium text-slate-800">
-                  {info.name.replace(" Line", "")}
-                </span>
-                {on && <div className="ml-auto w-2 h-2 rounded-full bg-emerald-500" />}
-              </button>
-            );
-          })}
+          {loading ? (
+            <RoutePickerSkeleton count={7} />
+          ) : (
+            railRoutes.map((route) => (
+              <RoutePickerOption
+                key={route.short_name}
+                code={route.short_name}
+                label={(GO_RAIL_LINES[route.short_name]?.name ?? route.long_name).replace(" Line", "")}
+                color={route.color}
+                selected={local.includes(route.short_name)}
+                onClick={() => toggle(route.short_name)}
+              />
+            ))
+          )}
         </div>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
+            <Bus className="h-3.5 w-3.5" /> Bus routes
+          </p>
+          <button
+            className="text-xs text-[#007A33] font-medium"
+            onClick={() => toggleGroup(busCodes, allBusSelected)}
+            disabled={busCodes.length === 0}
+          >
+            {allBusSelected ? "Deselect all" : "Select all"}
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {loading ? (
+            <RoutePickerSkeleton count={8} />
+          ) : (
+            busRoutes.map((route) => (
+              <RoutePickerOption
+                key={route.short_name}
+                code={route.short_name}
+                label={route.long_name || `Route ${route.short_name}`}
+                color={route.color}
+                selected={local.includes(route.short_name)}
+                onClick={() => toggle(route.short_name)}
+              />
+            ))
+          )}
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
+            <Pencil className="h-3.5 w-3.5" /> Custom routes
+          </p>
+          <button
+            className="text-xs text-[#007A33] font-medium"
+            onClick={() => toggleGroup(customCodes, allCustomSelected)}
+            disabled={customCodes.length === 0}
+          >
+            {allCustomSelected ? "Deselect all" : "Select all"}
+          </button>
+        </div>
+        {customRoutes.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-xs text-slate-400">
+            Saved custom routes will appear here.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-1.5">
+            {customRoutes.map((route) => {
+              const code = customRouteSelectionId(route.id);
+              return (
+                <RoutePickerOption
+                  key={route.id}
+                  code={route.type === "train" ? "TR" : "BU"}
+                  label={route.name || "Custom route"}
+                  color={route.color}
+                  selected={local.includes(code)}
+                  onClick={() => toggle(code)}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <Button
@@ -318,5 +429,52 @@ function RoutePicker({
         Show {local.length} route{local.length !== 1 ? "s" : ""}
       </Button>
     </div>
+  );
+}
+
+function RoutePickerOption({
+  code,
+  label,
+  color,
+  selected,
+  onClick,
+}: {
+  code: string;
+  label: string;
+  color: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex min-h-10 items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-all ${
+        selected
+          ? "bg-slate-50 shadow-sm"
+          : "border-slate-100 hover:border-slate-200"
+      }`}
+      style={selected ? { borderColor: color } : {}}
+    >
+      <div
+        className="flex h-6 w-7 flex-shrink-0 items-center justify-center rounded-md text-[11px] font-bold text-white"
+        style={{ backgroundColor: color }}
+      >
+        {code.slice(0, 3)}
+      </div>
+      <span className="truncate text-xs font-medium text-slate-800">
+        {label}
+      </span>
+      {selected && <div className="ml-auto h-2 w-2 rounded-full bg-emerald-500" />}
+    </button>
+  );
+}
+
+function RoutePickerSkeleton({ count }: { count: number }) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, index) => (
+        <div key={index} className="h-10 rounded-lg bg-slate-100" />
+      ))}
+    </>
   );
 }
