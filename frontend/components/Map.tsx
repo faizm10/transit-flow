@@ -38,6 +38,7 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
   const hoveredVariantRef = useRef<string | null>(null);
   const hoveredTripRef = useRef<string | null>(null);
   const hoveredTripNumericIdRef = useRef<number | null>(null);
+  const vehiclePopupRef = useRef<mapboxgl.Popup | null>(null);
 
   // Draw state — stored in refs so handlers don't close over stale values
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -328,8 +329,15 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
     map.on("mousemove", "sim-vehicles-dot", (e) => {
       if (isDrawingRef.current) return;
       if (!e.features?.length) return;
-      const tripId = e.features[0].properties?.tripId as string;
-      const numericId = e.features[0].id as number;
+
+      const feat = e.features[0];
+      const tripId = feat.properties?.tripId as string;
+      const numericId = feat.id as number;
+      const props = feat.properties as {
+        color: string; routeName: string; lineName: string; destination: string;
+      };
+      const coords = (feat.geometry as GeoJSON.Point).coordinates as [number, number];
+
       if (tripId !== hoveredTripRef.current) {
         if (hoveredTripNumericIdRef.current !== null) {
           map.setFeatureState({ source: "sim-vehicles", id: hoveredTripNumericIdRef.current }, { hovered: false });
@@ -340,6 +348,28 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         map.getCanvas().style.cursor = "pointer";
         onVehicleHover?.(tripId);
       }
+
+      // ── Hover tooltip ────────────────────────────────────────────────────
+      if (!vehiclePopupRef.current) {
+        vehiclePopupRef.current = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          offset: 14,
+          anchor: "bottom",
+          className: "vehicle-hover-popup",
+        });
+      }
+      vehiclePopupRef.current
+        .setLngLat(coords)
+        .setHTML(
+          `<div class="vhp-inner">` +
+          `<span class="vhp-badge" style="background:${props.color}">${props.routeName}</span>` +
+          `<div class="vhp-text">` +
+          `<span class="vhp-dest">${props.destination || props.lineName}</span>` +
+          `</div>` +
+          `</div>`
+        )
+        .addTo(map);
     });
 
     map.on("mouseleave", "sim-vehicles-dot", () => {
@@ -351,6 +381,8 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       hoveredTripRef.current = null;
       map.getCanvas().style.cursor = "";
       onVehicleHover?.(null);
+      vehiclePopupRef.current?.remove();
+      vehiclePopupRef.current = null;
     });
 
     // ── Vehicle click ──────────────────────────────────────────────────────

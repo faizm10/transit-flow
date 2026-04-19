@@ -115,6 +115,10 @@ export interface ActiveVehicle {
   pos: [number, number];
   color: string;
   routeName: string;
+  /** Human-readable line name, e.g. "Kitchener Line" */
+  lineName: string;
+  /** Final destination stop name */
+  destination: string;
   /** fraction 0-1 of trip completed */
   progress: number;
   /** seconds until next stop */
@@ -174,6 +178,8 @@ export function getActiveVehicles(
         pos: result.pos,
         color: trip.color,
         routeName: trip.route_short_name,
+        lineName: trip.route_long_name || trip.route_short_name,
+        destination: trip.end_stop_name,
         progress: result.progress,
         secsToNextStop: result.secsToNextStop,
         nextStopName: result.nextStopName,

@@ -108,7 +108,7 @@ export default function MapPage() {
         type: "Feature",
         id: tripIdToNum(v.tripId),
         geometry: { type: "Point", coordinates: v.pos },
-        properties: { color: v.color, routeName: v.routeName, tripId: v.tripId },
+        properties: { color: v.color, routeName: v.routeName, tripId: v.tripId, destination: v.destination, lineName: v.lineName },
       })),
     });
   }, [sim.activeVehicles, mapLoaded]);
