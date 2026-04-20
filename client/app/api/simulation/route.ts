@@ -204,12 +204,15 @@ export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
   const routesParam = p.get("routes") ?? "KI,LW,LE,BR,ST,RH,MI";
   const startParam  = p.get("start")  ?? "06:00";
-  const endParam    = p.get("end")    ?? "22:00";
   const dateParam   = p.get("date")   ?? new Date().toISOString().split("T")[0];
 
   const requestedRoutes = new Set(routesParam.split(",").map(s => s.trim()).filter(Boolean));
   const startSec = gtfsTimeToSecs(startParam + ":00");
-  const endSec   = gtfsTimeToSecs(endParam   + ":00");
+  // Always a 12-hour window. endSec may exceed 86400 for overnight windows
+  // (e.g. start=20:00 → endSec=115200 = 08:00 the next day). GO Transit GTFS
+  // stores overnight trips in the same service_id using times like 25:xx:xx,
+  // so a single service lookup covers the full overnight span.
+  const endSec = startSec + 43200;
 
   // service_id = date without dashes: "2026-04-18" → "20260418"
   const serviceId = dateParam.replace(/-/g, "");

@@ -25,6 +25,7 @@ interface DesignPanelProps {
   onCancel: () => void;
   drawGeometry?: [number, number][];
   editingRoute?: CustomRoute;
+  onTrainModeChange?: (isTrain: boolean) => void;
 }
 
 export default function DesignPanel({
@@ -41,6 +42,7 @@ export default function DesignPanel({
   onCancel,
   drawGeometry,
   editingRoute,
+  onTrainModeChange,
 }: DesignPanelProps) {
   return (
     <Tabs
@@ -72,6 +74,7 @@ export default function DesignPanel({
             onStopPinMode={onStopPinMode}
             onCancel={onCancel}
             drawGeometry={drawGeometry}
+            onTrainModeChange={onTrainModeChange}
           />
         )}
       </TabsContent>
@@ -88,6 +91,7 @@ export default function DesignPanel({
             onCancel={onCancel}
             drawGeometry={drawGeometry}
             existingRoute={editingRoute}
+            onTrainModeChange={onTrainModeChange}
           />
         )}
       </TabsContent>

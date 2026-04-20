@@ -20,13 +20,15 @@ interface SimulationHUDProps {
   selectedRoutes: string[];
   customRoutes: CustomRoute[];
   date: string;
+  startHour: number;
   placement?: "bottom-center" | "bottom-right";
   onTogglePlay: () => void;
   onScrub: (t: number) => void;
   onCycleSpeed: () => void;
-  onLoadSimulation: (params?: { routes?: string[]; date?: string }) => void;
+  onLoadSimulation: (params?: { routes?: string[]; startHour?: number; date?: string }) => void;
   onRoutesChange: (routes: string[]) => void;
   onDateChange: (date: string) => void;
+  onStartHourChange: (hour: number) => void;
 }
 
 export default function SimulationHUD({

@@ -17,6 +17,7 @@ const PURPLE_BUS_ROUTES = ["52", "56"];
 const GO_ROUTE_LAYER_IDS = ["go-routes-casing", "go-routes-line", "go-routes-hit"];
 const CUSTOM_ROUTE_LAYER_IDS = ["custom-routes-line", "custom-routes-hit"];
 const EMPTY_ROUTE_FILTER_VALUE = "__transit_flow_no_routes__";
+const OPENRAILWAYMAP_LAYER_ID = "openrailwaymap-overlay";
 
 type LayerFilter = Parameters<mapboxgl.Map["setFilter"]>[1];
 
@@ -25,6 +26,7 @@ export interface MapHandle {
   flyTo: (options: Parameters<mapboxgl.Map["flyTo"]>[0]) => void;
   setRouteHighlight: (variantIds: string[] | null) => void;
   setVisibleRouteFilter: (goRouteShortNames: string[] | null, customRouteIds: string[] | null) => void;
+  setRailMapVisible: (visible: boolean) => void;
   /** Show a dashed preview line on the map (wizard use). */
   showPreviewRoute: (coords: [number, number][], color: string) => void;
   /** Remove the preview line. */
@@ -137,6 +139,12 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 
       applyLayerFilter(map, GO_ROUTE_LAYER_IDS, makeVisibilityFilter("route_short_name", goRouteShortNames));
       applyLayerFilter(map, CUSTOM_ROUTE_LAYER_IDS, makeVisibilityFilter("id", customRouteIds));
+    },
+
+    setRailMapVisible: (visible) => {
+      const map = mapRef.current;
+      if (!map || !map.getLayer(OPENRAILWAYMAP_LAYER_ID)) return;
+      map.setLayoutProperty(OPENRAILWAYMAP_LAYER_ID, "visibility", visible ? "visible" : "none");
     },
 
     // ── Preview route (wizard) ───────────────────────────────────────────────
@@ -387,6 +395,22 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           "sky-atmosphere-sun": [0.0, 90.0],
           "sky-atmosphere-sun-intensity": 15,
         },
+      });
+
+      // ── OpenRailwayMap visual overlay ─────────────────────────────────────
+      map.addSource("openrailwaymap", {
+        type: "raster",
+        tiles: ["https://tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        attribution:
+          'Data <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>, Style: <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA 2.0</a> <a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>',
+      });
+      map.addLayer({
+        id: OPENRAILWAYMAP_LAYER_ID,
+        type: "raster",
+        source: "openrailwaymap",
+        layout: { visibility: "none" },
+        paint: { "raster-opacity": 0.62 },
       });
 
       // ── GO Transit routes layer ────────────────────────────────────────────

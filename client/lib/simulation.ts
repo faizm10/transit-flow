@@ -117,13 +117,11 @@ export function nextSpeed(current: 1 | 10 | 60): 1 | 10 | 60 {
 export function buildSimulationUrl(params: {
   routes: string[];
   start: string;
-  end: string;
   date?: string;
 }): string {
   const p = new URLSearchParams({
     routes: params.routes.join(","),
     start: params.start,
-    end: params.end,
     date: params.date ?? new Date().toISOString().split("T")[0],
   });
   return `/api/simulation?${p.toString()}`;
@@ -351,11 +349,11 @@ function customRouteTimedStops(
 export function buildCustomSimulationTrips(
   routes: CustomRoute[],
   selectedRouteIds: string[],
-  options: { start: string; end: string; date: string }
+  options: { start: string; date: string }
 ): SimTrip[] {
   const selectedIds = new Set(selectedRouteIds);
   const startSec = timeToSeconds(options.start);
-  const endSec = timeToSeconds(options.end);
+  const endSec = startSec + 43200; // always 12-hour window
   const trips: SimTrip[] = [];
 
   for (const route of routes) {

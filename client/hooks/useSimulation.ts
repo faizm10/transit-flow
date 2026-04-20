@@ -17,15 +17,25 @@ import {
 import { timeToSeconds, type CustomRoute } from "@/lib/gtfs";
 
 const DEFAULT_ROUTES = ["KI", "LW", "LE", "BR", "ST", "RH", "MI"];
-const DEFAULT_START = "06:00";
-const DEFAULT_END = "22:00";
+const DEFAULT_START_HOUR = 6; // 6 AM
+
+function startHourToHHMM(hour: number): string {
+  const h = Math.floor(hour) % 24;
+  const m = Math.round((hour % 1) * 60);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
 
 export function useSimulation(customRoutes: CustomRoute[] = []) {
+  const [startHour, setStartHour] = useState<number>(DEFAULT_START_HOUR);
+
+  const startSec = startHour * 3600;
+  const endSec   = startSec + 43200; // always 12-hour window
+
   const [state, setState] = useState<SimulationState>({
     trips: [],
-    currentTime: timeToSeconds("06:00"),
-    startTime: timeToSeconds("06:00"),
-    endTime: timeToSeconds("22:00"),
+    currentTime: startSec,
+    startTime: startSec,
+    endTime: endSec,
     playing: false,
     speed: 10,
     loading: false,
@@ -87,10 +97,10 @@ export function useSimulation(customRoutes: CustomRoute[] = []) {
 
   // ── Load simulation ────────────────────────────────────────────────────────
   const loadSimulation = useCallback(
-    async (params?: { routes?: string[]; start?: string; end?: string; date?: string }) => {
+    async (params?: { routes?: string[]; startHour?: number; date?: string }) => {
       const routes = params?.routes ?? selectedRoutes;
-      const start = params?.start ?? DEFAULT_START;
-      const end = params?.end ?? DEFAULT_END;
+      const hour  = params?.startHour ?? startHour;
+      const start = startHourToHHMM(hour);
       const d = params?.date ?? date;
       const customRouteIds = routes
         .map(getCustomRouteIdFromSelection)
@@ -101,15 +111,16 @@ export function useSimulation(customRoutes: CustomRoute[] = []) {
       shapeCachesRef.current.clear();
 
       try {
-        const customTrips = buildCustomSimulationTrips(customRoutes, customRouteIds, { start, end, date: d });
+        const customTrips = buildCustomSimulationTrips(customRoutes, customRouteIds, { start, date: d });
+        const windowStart = hour * 3600;
         let data: SimulationData = {
-          startSeconds: timeToSeconds(start),
-          endSeconds: timeToSeconds(end),
+          startSeconds: windowStart,
+          endSeconds: windowStart + 43200,
           trips: [],
         };
 
         if (goRoutes.length > 0) {
-          const url = buildSimulationUrl({ routes: goRoutes, start, end, date: d });
+          const url = buildSimulationUrl({ routes: goRoutes, start, date: d });
           const res = await fetch(url);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           data = await res.json();
@@ -141,7 +152,7 @@ export function useSimulation(customRoutes: CustomRoute[] = []) {
         }));
       }
     },
-    [selectedRoutes, date, customRoutes]
+    [selectedRoutes, startHour, date, customRoutes]
   );
 
   // ── Computed (called every render during animation) ────────────────────────
@@ -163,9 +174,11 @@ export function useSimulation(customRoutes: CustomRoute[] = []) {
     ...state,
     selectedRoutes,
     date,
+    startHour,
     activeVehicles,
     setSelectedRoutes,
     setDate,
+    setStartHour,
     setCurrentTime,
     togglePlay,
     cycleSpeed,
