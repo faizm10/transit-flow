@@ -83,6 +83,8 @@ interface SnapInternal extends SnappedRailPoint {
 
 const PUBLIC_DIR = join(process.cwd(), "public", "gotransit", "derived");
 const NETWORK_PATH = join(PUBLIC_DIR, "rail_network.json");
+// Rail network bbox: south=42.75, west=-82.0, north=44.65, east=-77.65
+// Covers GO/VIA rail corridors including London–Kitchener–Toronto–Barrie–Oshawa
 const DEFAULT_MAX_SNAP_DISTANCE_M = 1200;
 const DEFAULT_DWELL_SEC = 45;
 const DEFAULT_TERMINAL_BUFFER_SEC = 60;

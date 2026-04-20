@@ -8,7 +8,9 @@ import urllib.request
 from datetime import datetime, timezone
 
 
-DEFAULT_BBOX = (42.75, -80.95, 44.65, -77.65)  # south, west, north, east
+DEFAULT_BBOX = (42.75, -82.0, 44.65, -77.65)  # south, west, north, east
+# Extended to -82.0 west to cover London ON (CN Dundas Sub, ~-81.24°) and
+# the connecting CN Galt Sub from Kitchener through Paris to London.
 OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter"
 USER_AGENT = "TransitFlowRailBuilder/1.0 (local development)"
 
