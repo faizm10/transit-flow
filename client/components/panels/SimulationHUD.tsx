@@ -31,6 +31,37 @@ interface SimulationHUDProps {
   onStartHourChange: (hour: number) => void;
 }
 
+// Preset start times shown in the time picker
+const START_PRESETS = [
+  { label: "12 AM", hour: 0 },
+  { label: "6 AM",  hour: 6 },
+  { label: "8 AM",  hour: 8 },
+  { label: "12 PM", hour: 12 },
+  { label: "6 PM",  hour: 18 },
+  { label: "8 PM",  hour: 20 },
+  { label: "10 PM", hour: 22 },
+];
+
+function hourToHHMM(hour: number): string {
+  const h = Math.floor(hour) % 24;
+  const m = Math.round((hour % 1) * 60);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function hhmmToHour(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h + (m || 0) / 60;
+}
+
+function formatEndWindow(startHour: number): { label: string; nextDay: boolean } {
+  const endHour = (startHour + 12) % 24;
+  const nextDay = startHour + 12 >= 24;
+  const h = Math.floor(endHour);
+  const ampm = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return { label: `${h12}:00 ${ampm}`, nextDay };
+}
+
 export default function SimulationHUD({
   trips,
   currentTime,
@@ -43,6 +74,7 @@ export default function SimulationHUD({
   selectedRoutes,
   customRoutes,
   date,
+  startHour,
   placement = "bottom-center",
   onTogglePlay,
   onScrub,
@@ -50,6 +82,7 @@ export default function SimulationHUD({
   onLoadSimulation,
   onRoutesChange,
   onDateChange,
+  onStartHourChange,
 }: SimulationHUDProps) {
   const [routePickerOpen, setRoutePickerOpen] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
@@ -65,7 +98,7 @@ export default function SimulationHUD({
 
   function handleDateChange(newDate: string) {
     onDateChange(newDate);
-    onLoadSimulation({ date: newDate });
+    onLoadSimulation({ date: newDate, startHour });
     setEditingDate(false);
   }
 
@@ -97,6 +130,44 @@ export default function SimulationHUD({
                   : "Real GTFS schedule · trains and buses"}
               </p>
             </div>
+          </div>
+
+          {/* Start time selector */}
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs text-slate-500 font-medium">Start time</label>
+              {(() => {
+                const { label, nextDay } = formatEndWindow(startHour);
+                return (
+                  <span className="text-[10px] text-slate-400">
+                    ends {label}{nextDay && <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[9px] font-semibold text-amber-700">+1 day</span>}
+                  </span>
+                );
+              })()}
+            </div>
+            {/* Preset chips */}
+            <div className="flex flex-wrap gap-1 mb-1.5">
+              {START_PRESETS.map((p) => (
+                <button
+                  key={p.hour}
+                  onClick={() => onStartHourChange(p.hour)}
+                  className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+                    startHour === p.hour
+                      ? "bg-[#007A33] text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {/* Custom time input */}
+            <input
+              type="time"
+              value={hourToHHMM(startHour)}
+              onChange={(e) => onStartHourChange(hhmmToHour(e.target.value))}
+              className="w-full text-xs rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#007A33]/30"
+            />
           </div>
 
           {/* Date selector */}
@@ -143,7 +214,7 @@ export default function SimulationHUD({
 
           <Button
             className="w-full rounded-xl bg-[#007A33] hover:bg-[#005f28] text-white h-10"
-            onClick={() => onLoadSimulation()}
+            onClick={() => onLoadSimulation({ startHour })}
             disabled={selectedRoutes.length === 0}
           >
             <Play className="w-4 h-4 mr-2" /> Start simulation
@@ -242,8 +313,11 @@ export default function SimulationHUD({
             onChange={(e) => onScrub(Number(e.target.value))}
             className="flex-1 h-1.5 accent-[#007A33] cursor-pointer"
           />
-          <span className="text-[10px] text-slate-400 tabular-nums w-12">
+          <span className="text-[10px] text-slate-400 tabular-nums w-12 flex items-center gap-0.5">
             {formatSimTime(endTime)}
+            {endTime > 86400 && (
+              <span className="rounded bg-amber-100 px-0.5 text-[8px] font-bold text-amber-700">+1</span>
+            )}
           </span>
         </div>
 

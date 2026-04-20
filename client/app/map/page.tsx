@@ -619,6 +619,7 @@ export default function MapPage() {
           selectedRoutes={sim.selectedRoutes}
           customRoutes={customRoutes}
           date={sim.date}
+          startHour={sim.startHour}
           placement="bottom-right"
           onTogglePlay={sim.togglePlay}
           onScrub={sim.setCurrentTime}
@@ -626,6 +627,7 @@ export default function MapPage() {
           onLoadSimulation={sim.loadSimulation}
           onRoutesChange={sim.setSelectedRoutes}
           onDateChange={sim.setDate}
+          onStartHourChange={sim.setStartHour}
         />
       )}
 
