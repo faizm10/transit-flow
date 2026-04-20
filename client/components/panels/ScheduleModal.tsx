@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   X, Search, Train, Bus, ChevronDown, Clock, AlertCircle,
   Loader2, CheckCircle, Lock, CalendarDays, TableProperties,
-  ArrowRight, ArrowLeft,
+  ArrowRight, ArrowLeft, MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
@@ -41,10 +41,19 @@ interface EditorState {
   isSaving: boolean;
 }
 
-interface DepartureDirection {
-  directionId: number;
+interface DepartureDestination {
   headsign: string;
   departures: { time: string }[];
+}
+
+interface DepartureDirection {
+  directionId: number;
+  /** Dominant (most-trips) headsign for this direction */
+  headsign: string;
+  /** Per-destination breakdown, sorted most-trips-first */
+  destinations: DepartureDestination[];
+  /** All departures tagged with their individual headsign */
+  departures: { time: string; headsign: string }[];
 }
 
 interface DeparturesState {
@@ -69,6 +78,73 @@ interface ScheduleModalProps {
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_FULL   = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+// ─── Custom schedule departure computation ────────────────────────────────────
+
+/**
+ * Derive a flat list of "HH:MM" departure times from a CustomSchedule for
+ * the given day of week (0=Sun … 6=Sat).  Works for banded, fixed, timetable
+ * and legacy frequency types.
+ */
+function computeCustomDepartures(schedule: CustomSchedule | undefined, dayOfWeek: number): string[] {
+  if (!schedule) return [];
+
+  // fixed type — explicit departure list
+  if (schedule.type === "fixed" && schedule.fixedDepartures?.length) {
+    return [...schedule.fixedDepartures].sort();
+  }
+
+  // timetable type — one trip whose first stop time is the departure
+  if (schedule.type === "timetable") {
+    if (schedule.firstDepartureSec !== undefined) {
+      return [secToHHMM(schedule.firstDepartureSec)];
+    }
+    const first = schedule.stopTimes?.[0];
+    return first ? [secToHHMM(first.arrivalSec)] : [];
+  }
+
+  // banded type — expand each band's headway into individual trips
+  if (schedule.type === "banded") {
+    const daySchedule =
+      dayOfWeek === 0 ? schedule.sunday
+      : dayOfWeek === 6 ? schedule.saturday
+      : schedule.weekday;
+    if (!daySchedule?.active || !daySchedule.bands.length) return [];
+
+    const times: string[] = [];
+    for (const band of daySchedule.bands) {
+      let sec = band.startHour * 3600 + band.startMin * 60;
+      const endSec = band.endHour * 3600 + band.endMin * 60;
+      const step = (band.headwayMins || 30) * 60;
+      while (sec <= endSec) {
+        times.push(secToHHMM(sec));
+        sec += step;
+      }
+    }
+    // de-dupe and sort
+    return [...new Set(times)].sort();
+  }
+
+  // legacy frequency type
+  if (schedule.type === "frequency") {
+    const freq =
+      dayOfWeek === 0 || dayOfWeek === 6
+        ? schedule.frequency?.weekend
+        : schedule.frequency?.weekday;
+    if (!freq) return [];
+    const times: string[] = [];
+    let sec = hhmmToSec(freq.start);
+    const endSec = hhmmToSec(freq.end);
+    const step = (freq.interval || 30) * 60;
+    while (sec <= endSec) {
+      times.push(secToHHMM(sec));
+      sec += step;
+    }
+    return times;
+  }
+
+  return [];
+}
 
 // ─── Time helpers ────────────────────────────────────────────────────────────
 
@@ -142,6 +218,13 @@ export default function ScheduleModal({
     status: "idle", directions: [], availableDays: [], isFirstLoad: true,
   });
 
+  // ── Selected departure time (for stop-times tab offset) ──────────────────
+  const [selectedDeparture, setSelectedDeparture] = useState<string | null>(null);
+
+  // ── Selected destination / sub-route within a direction ──────────────────
+  // e.g. "Kitchener GO" vs "Georgetown GO" on the Kitchener line
+  const [selectedDestination, setSelectedDestination] = useState<string | null>(null);
+
   // ── Stop-times editor state ──────────────────────────────────────────────
   const [editor, setEditor] = useState<EditorState | null>(null);
 
@@ -165,6 +248,17 @@ export default function ScheduleModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  // ── Auto-set first departure when departures load ─────────────────────────
+  useEffect(() => {
+    if (deptState.status !== "done") return;
+    const dir = deptState.directions.find((d) => d.directionId === deptDirection);
+    const dest = selectedDestination
+      ? dir?.destinations.find((d) => d.headsign === selectedDestination)
+      : dir?.destinations[0]; // dominant destination
+    const firstTime = dest?.departures[0]?.time ?? dir?.departures[0]?.time;
+    if (firstTime) setSelectedDeparture(firstTime);
+  }, [deptState.status, deptDirection, selectedDestination]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fetch departures for a GO route ──────────────────────────────────────
   const fetchDepartures = useCallback(async (shortName: string, day: number) => {
@@ -215,13 +309,13 @@ export default function ScheduleModal({
   const handleSelectRoute = useCallback(async (sel: SelectedRoute) => {
     setSelected(sel);
     setEditor(null);
+    setSelectedDeparture(null);
+    setSelectedDestination(null);
 
     if (sel.kind === "go") {
-      // Default to departures view for GO routes
       setGoViewMode("departures");
       fetchDepartures(sel.route.short_name, deptDay);
     } else {
-      // Custom routes go straight to stop-times editor
       setEditor({ rows: [], legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
 
       const existingTimes: Record<string, string> = {};
@@ -244,8 +338,8 @@ export default function ScheduleModal({
     if (selected?.kind !== "go") return;
     const newSel: SelectedRoute = { kind: "go", route: selected.route, variantId };
     setSelected(newSel);
+    setSelectedDeparture(null);
     if (goViewMode === "stoptimes") {
-      // Re-load stop times for the new variant
       setEditor({ rows: [], legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
       try {
         const res = await fetch(`/api/schedule?variant_id=${variantId}`);
@@ -269,32 +363,57 @@ export default function ScheduleModal({
       if (deptState.status !== "done") {
         fetchDepartures(selected.route.short_name, deptDay);
       }
-    } else if (mode === "stoptimes" && selected?.kind === "go" && !editor) {
-      // Lazy-load stop times when switching to that tab
-      const variantId = (selected as { kind: "go"; variantId: string }).variantId;
-      setEditor({ rows: [], legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
-      try {
-        const res = await fetch(`/api/schedule?variant_id=${variantId}`);
-        const data = await res.json();
-        const rows: StopRow[] = (data.stops ?? []).map((s: {
-          stop_id?: string; stop_name: string; lat: number; lon: number; sequence: number; estimated_time: string;
-        }) => ({
-          stopId: s.stop_id ?? String(s.sequence), name: s.stop_name,
-          lat: s.lat, lon: s.lon, sequence: s.sequence, timeHHMM: s.estimated_time,
-        }));
-        setEditor({ rows, legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
-        fetchLegDurations(rows);
-      } catch { /* ignore */ }
+      return;
     }
-  }, [selected, editor, deptState.status, deptDay, fetchDepartures, fetchLegDurations]);
+    if (mode === "stoptimes" && selected?.kind === "go") {
+      // Pick the best-matching variant for the currently selected destination
+      let variantId = (selected as { kind: "go"; variantId: string }).variantId;
+      if (selectedDestination) {
+        const dest = selectedDestination.toLowerCase().replace(/\s+go\b/g, "").trim();
+        const match = selected.route.variants.find((v) =>
+          v.direction_id === deptDirection &&
+          (v.label.toLowerCase().includes(dest) || dest.includes(v.label.toLowerCase().replace(/.*to\s*/i, "")))
+        );
+        if (match) {
+          variantId = match.variant_id;
+          setSelected({ kind: "go", route: selected.route, variantId });
+        }
+      }
+
+      if (!editor) {
+        setEditor({ rows: [], legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
+        try {
+          const res = await fetch(`/api/schedule?variant_id=${variantId}`);
+          const data = await res.json();
+          const rows: StopRow[] = (data.stops ?? []).map((s: {
+            stop_id?: string; stop_name: string; lat: number; lon: number; sequence: number; estimated_time: string;
+          }) => ({
+            stopId: s.stop_id ?? String(s.sequence), name: s.stop_name,
+            lat: s.lat, lon: s.lon, sequence: s.sequence, timeHHMM: s.estimated_time,
+          }));
+          setEditor({ rows, legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
+          fetchLegDurations(rows);
+        } catch { /* ignore */ }
+      }
+    }
+  }, [selected, editor, deptState.status, deptDay, deptDirection, selectedDestination, fetchDepartures, fetchLegDurations]);
 
   // ── Day change ────────────────────────────────────────────────────────────
   const handleDayChange = useCallback((day: number) => {
     setDeptDay(day);
+    setSelectedDeparture(null);
+    setSelectedDestination(null);
     if (selected?.kind === "go") {
       fetchDepartures(selected.route.short_name, day);
     }
   }, [selected, fetchDepartures]);
+
+  // ── Direction change ──────────────────────────────────────────────────────
+  const handleDirectionChange = useCallback((dir: number) => {
+    setDeptDirection(dir);
+    setSelectedDeparture(null);
+    setSelectedDestination(null);
+  }, []);
 
   // ── Time edit + cascade ───────────────────────────────────────────────────
   const handleTimeEdit = useCallback((rowIndex: number, newHHMM: string) => {
@@ -331,6 +450,51 @@ export default function ScheduleModal({
     toast.success("Schedule saved");
     setEditor((e) => e && { ...e, isDirty: false, isSaving: false });
   }, [selected, editor, onSaveSchedule]);
+
+  // ── Departure-offset rows for GO stop-times view ──────────────────────────
+  // When a departure time is selected in the dropdown, shift all stop times
+  // by the difference (selectedDeparture - firstStopBaseTime).
+  const shiftedRows = useMemo<StopRow[]>(() => {
+    if (!editor || !editor.rows.length) return editor?.rows ?? [];
+    if (!selectedDeparture) return editor.rows;
+    const baseFirst = editor.rows[0]?.timeHHMM;
+    if (!baseFirst) return editor.rows;
+    const offset = hhmmToSec(selectedDeparture) - hhmmToSec(baseFirst);
+    if (offset === 0) return editor.rows;
+    return editor.rows.map((row) => ({
+      ...row,
+      timeHHMM: row.timeHHMM ? secToHHMM(hhmmToSec(row.timeHHMM) + offset) : null,
+    }));
+  }, [editor, selectedDeparture]);
+
+  // ── Current direction object ──────────────────────────────────────────────
+  const currentDir = useMemo(
+    () => deptState.directions.find((d) => d.directionId === deptDirection) ?? null,
+    [deptState.directions, deptDirection],
+  );
+
+  // ── Departures for the stop-times tab dropdown (filtered by destination) ──
+  const currentDirDepartures = useMemo(() => {
+    if (!currentDir) return [];
+    if (selectedDestination) {
+      return currentDir.destinations
+        .find((d) => d.headsign === selectedDestination)?.departures ?? [];
+    }
+    // All departures, but only the time field (headsign shown on card separately)
+    return currentDir.departures.map((d) => ({ time: d.time }));
+  }, [currentDir, selectedDestination]);
+
+  // ── Origin stop for the current direction / destination ───────────────────
+  // For direction 0 (outbound) the service starts at from_stop; for direction 1
+  // (inbound) it starts from the terminus (to_stop).  For specific sub-routes
+  // (e.g. 30A starting at Bramalea) the first stop comes from the stop-times
+  // data once loaded, falling back to from_stop/to_stop.
+  const originStop = useMemo(() => {
+    if (selected?.kind !== "go") return undefined;
+    // If stop-times editor is loaded, the first row's name IS the actual origin
+    if (editor && editor.rows.length > 0) return editor.rows[0].name;
+    return deptDirection === 0 ? selected.route.from_stop : selected.route.to_stop;
+  }, [selected, deptDirection, editor]);
 
   // ── Filtered route list ───────────────────────────────────────────────────
   const q = search.toLowerCase();
@@ -400,22 +564,39 @@ export default function ScheduleModal({
 
               {goViewMode === "departures" ? (
                 <DeparturesView
-                  shortName={selected.route.short_name}
+                  route={selected.route}
                   deptState={deptState}
                   deptDay={deptDay}
                   deptDirection={deptDirection}
+                  selectedDestination={selectedDestination}
+                  originStop={originStop}
                   onDayChange={handleDayChange}
-                  onDirectionChange={setDeptDirection}
+                  onDirectionChange={handleDirectionChange}
+                  onDestinationChange={setSelectedDestination}
                 />
               ) : (
                 <>
                   {editor && editor.rows.length > 0 ? (
-                    <StopTimesTable
-                      rows={editor.rows}
-                      directionsStatus={editor.directionsStatus}
-                      isReadOnly
-                      onTimeEdit={handleTimeEdit}
-                    />
+                    <>
+                      {/* Departure selector toolbar */}
+                      <DepartureSelector
+                        departures={currentDirDepartures}
+                        directions={deptState.directions}
+                        selectedDeparture={selectedDeparture}
+                        selectedDirection={deptDirection}
+                        selectedDestination={selectedDestination}
+                        originStop={originStop}
+                        onSelectDeparture={setSelectedDeparture}
+                        onSelectDirection={handleDirectionChange}
+                        onDestinationChange={setSelectedDestination}
+                      />
+                      <StopTimesTable
+                        rows={shiftedRows}
+                        directionsStatus={editor.directionsStatus}
+                        isReadOnly
+                        onTimeEdit={handleTimeEdit}
+                      />
+                    </>
                   ) : (
                     <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
                       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading stop times…
@@ -423,7 +604,7 @@ export default function ScheduleModal({
                   )}
                   <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center gap-2 text-[11px] text-slate-400">
                     <Lock className="w-3 h-3" />
-                    GO Transit · read-only · times are estimates based on stop sequences
+                    GO Transit · read-only · actual GTFS scheduled times
                   </div>
                 </>
               )}
@@ -432,12 +613,22 @@ export default function ScheduleModal({
             <>
               <CustomEditorHeader route={(selected as { kind: "custom"; route: CustomRoute }).route} />
               {editor && editor.rows.length > 0 ? (
-                <StopTimesTable
-                  rows={editor.rows}
-                  directionsStatus={editor.directionsStatus}
-                  isReadOnly={false}
-                  onTimeEdit={handleTimeEdit}
-                />
+                <>
+                  <CustomDepartureSelector
+                    route={(selected as { kind: "custom"; route: CustomRoute }).route}
+                    firstStopName={editor.rows[0]?.name}
+                    lastStopName={editor.rows[editor.rows.length - 1]?.name}
+                    deptDay={deptDay}
+                    onDayChange={handleDayChange}
+                    onSelectDeparture={(time) => handleTimeEdit(0, time)}
+                  />
+                  <StopTimesTable
+                    rows={editor.rows}
+                    directionsStatus={editor.directionsStatus}
+                    isReadOnly={false}
+                    onTimeEdit={handleTimeEdit}
+                  />
+                </>
               ) : (
                 <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
                   {editor?.rows.length === 0
@@ -728,20 +919,143 @@ function CustomEditorHeader({ route }: { route: CustomRoute }) {
   );
 }
 
+// ─── DepartureSelector ────────────────────────────────────────────────────────
+// Toolbar shown in the Stop Times tab: pick destination sub-route + departure time.
+
+function DepartureSelector({
+  departures, directions, selectedDeparture, selectedDirection,
+  selectedDestination, originStop,
+  onSelectDeparture, onSelectDirection, onDestinationChange,
+}: {
+  departures: { time: string }[];
+  directions: DepartureDirection[];
+  selectedDeparture: string | null;
+  selectedDirection: number;
+  selectedDestination: string | null;
+  originStop?: string;
+  onSelectDeparture: (t: string) => void;
+  onSelectDirection: (d: number) => void;
+  onDestinationChange: (dest: string | null) => void;
+}) {
+  const currentDir = directions.find((d) => d.directionId === selectedDirection);
+  const hasMultipleDestinations = (currentDir?.destinations.length ?? 0) > 1;
+  const activeDestination = selectedDestination ?? currentDir?.destinations[0]?.headsign;
+
+  return (
+    <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex flex-col gap-2.5">
+      {/* Row 1: direction + destination sub-route filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Direction toggle */}
+        {directions.length > 1 && directions.map((dir) => (
+          <button
+            key={dir.directionId}
+            onClick={() => onSelectDirection(dir.directionId)}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+              selectedDirection === dir.directionId
+                ? "bg-slate-900 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {dir.directionId === 0 ? <ArrowRight className="w-3 h-3" /> : <ArrowLeft className="w-3 h-3" />}
+            <span className="truncate max-w-[120px]">{dir.headsign}</span>
+          </button>
+        ))}
+
+        {/* Destination pills (sub-routes) */}
+        {hasMultipleDestinations && (
+          <>
+            <span className="text-slate-200 text-sm">|</span>
+            {currentDir!.destinations.map((dest) => (
+              <button
+                key={dest.headsign}
+                onClick={() => onDestinationChange(
+                  selectedDestination === dest.headsign ? null : dest.headsign
+                )}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                  activeDestination === dest.headsign
+                    ? "bg-emerald-700 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                → {dest.headsign}
+                <span className="ml-1.5 opacity-60 font-normal">
+                  {dest.departures.length}
+                </span>
+              </button>
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* Row 2: departure time dropdown + origin pill */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Clock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+        <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+          Departure
+        </label>
+        <div className="relative">
+          <select
+            value={selectedDeparture ?? ""}
+            onChange={(e) => onSelectDeparture(e.target.value)}
+            className="text-xs rounded-xl border border-slate-200 bg-white pl-3 pr-7 py-1.5 text-slate-800 font-mono appearance-none focus:outline-none focus:ring-2 focus:ring-slate-200 min-w-[110px]"
+          >
+            {departures.length === 0 && <option value="">No departures</option>}
+            {departures.map((dep) => (
+              <option key={dep.time} value={dep.time}>{toDisplayTime(dep.time)}</option>
+            ))}
+          </select>
+          <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
+
+        {/* Origin → destination pill */}
+        {originStop && (
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5">
+            <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
+            <span className="text-xs text-slate-600 font-medium">{originStop}</span>
+            {activeDestination && (
+              <>
+                <ArrowRight className="w-3 h-3 text-slate-300 flex-shrink-0" />
+                <span className="text-xs text-slate-500 truncate max-w-[140px]">{activeDestination}</span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── DeparturesView ───────────────────────────────────────────────────────────
 
 function DeparturesView({
-  shortName, deptState, deptDay, deptDirection, onDayChange, onDirectionChange,
+  route, deptState, deptDay, deptDirection, selectedDestination,
+  originStop, onDayChange, onDirectionChange, onDestinationChange,
 }: {
-  shortName: string;
+  route: EnrichedRoute;
   deptState: DeparturesState;
   deptDay: number;
   deptDirection: number;
+  selectedDestination: string | null;
+  originStop?: string;
   onDayChange: (day: number) => void;
   onDirectionChange: (dir: number) => void;
+  onDestinationChange: (dest: string | null) => void;
 }) {
   const currentDir = deptState.directions.find((d) => d.directionId === deptDirection);
-  const departures = currentDir?.departures ?? [];
+
+  // Departures to show — filtered by destination if one is selected
+  type DepEntry = { time: string; headsign?: string };
+  const visibleDepartures: DepEntry[] = selectedDestination
+    ? (currentDir?.destinations.find((d) => d.headsign === selectedDestination)?.departures ?? [])
+    : (currentDir?.destinations.flatMap((d) =>
+        d.departures.map((dep): DepEntry => ({ time: dep.time, headsign: d.headsign }))
+      ) ?? []).sort((a, b) => a.time.localeCompare(b.time));
+
+  const hasMultipleDestinations = (currentDir?.destinations.length ?? 0) > 1;
+
+  // Origin for each direction: outbound starts at from_stop, inbound at to_stop
+  const getOriginForDir = (dirId: number) =>
+    dirId === 0 ? route.from_stop : route.to_stop;
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -749,53 +1063,87 @@ function DeparturesView({
       <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-1.5 flex-wrap">
         {deptState.status === "done" && deptState.availableDays.length > 0
           ? deptState.availableDays.map((d) => (
-              <button
-                key={d}
-                onClick={() => onDayChange(d)}
+              <button key={d} onClick={() => onDayChange(d)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                  deptDay === d
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  deptDay === d ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
-              >
-                {DAY_LABELS[d]}
-              </button>
+              >{DAY_LABELS[d]}</button>
             ))
           : DAY_LABELS.map((label, d) => (
-              <button
-                key={d}
-                onClick={() => onDayChange(d)}
+              <button key={d} onClick={() => onDayChange(d)}
                 disabled={deptState.status === "loading"}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors disabled:opacity-40 ${
-                  deptDay === d
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  deptDay === d ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
-              >
-                {label}
-              </button>
+              >{label}</button>
             ))}
       </div>
 
-      {/* Direction selector */}
-      {deptState.status === "done" && deptState.directions.length > 1 && (
-        <div className="px-6 py-2.5 border-b border-slate-100 flex items-center gap-2">
-          {deptState.directions.map((dir) => (
-            <button
-              key={dir.directionId}
-              onClick={() => onDirectionChange(dir.directionId)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                deptDirection === dir.directionId
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {dir.directionId === 0
-                ? <ArrowRight className="w-3 h-3" />
-                : <ArrowLeft className="w-3 h-3" />}
-              <span className="truncate max-w-[180px]">{dir.headsign}</span>
-            </button>
-          ))}
+      {/* Direction + destination filter bar */}
+      {deptState.status === "done" && (deptState.directions.length > 1 || hasMultipleDestinations) && (
+        <div className="px-6 py-2.5 border-b border-slate-100 flex items-center gap-2 flex-wrap">
+          {/* Direction toggle */}
+          {deptState.directions.length > 1 && deptState.directions.map((dir) => {
+            const origin = getOriginForDir(dir.directionId);
+            return (
+              <button key={dir.directionId} onClick={() => onDirectionChange(dir.directionId)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                  deptDirection === dir.directionId
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {dir.directionId === 0 ? <ArrowRight className="w-3 h-3" /> : <ArrowLeft className="w-3 h-3" />}
+                {origin
+                  ? <span className="flex items-center gap-1">
+                      <span className="truncate max-w-[100px]">{origin}</span>
+                      <ArrowRight className="w-2.5 h-2.5 opacity-50" />
+                      <span className="truncate max-w-[100px]">{dir.headsign}</span>
+                    </span>
+                  : <span className="truncate max-w-[180px]">{dir.headsign}</span>
+                }
+              </button>
+            );
+          })}
+
+          {/* Destination (sub-route) pills — e.g. Georgetown, Kitchener, Mount Pleasant */}
+          {hasMultipleDestinations && (
+            <>
+              {deptState.directions.length > 1 && (
+                <span className="w-px h-4 bg-slate-200" />
+              )}
+              {/* "All" pill */}
+              <button
+                onClick={() => onDestinationChange(null)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                  selectedDestination === null
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                }`}
+              >
+                All
+                <span className="ml-1.5 opacity-60 font-normal">
+                  {currentDir?.departures.length}
+                </span>
+              </button>
+              {currentDir!.destinations.map((dest) => (
+                <button
+                  key={dest.headsign}
+                  onClick={() => onDestinationChange(
+                    selectedDestination === dest.headsign ? null : dest.headsign
+                  )}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                    selectedDestination === dest.headsign
+                      ? "bg-emerald-700 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  <span className="truncate max-w-[140px]">→ {dest.headsign}</span>
+                  <span className="opacity-60 font-normal ml-1">{dest.departures.length}</span>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
 
@@ -822,33 +1170,60 @@ function DeparturesView({
           </div>
         )}
 
-        {deptState.status === "done" && departures.length === 0 && (
+        {deptState.status === "done" && visibleDepartures.length === 0 && (
           <div className="px-6 py-8 text-sm text-slate-400 text-center">
-            No departures found for {shortName} on {DAY_FULL[deptDay]}s.
+            No departures found for {route.short_name} on {DAY_FULL[deptDay]}s.
           </div>
         )}
 
-        {deptState.status === "done" && departures.length > 0 && (
+        {deptState.status === "done" && visibleDepartures.length > 0 && (
           <div className="px-6 py-3">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-3">
-              {departures.length} departure{departures.length !== 1 ? "s" : ""} · {DAY_FULL[deptDay]}
-              {currentDir ? ` · ${currentDir.headsign}` : ""}
+              {visibleDepartures.length} departure{visibleDepartures.length !== 1 ? "s" : ""} · {DAY_FULL[deptDay]}
+              {selectedDestination ? ` · → ${selectedDestination}` : currentDir ? ` · ${currentDir.headsign}` : ""}
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-              {departures.map((dep, i) => (
-                <div
+              {visibleDepartures.map((dep, i) => (
+                <DepartureCard
                   key={i}
-                  className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-center"
-                >
-                  <p className="text-sm font-semibold text-slate-800 tabular-nums font-mono">
-                    {toDisplayTime(dep.time)}
-                  </p>
-                </div>
+                  time={dep.time}
+                  originStop={originStop}
+                  destination={!selectedDestination ? dep.headsign : undefined}
+                />
               ))}
             </div>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── DepartureCard ────────────────────────────────────────────────────────────
+
+function DepartureCard({
+  time, originStop, destination,
+}: {
+  time: string;
+  originStop?: string;
+  /** Shown when "All" is selected and cards have mixed destinations */
+  destination?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-center">
+      <p className="text-sm font-semibold text-slate-800 tabular-nums font-mono">
+        {toDisplayTime(time)}
+      </p>
+      {originStop && (
+        <p className="text-[10px] text-slate-400 mt-0.5 truncate leading-tight">
+          from {originStop}
+        </p>
+      )}
+      {destination && (
+        <p className="text-[10px] text-emerald-600 font-medium mt-0.5 truncate leading-tight">
+          → {destination}
+        </p>
+      )}
     </div>
   );
 }
@@ -931,6 +1306,112 @@ function StopRowItem({
         )}
       </td>
     </tr>
+  );
+}
+
+// ─── CustomDepartureSelector ──────────────────────────────────────────────────
+// Toolbar for custom routes: day tabs + departure dropdown + origin→dest pill.
+// Selecting a departure calls onSelectDeparture(time) which applies it as the
+// first stop's time and cascades all subsequent stops via legDurations.
+
+function CustomDepartureSelector({
+  route, firstStopName, lastStopName, deptDay, onDayChange, onSelectDeparture,
+}: {
+  route: CustomRoute;
+  firstStopName?: string;
+  lastStopName?: string;
+  deptDay: number;
+  onDayChange: (day: number) => void;
+  onSelectDeparture: (time: string) => void;
+}) {
+  const departures = useMemo(
+    () => computeCustomDepartures(route.schedule, deptDay),
+    [route.schedule, deptDay],
+  );
+
+  // Which day tabs to show: only days that have departures
+  const activeDays = useMemo(() => {
+    const days: number[] = [];
+    for (let d = 0; d <= 6; d++) {
+      if (computeCustomDepartures(route.schedule, d).length > 0) days.push(d);
+    }
+    return days;
+  }, [route.schedule]);
+
+  const hasSchedule = !!route.schedule && route.schedule.type !== "timetable";
+
+  return (
+    <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex flex-col gap-2.5">
+      {/* Day tabs — only for banded/fixed schedules that vary by day */}
+      {hasSchedule && activeDays.length > 1 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mr-1">Day</span>
+          {activeDays.map((d) => (
+            <button
+              key={d}
+              onClick={() => onDayChange(d)}
+              className={`px-3 py-1 rounded-xl text-xs font-semibold transition-colors ${
+                deptDay === d
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {DAY_LABELS[d]}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Departure dropdown + origin pill row */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Departure time picker */}
+        <div className="flex items-center gap-2">
+          <Clock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+          <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+            Set departure
+          </label>
+          <div className="relative">
+            {departures.length > 0 ? (
+              <>
+                <select
+                  onChange={(e) => { if (e.target.value) onSelectDeparture(e.target.value); }}
+                  className="text-xs rounded-xl border border-slate-200 bg-white pl-3 pr-7 py-1.5 text-slate-800 font-mono appearance-none focus:outline-none focus:ring-2 focus:ring-slate-200 min-w-[110px]"
+                  defaultValue=""
+                >
+                  <option value="" disabled>Pick time…</option>
+                  {departures.map((t) => (
+                    <option key={t} value={t}>{toDisplayTime(t)}</option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </>
+            ) : (
+              <span className="text-xs text-slate-400 italic">
+                {route.schedule ? "No departures for this day" : "No schedule set — type a time directly"}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Origin → destination pill */}
+        {firstStopName && (
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5">
+            <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
+            <span className="text-xs text-slate-600 font-medium">{firstStopName}</span>
+            {lastStopName && lastStopName !== firstStopName && (
+              <>
+                <ArrowRight className="w-3 h-3 text-slate-300 flex-shrink-0" />
+                <span className="text-xs text-slate-500 truncate max-w-[160px]">{lastStopName}</span>
+              </>
+            )}
+          </div>
+        )}
+
+        <p className="text-[10px] text-slate-400 ml-auto">
+          Selecting a time updates the first stop and cascades forward
+        </p>
+      </div>
+    </div>
   );
 }
 

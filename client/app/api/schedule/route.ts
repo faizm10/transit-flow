@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { GTFSVariant, GTFSStop, VariantsIndex, VariantStops } from "@/lib/gtfs";
+import { getFullIndex } from "@/lib/gtfsRawIndex";
 
 const PUBLIC_DIR = join(process.cwd(), "public", "gotransit", "derived");
 
@@ -11,7 +12,7 @@ export interface ScheduleEntry {
   lat: number;
   lon: number;
   sequence: number;
-  /** Estimated arrival time in HH:MM */
+  /** Scheduled departure time in HH:MM (real GTFS data, or estimated if unavailable) */
   estimated_time: string;
 }
 
@@ -66,23 +67,40 @@ export async function GET(req: NextRequest) {
 
     const rawStops: GTFSStop[] = stops[variantId] ?? [];
 
-    // Estimate timing: 6:00 AM departure, ~2.5 min/stop rail, ~3 min/stop bus
-    const isRail = ["BR","KI","LE","LW","MI","RH","ST","UP"].includes(
-      found.route_variant ?? ""
-    );
-    const secsPerStop = isRail ? 150 : 180;
-    const baseSec = 6 * 3600;
+    // ── Try to get real stop times from the GTFS index ────────────────────────
+    let stopEntries: ScheduleEntry[];
 
-    const stopEntries: ScheduleEntry[] = rawStops.map((s, i) => ({
-      stop_id: s.stop_id,
-      stop_name: s.stop_name,
-      lat: s.stop_lat,
-      lon: s.stop_lon,
-      sequence: s.stop_sequence,
-      estimated_time: secondsToHHMM(baseSec + i * secsPerStop),
-    }));
+    const repTripId = found.representative_trip_id;
+    if (repTripId) {
+      // Fire index build in background (cached after first call) and try to use real times
+      const { tripStopTimes } = await getFullIndex();
+      const realStopTimes = tripStopTimes.get(repTripId);
 
-    // Estimate frequency from weekly service.
+      if (realStopTimes && realStopTimes.length > 0) {
+        // Use real GTFS stop times — join with rawStops for any missing metadata
+        const stopMetaById = new Map<string, GTFSStop>(rawStops.map((s) => [s.stop_id, s]));
+
+        stopEntries = realStopTimes.map((st) => {
+          const meta = stopMetaById.get(st.stopId);
+          return {
+            stop_id:        st.stopId,
+            stop_name:      st.stopName || meta?.stop_name || st.stopId,
+            lat:            st.lat  || meta?.stop_lat  || 0,
+            lon:            st.lon  || meta?.stop_lon  || 0,
+            sequence:       st.sequence,
+            estimated_time: st.departureTime || st.arrivalTime,
+          };
+        });
+      } else {
+        // Fallback: real trip ID found but no stop times in index yet — use estimates
+        stopEntries = buildEstimatedStops(rawStops, found);
+      }
+    } else {
+      // No representative trip — use estimates
+      stopEntries = buildEstimatedStops(rawStops, found);
+    }
+
+    // ── Frequency description ─────────────────────────────────────────────────
     const serviceHours = 16;
     const weeklyTrips = found.weekly_trip_count ?? found.trip_count ?? 0;
     const tripsPerDay = Math.round(weeklyTrips / 7);
@@ -110,4 +128,23 @@ export async function GET(req: NextRequest) {
     console.error("schedule API error:", err);
     return NextResponse.json({ error: "Failed to load schedule" }, { status: 500 });
   }
+}
+
+// ─── Fallback: time estimation when real data isn't available ────────────────
+
+function buildEstimatedStops(rawStops: GTFSStop[], found: GTFSVariant): ScheduleEntry[] {
+  const isRail = ["BR", "KI", "LE", "LW", "MI", "RH", "ST", "UP"].includes(
+    found.route_variant ?? ""
+  );
+  const secsPerStop = isRail ? 150 : 180;
+  const baseSec = 6 * 3600;
+
+  return rawStops.map((s, i) => ({
+    stop_id:        s.stop_id,
+    stop_name:      s.stop_name,
+    lat:            s.stop_lat,
+    lon:            s.stop_lon,
+    sequence:       s.stop_sequence,
+    estimated_time: secondsToHHMM(baseSec + i * secsPerStop),
+  }));
 }
