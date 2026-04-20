@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { MapHandle } from "@/components/Map";
 import BrowsePanel from "@/components/panels/BrowsePanel";
 import DesignPanel, { type DesignTab } from "@/components/panels/DesignPanel";
-import SchedulePanel from "@/components/panels/SchedulePanel";
+import ScheduleModal from "@/components/panels/ScheduleModal";
 import SimulationHUD from "@/components/panels/SimulationHUD";
 import RouteTooltip from "@/components/overlays/RouteTooltip";
 import RouteInfoCard from "@/components/overlays/RouteInfoCard";
@@ -407,7 +407,7 @@ export default function MapPage() {
     });
   }
 
-  const panelOpen = mode === "browse" || mode === "build" || mode === "schedule";
+  const panelOpen = mode === "browse" || mode === "build";
   // Hide info card when browse panel is open (panel shows richer info)
   const showInfoCard = clickedRoute && !isDrawing && mode !== "browse";
 
@@ -476,12 +476,6 @@ export default function MapPage() {
                 onRouteFilterChange={handleRouteFilterChange}
               />
             )}
-            {mode === "schedule" && (
-              <SchedulePanel
-                routes={customRoutes}
-                onSaveSchedule={handleSaveSchedule}
-              />
-            )}
             {mode === "build" && (
               <DesignPanel
                 activeTab={designTab}
@@ -502,6 +496,14 @@ export default function MapPage() {
           </div>
         </div>
       )}
+
+      {/* ── Schedule modal ──────────────────────────────────────────────── */}
+      <ScheduleModal
+        open={mode === "schedule"}
+        customRoutes={customRoutes}
+        onSaveSchedule={handleSaveSchedule}
+        onClose={() => handleModeToggle("schedule")}
+      />
 
       {/* ── Route hover tooltip (top-right) ─────────────────────────────── */}
       {hoveredRoute && !isDrawing && !clickedRoute && (

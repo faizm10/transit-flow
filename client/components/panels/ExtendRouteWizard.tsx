@@ -75,6 +75,38 @@ function sampleCoords(coords: [number, number][], max = 25): [number, number][] 
   return result;
 }
 
+async function fetchDrivingRoute(coords: [number, number][]): Promise<{
+  coordinates: [number, number][];
+  durationSecs: number;
+  distanceM: number;
+} | null> {
+  if (coords.length < 2) return null;
+  const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+  if (!token) return null;
+
+  const sampled = sampleCoords(coords, 25);
+  const coordStr = sampled.map(([lon, lat]) => `${lon},${lat}`).join(";");
+  const res = await fetch(
+    `https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}?access_token=${token}&geometries=geojson&overview=full&annotations=duration`
+  );
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  const route = data.routes?.[0];
+  const coordinates = route?.geometry?.coordinates as [number, number][] | undefined;
+  if (!route || !coordinates || coordinates.length < 2) return null;
+
+  return {
+    coordinates,
+    durationSecs: route.duration ?? 0,
+    distanceM: route.distance ?? 0,
+  };
+}
+
+function baseStopKey(stop: GTFSStop, index: number): string {
+  return `${stop.stop_id}:${index}`;
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function ExtendRouteWizard({
@@ -94,6 +126,13 @@ export default function ExtendRouteWizard({
   const [routesLoading, setRoutesLoading] = useState(false);
   const [routeQuery, setRouteQuery] = useState("");
   const [selectedRoute, setSelectedRoute] = useState<EnrichedRoute | undefined>(initialRoute);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(
+    initialRoute?.variants[0]?.variant_id
+  );
+  const [branchStopIndex, setBranchStopIndex] = useState<number | null>(null);
+  const [excludedBaseStopKeys, setExcludedBaseStopKeys] = useState<string[]>([]);
+  const [rangeStartIndex, setRangeStartIndex] = useState<number | null>(null);
+  const [rangeEndIndex, setRangeEndIndex] = useState<number | null>(null);
 
   // ── Step 2: extension stops ────────────────────────────────────────────────
   const [extensionStops, setExtensionStops] = useState<CustomStop[]>([]);
@@ -122,10 +161,46 @@ export default function ExtendRouteWizard({
   // ── Derived values ─────────────────────────────────────────────────────────
   const multiplier = freqChip === "quarter" ? 0.25 : freqChip === "half" ? 0.5 : freqChip === "same" ? 1 : 1;
   const headwayOverride = freqChip === "custom" && customHeadway ? Number(customHeadway) : null;
-  const parentWeeklyTrips = selectedRoute?.weekly_trips ?? 0;
+  const selectedVariant = selectedRoute?.variants.find((v) => v.variant_id === selectedVariantId)
+    ?? selectedRoute?.variants[0];
+  const parentWeeklyTrips = selectedVariant
+    ? (selectedVariant.weekly_trip_count ?? selectedVariant.trip_count ?? selectedRoute?.weekly_trips ?? 0)
+    : (selectedRoute?.weekly_trips ?? 0);
   const estimatedWeeklyTrips = freqChip === "custom" && headwayOverride
     ? Math.round((16 * 60 / headwayOverride) * 5)
     : Math.round(parentWeeklyTrips * multiplier);
+  const branchStop = branchStopIndex === null ? undefined : baseStops[branchStopIndex];
+  const baseStopsThroughBranch = branchStopIndex === null
+    ? baseStops
+    : baseStops.slice(0, branchStopIndex + 1);
+  const excludedBaseStopSet = new Set(excludedBaseStopKeys);
+  const baseStopItems = baseStopsThroughBranch.map((stop, index) => {
+    const required = index === 0 || index === baseStopsThroughBranch.length - 1;
+    const key = baseStopKey(stop, index);
+    return {
+      stop,
+      index,
+      key,
+      required,
+      included: required || !excludedBaseStopSet.has(key),
+    };
+  });
+  const includedBaseStops = baseStopItems.filter((item) => item.included).map((item) => item.stop);
+  const removableBaseStopItems = baseStopItems.filter((item) => !item.required);
+  const skippedBaseStopCount = baseStopItems.length - includedBaseStops.length;
+  const rangeStart = rangeStartIndex ?? removableBaseStopItems[0]?.index ?? 0;
+  const rangeEnd = rangeEndIndex ?? removableBaseStopItems[removableBaseStopItems.length - 1]?.index ?? rangeStart;
+  const hasRouteChange = extensionStops.length > 0 || skippedBaseStopCount > 0;
+  const canContinueFromStops = Boolean(
+    branchStop && includedBaseStops.length + extensionStops.length >= 2 && hasRouteChange && !baseStopsLoading
+  );
+  const includedBaseStopKey = includedBaseStops
+    .map((stop, index) => `${stop.stop_id}:${index}:${stop.stop_lat}:${stop.stop_lon}`)
+    .join("|");
+  const routeWaypoints: [number, number][] = [
+    ...includedBaseStops.map((stop) => [stop.stop_lon, stop.stop_lat] as [number, number]),
+    ...extensionStops.map((stop) => [stop.lon, stop.lat] as [number, number]),
+  ];
 
   // ── Load routes for step 1 ─────────────────────────────────────────────────
   useEffect(() => {
@@ -137,24 +212,54 @@ export default function ExtendRouteWizard({
       .catch(() => setRoutesLoading(false));
   }, [initialRoute]);
 
-  // ── Load base stops when route selected ───────────────────────────────────
   useEffect(() => {
-    if (!selectedRoute) return;
-    const variantId = selectedRoute.variants[0]?.variant_id;
-    if (!variantId) return;
-    setBaseStopsLoading(true);
-    fetch(`/api/variant-stops?variant_id=${encodeURIComponent(variantId)}`)
-      .then((r) => r.json())
-      .then((d) => { setBaseStops(d.stops ?? []); setBaseStopsLoading(false); })
-      .catch(() => setBaseStopsLoading(false));
+    const variantId = selectedRoute?.variants[0]?.variant_id;
+    setSelectedVariantId(variantId);
+    setBaseStops([]);
+    setBranchStopIndex(null);
+    setExcludedBaseStopKeys([]);
+    setRangeStartIndex(null);
+    setRangeEndIndex(null);
   }, [selectedRoute]);
+
+  // ── Load base stops when branch variant selected ──────────────────────────
+  useEffect(() => {
+    if (!selectedVariantId) {
+      setBaseStops([]);
+      setBranchStopIndex(null);
+      setBaseStopsLoading(false);
+      return;
+    }
+    setBaseStopsLoading(true);
+    fetch(`/api/variant-stops?variant_id=${encodeURIComponent(selectedVariantId)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const stops: GTFSStop[] = d.stops ?? [];
+        setBaseStops(stops);
+        setBranchStopIndex(stops.length > 0 ? stops.length - 1 : null);
+        setExcludedBaseStopKeys([]);
+        setRangeStartIndex(null);
+        setRangeEndIndex(null);
+        setBaseStopsLoading(false);
+      })
+      .catch(() => {
+        setBaseStops([]);
+        setBranchStopIndex(null);
+        setExcludedBaseStopKeys([]);
+        setRangeStartIndex(null);
+        setRangeEndIndex(null);
+        setBaseStopsLoading(false);
+      });
+  }, [selectedVariantId]);
 
   // ── Pre-fill name when route/suffix/extensionStops changes ────────────────
   useEffect(() => {
     if (!selectedRoute) return;
-    const lastStop = extensionStops[extensionStops.length - 1]?.name ?? selectedRoute.to_stop;
+    const lastStop = extensionStops[extensionStops.length - 1]?.name
+      ?? branchStop?.stop_name
+      ?? selectedRoute.to_stop;
     setRouteName(`${selectedRoute.short_name}${branchSuffix} — ${lastStop}`);
-  }, [selectedRoute, branchSuffix, extensionStops]);
+  }, [selectedRoute, branchSuffix, extensionStops, branchStop?.stop_name]);
 
   // ── Stop search ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -171,41 +276,44 @@ export default function ExtendRouteWizard({
 
   // ── Directions fetch ───────────────────────────────────────────────────────
   useEffect(() => {
-    if (extensionStops.length < 1) { setDirectionInfo(null); onClearPreview(); return; }
+    if (!branchStop) {
+      setDirectionInfo(null);
+      onClearPreview();
+      return;
+    }
 
-    // Build waypoints: branch point (last base stop) + extension stops
-    const branchPoint = baseStops.length > 0
-      ? { lat: baseStops[baseStops.length - 1].stop_lat, lon: baseStops[baseStops.length - 1].stop_lon }
-      : null;
+    if (!hasRouteChange || routeWaypoints.length < 2) {
+      setDirectionInfo(null);
+      onClearPreview();
+      return;
+    }
 
-    const allWaypoints: [number, number][] = [];
-    if (branchPoint) allWaypoints.push([branchPoint.lon, branchPoint.lat]);
-    for (const s of extensionStops) allWaypoints.push([s.lon, s.lat]);
-
-    if (allWaypoints.length < 2) return;
-
-    const sampled = sampleCoords(allWaypoints, 25);
-    const coordStr = sampled.map(([lon, lat]) => `${lon},${lat}`).join(";");
-    const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-    if (!token) return;
-
+    let cancelled = false;
     setDirectionLoading(true);
-    fetch(
-      `https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}?access_token=${token}&geometries=geojson&overview=full&annotations=duration`
-    )
-      .then((r) => r.json())
-      .then((d) => {
-        const route = d.routes?.[0];
+    fetchDrivingRoute(routeWaypoints)
+      .then((route) => {
+        if (cancelled) return;
         if (route) {
-          setDirectionInfo({ durationSecs: route.duration, distanceM: route.distance });
-          const coords = route.geometry?.coordinates as [number, number][] | undefined;
-          if (coords && color) onPreviewRoute(coords, color);
+          setDirectionInfo({ durationSecs: route.durationSecs, distanceM: route.distanceM });
+          onPreviewRoute(route.coordinates, color);
+        } else {
+          setDirectionInfo(null);
+          onPreviewRoute(routeWaypoints, color);
         }
         setDirectionLoading(false);
       })
-      .catch(() => setDirectionLoading(false));
+      .catch(() => {
+        if (cancelled) return;
+        setDirectionInfo(null);
+        onPreviewRoute(routeWaypoints, color);
+        setDirectionLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [extensionStops, baseStops, color]);
+  }, [extensionStops, branchStop, color, skippedBaseStopCount, includedBaseStopKey, hasRouteChange]);
 
   // ── Cleanup pin mode on unmount ───────────────────────────────────────────
   useEffect(() => {
@@ -236,6 +344,23 @@ export default function ExtendRouteWizard({
     setExtensionStops((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
+  const handleToggleBaseStop = useCallback((key: string, skipped: boolean) => {
+    setExcludedBaseStopKeys((prev) => {
+      if (skipped) return Array.from(new Set([...prev, key]));
+      return prev.filter((item) => item !== key);
+    });
+  }, []);
+
+  const handleRemoveBaseStopRange = useCallback(() => {
+    const start = Math.min(rangeStart, rangeEnd);
+    const end = Math.max(rangeStart, rangeEnd);
+    const keys = baseStopItems
+      .filter((item) => !item.required && item.index >= start && item.index <= end)
+      .map((item) => item.key);
+
+    setExcludedBaseStopKeys((prev) => Array.from(new Set([...prev, ...keys])));
+  }, [baseStopItems, rangeStart, rangeEnd]);
+
   const handleMoveStop = useCallback((idx: number, dir: -1 | 1) => {
     setExtensionStops((prev) => {
       const next = [...prev];
@@ -260,51 +385,34 @@ export default function ExtendRouteWizard({
   }, [pinActive, onStartPinMode, onStopPinMode, handleAddStop]);
 
   const handleSave = useCallback(async () => {
-    if (!selectedRoute) return;
+    if (!selectedRoute || !branchStop) return;
     setSaving(true);
 
     try {
       // Convert base GTFSStops to CustomStop[]
-      const baseCustomStops: CustomStop[] = baseStops.map((s, i) => ({
+      const baseCustomStops: CustomStop[] = includedBaseStops.map((s, i) => ({
         id: uuidv4(),
         name: s.stop_name,
         lat: s.stop_lat,
         lon: s.stop_lon,
-        sequence: i,
+        sequence: i + 1,
       }));
 
       // Re-sequence extension stops after base stops
       const resequencedExtension: CustomStop[] = extensionStops.map((s, i) => ({
         ...s,
-        sequence: baseCustomStops.length + i,
+        sequence: baseCustomStops.length + i + 1,
       }));
 
       const allStops = [...baseCustomStops, ...resequencedExtension];
 
-      // Build geometry: use extension directions geometry if available
-      // Simplification: extension geometry only (avoids 1.4MB base GeoJSON fetch)
+      // Build one road-following geometry through retained base stops plus any added extension stops.
       let geometry: [number, number][] | undefined;
-      if (extensionStops.length >= 1) {
-        const branchPoint = baseStops.length > 0
-          ? [baseStops[baseStops.length - 1].stop_lon, baseStops[baseStops.length - 1].stop_lat] as [number, number]
-          : null;
-        const waypoints: [number, number][] = branchPoint ? [branchPoint] : [];
-        for (const s of extensionStops) waypoints.push([s.lon, s.lat]);
-
-        const sampled = sampleCoords(waypoints, 25);
-        const coordStr = sampled.map(([lon, lat]) => `${lon},${lat}`).join(";");
-        const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-        if (token && sampled.length >= 2) {
-          try {
-            const resp = await fetch(
-              `https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}?access_token=${token}&geometries=geojson&overview=full`
-            );
-            const data = await resp.json();
-            geometry = data.routes?.[0]?.geometry?.coordinates as [number, number][] | undefined;
-          } catch {
-            // fall back to straight-line
-          }
-        }
+      try {
+        const routed = await fetchDrivingRoute(allStops.map((s) => [s.lon, s.lat] as [number, number]));
+        geometry = routed?.coordinates;
+      } catch {
+        // fall back to straight-line below
       }
 
       // Fallback: straight lines through all stops
@@ -324,6 +432,12 @@ export default function ExtendRouteWizard({
         keepOriginalRunning: keepOriginal,
         extensionTravelTimeMins: directionInfo ? Math.round(directionInfo.durationSecs / 60) : 0,
         baseStopCount: baseCustomStops.length,
+        parentVariantId: selectedVariant?.variant_id,
+        parentVariantLabel: selectedVariant?.label,
+        branchStopName: branchStop.stop_name,
+        branchStopSequence: branchStop.stop_sequence,
+        originalBaseStopCount: baseStopsThroughBranch.length,
+        skippedBaseStopCount,
       };
 
       const route: CustomRoute = {
@@ -344,8 +458,9 @@ export default function ExtendRouteWizard({
       setSaving(false);
     }
   }, [
-    selectedRoute, baseStops, extensionStops, routeName, color, branchSuffix, keepOriginal,
-    multiplier, headwayOverride, direction, directionInfo, parentWeeklyTrips, onSave, onClearPreview,
+    selectedRoute, selectedVariant, branchStop, extensionStops, includedBaseStops, routeName, color,
+    branchSuffix, keepOriginal, multiplier, headwayOverride, direction, directionInfo, parentWeeklyTrips,
+    baseStopsThroughBranch.length, skippedBaseStopCount, onSave, onClearPreview,
   ]);
 
   // ── Filtered routes for step 1 ─────────────────────────────────────────────
@@ -388,7 +503,7 @@ export default function ExtendRouteWizard({
         </div>
         <p className="text-xs text-slate-400 mt-1.5">
           {step === 1 && "Select a base route"}
-          {step === 2 && "Add extension stops"}
+          {step === 2 && "Choose branch & add extension stops"}
           {step === 3 && "Name & options"}
           {step === 4 && "Schedule"}
         </p>
@@ -457,7 +572,59 @@ export default function ExtendRouteWizard({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-slate-700 truncate">{selectedRoute.long_name}</p>
-                <p className="text-xs text-slate-400">Extending from <span className="font-medium">{selectedRoute.to_stop}</span></p>
+                <p className="text-xs text-slate-400">
+                  Extending from <span className="font-medium">{branchStop?.stop_name ?? "selected stop"}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Base branch + branch stop controls */}
+            <div className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-white p-2.5">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Base branch</label>
+                <select
+                  value={selectedVariant?.variant_id ?? ""}
+                  onChange={(e) => {
+                    setSelectedVariantId(e.target.value);
+                    setBaseStops([]);
+                    setBranchStopIndex(null);
+                    setExcludedBaseStopKeys([]);
+                    setRangeStartIndex(null);
+                    setRangeEndIndex(null);
+                    setDirectionInfo(null);
+                    onClearPreview();
+                  }}
+                  disabled={selectedRoute.variants.length === 0}
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-[#007A33]"
+                >
+                  {selectedRoute.variants.map((variant) => (
+                    <option key={variant.variant_id} value={variant.variant_id}>
+                      {variant.label || variant.route_variant || variant.variant_id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Start extension from stop</label>
+                <select
+                  value={branchStopIndex ?? ""}
+                  onChange={(e) => {
+                    setBranchStopIndex(Number(e.target.value));
+                    setExcludedBaseStopKeys([]);
+                    setRangeStartIndex(null);
+                    setRangeEndIndex(null);
+                    setDirectionInfo(null);
+                  }}
+                  disabled={baseStopsLoading || baseStops.length === 0}
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-[#007A33] disabled:bg-slate-50 disabled:text-slate-400"
+                >
+                  {baseStops.map((stop, index) => (
+                    <option key={`${stop.stop_id}-${index}`} value={index}>
+                      {index + 1}. {stop.stop_name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -468,16 +635,109 @@ export default function ExtendRouteWizard({
               </p>
             ) : (
               <p className="text-xs text-slate-500">
-                Includes <span className="font-medium">{baseStops.length} base stops</span> from Route {selectedRoute.short_name}
+                Keeps <span className="font-medium">{includedBaseStops.length} of {baseStopsThroughBranch.length} base stops</span>{" "}
+                through <span className="font-medium">{branchStop?.stop_name ?? "the selected stop"}</span>.
               </p>
+            )}
+
+            {/* Base stop editor */}
+            {!baseStopsLoading && baseStopItems.length > 0 && (
+              <div className="rounded-lg border border-slate-100 bg-white p-2.5">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-medium text-slate-700">Base stops</p>
+                    <p className="text-[11px] text-slate-400">
+                      Skip stops to make this branch express.
+                    </p>
+                  </div>
+                  {skippedBaseStopCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setExcludedBaseStopKeys([])}
+                      className="rounded-md px-2 py-1 text-[11px] font-medium text-[#007A33] hover:bg-emerald-50"
+                    >
+                      Restore all
+                    </button>
+                  )}
+                </div>
+
+                {removableBaseStopItems.length > 0 && (
+                  <div className="mb-2 grid grid-cols-[1fr_1fr_auto] gap-1.5">
+                    <select
+                      value={rangeStart}
+                      onChange={(e) => setRangeStartIndex(Number(e.target.value))}
+                      className="h-8 min-w-0 rounded-md border border-slate-200 bg-white px-1.5 text-[11px] text-slate-700 outline-none focus:border-[#007A33]"
+                    >
+                      {removableBaseStopItems.map((item) => (
+                        <option key={`from-${item.key}`} value={item.index}>
+                          {item.index + 1}. {item.stop.stop_name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={rangeEnd}
+                      onChange={(e) => setRangeEndIndex(Number(e.target.value))}
+                      className="h-8 min-w-0 rounded-md border border-slate-200 bg-white px-1.5 text-[11px] text-slate-700 outline-none focus:border-[#007A33]"
+                    >
+                      {removableBaseStopItems.map((item) => (
+                        <option key={`to-${item.key}`} value={item.index}>
+                          {item.index + 1}. {item.stop.stop_name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleRemoveBaseStopRange}
+                      className="rounded-md bg-slate-900 px-2 text-[11px] font-medium text-white hover:bg-slate-700"
+                    >
+                      Skip
+                    </button>
+                  </div>
+                )}
+
+                <div className="max-h-44 overflow-y-auto rounded-md border border-slate-100">
+                  {baseStopItems.map((item) => (
+                    <div
+                      key={item.key}
+                      className={`flex items-center gap-2 border-b border-slate-50 px-2 py-1.5 last:border-b-0 ${
+                        item.included ? "bg-white" : "bg-slate-50 text-slate-400"
+                      }`}
+                    >
+                      <span className="w-5 flex-shrink-0 text-[10px] tabular-nums text-slate-400">
+                        {item.index + 1}
+                      </span>
+                      <span className={`min-w-0 flex-1 truncate text-xs ${item.included ? "text-slate-700" : "line-through"}`}>
+                        {item.stop.stop_name}
+                      </span>
+                      {item.required ? (
+                        <Badge variant="secondary" className="px-1 py-0 text-[10px]">
+                          keep
+                        </Badge>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleBaseStop(item.key, item.included)}
+                          className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+                            item.included
+                              ? "text-slate-500 hover:bg-red-50 hover:text-red-600"
+                              : "text-[#007A33] hover:bg-emerald-50"
+                          }`}
+                        >
+                          {item.included ? "Skip" : "Keep"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Branch point (locked) */}
             <div>
-              <p className="text-xs font-medium text-slate-600 mb-1.5">Extension stops</p>
+              <p className="text-xs font-medium text-slate-600 mb-1.5">Added stops</p>
               <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-100 mb-1">
                 <MapPin className="w-3.5 h-3.5 text-[#007A33] flex-shrink-0" />
-                <span className="text-xs text-slate-600 truncate">{selectedRoute.to_stop}</span>
+                <span className="text-xs text-slate-600 truncate">{branchStop?.stop_name ?? "Select a branch stop"}</span>
                 <Badge variant="secondary" className="text-[10px] px-1 py-0 ml-auto">branch point</Badge>
               </div>
 
@@ -576,7 +836,7 @@ export default function ExtendRouteWizard({
             )}
             {directionInfo && !directionLoading && (
               <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-emerald-700">
-                Extension adds ~{Math.round(directionInfo.durationSecs / 60)} min · {(directionInfo.distanceM / 1000).toFixed(1)} km
+                Mapbox route: ~{Math.round(directionInfo.durationSecs / 60)} min · {(directionInfo.distanceM / 1000).toFixed(1)} km
               </div>
             )}
           </>
@@ -646,7 +906,7 @@ export default function ExtendRouteWizard({
         {step === 4 && selectedRoute && (
           <>
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600">
-              Route <span className="font-semibold">{selectedRoute.short_name}</span> runs ~
+              Selected branch runs ~
               <span className="font-semibold"> {parentWeeklyTrips.toLocaleString()}</span> trips/week
             </div>
 
@@ -728,7 +988,7 @@ export default function ExtendRouteWizard({
           <Button
             size="sm"
             className="flex-1 gap-1 bg-[#007A33] hover:bg-[#005f28] text-white"
-            disabled={step === 2 && extensionStops.length === 0}
+            disabled={step === 2 && !canContinueFromStops}
             onClick={() => {
               if (pinActive) { onStopPinMode(); setPinActive(false); }
               setStep((s) => (s + 1) as Step);

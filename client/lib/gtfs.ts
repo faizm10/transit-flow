@@ -69,6 +69,12 @@ export interface ExtensionMeta {
   keepOriginalRunning: boolean;   // whether original GO route runs concurrently in simulation
   extensionTravelTimeMins: number; // from Directions API
   baseStopCount: number;          // how many stops came from parent (first N stops)
+  parentVariantId?: string;
+  parentVariantLabel?: string;
+  branchStopName?: string;
+  branchStopSequence?: number;
+  originalBaseStopCount?: number;
+  skippedBaseStopCount?: number;
 }
 
 export interface CustomRoute {
@@ -112,9 +118,17 @@ export interface DaySchedule {
   bands: ServiceBand[];
 }
 
+/** A single stop's scheduled arrival time (used by the timetable schedule type). */
+export interface StopTimeEntry {
+  stopId:     string;
+  stopName:   string;
+  /** Seconds since midnight */
+  arrivalSec: number;
+}
+
 export interface CustomSchedule {
-  /** banded = frequency bands per day; fixed = explicit departure list */
-  type: "banded" | "frequency" | "fixed";
+  /** banded = frequency bands per day; fixed = explicit departure list; timetable = per-stop arrival times */
+  type: "banded" | "frequency" | "fixed" | "timetable";
   // ── banded mode ───────────────────────────────────────────────────────────
   weekday?: DaySchedule;
   saturday?: DaySchedule;
@@ -126,6 +140,9 @@ export interface CustomSchedule {
   };
   // ── fixed mode ────────────────────────────────────────────────────────────
   fixedDepartures?: string[]; // HH:MM
+  // ── timetable mode ───────────────────────────────────────────────────────
+  stopTimes?:         StopTimeEntry[];
+  firstDepartureSec?: number; // seconds since midnight for simulation seed
   direction: "one-way" | "two-way";
 }
 
