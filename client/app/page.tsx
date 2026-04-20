@@ -1,167 +1,231 @@
-import Link from "next/link";
-import { Train, Map, PlayCircle, ArrowRight, CheckCircle2 } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+"use client";
 
-const ENTRY_CARDS = [
+import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  Train,
+  Map,
+  PlayCircle,
+  ArrowRight,
+  Layers,
+  Clock,
+  Route,
+  GitBranch,
+} from "lucide-react";
+import HeroSection from "@/components/HeroSection";
+
+/* ─── data ─── */
+
+const FEATURES = [
   {
     icon: Map,
     title: "Explore GO routes",
-    description: "See all 47 GO Transit lines on the map. Click any line to learn about it.",
+    description:
+      "See all 47 GO Transit lines on an interactive map. Tap any line to inspect stops, schedules, and frequencies.",
     href: "/map?mode=browse",
-    borderColor: "border-emerald-200",
-    iconBg: "bg-emerald-100 text-emerald-700",
-    textColor: "text-emerald-700",
+    accent: "bg-emerald-50 text-emerald-700",
+    border: "border-emerald-100",
+    tag: "Explore",
   },
   {
-    icon: Train,
+    icon: Route,
     title: "Design a route",
-    description: "Sketch a new bus or train line, add stops, and set a schedule.",
+    description:
+      "Sketch a new bus or rail corridor from scratch. Add stops, set service frequency, and define the schedule.",
     href: "/map?mode=build",
-    borderColor: "border-blue-200",
-    iconBg: "bg-blue-100 text-blue-700",
-    textColor: "text-blue-700",
+    accent: "bg-blue-50 text-blue-700",
+    border: "border-blue-100",
+    tag: "Design",
   },
   {
     icon: PlayCircle,
-    title: "Watch it move",
-    description: "Simulate GO trains running in real time during morning rush.",
+    title: "Simulate service",
+    description:
+      "Watch your route animate in real-time across the network. Compare it against live GO Transit operations.",
     href: "/map?mode=simulate",
-    borderColor: "border-violet-200",
-    iconBg: "bg-violet-100 text-violet-700",
-    textColor: "text-violet-700",
+    accent: "bg-violet-50 text-violet-700",
+    border: "border-violet-100",
+    tag: "Simulate",
+  },
+  {
+    icon: GitBranch,
+    title: "Extend existing lines",
+    description:
+      "Take any GO rail line and add new stops or branches. The timetable auto-adjusts to keep spacing consistent.",
+    href: "/map?mode=build",
+    accent: "bg-orange-50 text-orange-700",
+    border: "border-orange-100",
+    tag: "Extend",
+  },
+  {
+    icon: Layers,
+    title: "Multi-layer view",
+    description:
+      "Toggle between GO trains, buses, and your custom routes simultaneously. Filter by mode or corridor.",
+    href: "/map",
+    accent: "bg-sky-50 text-sky-700",
+    border: "border-sky-100",
+    tag: "Layers",
+  },
+  {
+    icon: Clock,
+    title: "Time-of-day control",
+    description:
+      "Scrub through morning rush, midday, evening peak, and overnight service windows to spot coverage gaps.",
+    href: "/map?mode=simulate",
+    accent: "bg-rose-50 text-rose-700",
+    border: "border-rose-100",
+    tag: "Schedule",
   },
 ];
 
-const HOW_IT_WORKS = [
-  { step: "1", label: "Explore", text: "Browse all GO Transit routes on an interactive map." },
-  { step: "2", label: "Design", text: "Sketch a new route or extend an existing one." },
-  { step: "3", label: "Simulate", text: "Watch your route move on a live schedule." },
+const STEPS = [
+  {
+    n: "01",
+    title: "Pick a route",
+    body: "Browse the full GO Transit network or start with a blank slate.",
+  },
+  {
+    n: "02",
+    title: "Design or extend",
+    body: "Draw new stops, extend rail lines, and configure departure times.",
+  },
+  {
+    n: "03",
+    title: "Run the simulation",
+    body: "Watch trains and buses move. Spot gaps. Iterate instantly.",
+  },
 ];
+
+/* ─── page ─── */
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      {/* Nav */}
-      <nav className="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-[#007A33] flex items-center justify-center">
-            <Train className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-semibold text-slate-900 text-lg">TransitFlow</span>
-        </div>
-        <Link
-          href="/map"
-          className={cn(
-            buttonVariants(),
-            "rounded-full bg-[#007A33] hover:bg-[#005f28] text-white px-5 h-9"
-          )}
-        >
-          Open map <ArrowRight className="ml-1.5 w-4 h-4" />
-        </Link>
-      </nav>
+    <main className="min-h-screen bg-white text-slate-900 antialiased">
 
-      {/* Hero */}
-      <section className="max-w-4xl mx-auto px-4 pt-16 pb-12 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200 px-4 py-1.5 text-sm font-medium text-emerald-700 mb-6">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          GO Transit Network Explorer
-        </div>
-
-        <h1 className="text-5xl sm:text-6xl font-bold text-slate-900 tracking-tight leading-tight mb-5">
-          Plan transit.<br />
-          <span className="text-[#007A33]">See it move.</span>
-        </h1>
-
-        <p className="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed mb-8">
-          Explore every GO Transit route, design your own, and simulate how trains and
-          buses would run — no technical knowledge needed.
-        </p>
-
-        <div className="flex flex-wrap gap-3 justify-center">
-          <Link
-            href="/map?mode=browse"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "rounded-full bg-[#007A33] hover:bg-[#005f28] text-white px-8 h-12"
-            )}
-          >
-            Start exploring <ArrowRight className="ml-2 w-4 h-4" />
+      {/* ── Nav ── */}
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-6 lg:px-10 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 font-bold text-slate-900">
+            <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center">
+              <Train className="w-3.5 h-3.5 text-white" />
+            </div>
+            TransitFlow
           </Link>
+          <nav className="hidden sm:flex items-center gap-6 text-sm text-slate-500">
+            <Link href="/map?mode=browse" className="hover:text-slate-900 transition-colors">Explore</Link>
+            <Link href="/map?mode=build" className="hover:text-slate-900 transition-colors">Design</Link>
+            <Link href="/map?mode=simulate" className="hover:text-slate-900 transition-colors">Simulate</Link>
+          </nav>
           <Link
-            href="/map?mode=simulate"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "lg" }),
-              "rounded-full h-12 px-8 border-slate-200 hover:border-slate-300"
-            )}
+            href="/map"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg transition-colors"
           >
-            Watch a simulation
+            Open map <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
-      </section>
+      </header>
 
-      {/* Entry Cards */}
-      <section className="max-w-5xl mx-auto px-4 pb-16">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {ENTRY_CARDS.map(({ icon: Icon, title, description, href, borderColor, iconBg, textColor }) => (
+      {/* ── Hero (animated) ── */}
+      <HeroSection />
+
+      {/* ── Features grid ── */}
+      <section className="max-w-7xl mx-auto px-6 lg:px-10 py-24">
+        <div className="mb-12">
+          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 mb-3">Platform</p>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 max-w-xl">
+            Everything you need to model transit
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {FEATURES.map(({ icon: Icon, title, description, href, accent, border, tag }) => (
             <Link
-              key={href}
+              key={title}
               href={href}
-              className={`group relative rounded-2xl border bg-white p-6 transition-all hover:shadow-md hover:-translate-y-0.5 ${borderColor}`}
+              className="group flex flex-col h-full rounded-xl border border-slate-100 bg-white p-6 hover:border-slate-200 hover:shadow-md transition-all duration-200"
             >
-              <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center mb-4`}>
-                <Icon className="w-5 h-5" />
+              <div className={`inline-flex items-center justify-center w-9 h-9 rounded-lg border ${accent} ${border} mb-4`}>
+                <Icon className="w-4 h-4" />
               </div>
-              <h2 className="font-semibold text-slate-900 text-lg mb-1">{title}</h2>
-              <p className="text-sm text-slate-500 leading-relaxed">{description}</p>
-              <ArrowRight className={`absolute right-5 top-5 w-4 h-4 ${textColor} opacity-0 group-hover:opacity-100 transition-opacity`} />
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5">{tag}</p>
+              <h3 className="font-semibold text-slate-900 mb-2 group-hover:text-emerald-700 transition-colors">{title}</h3>
+              <p className="text-sm text-slate-500 leading-relaxed flex-1">{description}</p>
+              <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                Open <ArrowRight className="w-3 h-3" />
+              </div>
             </Link>
           ))}
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="max-w-4xl mx-auto px-4 pb-20">
-        <h2 className="text-center text-2xl font-semibold text-slate-900 mb-10">How it works</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-          {HOW_IT_WORKS.map(({ step, label, text }) => (
-            <div key={step} className="flex flex-col items-center text-center">
-              <div className="w-10 h-10 rounded-full bg-[#007A33] text-white font-bold text-sm flex items-center justify-center mb-3">
-                {step}
+      {/* ── Divider ── */}
+      <div className="max-w-7xl mx-auto px-6 lg:px-10">
+        <div className="border-t border-slate-100" />
+      </div>
+
+      {/* ── How it works ── */}
+      <section className="max-w-7xl mx-auto px-6 lg:px-10 py-24">
+        <div className="mb-16 text-center">
+          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 mb-3">How it works</p>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
+            Three steps to a working route
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 relative">
+          {/* Connector line */}
+          <div className="hidden sm:block absolute top-7 left-[20%] right-[20%] h-px bg-slate-200" />
+
+          {STEPS.map(({ n, title, body }) => (
+            <div key={n} className="flex flex-col items-center text-center relative">
+              <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-5 z-10 bg-white">
+                <span className="text-sm font-bold text-slate-700">{n}</span>
               </div>
-              <h3 className="font-semibold text-slate-900 mb-1">{label}</h3>
-              <p className="text-sm text-slate-500 leading-relaxed">{text}</p>
+              <h3 className="font-semibold text-slate-900 mb-2">{title}</h3>
+              <p className="text-sm text-slate-500 leading-relaxed max-w-[200px]">{body}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Feature strip */}
-      <section className="border-t border-slate-100 bg-slate-50 py-12">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-            {[
-              "47 GO Transit routes",
-              "7 rail lines",
-              "Real GTFS schedules",
-              "Draw new routes",
-            ].map((feat) => (
-              <div key={feat} className="flex items-center gap-2 text-sm text-slate-600">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                {feat}
-              </div>
-            ))}
+      {/* ── CTA strip ── */}
+      <section className="max-w-7xl mx-auto px-6 lg:px-10 pb-24">
+        <div className="rounded-2xl bg-emerald-600 px-10 py-14 flex flex-col sm:flex-row items-center justify-between gap-8">
+          <div className="text-white text-center sm:text-left">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-2">Ready to explore the network?</h2>
+            <p className="text-emerald-100 text-sm leading-relaxed max-w-md">
+              Jump straight into the interactive map — no account needed.
+            </p>
           </div>
+          <Link
+            href="/map"
+            className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-emerald-700 hover:bg-emerald-50 font-semibold text-sm px-6 py-3 rounded-lg transition-colors shadow-sm whitespace-nowrap"
+          >
+            Open the map <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
-        <p>TransitFlow — GO Transit route design &amp; simulation</p>
-        <a href="https://github.com/faizm10/transit-flow" className="hover:text-slate-600 transition-colors">
-          GitHub
-        </a>
+      {/* ── Footer ── */}
+      <footer className="border-t border-slate-100">
+        <div className="max-w-7xl mx-auto px-6 lg:px-10 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md bg-emerald-600 flex items-center justify-center">
+              <Train className="w-2.5 h-2.5 text-white" />
+            </div>
+            <span className="font-medium text-slate-500">TransitFlow</span>
+            <span>— GO Transit route design &amp; simulation</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <a href="https://github.com/faizm10/transit-flow" className="hover:text-slate-600 transition-colors">
+              GitHub
+            </a>
+            <span>© {new Date().getFullYear()}</span>
+          </div>
+        </div>
       </footer>
+
     </main>
   );
 }
