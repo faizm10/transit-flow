@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bus, ChevronDown, ChevronUp, Pencil, Train } from "lucide-react";
+import { Bus, ChevronDown, ChevronUp, Pencil, Train, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
@@ -13,6 +13,7 @@ interface BrowsePanelProps {
   customRoutes: CustomRoute[];
   routeFilters: RouteFilters;
   onRouteFilterChange: (filters: RouteFilters) => void;
+  onDeleteCustomRoute: (routeId: string, routeName: string) => void;
 }
 
 export default function BrowsePanel({
@@ -21,6 +22,7 @@ export default function BrowsePanel({
   customRoutes,
   routeFilters,
   onRouteFilterChange,
+  onDeleteCustomRoute,
 }: BrowsePanelProps) {
   const [routes, setRoutes] = useState<EnrichedRoute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -308,6 +310,18 @@ export default function BrowsePanel({
                           {route.type === "train" ? "Custom train route" : "Custom bus route"}
                         </p>
                       </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeleteCustomRoute(route.id, route.name || "Custom route");
+                      }}
+                      className="mr-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                      aria-label={`Delete ${route.name || "custom route"}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
 
                     <VisibilityCheckbox

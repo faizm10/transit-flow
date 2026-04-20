@@ -389,11 +389,7 @@ export default function MapPage() {
     toast.success("Route deleted");
   }
 
-  function handleDeleteFromCard() {
-    if (!clickedRoute?.isCustom) return;
-    const routeName = clickedRoute.shortName;
-    const routeId = clickedRoute.variantId;
-
+  function requestDeleteCustomRoute(routeId: string, routeName: string) {
     toast.warning(`Delete "${routeName}"?`, {
       description: "This removes the saved custom route from this browser.",
       action: {
@@ -405,6 +401,11 @@ export default function MapPage() {
         onClick: () => undefined,
       },
     });
+  }
+
+  function handleDeleteFromCard() {
+    if (!clickedRoute?.isCustom) return;
+    requestDeleteCustomRoute(clickedRoute.variantId, clickedRoute.shortName);
   }
 
   const panelOpen = mode === "browse" || mode === "build";
@@ -474,6 +475,7 @@ export default function MapPage() {
                 customRoutes={customRoutes}
                 routeFilters={routeFilters}
                 onRouteFilterChange={handleRouteFilterChange}
+                onDeleteCustomRoute={requestDeleteCustomRoute}
               />
             )}
             {mode === "build" && (

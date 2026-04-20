@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "lint": "next typegen && tsc --noEmit",
+    "test:e2e": "playwright test",
     "build": "next build",
     "start": "next start"
   },
@@ -26,6 +28,7 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/mapbox__mapbox-gl-draw": "^1.4.9",
     "@types/node": "^20",
