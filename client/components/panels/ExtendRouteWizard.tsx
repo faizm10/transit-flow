@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  EnrichedRoute, CustomRoute, CustomStop, CustomSchedule, GTFSStop, ExtensionMeta,
+  EnrichedRoute, CustomRoute, CustomStop, CustomSchedule, GTFSStop, ExtensionMeta, CustomStation,
+  CustomTimetableTrip, StopTimeEntry,
 } from "@/lib/gtfs";
 import { CUSTOM_ROUTE_COLORS } from "@/lib/routeColors";
 import { v4 as uuidv4 } from "uuid";
@@ -33,6 +34,8 @@ interface ExtendRouteWizardProps {
   drawGeometry?: [number, number][];
   /** Fires whenever a rail route is selected (or deselected) for extension. */
   onTrainModeChange?: (isTrain: boolean) => void;
+  /** Custom stations created by the user — included in stop search results. */
+  customStations?: CustomStation[];
 }
 
 type Step = 1 | 2 | 3 | 4;
@@ -199,6 +202,7 @@ export default function ExtendRouteWizard({
   onCancel,
   drawGeometry,
   onTrainModeChange,
+  customStations = [],
 }: ExtendRouteWizardProps) {
   // ── Step management ────────────────────────────────────────────────────────
   const [step, setStep] = useState<Step>(initialRoute ? 2 : 1);
@@ -405,18 +409,40 @@ export default function ExtendRouteWizard({
     setRouteName(`${selectedRoute.short_name}${branchSuffix} — ${lastStop}`);
   }, [selectedRoute, branchSuffix, extensionStops, branchStop?.stop_name, hasDrawnRailExtension]);
 
-  // ── Stop search ────────────────────────────────────────────────────────────
+  // ── Stop search (GTFS + custom stations) ──────────────────────────────────
   useEffect(() => {
     if (!stopQuery.trim()) { setStopResults([]); return; }
+    const q = stopQuery.toLowerCase();
+
+    // Immediately show matching custom stations (client-side, no latency)
+    const stationMatches = customStations
+      .filter((s) => s.name.toLowerCase().includes(q))
+      .map((s) => ({ stop_id: `station:${s.id}`, stop_name: s.name, lat: s.lat, lon: s.lon }));
+
+    if (stationMatches.length > 0) {
+      setStopResults(stationMatches);
+    }
+
     const tid = setTimeout(() => {
       setStopSearching(true);
       fetch(`/api/stops?q=${encodeURIComponent(stopQuery)}`)
         .then((r) => r.json())
-        .then((d) => { setStopResults(d.stops ?? []); setStopSearching(false); })
-        .catch(() => setStopSearching(false));
+        .then((d) => {
+          const gtfsStops = d.stops ?? [];
+          // Merge: custom stations first, then GTFS, dedup by name
+          const seen = new Set(stationMatches.map((s) => s.stop_name.toLowerCase()));
+          const merged = [
+            ...stationMatches,
+            ...gtfsStops.filter((s: { stop_name: string }) => !seen.has(s.stop_name.toLowerCase())),
+          ];
+          setStopResults(merged);
+          setStopSearching(false);
+        })
+        .catch(() => { setStopResults(stationMatches); setStopSearching(false); });
     }, 250);
     return () => clearTimeout(tid);
-  }, [stopQuery]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopQuery, customStations]);
 
   // ── Directions fetch ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -673,7 +699,87 @@ export default function ExtendRouteWizard({
         geometry = allStops.map((s) => [s.lon, s.lat] as [number, number]);
       }
 
-      const schedule = buildExtendedSchedule(parentWeeklyTrips, multiplier, headwayOverride, direction);
+      // ── Schedule ───────────────────────────────────────────────────────────
+      // For train extensions: build a timetable that mirrors the parent GO
+      // service, adding the rail-routed extension travel time to each trip.
+      let schedule: CustomSchedule;
+      const extensionTravelSecs = directionInfo ? directionInfo.durationSecs : 0;
+      // Duration from route start to branch point is proportional to how many
+      // base stops we retained vs the full parent variant.
+      const baseStopRatio = baseCustomStops.length > 1
+        ? (baseCustomStops.length - 1) / Math.max(1, includedBaseStops.length)
+        : 1;
+
+      if (selectedRoute.is_rail && selectedVariant && extensionTravelSecs > 0) {
+        try {
+          const today = new Date().toISOString().split("T")[0];
+          const res = await fetch(
+            `/api/variant-schedule?variant_id=${encodeURIComponent(selectedVariant.variant_id)}&date=${today}`
+          );
+          const data = await res.json();
+          const parentTrips: { trip_id: string; departureSec: number; stops: { stopId: string; stopName: string; departureSec: number }[] }[]
+            = data.trips ?? [];
+
+          if (parentTrips.length > 0) {
+            // Build a timetable trip for each parent trip, appending the extension stop timing
+            const timetableTrips: CustomTimetableTrip[] = parentTrips.map((pt) => {
+              // Find arrival time at the branch stop (last retained base stop)
+              const branchStopTime = (() => {
+                if (pt.stops.length === 0) return pt.departureSec;
+                // Match by name since stop_ids may differ between GTFS and our lookup
+                const branchName = branchStop.stop_name.toLowerCase();
+                const match = pt.stops.find((s) => s.stopName.toLowerCase() === branchName);
+                if (match) return match.departureSec;
+                // Fallback: interpolate based on base stop ratio
+                const idx = Math.round(baseStopRatio * (pt.stops.length - 1));
+                return pt.stops[Math.min(idx, pt.stops.length - 1)]?.departureSec ?? pt.departureSec;
+              })();
+
+              // Per-stop timetable: all retained base stops + extension stops
+              const stopTimes: StopTimeEntry[] = baseCustomStops.map((bs, idx) => {
+                // Try exact name match in parent trip stops
+                const ptStop = pt.stops.find((s) => s.stopName.toLowerCase() === bs.name.toLowerCase());
+                const arrivalSec = ptStop?.departureSec ?? (() => {
+                  const frac = idx / Math.max(1, baseCustomStops.length - 1);
+                  const first = pt.stops[0]?.departureSec ?? pt.departureSec;
+                  return Math.round(first + frac * (branchStopTime - first));
+                })();
+                return { stopId: bs.id, stopName: bs.name, arrivalSec };
+              });
+
+              // Add extension stops: distribute travel time evenly after branch stop
+              resequencedExtension.forEach((es, idx) => {
+                const frac = (idx + 1) / resequencedExtension.length;
+                stopTimes.push({
+                  stopId: es.id,
+                  stopName: es.name,
+                  arrivalSec: Math.round(branchStopTime + frac * extensionTravelSecs),
+                });
+              });
+
+              return {
+                id: pt.trip_id,
+                departureSec: pt.departureSec,
+                stopTimes,
+              };
+            });
+
+            schedule = {
+              type: "timetable",
+              direction,
+              timetableTrips,
+            };
+          } else {
+            // No parent trips found → fall back to banded schedule
+            schedule = buildExtendedSchedule(parentWeeklyTrips, multiplier, headwayOverride, direction);
+          }
+        } catch {
+          // API error → fall back to banded schedule
+          schedule = buildExtendedSchedule(parentWeeklyTrips, multiplier, headwayOverride, direction);
+        }
+      } else {
+        schedule = buildExtendedSchedule(parentWeeklyTrips, multiplier, headwayOverride, direction);
+      }
 
       const extensionMeta: ExtensionMeta = {
         parentRouteShortName: selectedRoute.short_name,

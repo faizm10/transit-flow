@@ -1,12 +1,13 @@
 "use client";
 
-import { Pencil, Train } from "lucide-react";
+import { Pencil, Train, MapPin } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BuilderWizard from "@/components/panels/BuilderWizard";
 import ExtendRouteWizard from "@/components/panels/ExtendRouteWizard";
-import { type CustomRoute } from "@/lib/gtfs";
+import StationsPanel from "@/components/panels/StationsPanel";
+import { type CustomRoute, type CustomStation } from "@/lib/gtfs";
 
-export type DesignTab = "existing" | "new";
+export type DesignTab = "existing" | "new" | "stations";
 
 interface DesignPanelProps {
   activeTab: DesignTab;
@@ -26,6 +27,10 @@ interface DesignPanelProps {
   drawGeometry?: [number, number][];
   editingRoute?: CustomRoute;
   onTrainModeChange?: (isTrain: boolean) => void;
+  /** Custom stations available for use in route builders */
+  customStations?: CustomStation[];
+  onSaveStation?: (station: Omit<CustomStation, "id" | "createdAt"> & { id?: string }) => void;
+  onDeleteStation?: (id: string) => void;
 }
 
 export default function DesignPanel({
@@ -43,6 +48,9 @@ export default function DesignPanel({
   drawGeometry,
   editingRoute,
   onTrainModeChange,
+  customStations = [],
+  onSaveStation,
+  onDeleteStation,
 }: DesignPanelProps) {
   return (
     <Tabs
@@ -51,17 +59,20 @@ export default function DesignPanel({
       className="flex h-full min-h-0 flex-col gap-0"
     >
       <div className="border-b border-slate-100 px-3 pb-2 pt-3">
-        <TabsList className="grid h-9 w-full grid-cols-2">
-          <TabsTrigger value="existing" className="text-xs gap-1.5">
-            <Train className="h-3.5 w-3.5" /> Existing lines
+        <TabsList className="grid h-9 w-full grid-cols-3">
+          <TabsTrigger value="existing" className="text-xs gap-1">
+            <Train className="h-3.5 w-3.5" /> Extend
           </TabsTrigger>
-          <TabsTrigger value="new" className="text-xs gap-1.5">
-            <Pencil className="h-3.5 w-3.5" /> Create new lines
+          <TabsTrigger value="new" className="text-xs gap-1">
+            <Pencil className="h-3.5 w-3.5" /> Create
+          </TabsTrigger>
+          <TabsTrigger value="stations" className="text-xs gap-1">
+            <MapPin className="h-3.5 w-3.5" /> Stations
           </TabsTrigger>
         </TabsList>
       </div>
 
-      <TabsContent value="existing" className="mt-0 min-h-0">
+      <TabsContent value="existing" className="mt-0 min-h-0 flex-1 overflow-y-auto">
         {activeTab === "existing" && (
           <ExtendRouteWizard
             onSave={onSaveRoute}
@@ -75,11 +86,12 @@ export default function DesignPanel({
             onCancel={onCancel}
             drawGeometry={drawGeometry}
             onTrainModeChange={onTrainModeChange}
+            customStations={customStations}
           />
         )}
       </TabsContent>
 
-      <TabsContent value="new" className="mt-0 min-h-0">
+      <TabsContent value="new" className="mt-0 min-h-0 flex-1 overflow-y-auto">
         {activeTab === "new" && (
           <BuilderWizard
             onSave={onSaveRoute}
@@ -92,6 +104,19 @@ export default function DesignPanel({
             drawGeometry={drawGeometry}
             existingRoute={editingRoute}
             onTrainModeChange={onTrainModeChange}
+            customStations={customStations}
+          />
+        )}
+      </TabsContent>
+
+      <TabsContent value="stations" className="mt-0 min-h-0 flex-1 overflow-y-auto">
+        {activeTab === "stations" && onSaveStation && onDeleteStation && (
+          <StationsPanel
+            stations={customStations}
+            onSaveStation={onSaveStation}
+            onDeleteStation={onDeleteStation}
+            onStartPinMode={onStartPinMode}
+            onStopPinMode={onStopPinMode}
           />
         )}
       </TabsContent>

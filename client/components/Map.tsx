@@ -5,6 +5,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { GO_RAIL_LINES, PINK_BUS_COLOR, PURPLE_BUS_COLOR } from "@/lib/routeColors";
+import type { CustomStation } from "@/lib/gtfs";
 
 const KITCHENER_BUS_ROUTES = ["30", "31", "32", "33", "34", "35", "36", "37", "38", "39"];
 const BARRIE_BUS_ROUTES = ["65", "68"];
@@ -48,6 +49,8 @@ export interface MapHandle {
   startPinMode: (onPin: (lat: number, lon: number) => void) => void;
   /** Disable pin mode. */
   stopPinMode: () => void;
+  /** Update custom station markers on the map. */
+  updateStations: (stations: CustomStation[]) => void;
 }
 
 function makeVisibilityFilter(propertyName: string, values: string[] | null): LayerFilter {
@@ -328,6 +331,26 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 
       map.getCanvas().style.cursor = "";
     },
+
+    updateStations: (stations) => {
+      const map = mapRef.current;
+      if (!map) return;
+      const src = map.getSource("custom-stations") as mapboxgl.GeoJSONSource | undefined;
+      if (!src) return;
+      src.setData({
+        type: "FeatureCollection",
+        features: stations.map((s) => ({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [s.lon, s.lat] },
+          properties: {
+            id: s.id,
+            name: s.name,
+            code: s.code ?? s.name.slice(0, 4).toUpperCase(),
+            stationType: s.type,
+          },
+        })),
+      });
+    },
   }));
 
   // ── Shared draw/edit cleanup ───────────────────────────────────────────────
@@ -501,6 +524,61 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         paint: {
           "line-color": "transparent",
           "line-width": 14,
+        },
+      });
+
+      // ── Custom stations ────────────────────────────────────────────────────
+      map.addSource("custom-stations", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      // Outer ring
+      map.addLayer({
+        id: "custom-stations-circle",
+        type: "circle",
+        source: "custom-stations",
+        paint: {
+          "circle-radius": 10,
+          "circle-color": "#1e293b",
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": "#ffffff",
+          "circle-opacity": 0.92,
+        },
+      });
+      // Code text label
+      map.addLayer({
+        id: "custom-stations-label",
+        type: "symbol",
+        source: "custom-stations",
+        layout: {
+          "text-field": ["get", "code"],
+          "text-font": ["DIN Pro Bold", "Arial Unicode MS Bold"],
+          "text-size": 8,
+          "text-anchor": "center",
+          "text-allow-overlap": true,
+        },
+        paint: {
+          "text-color": "#ffffff",
+        },
+      });
+      // Name tooltip below the dot
+      map.addLayer({
+        id: "custom-stations-name",
+        type: "symbol",
+        source: "custom-stations",
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
+          "text-size": 10,
+          "text-anchor": "top",
+          "text-offset": [0, 1.2],
+          "text-allow-overlap": false,
+          "text-optional": true,
+        },
+        paint: {
+          "text-color": "#1e293b",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 1.5,
         },
       });
 

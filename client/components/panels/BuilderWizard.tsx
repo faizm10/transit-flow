@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CustomRoute, CustomStop, CustomSchedule } from "@/lib/gtfs";
+import { CustomRoute, CustomStop, CustomSchedule, CustomStation } from "@/lib/gtfs";
 import { CUSTOM_ROUTE_COLORS } from "@/lib/routeColors";
 import { v4 as uuidv4 } from "uuid";
 
@@ -35,6 +35,8 @@ interface BuilderWizardProps {
   existingRoute?: CustomRoute;
   /** Fires whenever the user switches between bus and train mode. */
   onTrainModeChange?: (isTrain: boolean) => void;
+  /** Custom stations available as searchable stops. */
+  customStations?: CustomStation[];
 }
 
 const ROUTE_TYPE_OPTIONS = [
@@ -132,6 +134,7 @@ export default function BuilderWizard({
   drawGeometry,
   existingRoute,
   onTrainModeChange,
+  customStations = [],
 }: BuilderWizardProps) {
   const [step, setStep] = useState<Step>(existingRoute ? "review" : "type");
   const [routeType, setRouteType] = useState<"bus" | "train">(
@@ -347,28 +350,47 @@ export default function BuilderWizard({
     if (routeGeometry) onPreviewRoute(routeGeometry, color);
   }
 
-  // ── Stop search ──────────────────────────────────────────────────────────
+  // ── Stop search (GTFS + custom stations) ────────────────────────────────
   const searchStops = useCallback(async (q: string) => {
     if (q.length < 2) { setStopResults([]); return; }
+    const lq = q.toLowerCase();
+
+    // Immediately show matching custom stations (no latency)
+    const stationMatches: CustomStop[] = customStations
+      .filter((s) => s.name.toLowerCase().includes(lq))
+      .map((s, i) => ({
+        id: `station:${s.id}`,
+        name: s.name,
+        lat: s.lat,
+        lon: s.lon,
+        sequence: stops.length + 1 + i,
+      }));
+
+    if (stationMatches.length > 0) setStopResults(stationMatches);
+
     setSearching(true);
     try {
       const res = await fetch(`/api/stops?q=${encodeURIComponent(q)}`);
       const data = await res.json();
-      setStopResults(
-        (data.stops ?? []).map((s: { stop_id: string; stop_name: string; lat: number; lon: number }) => ({
-          id: s.stop_id,
-          name: s.stop_name,
-          lat: s.lat,
-          lon: s.lon,
-          sequence: stops.length + 1,
-        }))
-      );
+      const gtfsStops: CustomStop[] = (data.stops ?? []).map((s: { stop_id: string; stop_name: string; lat: number; lon: number }, i: number) => ({
+        id: s.stop_id,
+        name: s.stop_name,
+        lat: s.lat,
+        lon: s.lon,
+        sequence: stops.length + 1 + i,
+      }));
+      // Merge: custom stations first, then GTFS (dedup by name)
+      const seen = new Set(stationMatches.map((s) => s.name.toLowerCase()));
+      setStopResults([
+        ...stationMatches,
+        ...gtfsStops.filter((s) => !seen.has(s.name.toLowerCase())),
+      ]);
     } catch {
-      setStopResults([]);
+      setStopResults(stationMatches);
     } finally {
       setSearching(false);
     }
-  }, [stops.length]);
+  }, [stops.length, customStations]);
 
   function addStop(s: CustomStop) {
     setStops((prev) => [...prev, { ...s, sequence: prev.length + 1 }]);

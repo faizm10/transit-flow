@@ -99,6 +99,23 @@ export interface CustomStop {
   sequence: number;
 }
 
+/**
+ * A user-created station that can be reused across multiple routes.
+ * Independent of any specific route — acts as a named, typed waypoint.
+ */
+export interface CustomStation {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  /** Primary service at this station */
+  type: "train" | "bus" | "mixed";
+  /** Up to 4-letter display code, e.g. "UN" for Union Station */
+  code?: string;
+  notes?: string;
+  createdAt: string;
+}
+
 // ─── Rich schedule types ───────────────────────────────────────────────────
 
 /** A single contiguous service window within a day (e.g. "Morning peak 6–9 AM every 10 min") */

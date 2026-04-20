@@ -17,6 +17,7 @@ import VehicleInfoPopup from "@/components/overlays/VehicleInfoPopup";
 import DrawGuide from "@/components/overlays/DrawGuide";
 import RouteFilterControl from "@/components/overlays/RouteFilterControl";
 import { useRoutes } from "@/hooks/useRoutes";
+import { useStations } from "@/hooks/useStations";
 import { useSimulation } from "@/hooks/useSimulation";
 import { type CustomRoute, type CustomSchedule, type RouteFilters } from "@/lib/gtfs";
 
@@ -102,6 +103,7 @@ export default function MapPage() {
   });
 
   const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
+  const { stations: customStations, saveStation, deleteStation } = useStations();
 
   // Patch just the schedule field of a custom route
   const handleSaveSchedule = useCallback((routeId: string, schedule: CustomSchedule) => {
@@ -181,6 +183,12 @@ export default function MapPage() {
         .filter((feature): feature is NonNullable<typeof feature> => feature !== null),
     });
   }, [customRoutes, mapLoaded]);
+
+  // ── Sync custom stations to map ────────────────────────────────────────
+  useEffect(() => {
+    if (!mapLoaded) return;
+    mapRef.current?.updateStations(customStations);
+  }, [customStations, mapLoaded]);
 
   // ── Sync route visibility filters to map layers ─────────────────────────
   useEffect(() => {
@@ -541,6 +549,9 @@ export default function MapPage() {
                 drawGeometry={drawnGeometry ?? undefined}
                 editingRoute={editingRoute}
                 onTrainModeChange={setIsTrainDesignMode}
+                customStations={customStations}
+                onSaveStation={saveStation}
+                onDeleteStation={deleteStation}
               />
             )}
           </div>
