@@ -4,6 +4,7 @@ import {
   secondsToDisplayTime,
   timeToSeconds,
   type CustomRoute,
+  type CustomTimetableTrip,
   type DaySchedule,
   type ServiceBand,
 } from "./gtfs";
@@ -153,7 +154,7 @@ function simulationScheduleForRoute(route: CustomRoute) {
 
 function dayScheduleForDate(route: CustomRoute, date: string): DaySchedule | null {
   const schedule = simulationScheduleForRoute(route);
-  if (schedule.type === "fixed") return null;
+  if (schedule.type === "fixed" || schedule.type === "timetable") return null;
 
   const day = new Date(`${date}T12:00:00`).getDay();
   if (day === 0) return schedule.sunday ?? { active: false, bands: [] };
@@ -174,6 +175,20 @@ function getDepartureSeconds(route: CustomRoute, date: string, startSec: number,
   if (schedule.type === "fixed") {
     return (schedule.fixedDepartures ?? [])
       .map(timeToSeconds)
+      .filter((departSec) => departSec < endSec && departSec >= startSec - 4 * 3600)
+      .sort((a, b) => a - b);
+  }
+  if (schedule.type === "timetable") {
+    const timetableTrips = schedule.timetableTrips
+      ?? (schedule.stopTimes?.length
+        ? [{
+            id: "legacy-timetable",
+            departureSec: schedule.firstDepartureSec ?? schedule.stopTimes[0]?.arrivalSec ?? 0,
+            stopTimes: schedule.stopTimes,
+          }]
+        : []);
+    return timetableTrips
+      .map((trip) => trip.departureSec)
       .filter((departSec) => departSec < endSec && departSec >= startSec - 4 * 3600)
       .sort((a, b) => a - b);
   }
@@ -277,6 +292,62 @@ function customRouteStops(route: CustomRoute, shape: [number, number][], reverse
   return stops;
 }
 
+function timetableTripsForRoute(route: CustomRoute): CustomTimetableTrip[] {
+  const schedule = simulationScheduleForRoute(route);
+  if (schedule.type !== "timetable") return [];
+  if (schedule.timetableTrips) return schedule.timetableTrips;
+  if (!schedule.stopTimes?.length) return [];
+  return [{
+    id: "legacy-timetable",
+    departureSec: schedule.firstDepartureSec ?? schedule.stopTimes[0]?.arrivalSec ?? 0,
+    stopTimes: schedule.stopTimes,
+  }];
+}
+
+function customRouteTimedStops(
+  route: CustomRoute,
+  shape: [number, number][],
+  durationSecs: number,
+  timetableTrip: CustomTimetableTrip,
+): SimStop[] {
+  const rawStops = route.stops.length >= 2
+    ? route.stops
+    : [
+        { id: `${route.id}-start`, name: "Start", lat: shape[0][1], lon: shape[0][0], sequence: 1 },
+        { id: `${route.id}-end`, name: "End", lat: shape[shape.length - 1][1], lon: shape[shape.length - 1][0], sequence: 2 },
+      ];
+  const departSec = timetableTrip.departureSec;
+  const timeByStop = new Map(timetableTrip.stopTimes.map((stopTime) => [stopTime.stopId, stopTime.arrivalSec]));
+  const cache = buildShapeCache(shape);
+  const stops = rawStops.map((stop, index) => {
+    const shapeFrac = cache.total > 0
+      ? projectStopFrac(stop.lon, stop.lat, shape, cache)
+      : index / Math.max(1, rawStops.length - 1);
+    return {
+      t: timeByStop.get(stop.id) ?? Math.round(departSec + shapeFrac * durationSecs),
+      lat: stop.lat,
+      lon: stop.lon,
+      shapeFrac,
+      stop_name: stop.name,
+    };
+  });
+
+  if (stops.length > 0) {
+    stops[0].shapeFrac = 0;
+    stops[0].t = timeByStop.get(rawStops[0]?.id ?? "") ?? departSec;
+    stops[stops.length - 1].shapeFrac = 1;
+  }
+  for (let i = 1; i < stops.length; i++) {
+    if (stops[i].shapeFrac < stops[i - 1].shapeFrac) {
+      stops[i].shapeFrac = stops[i - 1].shapeFrac;
+    }
+    if (stops[i].t < stops[i - 1].t) {
+      stops[i].t = stops[i - 1].t;
+    }
+  }
+  return stops;
+}
+
 export function buildCustomSimulationTrips(
   routes: CustomRoute[],
   selectedRouteIds: string[],
@@ -294,8 +365,38 @@ export function buildCustomSimulationTrips(
     if (baseShape.length < 2) continue;
 
     const durationSecs = customRouteDurationSecs(route, baseShape);
-    const departures = getDepartureSeconds(route, options.date, startSec, endSec);
     const schedule = simulationScheduleForRoute(route);
+    const timetableTrips = timetableTripsForRoute(route);
+
+    if (schedule.type === "timetable") {
+      for (const timetableTrip of timetableTrips) {
+        if (trips.length >= 300) break;
+        const departSec = timetableTrip.departureSec;
+        const stops = customRouteTimedStops(route, baseShape, durationSecs, timetableTrip);
+        const arriveSec = stops[stops.length - 1]?.t ?? departSec;
+        if (departSec >= endSec || arriveSec <= startSec) continue;
+
+        trips.push({
+          trip_id: `${CUSTOM_ROUTE_SELECTION_PREFIX}${route.id}-${timetableTrip.id}`,
+          route_short_name: route.name || "Custom",
+          route_long_name: route.description || route.name || "Custom route",
+          route_type: route.type === "train" ? 2 : 3,
+          color: route.color,
+          source: "custom",
+          stops,
+          shape: baseShape,
+          start_stop_name: stops[0]?.stop_name ?? "",
+          end_stop_name: stops[stops.length - 1]?.stop_name ?? "",
+          start_time: toHHMM(departSec),
+          end_time: toHHMM(arriveSec),
+          departSec,
+          arriveSec,
+        });
+      }
+      continue;
+    }
+
+    const departures = getDepartureSeconds(route, options.date, startSec, endSec);
     const bothDirections = schedule.direction !== "one-way";
 
     for (const departSec of departures) {

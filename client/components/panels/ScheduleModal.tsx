@@ -5,12 +5,12 @@ import { createPortal } from "react-dom";
 import {
   X, Search, Train, Bus, ChevronDown, Clock, AlertCircle,
   Loader2, CheckCircle, Lock, CalendarDays, TableProperties,
-  ArrowRight, ArrowLeft, MapPin,
+  ArrowRight, ArrowLeft, MapPin, Plus, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
 import {
-  EnrichedRoute, CustomRoute, CustomSchedule, StopTimeEntry,
+  EnrichedRoute, CustomRoute, CustomSchedule, CustomTimetableTrip, StopTimeEntry,
   defaultBandedSchedule,
 } from "@/lib/gtfs";
 
@@ -96,6 +96,11 @@ function computeCustomDepartures(schedule: CustomSchedule | undefined, dayOfWeek
 
   // timetable type — one trip whose first stop time is the departure
   if (schedule.type === "timetable") {
+    if (schedule.timetableTrips) {
+      return [...schedule.timetableTrips]
+        .sort((a, b) => a.departureSec - b.departureSec)
+        .map((trip) => secToHHMM(trip.departureSec));
+    }
     if (schedule.firstDepartureSec !== undefined) {
       return [secToHHMM(schedule.firstDepartureSec)];
     }
@@ -170,6 +175,138 @@ function toDisplayTime(hhmm: string): string {
   return `${h12}:${m} ${ampm}`;
 }
 
+function makeTimetableTripId(departureSec: number): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `trip-${departureSec}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function sortTimetableTrips(trips: CustomTimetableTrip[]): CustomTimetableTrip[] {
+  return [...trips].sort((a, b) => a.departureSec - b.departureSec);
+}
+
+function blankRowsForRoute(route: CustomRoute): StopRow[] {
+  return route.stops.map((s) => ({
+    stopId: s.id,
+    name: s.name,
+    lat: s.lat,
+    lon: s.lon,
+    sequence: s.sequence,
+    timeHHMM: null,
+  }));
+}
+
+function rowsToStopTimes(rows: StopRow[]): StopTimeEntry[] {
+  return rows
+    .filter((row) => row.timeHHMM !== null)
+    .map((row) => ({
+      stopId: row.stopId,
+      stopName: row.name,
+      arrivalSec: hhmmToSec(row.timeHHMM!),
+    }));
+}
+
+function rowsForTimetableTrip(route: CustomRoute, trip: CustomTimetableTrip): StopRow[] {
+  const timeByStop = new Map(trip.stopTimes.map((st) => [st.stopId, st.arrivalSec]));
+  return route.stops.map((s, index) => ({
+    stopId: s.id,
+    name: s.name,
+    lat: s.lat,
+    lon: s.lon,
+    sequence: s.sequence,
+    timeHHMM: timeByStop.has(s.id)
+      ? secToHHMM(timeByStop.get(s.id)!)
+      : index === 0
+        ? secToHHMM(trip.departureSec)
+        : null,
+  }));
+}
+
+function cascadeRowsFromIndex(
+  rows: StopRow[],
+  rowIndex: number,
+  newHHMM: string,
+  legDurations: number[],
+): StopRow[] {
+  if (!rows[rowIndex]) return rows;
+  const nextRows = [...rows];
+  nextRows[rowIndex] = { ...nextRows[rowIndex], timeHHMM: newHHMM };
+  if (legDurations.length >= nextRows.length - 1 && legDurations.length > 0) {
+    let sec = hhmmToSec(newHHMM);
+    for (let k = rowIndex + 1; k < nextRows.length; k++) {
+      sec += legDurations[k - 1] ?? 0;
+      nextRows[k] = { ...nextRows[k], timeHHMM: secToHHMM(sec) };
+    }
+  }
+  return nextRows;
+}
+
+function shiftRowsToDeparture(rows: StopRow[], nextDepartureSec: number): StopRow[] {
+  const firstTime = rows[0]?.timeHHMM;
+  if (!firstTime) {
+    return rows.map((row, index) => ({
+      ...row,
+      timeHHMM: index === 0 ? secToHHMM(nextDepartureSec) : row.timeHHMM,
+    }));
+  }
+  const delta = nextDepartureSec - hhmmToSec(firstTime);
+  return rows.map((row, index) => ({
+    ...row,
+    timeHHMM: row.timeHHMM
+      ? secToHHMM(hhmmToSec(row.timeHHMM) + delta)
+      : index === 0
+        ? secToHHMM(nextDepartureSec)
+        : null,
+  }));
+}
+
+function normalizeTimetableTrips(route: CustomRoute): CustomTimetableTrip[] {
+  const schedule = route.schedule;
+  if (!schedule) return [];
+
+  if (schedule.type === "timetable") {
+    if (schedule.timetableTrips) {
+      return sortTimetableTrips(
+        schedule.timetableTrips.map((trip) => ({
+          ...trip,
+          departureSec: trip.departureSec ?? trip.stopTimes[0]?.arrivalSec ?? 0,
+          stopTimes: trip.stopTimes ?? [],
+        })),
+      );
+    }
+    if (schedule.stopTimes?.length) {
+      const departureSec = schedule.firstDepartureSec ?? schedule.stopTimes[0]?.arrivalSec ?? hhmmToSec("06:00");
+      return [{
+        id: makeTimetableTripId(departureSec),
+        departureSec,
+        stopTimes: schedule.stopTimes,
+      }];
+    }
+    return [];
+  }
+
+  if (schedule.type === "fixed" && schedule.fixedDepartures?.length) {
+    const firstStop = route.stops[0];
+    return sortTimetableTrips(schedule.fixedDepartures.map((departure, index) => {
+      const departureSec = hhmmToSec(departure);
+      return {
+        id: `fixed-${departureSec}-${index}`,
+        departureSec,
+        stopTimes: firstStop
+          ? [{
+              stopId: firstStop.id,
+              stopName: firstStop.name,
+              arrivalSec: departureSec,
+            }]
+          : [],
+      };
+    }));
+  }
+
+  return [];
+}
+
 // ─── Directions API helpers ───────────────────────────────────────────────────
 
 function chunkStops(rows: StopRow[], size = 25): StopRow[][] {
@@ -227,6 +364,8 @@ export default function ScheduleModal({
 
   // ── Stop-times editor state ──────────────────────────────────────────────
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const [customTrips, setCustomTrips] = useState<CustomTimetableTrip[]>([]);
+  const [selectedCustomTripId, setSelectedCustomTripId] = useState<string | null>(null);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const hasFetchedIndex = useRef(false);
@@ -311,6 +450,8 @@ export default function ScheduleModal({
     setEditor(null);
     setSelectedDeparture(null);
     setSelectedDestination(null);
+    setCustomTrips([]);
+    setSelectedCustomTripId(null);
 
     if (sel.kind === "go") {
       setGoViewMode("departures");
@@ -318,16 +459,11 @@ export default function ScheduleModal({
     } else {
       setEditor({ rows: [], legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
 
-      const existingTimes: Record<string, string> = {};
-      if (sel.route.schedule?.type === "timetable" && sel.route.schedule.stopTimes) {
-        for (const st of sel.route.schedule.stopTimes) {
-          existingTimes[st.stopId] = secToHHMM(st.arrivalSec);
-        }
-      }
-      const rows: StopRow[] = sel.route.stops.map((s) => ({
-        stopId: s.id, name: s.name, lat: s.lat, lon: s.lon, sequence: s.sequence,
-        timeHHMM: existingTimes[s.id] ?? (s.sequence === 0 ? "06:00" : null),
-      }));
+      const trips = normalizeTimetableTrips(sel.route);
+      const activeTrip = trips[0] ?? null;
+      const rows = activeTrip ? rowsForTimetableTrip(sel.route, activeTrip) : blankRowsForRoute(sel.route);
+      setCustomTrips(trips);
+      setSelectedCustomTripId(activeTrip?.id ?? null);
       setEditor({ rows, legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
       fetchLegDurations(rows);
     }
@@ -415,41 +551,159 @@ export default function ScheduleModal({
     setSelectedDestination(null);
   }, []);
 
+  const selectedCustomTrip = useMemo(
+    () => customTrips.find((trip) => trip.id === selectedCustomTripId) ?? null,
+    [customTrips, selectedCustomTripId],
+  );
+
+  useEffect(() => {
+    if (selected?.kind !== "custom" || !editor || !selectedCustomTripId) return;
+    if (
+      editor.directionsStatus !== "done" ||
+      editor.legDurations.length === 0 ||
+      editor.legDurations.length < editor.rows.length - 1
+    ) return;
+    const firstTime = editor.rows[0]?.timeHHMM;
+    const needsCascade = editor.rows.slice(1).some((row) => row.timeHHMM === null);
+    if (!firstTime || !needsCascade) return;
+
+    const rows = cascadeRowsFromIndex(editor.rows, 0, firstTime, editor.legDurations);
+    setEditor({ ...editor, rows });
+    setCustomTrips((prev) => sortTimetableTrips(prev.map((trip) => (
+      trip.id === selectedCustomTripId
+        ? { ...trip, stopTimes: rowsToStopTimes(rows) }
+        : trip
+    ))));
+  }, [editor, selected, selectedCustomTripId]);
+
   // ── Time edit + cascade ───────────────────────────────────────────────────
   const handleTimeEdit = useCallback((rowIndex: number, newHHMM: string) => {
-    setEditor((prev) => {
-      if (!prev) return prev;
-      const rows = [...prev.rows];
-      rows[rowIndex] = { ...rows[rowIndex], timeHHMM: newHHMM };
-      if (prev.legDurations.length >= rows.length - 1 && prev.legDurations.length > 0) {
-        let sec = hhmmToSec(newHHMM);
-        for (let k = rowIndex + 1; k < rows.length; k++) {
-          sec += prev.legDurations[k - 1] ?? 0;
-          rows[k] = { ...rows[k], timeHHMM: secToHHMM(sec) };
-        }
-      }
-      return { ...prev, rows, isDirty: true };
+    if (!editor) return;
+    const rows = cascadeRowsFromIndex(editor.rows, rowIndex, newHHMM, editor.legDurations);
+    setEditor({ ...editor, rows, isDirty: true });
+
+    if (selected?.kind === "custom" && selectedCustomTripId) {
+      const stopTimes = rowsToStopTimes(rows);
+      const departureSec = stopTimes[0]?.arrivalSec ?? hhmmToSec(newHHMM);
+      setCustomTrips((prev) => sortTimetableTrips(prev.map((trip) => (
+        trip.id === selectedCustomTripId
+          ? { ...trip, departureSec, stopTimes }
+          : trip
+      ))));
+    }
+  }, [editor, selected, selectedCustomTripId]);
+
+  const handleCustomSelectTrip = useCallback((tripId: string) => {
+    if (selected?.kind !== "custom" || !editor) return;
+    const trip = customTrips.find((t) => t.id === tripId);
+    if (!trip) return;
+    setSelectedCustomTripId(trip.id);
+    setEditor({
+      ...editor,
+      rows: rowsForTimetableTrip(selected.route, trip),
+      isSaving: false,
     });
-  }, []);
+  }, [customTrips, editor, selected]);
+
+  const handleCustomAddDeparture = useCallback((time: string) => {
+    if (selected?.kind !== "custom") return;
+    if (selected.route.stops.length === 0) {
+      toast.error("Add stops before scheduling this route");
+      return;
+    }
+    const departureSec = hhmmToSec(time);
+    if (customTrips.some((trip) => trip.departureSec === departureSec)) {
+      toast.error("That departure time already exists");
+      return;
+    }
+
+    const sourceRows = editor?.rows.length
+      ? editor.rows
+      : blankRowsForRoute(selected.route);
+    const shiftedRows = selectedCustomTrip
+      ? shiftRowsToDeparture(sourceRows, departureSec)
+      : cascadeRowsFromIndex(sourceRows, 0, time, editor?.legDurations ?? []);
+    const trip: CustomTimetableTrip = {
+      id: makeTimetableTripId(departureSec),
+      departureSec,
+      stopTimes: rowsToStopTimes(shiftedRows),
+    };
+
+    setCustomTrips((prev) => sortTimetableTrips([...prev, trip]));
+    setSelectedCustomTripId(trip.id);
+    setEditor({
+      rows: shiftedRows,
+      legDurations: editor?.legDurations ?? [],
+      directionsStatus: editor?.directionsStatus ?? "idle",
+      isDirty: true,
+      isSaving: false,
+    });
+    toast.success("Timing added");
+  }, [customTrips, editor, selected, selectedCustomTrip]);
+
+  const handleCustomUpdateDeparture = useCallback((time: string) => {
+    if (!time) return;
+    if (selected?.kind !== "custom" || !selectedCustomTrip || !editor) return;
+    const departureSec = hhmmToSec(time);
+    if (customTrips.some((trip) => trip.id !== selectedCustomTrip.id && trip.departureSec === departureSec)) {
+      toast.error("That departure time already exists");
+      return;
+    }
+
+    const shiftedRows = shiftRowsToDeparture(editor.rows, departureSec);
+    const updatedTrip: CustomTimetableTrip = {
+      ...selectedCustomTrip,
+      departureSec,
+      stopTimes: rowsToStopTimes(shiftedRows),
+    };
+    setCustomTrips((prev) => sortTimetableTrips(prev.map((trip) => (
+      trip.id === selectedCustomTrip.id ? updatedTrip : trip
+    ))));
+    setEditor({ ...editor, rows: shiftedRows, isDirty: true });
+  }, [customTrips, editor, selected, selectedCustomTrip]);
+
+  const handleCustomDeleteDeparture = useCallback((tripId: string) => {
+    if (selected?.kind !== "custom" || !editor) return;
+    const nextTrips = sortTimetableTrips(customTrips.filter((trip) => trip.id !== tripId));
+    const nextTrip = tripId === selectedCustomTripId
+      ? nextTrips.find((trip) => trip.departureSec >= (selectedCustomTrip?.departureSec ?? 0)) ?? nextTrips[0] ?? null
+      : selectedCustomTrip;
+    const nextRows = nextTrip ? rowsForTimetableTrip(selected.route, nextTrip) : blankRowsForRoute(selected.route);
+
+    setCustomTrips(nextTrips);
+    setSelectedCustomTripId(nextTrip?.id ?? null);
+    setEditor({ ...editor, rows: nextRows, isDirty: true, isSaving: false });
+    toast.success("Timing deleted");
+  }, [customTrips, editor, selected, selectedCustomTrip, selectedCustomTripId]);
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = useCallback(() => {
     if (selected?.kind !== "custom" || !editor) return;
     setEditor((e) => e && { ...e, isSaving: true });
-    const stopTimes: StopTimeEntry[] = editor.rows
-      .filter((r) => r.timeHHMM !== null)
-      .map((r) => ({ stopId: r.stopId, stopName: r.name, arrivalSec: hhmmToSec(r.timeHHMM!) }));
+    const mergedTrips = sortTimetableTrips(customTrips.map((trip) => {
+      if (trip.id !== selectedCustomTripId) return trip;
+      const stopTimes = rowsToStopTimes(editor.rows);
+      return {
+        ...trip,
+        departureSec: stopTimes[0]?.arrivalSec ?? trip.departureSec,
+        stopTimes,
+      };
+    }));
+    const firstTrip = mergedTrips[0];
     const schedule: CustomSchedule = {
       ...(selected.route.schedule ?? defaultBandedSchedule()),
       type: "timetable",
-      stopTimes,
-      firstDepartureSec: stopTimes[0]?.arrivalSec ?? hhmmToSec("06:00"),
+      timetableTrips: mergedTrips,
+      fixedDepartures: mergedTrips.map((trip) => secToHHMM(trip.departureSec)),
+      stopTimes: firstTrip?.stopTimes ?? [],
+      firstDepartureSec: firstTrip?.departureSec,
       direction: "one-way",
     };
     onSaveSchedule(selected.route.id, schedule);
-    toast.success("Schedule saved");
+    setCustomTrips(mergedTrips);
+    setSelected({ kind: "custom", route: { ...selected.route, schedule } });
     setEditor((e) => e && { ...e, isDirty: false, isSaving: false });
-  }, [selected, editor, onSaveSchedule]);
+  }, [customTrips, selected, editor, onSaveSchedule, selectedCustomTripId]);
 
   // ── Departure-offset rows for GO stop-times view ──────────────────────────
   // When a departure time is selected in the dropdown, shift all stop times
@@ -616,16 +870,21 @@ export default function ScheduleModal({
                 <>
                   <CustomDepartureSelector
                     route={(selected as { kind: "custom"; route: CustomRoute }).route}
+                    trips={customTrips}
+                    selectedTripId={selectedCustomTripId}
                     firstStopName={editor.rows[0]?.name}
                     lastStopName={editor.rows[editor.rows.length - 1]?.name}
                     deptDay={deptDay}
                     onDayChange={handleDayChange}
-                    onSelectDeparture={(time) => handleTimeEdit(0, time)}
+                    onSelectTrip={handleCustomSelectTrip}
+                    onAddDeparture={handleCustomAddDeparture}
+                    onUpdateDeparture={handleCustomUpdateDeparture}
+                    onDeleteDeparture={handleCustomDeleteDeparture}
                   />
                   <StopTimesTable
                     rows={editor.rows}
                     directionsStatus={editor.directionsStatus}
-                    isReadOnly={false}
+                    isReadOnly={customTrips.length === 0}
                     onTimeEdit={handleTimeEdit}
                   />
                 </>
@@ -1309,27 +1568,37 @@ function StopRowItem({
   );
 }
 
-// ─── CustomDepartureSelector ──────────────────────────────────────────────────
-// Toolbar for custom routes: day tabs + departure dropdown + origin→dest pill.
-// Selecting a departure calls onSelectDeparture(time) which applies it as the
-// first stop's time and cascades all subsequent stops via legDurations.
-
 function CustomDepartureSelector({
-  route, firstStopName, lastStopName, deptDay, onDayChange, onSelectDeparture,
+  route,
+  trips,
+  selectedTripId,
+  firstStopName,
+  lastStopName,
+  deptDay,
+  onDayChange,
+  onSelectTrip,
+  onAddDeparture,
+  onUpdateDeparture,
+  onDeleteDeparture,
 }: {
   route: CustomRoute;
+  trips: CustomTimetableTrip[];
+  selectedTripId: string | null;
   firstStopName?: string;
   lastStopName?: string;
   deptDay: number;
   onDayChange: (day: number) => void;
-  onSelectDeparture: (time: string) => void;
+  onSelectTrip: (tripId: string) => void;
+  onAddDeparture: (time: string) => void;
+  onUpdateDeparture: (time: string) => void;
+  onDeleteDeparture: (tripId: string) => void;
 }) {
-  const departures = useMemo(
+  const [newDeparture, setNewDeparture] = useState("");
+  const selectedTrip = trips.find((trip) => trip.id === selectedTripId) ?? null;
+  const legacyDepartures = useMemo(
     () => computeCustomDepartures(route.schedule, deptDay),
     [route.schedule, deptDay],
   );
-
-  // Which day tabs to show: only days that have departures
   const activeDays = useMemo(() => {
     const days: number[] = [];
     for (let d = 0; d <= 6; d++) {
@@ -1337,13 +1606,17 @@ function CustomDepartureSelector({
     }
     return days;
   }, [route.schedule]);
+  const showLegacySeeds = trips.length === 0 && legacyDepartures.length > 0;
 
-  const hasSchedule = !!route.schedule && route.schedule.type !== "timetable";
+  const handleAdd = () => {
+    if (!newDeparture) return;
+    onAddDeparture(newDeparture);
+    setNewDeparture("");
+  };
 
   return (
-    <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex flex-col gap-2.5">
-      {/* Day tabs — only for banded/fixed schedules that vary by day */}
-      {hasSchedule && activeDays.length > 1 && (
+    <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex flex-col gap-3">
+      {showLegacySeeds && activeDays.length > 1 && (
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mr-1">Day</span>
           {activeDays.map((d) => (
@@ -1362,40 +1635,9 @@ function CustomDepartureSelector({
         </div>
       )}
 
-      {/* Departure dropdown + origin pill row */}
       <div className="flex items-center gap-3 flex-wrap">
-        {/* Departure time picker */}
-        <div className="flex items-center gap-2">
-          <Clock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-          <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
-            Set departure
-          </label>
-          <div className="relative">
-            {departures.length > 0 ? (
-              <>
-                <select
-                  onChange={(e) => { if (e.target.value) onSelectDeparture(e.target.value); }}
-                  className="text-xs rounded-xl border border-slate-200 bg-white pl-3 pr-7 py-1.5 text-slate-800 font-mono appearance-none focus:outline-none focus:ring-2 focus:ring-slate-200 min-w-[110px]"
-                  defaultValue=""
-                >
-                  <option value="" disabled>Pick time…</option>
-                  {departures.map((t) => (
-                    <option key={t} value={t}>{toDisplayTime(t)}</option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </>
-            ) : (
-              <span className="text-xs text-slate-400 italic">
-                {route.schedule ? "No departures for this day" : "No schedule set — type a time directly"}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Origin → destination pill */}
         {firstStopName && (
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5">
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-3 py-1.5">
             <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
             <span className="text-xs text-slate-600 font-medium">{firstStopName}</span>
             {lastStopName && lastStopName !== firstStopName && (
@@ -1407,8 +1649,93 @@ function CustomDepartureSelector({
           </div>
         )}
 
+        <div className="flex items-center gap-2 ml-auto">
+          <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Add timing</label>
+          <input
+            type="time"
+            value={newDeparture}
+            onChange={(e) => setNewDeparture(e.target.value)}
+            className="text-xs font-mono rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33]"
+          />
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={!newDeparture}
+            className="flex items-center gap-1 rounded-lg bg-[#007A33] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Plus className="w-3 h-3" /> Add
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {trips.length > 0 ? (
+          trips.map((trip) => {
+            const isSelected = trip.id === selectedTripId;
+            const label = secToHHMM(trip.departureSec);
+            return (
+              <button
+                type="button"
+                key={trip.id}
+                onClick={() => onSelectTrip(trip.id)}
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap ${
+                  isSelected
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                <Clock className="w-3 h-3" />
+                {toDisplayTime(label)}
+              </button>
+            );
+          })
+        ) : (
+          <p className="text-xs text-slate-400 italic">
+            No custom timings yet. Add one to start scheduling this route.
+          </p>
+        )}
+      </div>
+
+      {showLegacySeeds && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+            Use existing
+          </span>
+          {legacyDepartures.slice(0, 14).map((time) => (
+            <button
+              type="button"
+              key={time}
+              onClick={() => onAddDeparture(time)}
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-mono text-slate-600 hover:border-slate-300"
+            >
+              {toDisplayTime(time)}
+            </button>
+          ))}
+          {legacyDepartures.length > 14 && (
+            <span className="text-[10px] text-slate-400">+{legacyDepartures.length - 14} more</span>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 flex-wrap border-t border-slate-100 pt-3">
+        <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Selected timing</label>
+        <input
+          type="time"
+          value={selectedTrip ? secToHHMM(selectedTrip.departureSec) : ""}
+          onChange={(e) => onUpdateDeparture(e.target.value)}
+          disabled={!selectedTrip}
+          className="text-xs font-mono rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33] disabled:bg-slate-50 disabled:text-slate-300"
+        />
+        <button
+          type="button"
+          onClick={() => selectedTrip && onDeleteDeparture(selectedTrip.id)}
+          disabled={!selectedTrip}
+          className="flex items-center gap-1 rounded-lg border border-red-100 bg-white px-3 py-1.5 text-xs font-semibold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Trash2 className="w-3 h-3" /> Delete
+        </button>
         <p className="text-[10px] text-slate-400 ml-auto">
-          Selecting a time updates the first stop and cascades forward
+          Stop edits apply only to the selected timing
         </p>
       </div>
     </div>

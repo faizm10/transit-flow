@@ -126,6 +126,14 @@ export interface StopTimeEntry {
   arrivalSec: number;
 }
 
+/** One scheduled custom-route trip with explicit per-stop times. */
+export interface CustomTimetableTrip {
+  id: string;
+  /** Departure in seconds since midnight at the first stop. */
+  departureSec: number;
+  stopTimes: StopTimeEntry[];
+}
+
 export interface CustomSchedule {
   /** banded = frequency bands per day; fixed = explicit departure list; timetable = per-stop arrival times */
   type: "banded" | "frequency" | "fixed" | "timetable";
@@ -143,6 +151,7 @@ export interface CustomSchedule {
   // ── timetable mode ───────────────────────────────────────────────────────
   stopTimes?:         StopTimeEntry[];
   firstDepartureSec?: number; // seconds since midnight for simulation seed
+  timetableTrips?:    CustomTimetableTrip[];
   direction: "one-way" | "two-way";
 }
 
@@ -156,6 +165,7 @@ function timeStringToHM(t: string): { h: number; m: number } {
 /** Convert a legacy `frequency` schedule to the richer `banded` format. */
 export function migrateLegacySchedule(s: CustomSchedule): CustomSchedule {
   if (s.type === "banded") return s;
+  if (s.type === "timetable") return s;
   if (s.type === "fixed") {
     return {
       ...s,
