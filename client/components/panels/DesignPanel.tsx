@@ -63,11 +63,15 @@ export default function DesignPanel({
         {activeTab === "existing" && (
           <ExtendRouteWizard
             onSave={onSaveRoute}
+            onDrawRequest={onDrawRequest}
+            onEditRequest={onEditRequest}
+            onEditDone={onEditDone}
             onPreviewRoute={onPreviewRoute}
             onClearPreview={onClearPreview}
             onStartPinMode={onStartPinMode}
             onStopPinMode={onStopPinMode}
             onCancel={onCancel}
+            drawGeometry={drawGeometry}
           />
         )}
       </TabsContent>

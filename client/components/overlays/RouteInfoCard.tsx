@@ -15,6 +15,7 @@ interface RouteInfoCardProps {
   title?: string;
   actionLabel?: string;
   deleteLabel?: string;
+  placement?: "bottom-center" | "top-left";
   onDelete?: () => void;
   onClose: () => void;
   onExplore: () => void;
@@ -32,6 +33,7 @@ export default function RouteInfoCard({
   title,
   actionLabel = "Explore this route",
   deleteLabel = "Delete route",
+  placement = "bottom-center",
   onDelete,
   onClose,
   onExplore,
@@ -40,9 +42,12 @@ export default function RouteInfoCard({
   const isRail = routeType ? routeType === "train" : !!lineInfo;
   const color = colorOverride ?? lineInfo?.color ?? colorForRoute(shortName);
   const displayName = title ?? lineInfo?.name ?? (variantLabel || `Route ${shortName}`);
+  const shellClass = placement === "top-left"
+    ? "absolute left-4 top-20 z-30 w-[min(340px,calc(100vw-32px))] pointer-events-auto animate-in fade-in slide-in-from-left-3 duration-200"
+    : "absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-[min(360px,calc(100vw-32px))] pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200";
 
   return (
-    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-[min(360px,calc(100vw-32px))] pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
+    <div className={shellClass}>
       <div className="bg-white/97 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
         {/* Color header strip */}
         <div className="h-1.5 w-full" style={{ backgroundColor: color }} />

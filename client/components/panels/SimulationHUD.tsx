@@ -20,6 +20,7 @@ interface SimulationHUDProps {
   selectedRoutes: string[];
   customRoutes: CustomRoute[];
   date: string;
+  placement?: "bottom-center" | "bottom-right";
   onTogglePlay: () => void;
   onScrub: (t: number) => void;
   onCycleSpeed: () => void;
@@ -40,6 +41,7 @@ export default function SimulationHUD({
   selectedRoutes,
   customRoutes,
   date,
+  placement = "bottom-center",
   onTogglePlay,
   onScrub,
   onCycleSpeed,
@@ -52,6 +54,12 @@ export default function SimulationHUD({
   const hasTrips = trips.length > 0;
   const selectedHasBus = selectedRoutes.some((route) => /^\d/.test(route))
     || customRoutes.some((route) => route.type === "bus" && selectedRoutes.includes(customRouteSelectionId(route.id)));
+  const baseShellClass = placement === "bottom-right"
+    ? "absolute bottom-4 left-4 right-4 z-30 sm:left-auto sm:right-4 sm:bottom-6"
+    : "absolute bottom-6 left-1/2 -translate-x-1/2 z-30";
+  const cardWidthClass = placement === "bottom-right"
+    ? "sm:w-[min(560px,calc(100vw-32px))]"
+    : "";
 
   function handleDateChange(newDate: string) {
     onDateChange(newDate);
@@ -71,7 +79,7 @@ export default function SimulationHUD({
     const noServiceOnDate = hasLoadedOnce && !error;
 
     return (
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 w-[min(480px,calc(100vw-32px))]">
+      <div className={`${baseShellClass} w-[min(480px,calc(100vw-32px))] ${placement === "bottom-right" ? "w-auto sm:w-[min(480px,calc(100vw-32px))]" : ""}`}>
         <div className="bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-xl p-5">
           <div className="flex items-center gap-3 mb-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${noServiceOnDate ? "bg-amber-100" : "bg-emerald-100"}`}>
@@ -150,7 +158,7 @@ export default function SimulationHUD({
   // ── Loading state ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30">
+      <div className={baseShellClass}>
         <div className="bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-xl px-6 py-3.5 flex items-center gap-3">
           <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
           <span className="text-sm font-medium text-slate-700">Loading trips…</span>
@@ -161,7 +169,7 @@ export default function SimulationHUD({
 
   // ── Active playback HUD ───────────────────────────────────────────────────
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 w-[min(560px,calc(100vw-32px))]">
+    <div className={`${baseShellClass} w-[min(560px,calc(100vw-32px))] ${placement === "bottom-right" ? `w-auto ${cardWidthClass}` : ""}`}>
       <div className="bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-xl px-4 py-3">
         {/* Top row: routes chip + time + speed */}
         <div className="flex items-center justify-between mb-2.5">

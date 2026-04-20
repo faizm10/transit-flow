@@ -451,6 +451,8 @@ export interface ActiveVehicle {
   /** seconds until next stop */
   secsToNextStop: number;
   nextStopName?: string;
+  /** GTFS route_type: 2 = rail, 3 = bus */
+  routeType: number;
 }
 
 /** Get position for one trip at time t, following the shape */
@@ -512,6 +514,7 @@ export function getActiveVehicles(
         progress: result.progress,
         secsToNextStop: result.secsToNextStop,
         nextStopName: result.nextStopName,
+        routeType: trip.route_type,
       });
     }
   }

@@ -53,6 +53,12 @@ function tripIdToNum(id: string): number {
   return Math.abs(h);
 }
 
+function customRouteMapGeometry(route: CustomRoute): [number, number][] | null {
+  if (route.geometry && route.geometry.length >= 2) return route.geometry;
+  const stopGeometry = route.stops.map((stop) => [stop.lon, stop.lat] as [number, number]);
+  return stopGeometry.length >= 2 ? stopGeometry : null;
+}
+
 // Lookup enriched route data from the already-fetched routes cache
 let routesCache: Record<string, { fromStop: string; toStop: string; totalTrips: number; variants: { variant_id: string; label: string }[] }> | null = null;
 
@@ -138,6 +144,7 @@ export default function MapPage() {
           endTime: v.endTime,
           nextStopName: v.nextStopName ?? "",
           secsToNextStop: Math.round(v.secsToNextStop),
+          routeType: v.routeType,  // 2=rail, 3=bus
         },
       })),
     });
@@ -152,19 +159,23 @@ export default function MapPage() {
     source.setData({
       type: "FeatureCollection",
       features: customRoutes
-        .filter((r) => r.geometry && r.geometry.length >= 2)
-        .map((r) => ({
-          type: "Feature",
-          geometry: { type: "LineString", coordinates: r.geometry! },
-          properties: {
-            color: r.color,
-            name: r.name || "Custom route",
-            id: r.id,
-            type: r.type,
-            fromStop: r.stops[0]?.name ?? "",
-            toStop: r.stops[r.stops.length - 1]?.name ?? "",
-          },
-      })),
+        .map((r) => {
+          const geometry = customRouteMapGeometry(r);
+          if (!geometry) return null;
+          return {
+            type: "Feature" as const,
+            geometry: { type: "LineString" as const, coordinates: geometry },
+            properties: {
+              color: r.color,
+              name: r.name || "Custom route",
+              id: r.id,
+              type: r.type,
+              fromStop: r.stops[0]?.name ?? "",
+              toStop: r.stops[r.stops.length - 1]?.name ?? "",
+            },
+          };
+        })
+        .filter((feature): feature is NonNullable<typeof feature> => feature !== null),
     });
   }, [customRoutes, mapLoaded]);
 
@@ -303,6 +314,13 @@ export default function MapPage() {
   // ── Builder handlers ────────────────────────────────────────────────────
   function handleSaveRoute(route: CustomRoute) {
     saveRoute(route);
+    setRouteFilters((current) => {
+      if (current.customRouteIds === null) return current;
+      return {
+        ...current,
+        customRouteIds: Array.from(new Set([...current.customRouteIds, route.id])),
+      };
+    });
     mapRef.current?.stopEdit();     // clean up if edit was active
     mapRef.current?.clearPreviewRoute();
     setMode(null);
@@ -529,6 +547,7 @@ export default function MapPage() {
           title={clickedRoute.isCustom ? clickedRoute.shortName : undefined}
           actionLabel={clickedRoute.isCustom ? "Edit this route" : undefined}
           deleteLabel={clickedRoute.isCustom ? "Delete route" : undefined}
+          placement={mode === "simulate" ? "top-left" : "bottom-center"}
           onDelete={clickedRoute.isCustom ? handleDeleteFromCard : undefined}
           onClose={() => {
             setClickedRoute(null);
@@ -570,6 +589,7 @@ export default function MapPage() {
           selectedRoutes={sim.selectedRoutes}
           customRoutes={customRoutes}
           date={sim.date}
+          placement="bottom-right"
           onTogglePlay={sim.togglePlay}
           onScrub={sim.setCurrentTime}
           onCycleSpeed={sim.cycleSpeed}
@@ -589,7 +609,7 @@ export default function MapPage() {
       )}
 
       {/* ── Saved routes badge ──────────────────────────────────────────── */}
-      {customRoutes.length > 0 && !panelOpen && (
+      {customRoutes.length > 0 && !panelOpen && mode !== "simulate" && (
         <div className="absolute bottom-20 right-4 z-20">
           <button
             onClick={() => {

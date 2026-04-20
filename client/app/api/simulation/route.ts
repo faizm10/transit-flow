@@ -9,7 +9,7 @@ import { SimTrip, SimStop, SimulationData } from "@/lib/simulation";
 const GTFS_DIR = join(process.cwd(), "../server/data/gotransit");
 const PUBLIC_DIR = join(process.cwd(), "public/gotransit/derived");
 
-const MAX_OUTPUT_TRIPS = 300;
+const MAX_OUTPUT_TRIPS = 2000;   // raised to cover trains + buses
 const MAX_SHAPE_POINTS = 300;
 
 // ── Internal types ─────────────────────────────────────────────────────────────

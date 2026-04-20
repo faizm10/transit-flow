@@ -512,41 +512,57 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         data: { type: "FeatureCollection", features: [] },
       });
 
+      // Halo ring — larger + softer for trains, tighter for buses
       map.addLayer({
         id: "sim-vehicles-halo",
         type: "circle",
         source: "sim-vehicles",
         paint: {
-          "circle-radius": 11,
+          "circle-radius": [
+            "case", ["==", ["get", "routeType"], 3], 8, 11,  // bus=8, train=11
+          ],
           "circle-color": ["get", "color"],
-          "circle-opacity": 0.25,
+          "circle-opacity": [
+            "case", ["==", ["get", "routeType"], 3], 0.18, 0.25,  // bus slightly dimmer
+          ],
           "circle-stroke-width": 0,
         },
       });
 
+      // Main dot — trains are larger squares-ish, buses are smaller circles
       map.addLayer({
         id: "sim-vehicles-dot",
         type: "circle",
         source: "sim-vehicles",
         paint: {
           "circle-radius": [
-            "case", ["boolean", ["feature-state", "hovered"], false], 10, 7,
+            "case",
+            ["boolean", ["feature-state", "hovered"], false],
+            ["case", ["==", ["get", "routeType"], 3], 8, 10],   // hovered bus=8, train=10
+            ["case", ["==", ["get", "routeType"], 3], 5, 7],    // normal  bus=5, train=7
           ],
           "circle-color": ["get", "color"],
-          "circle-stroke-width": 2,
+          "circle-stroke-width": [
+            "case", ["==", ["get", "routeType"], 3], 1.5, 2,    // bus thinner stroke
+          ],
           "circle-stroke-color": "#ffffff",
+          // buses get slight opacity so trains "pop" more when both are shown
+          "circle-opacity": [
+            "case", ["==", ["get", "routeType"], 3], 0.88, 1,
+          ],
         },
       });
 
+      // Route label — below the dot
       map.addLayer({
         id: "sim-vehicles-label",
         type: "symbol",
         source: "sim-vehicles",
         layout: {
           "text-field": ["get", "routeName"],
-          "text-size": 9,
+          "text-size": ["case", ["==", ["get", "routeType"], 3], 8, 9],  // bus slightly smaller text
           "text-font": ["DIN Offc Pro Bold", "Arial Unicode MS Bold"],
-          "text-offset": [0, 2.2],
+          "text-offset": [0, 2.0],
           "text-anchor": "top",
           "text-allow-overlap": false,
           "text-ignore-placement": false,
