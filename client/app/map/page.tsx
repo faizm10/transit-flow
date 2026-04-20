@@ -331,6 +331,59 @@ export default function MapPage() {
   // ── Builder handlers ────────────────────────────────────────────────────
   function handleSaveRoute(route: CustomRoute) {
     saveRoute(route);
+
+    // ── Imperative map update ──────────────────────────────────────────────
+    // React's useEffect fires asynchronously after commit, which creates a
+    // visual gap: clearPreviewRoute() runs immediately (preview disappears)
+    // but the custom-routes GeoJSON source isn't updated until the effect fires.
+    // Fix: update both the GeoJSON source and the visibility filter right now,
+    // before clearing the preview, so the route is always visible.
+    const map = mapRef.current?.getMap();
+    if (map && mapLoaded) {
+      const existingIdx = customRoutes.findIndex((r) => r.id === route.id);
+      const updatedRoutes =
+        existingIdx >= 0
+          ? customRoutes.map((r, i) => (i === existingIdx ? route : r))
+          : [...customRoutes, route];
+
+      const source = map.getSource("custom-routes") as mapboxgl.GeoJSONSource | undefined;
+      if (source) {
+        source.setData({
+          type: "FeatureCollection",
+          features: updatedRoutes
+            .map((r) => {
+              const geometry = customRouteMapGeometry(r);
+              if (!geometry) return null;
+              return {
+                type: "Feature" as const,
+                geometry: { type: "LineString" as const, coordinates: geometry },
+                properties: {
+                  color: r.color,
+                  name: r.name || "Custom route",
+                  id: r.id,
+                  type: r.type,
+                  fromStop: r.stops[0]?.name ?? "",
+                  toStop: r.stops[r.stops.length - 1]?.name ?? "",
+                },
+              };
+            })
+            .filter((f): f is NonNullable<typeof f> => f !== null),
+        });
+      }
+
+      // If the filter is an explicit allow-list, add the new route id now
+      // (the React setRouteFilters + effect path also does this, but async)
+      if (routeFilters.customRouteIds !== null) {
+        const updatedIds = Array.from(
+          new Set([...routeFilters.customRouteIds, route.id])
+        );
+        mapRef.current?.setVisibleRouteFilter(
+          routeFilters.goRouteShortNames,
+          updatedIds
+        );
+      }
+    }
+
     setRouteFilters((current) => {
       if (current.customRouteIds === null) return current;
       return {
