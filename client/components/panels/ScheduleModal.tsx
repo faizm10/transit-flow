@@ -304,6 +304,30 @@ function normalizeTimetableTrips(route: CustomRoute): CustomTimetableTrip[] {
     }));
   }
 
+  // ── Expand banded / frequency schedules into individual trips ─────────────
+  // When a route was built with "every N minutes" or a banded headway schedule,
+  // pre-populate the timetable editor with the generated departure times so the
+  // user can see and adjust them without having to add each one manually.
+  // Use weekday (Monday) departures as the seed; the user can edit from there.
+  if (schedule.type === "banded" || schedule.type === "frequency") {
+    const weekdayDepartures = computeCustomDepartures(schedule, 1 /* Monday */);
+    if (weekdayDepartures.length === 0) return [];
+
+    const firstStop = route.stops[0];
+    return sortTimetableTrips(
+      weekdayDepartures.map((dep, i) => {
+        const departureSec = hhmmToSec(dep);
+        return {
+          id: `sched-gen-${i}-${dep}`,
+          departureSec,
+          stopTimes: firstStop
+            ? [{ stopId: firstStop.id, stopName: firstStop.name, arrivalSec: departureSec }]
+            : [],
+        };
+      }),
+    );
+  }
+
   return [];
 }
 
@@ -464,7 +488,13 @@ export default function ScheduleModal({
       const rows = activeTrip ? rowsForTimetableTrip(sel.route, activeTrip) : blankRowsForRoute(sel.route);
       setCustomTrips(trips);
       setSelectedCustomTripId(activeTrip?.id ?? null);
-      setEditor({ rows, legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
+
+      // Mark dirty when trips were auto-generated from a banded/frequency schedule
+      // (they haven't been saved as a timetable yet, so Save should be enabled)
+      const schedType = sel.route.schedule?.type;
+      const isGeneratedFromFreq = trips.length > 0 && (schedType === "banded" || schedType === "frequency");
+
+      setEditor({ rows, legDurations: [], directionsStatus: "idle", isDirty: isGeneratedFromFreq, isSaving: false });
       fetchLegDurations(rows);
     }
   }, [deptDay, fetchDepartures, fetchLegDurations]);
@@ -1595,6 +1625,9 @@ function CustomDepartureSelector({
 }) {
   const [newDeparture, setNewDeparture] = useState("");
   const selectedTrip = trips.find((trip) => trip.id === selectedTripId) ?? null;
+  // Trips have the "sched-gen-" prefix when they were auto-expanded from a
+  // banded/frequency schedule — show a hint so the user knows what to expect
+  const isFromFreqExpansion = trips.length > 0 && trips.every((t) => t.id.startsWith("sched-gen-"));
   const legacyDepartures = useMemo(
     () => computeCustomDepartures(route.schedule, deptDay),
     [route.schedule, deptDay],
@@ -1667,6 +1700,15 @@ function CustomDepartureSelector({
           </button>
         </div>
       </div>
+
+      {isFromFreqExpansion && (
+        <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
+          <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">Auto-generated</span>
+          <span className="text-[11px] text-blue-500">
+            Timings from your frequency setting — select any trip, adjust stop times, then Save.
+          </span>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {trips.length > 0 ? (

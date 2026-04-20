@@ -158,6 +158,12 @@ export default function BuilderWizard({
   );
   const [newDeparture, setNewDeparture] = useState("");
 
+  // ── Routing mode (bus only) ───────────────────────────────────────────────
+  // "standard"  — default Mapbox driving (fastest route)
+  // "via407"    — inserts a waypoint on Hwy 407/427 to route via the express
+  //               toll corridor (useful for Pearson Airport and western GTA trips)
+  const [routingMode, setRoutingMode] = useState<"standard" | "via407">("standard");
+
   // ── Route geometry state ──────────────────────────────────────────────────
   // For bus: computed from Directions API based on stops
   // For train: set from drawGeometry prop, then refined via edit
@@ -190,7 +196,7 @@ export default function BuilderWizard({
     }
   }, [drawGeometry, routeType]);
 
-  // ── Auto-fetch directions for bus when stops change ───────────────────────
+  // ── Auto-fetch directions for bus when stops or routing mode change ─────────
   useEffect(() => {
     if (routeType !== "bus" || stops.length < 2) {
       if (routeType === "bus" && stops.length < 2) {
@@ -203,7 +209,8 @@ export default function BuilderWizard({
       return;
     }
 
-    const key = stops.map((s) => `${s.lon},${s.lat}`).join("|");
+    // Include routingMode in the cache key so a mode switch triggers a re-fetch
+    const key = `${routingMode}:${stops.map((s) => `${s.lon},${s.lat}`).join("|")}`;
     if (key === lastFetchKeyRef.current) return;
 
     setFetchingRoute(true);
@@ -215,15 +222,63 @@ export default function BuilderWizard({
         if (!token) throw new Error("Mapbox token missing");
 
         // Directions API supports max 25 waypoints — sample evenly if more
-        const waypoints = stops.length <= 25
-          ? stops
+        let sampledStops = stops.length <= 25
+          ? [...stops]
           : stops.filter((_, i) =>
               i === 0 ||
               i === stops.length - 1 ||
               i % Math.ceil(stops.length / 23) === 0
             );
 
-        const coords = waypoints.map((s) => `${s.lon},${s.lat}`).join(";");
+        // ── Via 407/427 routing ───────────────────────────────────────────
+        // Insert a phantom waypoint ON Highway 407/427 so Mapbox is forced to
+        // route through the express toll corridor.  Only injected when:
+        //   1. The user chose "via 407" mode
+        //   2. Both end-stops are within the 407's geographic corridor
+        //      (roughly lng -80.0 to -78.8, the Burlington→Pickering span)
+        if (routingMode === "via407" && sampledStops.length >= 2) {
+          const first = sampledStops[0]!;
+          const last  = sampledStops[sampledStops.length - 1]!;
+          const GTA_W = -80.0, GTA_E = -78.8;
+          const inCorridor = (lon: number) => lon >= GTA_W && lon <= GTA_E;
+
+          if (inCorridor(first.lon) && inCorridor(last.lon)) {
+            // Pick the 407/427 junction point nearest to the route's mid-longitude.
+            // The 407 curves: we use a small lookup table of known lon→lat pairs.
+            const HWY407_SPINE: [number, number][] = [
+              [-79.960, 43.671], // Burlington / QEW area
+              [-79.870, 43.680], // Bronte
+              [-79.790, 43.688], // Oakville West
+              [-79.699, 43.699], // 407/427 junction (key airport point)
+              [-79.580, 43.742], // Hwy 400 / Brampton area
+              [-79.470, 43.776], // Hwy 27 / Woodbridge
+              [-79.380, 43.804], // Hwy 404 / Markham
+              [-79.210, 43.840], // Hwy 48 / Ajax
+              [-79.090, 43.854], // Pickering
+            ];
+
+            const midLon = (first.lon + last.lon) / 2;
+
+            // Find the closest spine point
+            const via407Point = HWY407_SPINE.reduce((best, pt) =>
+              Math.abs(pt[0] - midLon) < Math.abs(best[0] - midLon) ? pt : best
+            );
+
+            // Synthetic "via" stop — not a transit stop, just a routing anchor
+            const viaStop = {
+              id: "__via407__",
+              name: "via Hwy 407",
+              lat: via407Point[1],
+              lon: via407Point[0],
+              sequence: -1,
+            } as typeof sampledStops[0];
+
+            // Insert after the first stop
+            sampledStops = [sampledStops[0]!, viaStop, ...sampledStops.slice(1)];
+          }
+        }
+
+        const coords = sampledStops.map((s) => `${s.lon},${s.lat}`).join(";");
         const url =
           `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}` +
           `?access_token=${token}&geometries=geojson&overview=full`;
@@ -260,7 +315,7 @@ export default function BuilderWizard({
 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stops, routeType]);
+  }, [stops, routeType, routingMode]);
 
   // ── Snap/reroute trains along the local OSM rail graph ───────────────────
   useEffect(() => {
@@ -626,6 +681,38 @@ export default function BuilderWizard({
                   </div>
                 )}
 
+                {/* ── Routing mode toggle (GTA bus routes) ───────────────── */}
+                {stops.length >= 2 && (
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-2">
+                      Highway routing
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {(["standard", "via407"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setRoutingMode(mode)}
+                          className={`flex flex-col items-start gap-0.5 rounded-lg border px-2.5 py-2 text-left text-xs font-semibold transition-all ${
+                            routingMode === mode
+                              ? "border-[#007A33] bg-white text-[#007A33] shadow-sm"
+                              : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                          }`}
+                        >
+                          <span>
+                            {mode === "standard" ? "Standard (401/QEW)" : "Via 407 + 427 ✦toll"}
+                          </span>
+                          <span className={`text-[10px] font-normal leading-tight ${routingMode === mode ? "text-emerald-700" : "text-slate-400"}`}>
+                            {mode === "standard"
+                              ? "Fastest free highway"
+                              : "Express toll corridor · airport"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Route status + adjust button */}
                 {stops.length >= 2 && (
                   <div className="flex flex-col gap-2 pt-1">
@@ -645,6 +732,11 @@ export default function BuilderWizard({
                           <Navigation className="w-3.5 h-3.5 flex-shrink-0" />
                           Route calculated
                           {routeDistanceKm ? ` · ${routeDistanceKm} km` : ""}
+                          {routingMode === "via407" && (
+                            <span className="ml-auto text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                              via 407/427
+                            </span>
+                          )}
                         </div>
 
                         {isEditing ? (
