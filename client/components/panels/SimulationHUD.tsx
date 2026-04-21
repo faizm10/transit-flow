@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Play, Pause, Loader2, Train, Bus, ChevronUp, Pencil } from "lucide-react";
+import { Play, Pause, Loader2, Train, Bus, ChevronUp, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { customRouteSelectionId, formatSimTime } from "@/lib/simulation";
@@ -29,6 +29,7 @@ interface SimulationHUDProps {
   onRoutesChange: (routes: string[]) => void;
   onDateChange: (date: string) => void;
   onStartHourChange: (hour: number) => void;
+  onClear: () => void;
 }
 
 // Preset start times shown in the time picker
@@ -83,6 +84,7 @@ export default function SimulationHUD({
   onRoutesChange,
   onDateChange,
   onStartHourChange,
+  onClear,
 }: SimulationHUDProps) {
   const [routePickerOpen, setRoutePickerOpen] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
@@ -278,7 +280,7 @@ export default function SimulationHUD({
             {formatSimTime(currentTime)}
           </span>
 
-          {/* Speed + play */}
+          {/* Speed + play + clear */}
           <div className="flex items-center gap-2">
             <button
               className="text-xs font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg px-2 py-1.5 transition-colors tabular-nums w-10 text-center"
@@ -295,6 +297,13 @@ export default function SimulationHUD({
               ) : (
                 <Play className="w-4 h-4 ml-0.5" />
               )}
+            </button>
+            <button
+              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-red-50 hover:text-red-500 text-slate-400 flex items-center justify-center transition-colors"
+              onClick={onClear}
+              title="Clear simulation"
+            >
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>

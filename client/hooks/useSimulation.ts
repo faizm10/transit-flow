@@ -87,6 +87,19 @@ export function useSimulation(customRoutes: CustomRoute[] = []) {
     setState((prev) => ({ ...prev, playing: !prev.playing, error: null }));
   }, []);
 
+  const clearSimulation = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    shapeCachesRef.current.clear();
+    setState((prev) => ({
+      ...prev,
+      trips: [],
+      playing: false,
+      loading: false,
+      error: null,
+      currentTime: prev.startTime,
+    }));
+  }, []);
+
   const setCurrentTime = useCallback((t: number) => {
     setState((prev) => ({ ...prev, currentTime: t }));
   }, []);
@@ -183,6 +196,7 @@ export function useSimulation(customRoutes: CustomRoute[] = []) {
     togglePlay,
     cycleSpeed,
     loadSimulation,
+    clearSimulation,
     getTripById,
   };
 }

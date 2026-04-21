@@ -692,6 +692,7 @@ export default function MapPage() {
           onRoutesChange={sim.setSelectedRoutes}
           onDateChange={sim.setDate}
           onStartHourChange={sim.setStartHour}
+          onClear={sim.clearSimulation}
         />
       )}
 
