@@ -7,6 +7,7 @@
     "lint": "next typegen && tsc --noEmit",
     "test:e2e": "playwright test",
     "build": "next build",
+    "gtfs:derive": "python3 ../scripts/build_gtfs_derived.py",
     "start": "next start"
   },
   "dependencies": {

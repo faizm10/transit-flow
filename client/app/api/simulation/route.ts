@@ -4,161 +4,62 @@ import { join } from "path";
 import { colorForRoute } from "@/lib/routeColors";
 import { SimTrip, SimStop, SimulationData } from "@/lib/simulation";
 
-// ── Paths ─────────────────────────────────────────────────────────────────────
-// GTFS raw files sit one level above the Next.js project root
-const GTFS_DIR = join(process.cwd(), "../server/data/gotransit");
-const PUBLIC_DIR = join(process.cwd(), "public/gotransit/derived");
-
-const MAX_OUTPUT_TRIPS = 2000;   // raised to cover trains + buses
+const DERIVED_DIR = join(process.cwd(), "public/gotransit/derived");
+const MAX_OUTPUT_TRIPS = 2000;
 const MAX_SHAPE_POINTS = 300;
 
-// ── Internal types ─────────────────────────────────────────────────────────────
-interface StopInfo { lat: number; lon: number; name: string }
-interface RouteInfo { shortName: string; longName: string; type: number }
-interface RawTrip {
-  route_short_name: string;
-  route_long_name: string;
-  route_type: number;
+// ── Derived-data types (matches build_gtfs_derived.py output) ────────────────
+interface StopLookup  { lat: number; lon: number; name: string }
+interface SimStopRaw  { stop_id: string; t: number; seq: number }
+interface SimTripRaw  {
   trip_id: string;
-  headsign: string;
-  shape_id: string;
+  route_short_name: string;
+  route_long_name:  string;
+  route_type:       number;
+  shape_id:         string | null;
+  stops:            SimStopRaw[];
 }
-interface RawStopTime {
-  stop_id: string;
-  departure_secs: number;
-  stop_sequence: number;
-}
+
 interface AppData {
-  stops: Map<string, StopInfo>;
+  stopsLookup:    Map<string, StopLookup>;
   shapesByShapeId: Map<string, [number, number][]>;
-  tripsByServiceId: Map<string, RawTrip[]>;
+  tripsByDow:     Map<number, SimTripRaw[]>;   // 0=Sun … 6=Sat
 }
 
-// ── Module-level cache (populated once per server process) ────────────────────
+// ── Module-level cache ────────────────────────────────────────────────────────
 let appData: AppData | null = null;
-const stopTimesByServiceIdCache = new Map<string, Map<string, RawStopTime[]>>();
-
-function gtfsTimeToSecs(t: string): number {
-  const [h, m, s] = t.split(":").map(Number);
-  return h * 3600 + m * 60 + (s || 0);
-}
-
-function parseLines(raw: string): string[] {
-  return raw.replace(/^\uFEFF/, "").split(/\r?\n/).filter(Boolean);
-}
 
 function loadData(): AppData {
   if (appData) return appData;
 
-  // 1 ── Stops
-  const stops = new Map<string, StopInfo>();
-  {
-    const lines = parseLines(readFileSync(join(GTFS_DIR, "stops.txt"), "utf-8"));
-    const h = lines[0].split(",");
-    const iId = h.indexOf("stop_id"), iName = h.indexOf("stop_name");
-    const iLat = h.indexOf("stop_lat"), iLon = h.indexOf("stop_lon");
-    for (let i = 1; i < lines.length; i++) {
-      const p = lines[i].split(",");
-      if (p.length < 4) continue;
-      stops.set(p[iId], { lat: parseFloat(p[iLat]), lon: parseFloat(p[iLon]), name: p[iName] });
-    }
-  }
+  // Stops
+  const stopsLookup = new Map<string, StopLookup>(
+    Object.entries(
+      JSON.parse(readFileSync(join(DERIVED_DIR, "stops_lookup.json"), "utf-8")) as Record<string, StopLookup>,
+    ),
+  );
 
-  // 2 ── Route id → metadata  (e.g. "01260426-GT" → Kitchener rail)
-  const routesById = new Map<string, RouteInfo>();
-  {
-    const lines = parseLines(readFileSync(join(GTFS_DIR, "routes.txt"), "utf-8"));
-    const h = lines[0].split(",");
-    const iId = h.indexOf("route_id"), iShort = h.indexOf("route_short_name");
-    const iLong = h.indexOf("route_long_name"), iType = h.indexOf("route_type");
-    for (let i = 1; i < lines.length; i++) {
-      const p = lines[i].split(",");
-      if (p.length < 2) continue;
-      routesById.set(p[iId], {
-        shortName: p[iShort],
-        longName: p[iLong] ?? p[iShort],
-        type: Number(p[iType] ?? 3),
-      });
-    }
-  }
-
-  // 3 ── Shapes from variant_lines.geojson indexed by shape_id
+  // Shapes from variant_lines.geojson (already in derived/)
   const shapesByShapeId = new Map<string, [number, number][]>();
-  {
-    const gj = JSON.parse(readFileSync(join(PUBLIC_DIR, "variant_lines.geojson"), "utf-8")) as {
-      features: { properties: { shape_id: string }; geometry: { coordinates: [number, number][] } }[];
-    };
-    for (const f of gj.features) {
-      const sid = f.properties?.shape_id;
-      if (sid && f.geometry?.coordinates && !shapesByShapeId.has(sid)) {
-        shapesByShapeId.set(sid, f.geometry.coordinates);
-      }
+  const gj = JSON.parse(readFileSync(join(DERIVED_DIR, "variant_lines.geojson"), "utf-8")) as {
+    features: { properties: { shape_id: string }; geometry: { coordinates: [number, number][] } }[];
+  };
+  for (const f of gj.features) {
+    const sid = f.properties?.shape_id;
+    if (sid && f.geometry?.coordinates && !shapesByShapeId.has(sid)) {
+      shapesByShapeId.set(sid, f.geometry.coordinates);
     }
   }
 
-  // 4 ── Trips indexed by service_id
-  const tripsByServiceId = new Map<string, RawTrip[]>();
-  {
-    const lines = parseLines(readFileSync(join(GTFS_DIR, "trips.txt"), "utf-8"));
-    const h = lines[0].split(",");
-    const iRouteId = h.indexOf("route_id"), iServiceId = h.indexOf("service_id");
-    const iTripId = h.indexOf("trip_id"), iHeadsign = h.indexOf("trip_headsign");
-    const iShapeId = h.indexOf("shape_id");
-    for (let i = 1; i < lines.length; i++) {
-      const p = lines[i].split(",");
-      if (p.length < 5) continue;
-      const serviceId = p[iServiceId];
-      const routeInfo = routesById.get(p[iRouteId]);
-      const shortName = routeInfo?.shortName ?? p[iRouteId].split("-").pop() ?? "";
-      const trip: RawTrip = {
-        route_short_name: shortName,
-        route_long_name: routeInfo?.longName ?? shortName,
-        route_type: routeInfo?.type ?? 3,
-        trip_id: p[iTripId],
-        headsign: p[iHeadsign],
-        shape_id: p[iShapeId],
-      };
-      if (!tripsByServiceId.has(serviceId)) tripsByServiceId.set(serviceId, []);
-      tripsByServiceId.get(serviceId)!.push(trip);
-    }
+  // Trips by day-of-week
+  const tripsByDow = new Map<number, SimTripRaw[]>();
+  const raw = JSON.parse(readFileSync(join(DERIVED_DIR, "sim_trips_by_dow.json"), "utf-8")) as Record<string, SimTripRaw[]>;
+  for (const [dow, trips] of Object.entries(raw)) {
+    tripsByDow.set(Number(dow), trips);
   }
 
-  appData = { stops, shapesByShapeId, tripsByServiceId };
+  appData = { stopsLookup, shapesByShapeId, tripsByDow };
   return appData;
-}
-
-function loadStopTimesForService(serviceId: string, tripsForDate: RawTrip[]): Map<string, RawStopTime[]> {
-  const cached = stopTimesByServiceIdCache.get(serviceId);
-  if (cached) return cached;
-
-  const tripIdsForDate = new Set(tripsForDate.map((trip) => trip.trip_id));
-  const stopTimesByTripId = new Map<string, RawStopTime[]>();
-  const lines = parseLines(readFileSync(join(GTFS_DIR, "stop_times.txt"), "utf-8"));
-  const h = lines[0].split(",");
-  const iTripId = h.indexOf("trip_id"), iDepart = h.indexOf("departure_time");
-  const iStopId = h.indexOf("stop_id"), iSeq = h.indexOf("stop_sequence");
-
-  for (let i = 1; i < lines.length; i++) {
-    const p = lines[i].split(",");
-    if (p.length < 5) continue;
-    const tripId = p[iTripId];
-    if (!tripIdsForDate.has(tripId)) continue;
-
-    const st: RawStopTime = {
-      stop_id: p[iStopId],
-      departure_secs: gtfsTimeToSecs(p[iDepart]),
-      stop_sequence: parseInt(p[iSeq]),
-    };
-    if (!stopTimesByTripId.has(tripId)) stopTimesByTripId.set(tripId, []);
-    stopTimesByTripId.get(tripId)!.push(st);
-  }
-
-  for (const times of stopTimesByTripId.values()) {
-    times.sort((a, b) => a.stop_sequence - b.stop_sequence);
-  }
-
-  stopTimesByServiceIdCache.set(serviceId, stopTimesByTripId);
-  return stopTimesByTripId;
 }
 
 // ── Shape helpers ─────────────────────────────────────────────────────────────
@@ -174,7 +75,7 @@ function cumDists(shape: [number, number][]): number[] {
 
 function projectStopFrac(
   lon: number, lat: number,
-  shape: [number, number][], shapeDists: number[]
+  shape: [number, number][], shapeDists: number[],
 ): number {
   const total = shapeDists[shapeDists.length - 1];
   if (total === 0) return 0;
@@ -199,6 +100,11 @@ function toHHMM(sec: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+function gtfsTimeToSecs(t: string): number {
+  const [h, m, s] = t.split(":").map(Number);
+  return h * 3600 + m * 60 + (s || 0);
+}
+
 // ── Route handler ─────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
@@ -208,61 +114,53 @@ export async function GET(req: NextRequest) {
 
   const requestedRoutes = new Set(routesParam.split(",").map(s => s.trim()).filter(Boolean));
   const startSec = gtfsTimeToSecs(startParam + ":00");
-  // Always a 12-hour window. endSec may exceed 86400 for overnight windows
-  // (e.g. start=20:00 → endSec=115200 = 08:00 the next day). GO Transit GTFS
-  // stores overnight trips in the same service_id using times like 25:xx:xx,
-  // so a single service lookup covers the full overnight span.
-  const endSec = startSec + 43200;
+  const endSec   = startSec + 43200;
 
-  // service_id = date without dashes: "2026-04-18" → "20260418"
-  const serviceId = dateParam.replace(/-/g, "");
+  // Map date → JS day-of-week (0=Sun … 6=Sat)
+  const dateObj = new Date(dateParam + "T12:00:00Z");
+  const dow     = dateObj.getUTCDay();
 
   try {
-    const { stops, shapesByShapeId, tripsByServiceId } = loadData();
-    const tripsForDate = tripsByServiceId.get(serviceId) ?? [];
-    const stopTimesByTripId = loadStopTimesForService(serviceId, tripsForDate);
+    const { stopsLookup, shapesByShapeId, tripsByDow } = loadData();
+    const rawTrips = tripsByDow.get(dow) ?? [];
     const trips: SimTrip[] = [];
 
-    for (const raw of tripsForDate) {
+    for (const raw of rawTrips) {
       if (trips.length >= MAX_OUTPUT_TRIPS) break;
       if (!requestedRoutes.has(raw.route_short_name)) continue;
+      if (raw.stops.length < 2) continue;
 
-      const rawStopTimes = stopTimesByTripId.get(raw.trip_id);
-      if (!rawStopTimes || rawStopTimes.length < 2) continue;
+      const departSec = raw.stops[0].t;
+      const arriveSec = raw.stops[raw.stops.length - 1].t;
 
-      const departSec = rawStopTimes[0].departure_secs;
-      const arriveSec = rawStopTimes[rawStopTimes.length - 1].departure_secs;
-
-      // Skip trips fully outside the requested time window
       if (departSec >= endSec || arriveSec <= startSec) continue;
 
-      // Shape: from geojson by shape_id, else connect stop coordinates
-      const rawShape = shapesByShapeId.get(raw.shape_id);
+      const rawShape = raw.shape_id ? shapesByShapeId.get(raw.shape_id) : undefined;
       const shape: [number, number][] = rawShape
         ? downsample(rawShape, MAX_SHAPE_POINTS)
         : downsample(
-            rawStopTimes
-              .map(st => { const s = stops.get(st.stop_id); return s ? [s.lon, s.lat] as [number, number] : null; })
+            raw.stops
+              .map(st => { const s = stopsLookup.get(st.stop_id); return s ? [s.lon, s.lat] as [number, number] : null; })
               .filter((x): x is [number, number] => x !== null),
-            MAX_SHAPE_POINTS
+            MAX_SHAPE_POINTS,
           );
 
       if (shape.length < 2) continue;
 
       const shapeDists = cumDists(shape);
 
-      const timedStops: SimStop[] = rawStopTimes.map(st => {
-        const stop = stops.get(st.stop_id);
+      const timedStops: SimStop[] = raw.stops.map(st => {
+        const stop = stopsLookup.get(st.stop_id);
         return {
-          t: st.departure_secs,
-          lat: stop?.lat ?? 0,
-          lon: stop?.lon ?? 0,
+          t:         st.t,
+          lat:       stop?.lat ?? 0,
+          lon:       stop?.lon ?? 0,
           shapeFrac: stop ? projectStopFrac(stop.lon, stop.lat, shape, shapeDists) : 0,
           stop_name: stop?.name,
         };
       });
 
-      // Enforce monotonic shape fractions (projection noise fix)
+      // Enforce monotonic shape fractions
       for (let i = 1; i < timedStops.length; i++) {
         if (timedStops[i].shapeFrac < timedStops[i - 1].shapeFrac) {
           timedStops[i].shapeFrac = timedStops[i - 1].shapeFrac;
@@ -272,14 +170,14 @@ export async function GET(req: NextRequest) {
       trips.push({
         trip_id:          raw.trip_id,
         route_short_name: raw.route_short_name,
-        route_long_name:  raw.headsign || raw.route_long_name,
+        route_long_name:  raw.route_long_name,
         route_type:       raw.route_type,
         color:            colorForRoute(raw.route_short_name, raw.route_type),
         source:           "gotransit",
         stops:            timedStops,
         shape,
-        start_stop_name:  stops.get(rawStopTimes[0].stop_id)?.name ?? "",
-        end_stop_name:    stops.get(rawStopTimes[rawStopTimes.length - 1].stop_id)?.name ?? "",
+        start_stop_name:  stopsLookup.get(raw.stops[0].stop_id)?.name ?? "",
+        end_stop_name:    stopsLookup.get(raw.stops[raw.stops.length - 1].stop_id)?.name ?? "",
         start_time:       toHHMM(departSec),
         end_time:         toHHMM(arriveSec),
         departSec,
