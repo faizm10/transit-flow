@@ -14,7 +14,7 @@ import { CustomRoute, CustomStop, CustomSchedule, CustomStation } from "@/lib/gt
 import { CUSTOM_ROUTE_COLORS } from "@/lib/routeColors";
 import { v4 as uuidv4 } from "uuid";
 
-type Step = "type" | "name" | "stops" | "schedule" | "review";
+type Step = "type" | "draw" | "name" | "stops" | "schedule" | "review";
 
 interface BuilderWizardProps {
   onSave: (route: CustomRoute) => void;
@@ -179,6 +179,8 @@ export default function BuilderWizard({
 
   // Track last fetched stop IDs to avoid redundant calls
   const lastFetchKeyRef = useRef<string>("");
+  // Prevent re-seeding terminus stops if user clears them
+  const stopsSeededRef = useRef(false);
 
   // ── Notify parent when route type changes ────────────────────────────────
   useEffect(() => {
@@ -371,6 +373,26 @@ export default function BuilderWizard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawGeometry, routeType, stops]);
 
+  // ── Auto-seed terminus stops when entering stops step for train ──────────
+  useEffect(() => {
+    if (
+      step === "stops" &&
+      routeType === "train" &&
+      !stopsSeededRef.current &&
+      stops.length === 0 &&
+      routeGeometry && routeGeometry.length >= 2
+    ) {
+      stopsSeededRef.current = true;
+      const first = routeGeometry[0];
+      const last  = routeGeometry[routeGeometry.length - 1];
+      setStops([
+        { id: uuidv4(), name: "Terminal A", lat: first[1], lon: first[0], sequence: 1 },
+        { id: uuidv4(), name: "Terminal B", lat: last[1],  lon: last[0],  sequence: 2 },
+      ]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
   // ── Sync route geometry to map preview ───────────────────────────────────
   useEffect(() => {
     if (routeGeometry && routeGeometry.length >= 2 && !isEditing) {
@@ -496,7 +518,9 @@ export default function BuilderWizard({
     onCancel();
   }
 
-  const steps: Step[] = ["type", "name", "stops", "schedule", "review"];
+  const steps: Step[] = routeType === "train"
+    ? ["type", "draw", "name", "stops", "schedule", "review"]
+    : ["type", "name", "stops", "schedule", "review"];
   const stepIndex = steps.indexOf(step);
 
   // ── Step renderer ────────────────────────────────────────────────────────
@@ -519,7 +543,7 @@ export default function BuilderWizard({
       <div className="h-1 bg-slate-100">
         <div
           className="h-full bg-[#007A33] transition-all duration-300"
-          style={{ width: `${(stepIndex + 1) * 20}%` }}
+          style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }}
         />
       </div>
 
@@ -538,7 +562,15 @@ export default function BuilderWizard({
                     ? `${c} border-current`
                     : "border-slate-100 bg-white hover:border-slate-200"
                 }`}
-                onClick={() => { setRouteType(type); setStep("name"); }}
+                onClick={() => {
+                  setRouteType(type);
+                  if (type === "train") {
+                    setStep("draw");
+                    onDrawRequest();
+                  } else {
+                    setStep("name");
+                  }
+                }}
               >
                 <div className={`w-10 h-10 rounded-xl ${c} flex items-center justify-center`}>
                   <Icon className={`w-5 h-5 ${iconColor}`} />
@@ -553,7 +585,93 @@ export default function BuilderWizard({
           </div>
         )}
 
-        {/* ── Step 2: Name & style ────────────────────────────────────────── */}
+        {/* ── Step 2 (train only): Pave rail corridor ─────────────────────── */}
+        {step === "draw" && (
+          <div className="flex flex-col gap-4">
+            <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3.5 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Train className="w-4 h-4 text-emerald-700" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Pave your rail corridor</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Click on the map to lay track points. Double-click or press Enter to finish.
+                </p>
+              </div>
+            </div>
+
+            {!routeGeometry && !fetchingRoute && (
+              <button
+                className="flex items-center gap-2 text-sm text-[#007A33] font-medium py-3 px-4 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                onClick={onDrawRequest}
+              >
+                <Pencil className="w-4 h-4" />
+                Draw on map
+                <span className="ml-auto text-xs text-emerald-600 opacity-70">click to place points</span>
+              </button>
+            )}
+
+            {fetchingRoute && (
+              <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-3">
+                <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                Snapping to rail network…
+              </div>
+            )}
+
+            {!fetchingRoute && routeGeometry && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2.5">
+                  <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                  {routeDurationSecs
+                    ? `Rail route · ~${Math.round(routeDurationSecs / 60)} min${routeDistanceKm ? ` · ${routeDistanceKm} km` : ""}`
+                    : `Track paved · ${routeGeometry.length} points`}
+                </div>
+
+                {routeWarnings.length > 0 && (
+                  <div className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                    {routeWarnings[0]}
+                  </div>
+                )}
+
+                {isEditing ? (
+                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                    <Move className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                    <span className="text-xs text-amber-700 font-medium flex-1">Drag vertices to reshape</span>
+                    <button
+                      onClick={handleEditDone}
+                      className="text-xs font-semibold text-[#007A33] hover:underline whitespace-nowrap"
+                    >
+                      Done ✓
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                      onClick={handleEditRequest}
+                    >
+                      <Move className="w-3.5 h-3.5 text-slate-400" />
+                      Fine-tune vertices
+                    </button>
+                    <button
+                      className="flex items-center justify-center gap-1.5 text-sm text-slate-500 py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                      onClick={() => { setRouteGeometry(null); onDrawRequest(); }}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Redraw
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <p className="text-xs text-slate-400 text-center">
+              Your track snaps to the local rail network where possible
+            </p>
+          </div>
+        )}
+
+        {/* ── Step 3 (was 2): Name & style ────────────────────────────────── */}
         {step === "name" && (
           <div className="flex flex-col gap-4">
             <div>
@@ -1061,6 +1179,15 @@ export default function BuilderWizard({
                       : "None"}
                   </span>
                 </div>
+                {routeType === "train" && (
+                  <button
+                    className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+                    onClick={() => { setRouteGeometry(null); setStep("draw"); onDrawRequest(); }}
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Redraw track
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1108,13 +1235,18 @@ export default function BuilderWizard({
         {step !== "review" ? (
           <Button
             className="rounded-xl flex-1 bg-[#007A33] hover:bg-[#005f28] text-white"
+            disabled={step === "draw" && (!routeGeometry || fetchingRoute)}
             onClick={() => {
               if (isEditing) handleEditDone();
               const i = steps.indexOf(step);
               if (i < steps.length - 1) setStep(steps[i + 1]);
             }}
           >
-            Next <ArrowRight className="w-4 h-4 ml-1" />
+            {step === "draw" ? (
+              routeGeometry ? <>Confirm track <ArrowRight className="w-4 h-4 ml-1" /></> : "Draw first"
+            ) : (
+              <>Next <ArrowRight className="w-4 h-4 ml-1" /></>
+            )}
           </Button>
         ) : (
           <Button

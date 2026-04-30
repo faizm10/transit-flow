@@ -666,7 +666,7 @@ export default function MapPage() {
 
       {/* ── Draw guide overlay ──────────────────────────────────────────── */}
       {isDrawing && (
-        <DrawGuide onFinish={finishDrawing} onCancel={cancelDrawing} />
+        <DrawGuide onFinish={finishDrawing} onCancel={cancelDrawing} mode={isTrainDesignMode ? "rail" : "route"} />
       )}
 
       {/* ── Simulation HUD ──────────────────────────────────────────────── */}

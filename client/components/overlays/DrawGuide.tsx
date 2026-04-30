@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 interface DrawGuideProps {
   onFinish: () => void;
   onCancel: () => void;
+  mode?: "rail" | "route";
 }
 
-export default function DrawGuide({ onFinish, onCancel }: DrawGuideProps) {
+export default function DrawGuide({ onFinish, onCancel, mode = "route" }: DrawGuideProps) {
   const [hintVisible, setHintVisible] = useState(true);
 
   useEffect(() => {
@@ -24,7 +25,9 @@ export default function DrawGuide({ onFinish, onCancel }: DrawGuideProps) {
         <div className="bg-slate-900/90 backdrop-blur-xl text-white rounded-2xl px-5 py-3.5 shadow-xl flex items-center gap-3">
           <MousePointer2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span className="text-sm font-medium">
-            Click to place points along the new route
+            {mode === "rail"
+              ? "Click to pave your rail corridor"
+              : "Click to place points along the new route"}
           </span>
         </div>
 
@@ -32,7 +35,11 @@ export default function DrawGuide({ onFinish, onCancel }: DrawGuideProps) {
         {hintVisible && (
           <div className="bg-white/90 backdrop-blur-md rounded-xl px-4 py-2.5 shadow-md flex items-center gap-1.5 text-xs text-slate-500 animate-in fade-in slide-in-from-top-2">
             <DotLine />
-            <span>Double-click or press Enter to finish</span>
+            <span>
+              {mode === "rail"
+                ? "Double-click to finish laying track"
+                : "Double-click or press Enter to finish"}
+            </span>
           </div>
         )}
 

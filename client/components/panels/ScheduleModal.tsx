@@ -13,6 +13,8 @@ import {
   EnrichedRoute, CustomRoute, CustomSchedule, CustomTimetableTrip, StopTimeEntry,
   defaultBandedSchedule,
 } from "@/lib/gtfs";
+import { useGtfsOverrides } from "@/hooks/useGtfsOverrides";
+import { encodeOverridesParam, normalizeTimes } from "@/lib/gtfsOverrides";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -360,6 +362,7 @@ async function fetchDirectionsChunk(stops: StopRow[], token: string): Promise<nu
 export default function ScheduleModal({
   open, customRoutes, onSaveSchedule, onClose,
 }: ScheduleModalProps) {
+  const gtfsOverrides = useGtfsOverrides();
   // ── Route list state ─────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterTab>("all");
@@ -391,8 +394,27 @@ export default function ScheduleModal({
   const [customTrips, setCustomTrips] = useState<CustomTimetableTrip[]>([]);
   const [selectedCustomTripId, setSelectedCustomTripId] = useState<string | null>(null);
 
+  // ── GO edit state (local override mode) ───────────────────────────────────
+  const [goStopTimesEditing, setGoStopTimesEditing] = useState(false);
+  const [goDeparturesEditing, setGoDeparturesEditing] = useState(false);
+  const [goDeparturesDraft, setGoDeparturesDraft] = useState<string[]>([]);
+  const [goDeparturesDirty, setGoDeparturesDirty] = useState(false);
+  const [goDeparturesNewTime, setGoDeparturesNewTime] = useState("");
+
   const panelRef = useRef<HTMLDivElement>(null);
   const hasFetchedIndex = useRef(false);
+
+  const encodeDeparturesOverridesFor = useCallback((routeShortName: string, day: number) => {
+    const departuresByKey = gtfsOverrides.getDepartureOverridesForRouteDay(routeShortName, day);
+    if (Object.keys(departuresByKey).length === 0) return null;
+    return encodeOverridesParam({ departuresByKey });
+  }, [gtfsOverrides]);
+
+  const encodeStopTimesOverrideFor = useCallback((variantId: string) => {
+    const stopOverride = gtfsOverrides.getStopTimesOverride(variantId);
+    if (!stopOverride) return null;
+    return encodeOverridesParam({ stopTimesByVariantId: { [variantId]: stopOverride } });
+  }, [gtfsOverrides]);
 
   // ── Fetch GO routes on open ──────────────────────────────────────────────
   useEffect(() => {
@@ -430,7 +452,11 @@ export default function ScheduleModal({
       ...prev, status: "loading", isFirstLoad: isFirst,
     }));
     try {
-      const res = await fetch(`/api/departures?route=${shortName}&day=${day}`);
+      const overrides = encodeDeparturesOverridesFor(shortName, day);
+      const url = overrides
+        ? `/api/departures?route=${encodeURIComponent(shortName)}&day=${day}&overrides=${encodeURIComponent(overrides)}`
+        : `/api/departures?route=${encodeURIComponent(shortName)}&day=${day}`;
+      const res = await fetch(url);
       const data = await res.json();
       hasFetchedIndex.current = true;
       const directions: DepartureDirection[] = data.directions ?? [];
@@ -449,7 +475,7 @@ export default function ScheduleModal({
         ...prev, status: "error", error: "Failed to load departures", isFirstLoad: false,
       }));
     }
-  }, []);
+  }, [encodeDeparturesOverridesFor]);
 
   // ── Fetch leg durations (Mapbox Directions) ───────────────────────────────
   const fetchLegDurations = useCallback(async (rows: StopRow[]) => {
@@ -468,6 +494,28 @@ export default function ScheduleModal({
     }
   }, []);
 
+  const fetchGoStopTimes = useCallback(async (variantId: string) => {
+    setEditor({ rows: [], legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
+    try {
+      const overrides = encodeStopTimesOverrideFor(variantId);
+      const url = overrides
+        ? `/api/schedule?variant_id=${encodeURIComponent(variantId)}&overrides=${encodeURIComponent(overrides)}`
+        : `/api/schedule?variant_id=${encodeURIComponent(variantId)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const rows: StopRow[] = (data.stops ?? []).map((s: {
+        stop_id?: string; stop_name: string; lat: number; lon: number; sequence: number; estimated_time: string;
+      }) => ({
+        stopId: s.stop_id ?? String(s.sequence), name: s.stop_name,
+        lat: s.lat, lon: s.lon, sequence: s.sequence, timeHHMM: s.estimated_time,
+      }));
+      setEditor({ rows, legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
+      fetchLegDurations(rows);
+    } catch {
+      // ignore
+    }
+  }, [encodeStopTimesOverrideFor, fetchLegDurations]);
+
   // ── Select a route ────────────────────────────────────────────────────────
   const handleSelectRoute = useCallback(async (sel: SelectedRoute) => {
     setSelected(sel);
@@ -476,6 +524,11 @@ export default function ScheduleModal({
     setSelectedDestination(null);
     setCustomTrips([]);
     setSelectedCustomTripId(null);
+    setGoStopTimesEditing(false);
+    setGoDeparturesEditing(false);
+    setGoDeparturesDraft([]);
+    setGoDeparturesDirty(false);
+    setGoDeparturesNewTime("");
 
     if (sel.kind === "go") {
       setGoViewMode("departures");
@@ -506,21 +559,10 @@ export default function ScheduleModal({
     setSelected(newSel);
     setSelectedDeparture(null);
     if (goViewMode === "stoptimes") {
-      setEditor({ rows: [], legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
-      try {
-        const res = await fetch(`/api/schedule?variant_id=${variantId}`);
-        const data = await res.json();
-        const rows: StopRow[] = (data.stops ?? []).map((s: {
-          stop_id?: string; stop_name: string; lat: number; lon: number; sequence: number; estimated_time: string;
-        }) => ({
-          stopId: s.stop_id ?? String(s.sequence), name: s.stop_name,
-          lat: s.lat, lon: s.lon, sequence: s.sequence, timeHHMM: s.estimated_time,
-        }));
-        setEditor({ rows, legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
-        fetchLegDurations(rows);
-      } catch { /* ignore */ }
+      setGoStopTimesEditing(false);
+      fetchGoStopTimes(variantId);
     }
-  }, [selected, goViewMode, fetchLegDurations]);
+  }, [selected, goViewMode, fetchGoStopTimes]);
 
   // ── Switch GO view mode ───────────────────────────────────────────────────
   const handleGoViewModeChange = useCallback(async (mode: GoViewMode) => {
@@ -547,28 +589,21 @@ export default function ScheduleModal({
       }
 
       if (!editor) {
-        setEditor({ rows: [], legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
-        try {
-          const res = await fetch(`/api/schedule?variant_id=${variantId}`);
-          const data = await res.json();
-          const rows: StopRow[] = (data.stops ?? []).map((s: {
-            stop_id?: string; stop_name: string; lat: number; lon: number; sequence: number; estimated_time: string;
-          }) => ({
-            stopId: s.stop_id ?? String(s.sequence), name: s.stop_name,
-            lat: s.lat, lon: s.lon, sequence: s.sequence, timeHHMM: s.estimated_time,
-          }));
-          setEditor({ rows, legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
-          fetchLegDurations(rows);
-        } catch { /* ignore */ }
+        setGoStopTimesEditing(false);
+        fetchGoStopTimes(variantId);
       }
     }
-  }, [selected, editor, deptState.status, deptDay, deptDirection, selectedDestination, fetchDepartures, fetchLegDurations]);
+  }, [selected, editor, deptState.status, deptDay, deptDirection, selectedDestination, fetchDepartures, fetchGoStopTimes]);
 
   // ── Day change ────────────────────────────────────────────────────────────
   const handleDayChange = useCallback((day: number) => {
     setDeptDay(day);
     setSelectedDeparture(null);
     setSelectedDestination(null);
+    setGoDeparturesEditing(false);
+    setGoDeparturesDirty(false);
+    setGoDeparturesDraft([]);
+    setGoDeparturesNewTime("");
     if (selected?.kind === "go") {
       fetchDepartures(selected.route.short_name, day);
     }
@@ -579,6 +614,10 @@ export default function ScheduleModal({
     setDeptDirection(dir);
     setSelectedDeparture(null);
     setSelectedDestination(null);
+    setGoDeparturesEditing(false);
+    setGoDeparturesDirty(false);
+    setGoDeparturesDraft([]);
+    setGoDeparturesNewTime("");
   }, []);
 
   const selectedCustomTrip = useMemo(
@@ -622,6 +661,80 @@ export default function ScheduleModal({
       ))));
     }
   }, [editor, selected, selectedCustomTripId]);
+
+  // ── Current direction object (GO departures) ──────────────────────────────
+  // Defined before any callbacks that reference it to avoid TDZ at runtime.
+  const currentDir = useMemo(
+    () => deptState.directions.find((d) => d.directionId === deptDirection) ?? null,
+    [deptState.directions, deptDirection],
+  );
+
+  const activeGoHeadsign = useMemo(() => {
+    if (!currentDir) return null;
+    return selectedDestination ?? currentDir.destinations[0]?.headsign ?? currentDir.headsign ?? null;
+  }, [currentDir, selectedDestination]);
+
+  const handleGoSaveStopTimesOverride = useCallback(async () => {
+    if (selected?.kind !== "go" || !editor) return;
+    const variantId = selected.variantId;
+    const byStopId: Record<string, string> = {};
+    for (const row of editor.rows) {
+      if (row.timeHHMM) byStopId[row.stopId] = row.timeHHMM;
+    }
+    gtfsOverrides.setVariantStopTimesOverride(variantId, { byStopId });
+    toast.success("GTFS override saved");
+    setGoStopTimesEditing(false);
+    // Re-fetch so the UI reflects the merged canonical view
+    await fetchGoStopTimes(variantId);
+  }, [selected, editor, gtfsOverrides, fetchGoStopTimes]);
+
+  const handleGoDiscardStopTimesEdits = useCallback(async () => {
+    if (selected?.kind !== "go") return;
+    setGoStopTimesEditing(false);
+    await fetchGoStopTimes(selected.variantId);
+  }, [selected, fetchGoStopTimes]);
+
+  const seedGoDeparturesDraft = useCallback(() => {
+    if (selected?.kind !== "go") return;
+    if (!currentDir || !activeGoHeadsign) return;
+    const dest = currentDir.destinations.find((d) => d.headsign === activeGoHeadsign);
+    const times = (dest?.departures ?? []).map((d) => d.time);
+    setGoDeparturesDraft(times);
+    setGoDeparturesDirty(false);
+    setGoDeparturesNewTime("");
+  }, [selected, currentDir, activeGoHeadsign]);
+
+  const handleGoToggleDeparturesEdit = useCallback(() => {
+    setGoDeparturesEditing((prev) => {
+      const next = !prev;
+      if (next) seedGoDeparturesDraft();
+      else {
+        setGoDeparturesDraft([]);
+        setGoDeparturesDirty(false);
+        setGoDeparturesNewTime("");
+      }
+      return next;
+    });
+  }, [seedGoDeparturesDraft]);
+
+  const handleGoSaveDeparturesOverride = useCallback(async () => {
+    if (selected?.kind !== "go") return;
+    if (!activeGoHeadsign) return;
+    const routeShortName = selected.route.short_name;
+    gtfsOverrides.setDepartureOverride(
+      { routeShortName, dayOfWeek: deptDay, directionId: deptDirection, headsign: activeGoHeadsign },
+      goDeparturesDraft,
+    );
+    toast.success("Departures override saved");
+    setGoDeparturesEditing(false);
+    setGoDeparturesDirty(false);
+    setGoDeparturesNewTime("");
+    await fetchDepartures(routeShortName, deptDay);
+  }, [selected, activeGoHeadsign, gtfsOverrides, deptDay, deptDirection, goDeparturesDraft, fetchDepartures]);
+
+  const handleGoDiscardDeparturesEdits = useCallback(() => {
+    seedGoDeparturesDraft();
+  }, [seedGoDeparturesDraft]);
 
   const handleCustomSelectTrip = useCallback((tripId: string) => {
     if (selected?.kind !== "custom" || !editor) return;
@@ -751,12 +864,6 @@ export default function ScheduleModal({
     }));
   }, [editor, selectedDeparture]);
 
-  // ── Current direction object ──────────────────────────────────────────────
-  const currentDir = useMemo(
-    () => deptState.directions.find((d) => d.directionId === deptDirection) ?? null,
-    [deptState.directions, deptDirection],
-  );
-
   // ── Departures for the stop-times tab dropdown (filtered by destination) ──
   const currentDirDepartures = useMemo(() => {
     if (!currentDir) return [];
@@ -854,9 +961,28 @@ export default function ScheduleModal({
                   deptDirection={deptDirection}
                   selectedDestination={selectedDestination}
                   originStop={originStop}
+                  editing={goDeparturesEditing}
+                  draftTimes={goDeparturesDraft}
+                  activeHeadsign={activeGoHeadsign}
                   onDayChange={handleDayChange}
                   onDirectionChange={handleDirectionChange}
                   onDestinationChange={setSelectedDestination}
+                  onToggleEdit={handleGoToggleDeparturesEdit}
+                  onDraftTimesChange={(times) => {
+                    setGoDeparturesDraft(times);
+                    setGoDeparturesDirty(true);
+                  }}
+                  onAddTime={(time) => {
+                    if (!time) return;
+                    setGoDeparturesDraft((prev) => normalizeTimes([...prev, time]));
+                    setGoDeparturesDirty(true);
+                    setGoDeparturesNewTime("");
+                  }}
+                  newTime={goDeparturesNewTime}
+                  onNewTimeChange={setGoDeparturesNewTime}
+                  onSaveEdits={handleGoSaveDeparturesOverride}
+                  onDiscardEdits={handleGoDiscardDeparturesEdits}
+                  canSave={goDeparturesDirty}
                 />
               ) : (
                 <>
@@ -874,10 +1000,17 @@ export default function ScheduleModal({
                         onSelectDirection={handleDirectionChange}
                         onDestinationChange={setSelectedDestination}
                       />
+                      <GoStopTimesEditBar
+                        editing={goStopTimesEditing}
+                        isDirty={!!editor?.isDirty}
+                        onToggle={() => setGoStopTimesEditing((v) => !v)}
+                        onSave={handleGoSaveStopTimesOverride}
+                        onDiscard={handleGoDiscardStopTimesEdits}
+                      />
                       <StopTimesTable
                         rows={shiftedRows}
                         directionsStatus={editor.directionsStatus}
-                        isReadOnly
+                        isReadOnly={!goStopTimesEditing}
                         onTimeEdit={handleTimeEdit}
                       />
                     </>
@@ -888,7 +1021,7 @@ export default function ScheduleModal({
                   )}
                   <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center gap-2 text-[11px] text-slate-400">
                     <Lock className="w-3 h-3" />
-                    GO Transit · read-only · actual GTFS scheduled times
+                    GO Transit · editable via local overrides · based on GTFS scheduled times
                   </div>
                 </>
               )}
@@ -1319,6 +1452,9 @@ function DepartureSelector({
 function DeparturesView({
   route, deptState, deptDay, deptDirection, selectedDestination,
   originStop, onDayChange, onDirectionChange, onDestinationChange,
+  editing, draftTimes, activeHeadsign,
+  onToggleEdit, onDraftTimesChange, onAddTime,
+  newTime, onNewTimeChange, onSaveEdits, onDiscardEdits, canSave,
 }: {
   route: EnrichedRoute;
   deptState: DeparturesState;
@@ -1329,6 +1465,17 @@ function DeparturesView({
   onDayChange: (day: number) => void;
   onDirectionChange: (dir: number) => void;
   onDestinationChange: (dest: string | null) => void;
+  editing: boolean;
+  draftTimes: string[];
+  activeHeadsign: string | null;
+  onToggleEdit: () => void;
+  onDraftTimesChange: (times: string[]) => void;
+  onAddTime: (time: string) => void;
+  newTime: string;
+  onNewTimeChange: (t: string) => void;
+  onSaveEdits: () => void;
+  onDiscardEdits: () => void;
+  canSave: boolean;
 }) {
   const currentDir = deptState.directions.find((d) => d.directionId === deptDirection);
 
@@ -1433,6 +1580,106 @@ function DeparturesView({
               ))}
             </>
           )}
+        </div>
+      )}
+
+      {/* Edit toolbar (local overrides) */}
+      <div className="px-6 py-2.5 border-b border-slate-100 bg-slate-50/40 flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-xs text-slate-600">
+          <Clock className="w-3.5 h-3.5 text-slate-400" />
+          <span className="font-semibold">Departures</span>
+          {activeHeadsign && (
+            <span className="text-slate-400">
+              for <span className="font-medium text-slate-600">→ {activeHeadsign}</span>
+            </span>
+          )}
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          {editing && (
+            <>
+              <button
+                type="button"
+                onClick={onDiscardEdits}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                onClick={onSaveEdits}
+                disabled={!canSave}
+                className="rounded-xl bg-[#007A33] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Save
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={onToggleEdit}
+            className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${
+              editing ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {editing ? "Editing" : "Edit"}
+          </button>
+        </div>
+      </div>
+
+      {editing && (
+        <div className="px-6 py-3 border-b border-slate-100 bg-white">
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+              Add time
+            </label>
+            <input
+              type="time"
+              value={newTime}
+              onChange={(e) => onNewTimeChange(e.target.value)}
+              className="text-xs font-mono rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33]"
+            />
+            <button
+              type="button"
+              onClick={() => onAddTime(newTime)}
+              disabled={!newTime}
+              className="rounded-lg bg-[#007A33] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Add
+            </button>
+            <span className="ml-auto text-[10px] text-slate-400">
+              Stored locally · applies immediately
+            </span>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            {draftTimes.length === 0 ? (
+              <div className="col-span-full text-xs text-slate-400 italic">
+                No departures. Add a time above.
+              </div>
+            ) : (
+              draftTimes.map((t) => (
+                <div key={t} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-2">
+                  <input
+                    type="time"
+                    value={t}
+                    onChange={(e) => {
+                      const next = draftTimes.map((x) => (x === t ? e.target.value : x));
+                      onDraftTimesChange(normalizeTimes(next));
+                    }}
+                    className="text-xs font-mono rounded-lg border border-slate-200 bg-white px-2 py-1 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33] w-[110px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onDraftTimesChange(draftTimes.filter((x) => x !== t))}
+                    className="ml-auto text-slate-300 hover:text-red-500 transition-colors"
+                    title="Remove"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
@@ -1595,6 +1842,69 @@ function StopRowItem({
         )}
       </td>
     </tr>
+  );
+}
+
+function GoStopTimesEditBar({
+  editing,
+  isDirty,
+  onToggle,
+  onSave,
+  onDiscard,
+}: {
+  editing: boolean;
+  isDirty: boolean;
+  onToggle: () => void;
+  onSave: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <div className="px-6 py-2.5 border-b border-slate-100 bg-slate-50/40 flex items-center gap-2">
+      <div className="flex items-center gap-2 text-xs text-slate-600">
+        <TableProperties className="w-3.5 h-3.5 text-slate-400" />
+        <span className="font-semibold">Stop times</span>
+        {editing && (
+          <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-100 rounded-md px-1.5 py-0.5">
+            Editing
+          </span>
+        )}
+        {editing && isDirty && (
+          <span className="text-[10px] font-semibold text-amber-600">
+            Unsaved changes
+          </span>
+        )}
+      </div>
+      <div className="ml-auto flex items-center gap-2">
+        {editing && (
+          <>
+            <button
+              type="button"
+              onClick={onDiscard}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={!isDirty}
+              className="rounded-xl bg-[#007A33] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Save
+            </button>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={onToggle}
+          className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${
+            editing ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          {editing ? "Editing" : "Edit"}
+        </button>
+      </div>
+    </div>
   );
 }
 

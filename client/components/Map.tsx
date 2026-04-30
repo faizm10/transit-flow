@@ -16,7 +16,7 @@ const LAKESHORE_WEST_BUS_ROUTES = ["11", "12", "15", "16", "18"];
 const PINK_BUS_ROUTES = ["40", "41", "47", "48", "94"];
 const PURPLE_BUS_ROUTES = ["52", "56"];
 const GO_ROUTE_LAYER_IDS = ["go-routes-casing", "go-routes-line", "go-routes-hit"];
-const CUSTOM_ROUTE_LAYER_IDS = ["custom-routes-line", "custom-routes-hit"];
+const CUSTOM_ROUTE_LAYER_IDS = ["custom-routes-line-bus", "custom-routes-line-train", "custom-routes-line-train-inner", "custom-routes-hit"];
 const EMPTY_ROUTE_FILTER_VALUE = "__transit_flow_no_routes__";
 const OPENRAILWAYMAP_LAYER_ID = "openrailwaymap-overlay";
 
@@ -504,16 +504,44 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
+      // Bus routes — dashed
       map.addLayer({
-        id: "custom-routes-line",
+        id: "custom-routes-line-bus",
         type: "line",
         source: "custom-routes",
+        filter: ["!=", ["get", "type"], "train"],
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
           "line-color": ["get", "color"],
           "line-width": 3,
           "line-dasharray": [2, 1],
           "line-opacity": 0.9,
+        },
+      });
+      // Train routes — solid outer track
+      map.addLayer({
+        id: "custom-routes-line-train",
+        type: "line",
+        source: "custom-routes",
+        filter: ["==", ["get", "type"], "train"],
+        layout: { "line-join": "round", "line-cap": "butt" },
+        paint: {
+          "line-color": ["get", "color"],
+          "line-width": 5,
+          "line-opacity": 0.95,
+        },
+      });
+      // Train routes — white inner accent (double-rail look)
+      map.addLayer({
+        id: "custom-routes-line-train-inner",
+        type: "line",
+        source: "custom-routes",
+        filter: ["==", ["get", "type"], "train"],
+        layout: { "line-join": "round", "line-cap": "butt" },
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 1.5,
+          "line-opacity": 0.6,
         },
       });
       map.addLayer({

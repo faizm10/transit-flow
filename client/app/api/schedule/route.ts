@@ -45,11 +45,48 @@ function secondsToHHMM(s: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+function decodeOverridesParam(raw: string | null): unknown | null {
+  if (!raw) return null;
+  try {
+    const normalized = raw.replace(/-/g, "+").replace(/_/g, "/");
+    const padLen = (4 - (normalized.length % 4)) % 4;
+    const padded = normalized + "=".repeat(padLen);
+    const json = Buffer.from(padded, "base64").toString("utf-8");
+    return JSON.parse(json) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function isHHMM(value: unknown): value is string {
+  return typeof value === "string" && /^\d{2}:\d{2}$/.test(value);
+}
+
 export async function GET(req: NextRequest) {
   const variantId = req.nextUrl.searchParams.get("variant_id");
+  const overridesParam = req.nextUrl.searchParams.get("overrides");
   if (!variantId) {
     return NextResponse.json({ error: "variant_id is required" }, { status: 400 });
   }
+
+  // Optional: stop-times override for this variant
+  // Expected payload: { stopTimesByVariantId: { [variantId]: { byStopId: Record<string,"HH:MM"> } } }
+  const byStopIdOverride = (() => {
+    const raw = decodeOverridesParam(overridesParam);
+    if (!raw || typeof raw !== "object") return null;
+    const obj = raw as Record<string, unknown>;
+    const stopTimesByVariantId = obj.stopTimesByVariantId;
+    if (!stopTimesByVariantId || typeof stopTimesByVariantId !== "object") return null;
+    const entry = (stopTimesByVariantId as Record<string, unknown>)[variantId];
+    if (!entry || typeof entry !== "object") return null;
+    const byStopId = (entry as Record<string, unknown>).byStopId;
+    if (!byStopId || typeof byStopId !== "object") return null;
+    const out = new Map<string, string>();
+    for (const [k, v] of Object.entries(byStopId as Record<string, unknown>)) {
+      if (isHHMM(v)) out.set(k, v);
+    }
+    return out;
+  })();
 
   try {
     const { variants, stops } = loadCache();
@@ -116,7 +153,10 @@ export async function GET(req: NextRequest) {
     const response: ScheduleResponse = {
       variant_id: variantId,
       label: found.label,
-      stops: stopEntries,
+      stops: stopEntries.map((s) => ({
+        ...s,
+        estimated_time: byStopIdOverride?.get(s.stop_id) ?? s.estimated_time,
+      })),
       trip_count: weeklyTrips,
       frequency,
     };
