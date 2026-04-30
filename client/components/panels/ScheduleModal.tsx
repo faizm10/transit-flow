@@ -416,6 +416,40 @@ export default function ScheduleModal({
     return encodeOverridesParam({ stopTimesByVariantId: { [variantId]: stopOverride } });
   }, [gtfsOverrides]);
 
+  const fetchDeparturesWithOverrides = useCallback(async (
+    shortName: string,
+    day: number,
+    departuresByKeyOverride?: Record<string, string[]>,
+  ) => {
+    const isFirst = !hasFetchedIndex.current;
+    setDeptState((prev) => ({
+      ...prev, status: "loading", isFirstLoad: isFirst,
+    }));
+    try {
+      const overrides = departuresByKeyOverride
+        ? encodeOverridesParam({ departuresByKey: departuresByKeyOverride })
+        : encodeDeparturesOverridesFor(shortName, day);
+      const url = overrides
+        ? `/api/departures?route=${encodeURIComponent(shortName)}&day=${day}&overrides=${encodeURIComponent(overrides)}`
+        : `/api/departures?route=${encodeURIComponent(shortName)}&day=${day}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      hasFetchedIndex.current = true;
+      const directions: DepartureDirection[] = data.directions ?? [];
+      setDeptState({
+        status: "done",
+        directions,
+        availableDays: data.availableDays ?? [],
+        isFirstLoad: false,
+      });
+      if (directions.length > 0) setDeptDirection(directions[0].directionId);
+    } catch {
+      setDeptState((prev) => ({
+        ...prev, status: "error", error: "Failed to load departures", isFirstLoad: false,
+      }));
+    }
+  }, [encodeDeparturesOverridesFor]);
+
   // ── Fetch GO routes on open ──────────────────────────────────────────────
   useEffect(() => {
     if (!open) return;
@@ -447,35 +481,8 @@ export default function ScheduleModal({
 
   // ── Fetch departures for a GO route ──────────────────────────────────────
   const fetchDepartures = useCallback(async (shortName: string, day: number) => {
-    const isFirst = !hasFetchedIndex.current;
-    setDeptState((prev) => ({
-      ...prev, status: "loading", isFirstLoad: isFirst,
-    }));
-    try {
-      const overrides = encodeDeparturesOverridesFor(shortName, day);
-      const url = overrides
-        ? `/api/departures?route=${encodeURIComponent(shortName)}&day=${day}&overrides=${encodeURIComponent(overrides)}`
-        : `/api/departures?route=${encodeURIComponent(shortName)}&day=${day}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      hasFetchedIndex.current = true;
-      const directions: DepartureDirection[] = data.directions ?? [];
-      setDeptState({
-        status: "done",
-        directions,
-        availableDays: data.availableDays ?? [],
-        isFirstLoad: false,
-      });
-      // Default to first direction available
-      if (directions.length > 0) {
-        setDeptDirection(directions[0].directionId);
-      }
-    } catch {
-      setDeptState((prev) => ({
-        ...prev, status: "error", error: "Failed to load departures", isFirstLoad: false,
-      }));
-    }
-  }, [encodeDeparturesOverridesFor]);
+    return fetchDeparturesWithOverrides(shortName, day);
+  }, [fetchDeparturesWithOverrides]);
 
   // ── Fetch leg durations (Mapbox Directions) ───────────────────────────────
   const fetchLegDurations = useCallback(async (rows: StopRow[]) => {
@@ -494,10 +501,15 @@ export default function ScheduleModal({
     }
   }, []);
 
-  const fetchGoStopTimes = useCallback(async (variantId: string) => {
+  const fetchGoStopTimesWithOverrides = useCallback(async (
+    variantId: string,
+    byStopIdOverride?: Record<string, string>,
+  ) => {
     setEditor({ rows: [], legDurations: [], directionsStatus: "idle", isDirty: false, isSaving: false });
     try {
-      const overrides = encodeStopTimesOverrideFor(variantId);
+      const overrides = byStopIdOverride
+        ? encodeOverridesParam({ stopTimesByVariantId: { [variantId]: { byStopId: byStopIdOverride } } })
+        : encodeStopTimesOverrideFor(variantId);
       const url = overrides
         ? `/api/schedule?variant_id=${encodeURIComponent(variantId)}&overrides=${encodeURIComponent(overrides)}`
         : `/api/schedule?variant_id=${encodeURIComponent(variantId)}`;
@@ -515,6 +527,10 @@ export default function ScheduleModal({
       // ignore
     }
   }, [encodeStopTimesOverrideFor, fetchLegDurations]);
+
+  const fetchGoStopTimes = useCallback(async (variantId: string) => {
+    return fetchGoStopTimesWithOverrides(variantId);
+  }, [fetchGoStopTimesWithOverrides]);
 
   // ── Select a route ────────────────────────────────────────────────────────
   const handleSelectRoute = useCallback(async (sel: SelectedRoute) => {
@@ -684,9 +700,9 @@ export default function ScheduleModal({
     gtfsOverrides.setVariantStopTimesOverride(variantId, { byStopId });
     toast.success("GTFS override saved");
     setGoStopTimesEditing(false);
-    // Re-fetch so the UI reflects the merged canonical view
-    await fetchGoStopTimes(variantId);
-  }, [selected, editor, gtfsOverrides, fetchGoStopTimes]);
+    // Re-fetch using the just-saved override to avoid stale state
+    await fetchGoStopTimesWithOverrides(variantId, byStopId);
+  }, [selected, editor, gtfsOverrides, fetchGoStopTimesWithOverrides]);
 
   const handleGoDiscardStopTimesEdits = useCallback(async () => {
     if (selected?.kind !== "go") return;
@@ -721,16 +737,28 @@ export default function ScheduleModal({
     if (selected?.kind !== "go") return;
     if (!activeGoHeadsign) return;
     const routeShortName = selected.route.short_name;
+    const normalized = normalizeTimes(goDeparturesDraft);
     gtfsOverrides.setDepartureOverride(
       { routeShortName, dayOfWeek: deptDay, directionId: deptDirection, headsign: activeGoHeadsign },
-      goDeparturesDraft,
+      normalized,
     );
     toast.success("Departures override saved");
     setGoDeparturesEditing(false);
     setGoDeparturesDirty(false);
     setGoDeparturesNewTime("");
-    await fetchDepartures(routeShortName, deptDay);
-  }, [selected, activeGoHeadsign, gtfsOverrides, deptDay, deptDirection, goDeparturesDraft, fetchDepartures]);
+    // Re-fetch using the just-saved override to avoid stale state
+    await fetchDeparturesWithOverrides(routeShortName, deptDay, {
+      [`${routeShortName}|${deptDay}|${deptDirection}|${activeGoHeadsign}`]: normalized,
+    });
+  }, [
+    selected,
+    activeGoHeadsign,
+    gtfsOverrides,
+    deptDay,
+    deptDirection,
+    goDeparturesDraft,
+    fetchDeparturesWithOverrides,
+  ]);
 
   const handleGoDiscardDeparturesEdits = useCallback(() => {
     seedGoDeparturesDraft();
