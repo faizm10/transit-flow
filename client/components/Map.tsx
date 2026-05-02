@@ -6,6 +6,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { GO_RAIL_LINES, PINK_BUS_COLOR, PURPLE_BUS_COLOR } from "@/lib/routeColors";
 import type { CustomStation } from "@/lib/gtfs";
+import { simplifyPolylineForVertexEdit } from "@/lib/polylineSimplify";
 
 const KITCHENER_BUS_ROUTES = ["30", "31", "32", "33", "34", "35", "36", "37", "38", "39"];
 const BARRIE_BUS_ROUTES = ["65", "68"];
@@ -247,10 +248,13 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         map.addControl(draw as unknown as mapboxgl.IControl);
         drawRef.current = draw;
 
+        // Few handles: corners/turns stay, dense Directions knots drop (Douglas–Peucker, metres).
+        const editCoords = simplifyPolylineForVertexEdit(coords);
+
         // Load geometry as an editable feature
         const [featureId] = draw.add({
           type: "Feature",
-          geometry: { type: "LineString", coordinates: coords },
+          geometry: { type: "LineString", coordinates: editCoords },
           properties: {},
         } as GeoJSON.Feature);
 
