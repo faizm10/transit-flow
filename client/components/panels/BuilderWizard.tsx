@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Train, Bus, Pencil, ArrowRight, ArrowLeft, Check,
   Plus, X, GripVertical, MapPin, Clock, Repeat, Move,
-  Loader2, RotateCcw, Navigation,
+  Loader2, RotateCcw, Navigation, Crosshair,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,11 @@ interface BuilderWizardProps {
   onTrainModeChange?: (isTrain: boolean) => void;
   /** Custom stations available as searchable stops. */
   customStations?: CustomStation[];
+  /** Map pin mode: user clicks the map to choose coordinates (same as Stations panel). */
+  onStartPinMode?: (cb: (lat: number, lon: number) => void) => void;
+  onStopPinMode?: () => void;
+  /** If set, user can optionally persist a placed stop to the shared station library. */
+  onSaveStation?: (station: Omit<CustomStation, "id" | "createdAt"> & { id?: string }) => void;
 }
 
 const ROUTE_TYPE_OPTIONS = [
@@ -135,6 +140,9 @@ export default function BuilderWizard({
   existingRoute,
   onTrainModeChange,
   customStations = [],
+  onStartPinMode,
+  onStopPinMode,
+  onSaveStation,
 }: BuilderWizardProps) {
   const [step, setStep] = useState<Step>(existingRoute ? "review" : "type");
   const [routeType, setRouteType] = useState<"bus" | "train">(
@@ -181,6 +189,63 @@ export default function BuilderWizard({
   const lastFetchKeyRef = useRef<string>("");
   // Prevent re-seeding terminus stops if user clears them
   const stopsSeededRef = useRef(false);
+
+  /** Bus: place a brand-new stop on the map (not from GTFS search). */
+  const [placingBusStop, setPlacingBusStop] = useState(false);
+  const [pendingBusStop, setPendingBusStop] = useState<{ lat: number; lon: number } | null>(null);
+  const [pendingBusStopName, setPendingBusStopName] = useState("");
+  const [savePlacedStopToLibrary, setSavePlacedStopToLibrary] = useState(false);
+
+  function busStopCodeFromName(name: string): string {
+    const words = name.trim().split(/\s+/);
+    if (words.length === 1) return name.slice(0, 4).toUpperCase();
+    return words.map((w) => w[0]).join("").slice(0, 4).toUpperCase();
+  }
+
+  function startPlaceBusStopOnMap() {
+    if (!onStartPinMode || isEditing || pendingBusStop) return;
+    setPlacingBusStop(true);
+    onStartPinMode((lat, lon) => {
+      setPendingBusStop({ lat, lon });
+      setPendingBusStopName("");
+      setSavePlacedStopToLibrary(false);
+      onStopPinMode?.();
+      setPlacingBusStop(false);
+    });
+  }
+
+  function cancelPlaceBusStopOnMap() {
+    setPlacingBusStop(false);
+    setPendingBusStop(null);
+    setPendingBusStopName("");
+    setSavePlacedStopToLibrary(false);
+    onStopPinMode?.();
+  }
+
+  function confirmPendingBusStop() {
+    if (!pendingBusStop) return;
+    const name = pendingBusStopName.trim() || "Custom bus stop";
+    const stop: CustomStop = {
+      id: uuidv4(),
+      name,
+      lat: pendingBusStop.lat,
+      lon: pendingBusStop.lon,
+      sequence: stops.length + 1,
+    };
+    addStop(stop);
+    if (savePlacedStopToLibrary && onSaveStation) {
+      onSaveStation({
+        name,
+        lat: pendingBusStop.lat,
+        lon: pendingBusStop.lon,
+        type: "bus",
+        code: busStopCodeFromName(name),
+      });
+    }
+    setPendingBusStop(null);
+    setPendingBusStopName("");
+    setSavePlacedStopToLibrary(false);
+  }
 
   // ── Notify parent when route type changes ────────────────────────────────
   useEffect(() => {
@@ -727,23 +792,101 @@ export default function BuilderWizard({
             {routeType === "bus" && (
               <>
                 <p className="text-sm text-slate-500">
-                  Add stops and we'll calculate the road route automatically.
+                  Add stops and we&apos;ll calculate the road route automatically.
                 </p>
 
-                {/* Stop search */}
-                <div className="relative">
-                  <Input
-                    placeholder="Search for a stop or station…"
-                    value={stopQuery}
-                    onChange={(e) => {
-                      setStopQuery(e.target.value);
-                      searchStops(e.target.value);
-                    }}
-                    className="rounded-xl h-10 pr-8"
-                    disabled={isEditing}
-                  />
-                  {searching && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+                {/* Stop search + map placement */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2 items-stretch">
+                    <div className="relative flex-1 min-w-0">
+                      <Input
+                        placeholder="Search for a stop or station…"
+                        value={stopQuery}
+                        onChange={(e) => {
+                          setStopQuery(e.target.value);
+                          searchStops(e.target.value);
+                        }}
+                        className="rounded-xl h-10 pr-8"
+                        disabled={isEditing || !!pendingBusStop || placingBusStop}
+                      />
+                      {searching && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+                      )}
+                    </div>
+                    {onStartPinMode && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 shrink-0 rounded-xl gap-1.5 px-3 border-slate-200"
+                        onClick={startPlaceBusStopOnMap}
+                        disabled={isEditing || !!pendingBusStop || placingBusStop}
+                        title="Place a new stop on the map"
+                      >
+                        <Crosshair className="w-4 h-4" />
+                        <span className="hidden sm:inline text-xs font-medium">Place on map</span>
+                      </Button>
+                    )}
+                  </div>
+
+                  {placingBusStop && (
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2 text-xs text-amber-950">
+                      <span>Click the map to place this stop.</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-amber-900 hover:bg-amber-100"
+                        onClick={cancelPlaceBusStopOnMap}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+
+                  {pendingBusStop && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 flex flex-col gap-2">
+                      <p className="text-xs font-medium text-emerald-900">
+                        New stop · {pendingBusStop.lat.toFixed(5)}, {pendingBusStop.lon.toFixed(5)}
+                      </p>
+                      <Input
+                        placeholder="Stop name"
+                        value={pendingBusStopName}
+                        onChange={(e) => setPendingBusStopName(e.target.value)}
+                        className="rounded-lg h-9 bg-white"
+                        autoFocus
+                      />
+                      {onSaveStation && (
+                        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            className="rounded border-slate-300"
+                            checked={savePlacedStopToLibrary}
+                            onChange={(e) => setSavePlacedStopToLibrary(e.target.checked)}
+                          />
+                          Also save to Stations (reuse later)
+                        </label>
+                      )}
+                      <div className="flex gap-2 pt-0.5">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="rounded-lg h-8 bg-[#007A33] hover:bg-[#006629] text-white"
+                          onClick={confirmPendingBusStop}
+                        >
+                          Add to route
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg h-8"
+                          onClick={cancelPlaceBusStopOnMap}
+                        >
+                          Discard
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -769,7 +912,9 @@ export default function BuilderWizard({
                   <div className="flex flex-col items-center py-8 text-slate-400">
                     <MapPin className="w-8 h-8 mb-2 opacity-40" />
                     <p className="text-sm font-medium">No stops added yet</p>
-                    <p className="text-xs mt-1">Search above to add stops</p>
+                    <p className="text-xs mt-1 text-center max-w-[220px]">
+                      Search above or use Place on map to add stops
+                    </p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-1">

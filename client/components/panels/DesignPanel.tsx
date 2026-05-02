@@ -105,6 +105,9 @@ export default function DesignPanel({
             existingRoute={editingRoute}
             onTrainModeChange={onTrainModeChange}
             customStations={customStations}
+            onStartPinMode={onStartPinMode}
+            onStopPinMode={onStopPinMode}
+            onSaveStation={onSaveStation}
           />
         )}
       </TabsContent>
