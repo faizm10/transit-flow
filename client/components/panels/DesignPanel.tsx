@@ -1,11 +1,11 @@
 "use client";
 
-import { Pencil, Train, MapPin } from "lucide-react";
+import { Pencil, Train, MapPin, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BuilderWizard from "@/components/panels/BuilderWizard";
 import ExtendRouteWizard from "@/components/panels/ExtendRouteWizard";
 import StationsPanel from "@/components/panels/StationsPanel";
-import { type CustomRoute, type CustomStation } from "@/lib/gtfs";
+import { type CustomRoute, type CustomStation, type EnrichedRoute } from "@/lib/gtfs";
 
 export type DesignTab = "existing" | "new" | "stations";
 
@@ -31,6 +31,12 @@ interface DesignPanelProps {
   customStations?: CustomStation[];
   onSaveStation?: (station: Omit<CustomStation, "id" | "createdAt"> & { id?: string }) => void;
   onDeleteStation?: (id: string) => void;
+  /** Pre-selected GO line for Extend wizard (deep link via goRoute URL param) */
+  extendInitialRoute?: EnrichedRoute;
+  /** Stable key fragment so the wizard remounts when the URL seed resolves */
+  extendWizardKey?: string;
+  /** Extend tab: block wizard until GO line deep link resolves */
+  extendTabLoading?: boolean;
 }
 
 export default function DesignPanel({
@@ -51,7 +57,11 @@ export default function DesignPanel({
   customStations = [],
   onSaveStation,
   onDeleteStation,
+  extendInitialRoute,
+  extendWizardKey,
+  extendTabLoading,
 }: DesignPanelProps) {
+  const extendKey = extendWizardKey ?? extendInitialRoute?.route_id ?? "pick";
   return (
     <Tabs
       value={activeTab}
@@ -73,8 +83,16 @@ export default function DesignPanel({
       </div>
 
       <TabsContent value="existing" className="mt-0 min-h-0 flex-1 overflow-y-auto">
-        {activeTab === "existing" && (
+        {activeTab === "existing" && extendTabLoading && (
+          <div className="flex min-h-[12rem] flex-col items-center justify-center gap-2 p-8 text-center text-sm text-slate-500">
+            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+            <span>Loading GO line…</span>
+          </div>
+        )}
+        {activeTab === "existing" && !extendTabLoading && (
           <ExtendRouteWizard
+            key={`extend-${extendKey}`}
+            initialRoute={extendInitialRoute}
             onSave={onSaveRoute}
             onDrawRequest={onDrawRequest}
             onEditRequest={onEditRequest}

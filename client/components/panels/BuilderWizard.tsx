@@ -70,13 +70,6 @@ const FREQUENCY_PRESETS = [
   { label: "Every hour", interval: 60 },
 ];
 
-/** Reduce a coordinates array to at most `target` points while keeping start + end. */
-function simplifyForEdit(coords: [number, number][], target = 60): [number, number][] {
-  if (coords.length <= target) return coords;
-  const step = Math.ceil(coords.length / target);
-  return coords.filter((_, i) => i === 0 || i === coords.length - 1 || i % step === 0);
-}
-
 function distanceM(a: [number, number], b: [number, number]): number {
   const radius = 6371000;
   const dLat = ((b[1] - a[1]) * Math.PI) / 180;
@@ -93,6 +86,45 @@ function geometryDistanceKm(coords: [number, number][]): number | null {
   let metres = 0;
   for (let i = 1; i < coords.length; i++) metres += distanceM(coords[i - 1], coords[i]);
   return Math.round(metres / 100) / 10;
+}
+
+/** Mapbox Directions allows up to 25 coordinates; match our stop-routing stride. */
+function sampleCoordsForMapboxDirections(coords: [number, number][]): [number, number][] {
+  if (coords.length <= 25) return coords;
+  return coords.filter(
+    (_, i) =>
+      i === 0 ||
+      i === coords.length - 1 ||
+      i % Math.ceil(coords.length / 23) === 0
+  );
+}
+
+async function fetchMapboxDrivingRoute(coords: [number, number][]): Promise<{
+  geometry: [number, number][];
+  distanceM: number;
+  durationSecs: number;
+}> {
+  const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+  if (!token) throw new Error("Mapbox token missing");
+  const sampled = sampleCoordsForMapboxDirections(coords);
+  const coordStr = sampled.map(([lon, lat]) => `${lon},${lat}`).join(";");
+  const url =
+    `https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}` +
+    `?access_token=${token}&geometries=geojson&overview=full`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Directions API ${res.status}`);
+  const data = await res.json();
+  const geometry = data.routes?.[0]?.geometry?.coordinates as [number, number][] | undefined;
+  const distance = data.routes?.[0]?.distance as number | undefined;
+  const duration = data.routes?.[0]?.duration as number | undefined;
+  if (!geometry || geometry.length < 2) {
+    throw new Error("No route found between these points");
+  }
+  return {
+    geometry,
+    distanceM: distance ?? 0,
+    durationSecs: duration ?? 0,
+  };
 }
 
 function sampleRailHints(coords: [number, number][], max = 18): [number, number][] {
@@ -179,8 +211,13 @@ export default function BuilderWizard({
   const [routeWarnings, setRouteWarnings] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
-  // Track last fetched stop IDs to avoid redundant calls
+  /** Rail + misc; bus stop-based fetch uses `lastBusStopDirectionsKeyRef` so edited geometry does not retrigger it. */
   const lastFetchKeyRef = useRef<string>("");
+  const lastBusStopDirectionsKeyRef = useRef<string>("");
+  /** Latest line from Mapbox Draw (vertex edit). */
+  const lastVertexEditCoordsRef = useRef<[number, number][] | null>(null);
+  /** When true, finishing vertex edit re-runs driving directions through the edited handles. */
+  const pendingSnapBusRouteAfterVertexEditRef = useRef(false);
   // Prevent re-seeding terminus stops if user clears them
   const stopsSeededRef = useRef(false);
 
@@ -271,49 +308,21 @@ export default function BuilderWizard({
     }
 
     const key = stops.map((s) => `${s.lon},${s.lat}`).join("|");
-    if (key === lastFetchKeyRef.current) return;
+    if (key === lastBusStopDirectionsKeyRef.current) return;
 
     setFetchingRoute(true);
     setRouteError(null);
 
     const timer = setTimeout(async () => {
       try {
-        const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-        if (!token) throw new Error("Mapbox token missing");
+        const stopCoords = stops.map((s) => [s.lon, s.lat] as [number, number]);
+        const { geometry, distanceM, durationSecs } = await fetchMapboxDrivingRoute(stopCoords);
 
-        // Directions API supports max 25 waypoints — sample evenly if more
-        const sampledStops = stops.length <= 25
-          ? [...stops]
-          : stops.filter((_, i) =>
-              i === 0 ||
-              i === stops.length - 1 ||
-              i % Math.ceil(stops.length / 23) === 0
-            );
-
-        const coords = sampledStops.map((s) => `${s.lon},${s.lat}`).join(";");
-        const url =
-          `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}` +
-          `?access_token=${token}&geometries=geojson&overview=full`;
-
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Directions API ${res.status}`);
-        const data = await res.json();
-
-        const geometry = data.routes?.[0]?.geometry?.coordinates as
-          | [number, number][]
-          | undefined;
-        const distance = data.routes?.[0]?.distance as number | undefined; // metres
-        const duration = data.routes?.[0]?.duration as number | undefined;
-
-        if (geometry && geometry.length >= 2) {
-          setRouteGeometry(geometry);
-          setRouteDistanceKm(distance ? Math.round(distance / 100) / 10 : null);
-          setRouteDurationSecs(duration ? Math.round(duration) : null);
-          setRouteWarnings([]);
-          lastFetchKeyRef.current = key;
-        } else {
-          throw new Error("No route found between these stops");
-        }
+        setRouteGeometry(geometry);
+        setRouteDistanceKm(Math.round(distanceM / 100) / 10);
+        setRouteDurationSecs(Math.round(durationSecs));
+        setRouteWarnings([]);
+        lastBusStopDirectionsKeyRef.current = key;
       } catch (err) {
         setRouteError(err instanceof Error ? err.message : "Route unavailable");
         setRouteGeometry(null);
@@ -423,18 +432,48 @@ export default function BuilderWizard({
   // ── Edit handlers ─────────────────────────────────────────────────────────
   function handleEditRequest() {
     if (!routeGeometry) return;
-    const editCoords = simplifyForEdit(routeGeometry);
+    pendingSnapBusRouteAfterVertexEditRef.current =
+      routeType === "bus" && stops.length >= 2;
     setIsEditing(true);
-    onEditRequest(editCoords, (newCoords) => {
+    onEditRequest(routeGeometry, (newCoords) => {
+      lastVertexEditCoordsRef.current = newCoords;
       setRouteGeometry(newCoords);
     });
   }
 
   function handleEditDone() {
+    const snapBusRoadsAfterEdit = pendingSnapBusRouteAfterVertexEditRef.current;
+    pendingSnapBusRouteAfterVertexEditRef.current = false;
+
     setIsEditing(false);
     onEditDone();
-    // Restore preview after edit
-    if (routeGeometry) onPreviewRoute(routeGeometry, color);
+
+    const waypointLine = lastVertexEditCoordsRef.current;
+    if (
+      routeType === "bus" &&
+      snapBusRoadsAfterEdit &&
+      stops.length >= 2 &&
+      waypointLine &&
+      waypointLine.length >= 2
+    ) {
+      void (async () => {
+        setFetchingRoute(true);
+        setRouteError(null);
+        try {
+          const { geometry, distanceM, durationSecs } =
+            await fetchMapboxDrivingRoute(waypointLine);
+          lastVertexEditCoordsRef.current = geometry;
+          setRouteGeometry(geometry);
+          setRouteDistanceKm(Math.round(distanceM / 100) / 10);
+          setRouteDurationSecs(Math.round(durationSecs));
+          setRouteWarnings([]);
+        } catch (err) {
+          setRouteError(err instanceof Error ? err.message : "Could not remap to roads");
+        } finally {
+          setFetchingRoute(false);
+        }
+      })();
+    }
   }
 
   // ── Stop search (GTFS + custom stations) ────────────────────────────────
@@ -483,7 +522,8 @@ export default function BuilderWizard({
     setStops((prev) => [...prev, { ...s, sequence: prev.length + 1 }]);
     setStopQuery("");
     setStopResults([]);
-    lastFetchKeyRef.current = ""; // force re-fetch
+    lastFetchKeyRef.current = "";
+    lastBusStopDirectionsKeyRef.current = "";
   }
 
   function removeStop(id: string) {
@@ -491,6 +531,7 @@ export default function BuilderWizard({
       prev.filter((s) => s.id !== id).map((s, i) => ({ ...s, sequence: i + 1 }))
     );
     lastFetchKeyRef.current = "";
+    lastBusStopDirectionsKeyRef.current = "";
   }
 
   function buildSchedule(): CustomSchedule {
@@ -523,6 +564,7 @@ export default function BuilderWizard({
   }
 
   function handleCancel() {
+    pendingSnapBusRouteAfterVertexEditRef.current = false;
     if (isEditing) onEditDone();
     onClearPreview();
     onCancel();

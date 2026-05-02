@@ -13,6 +13,7 @@ import {
   GitBranch,
 } from "lucide-react";
 import HeroSection from "@/components/HeroSection";
+import { MAP_LINKS } from "@/lib/mapLinks";
 
 /* ─── data ─── */
 
@@ -22,7 +23,7 @@ const FEATURES = [
     title: "Explore GO routes",
     description:
       "See all 47 GO Transit lines on an interactive map. Tap any line to inspect stops, schedules, and frequencies.",
-    href: "/map?mode=browse",
+    href: MAP_LINKS.exploreNetwork,
     accent: "bg-emerald-50 text-emerald-700",
     border: "border-emerald-100",
     tag: "Explore",
@@ -32,7 +33,7 @@ const FEATURES = [
     title: "Design a route",
     description:
       "Sketch a new bus or rail corridor from scratch. Add stops, set service frequency, and define the schedule.",
-    href: "/map?mode=build",
+    href: MAP_LINKS.designFresh,
     accent: "bg-blue-50 text-blue-700",
     border: "border-blue-100",
     tag: "Design",
@@ -42,7 +43,7 @@ const FEATURES = [
     title: "Simulate service",
     description:
       "Watch your route animate in real-time across the network. Compare it against live GO Transit operations.",
-    href: "/map?mode=simulate",
+    href: MAP_LINKS.simulate,
     accent: "bg-violet-50 text-violet-700",
     border: "border-violet-100",
     tag: "Simulate",
@@ -52,7 +53,7 @@ const FEATURES = [
     title: "Extend existing lines",
     description:
       "Take any GO rail line and add new stops or branches. The timetable auto-adjusts to keep spacing consistent.",
-    href: "/map?mode=build",
+    href: MAP_LINKS.extendGo,
     accent: "bg-orange-50 text-orange-700",
     border: "border-orange-100",
     tag: "Extend",
@@ -62,7 +63,7 @@ const FEATURES = [
     title: "Multi-layer view",
     description:
       "Toggle between GO trains, buses, and your custom routes simultaneously. Filter by mode or corridor.",
-    href: "/map",
+    href: MAP_LINKS.exploreNetwork,
     accent: "bg-sky-50 text-sky-700",
     border: "border-sky-100",
     tag: "Layers",
@@ -72,7 +73,7 @@ const FEATURES = [
     title: "Time-of-day control",
     description:
       "Scrub through morning rush, midday, evening peak, and overnight service windows to spot coverage gaps.",
-    href: "/map?mode=simulate",
+    href: MAP_LINKS.simulate,
     accent: "bg-rose-50 text-rose-700",
     border: "border-rose-100",
     tag: "Schedule",
@@ -112,13 +113,25 @@ export default function LandingPage() {
             </div>
             TransitFlow
           </Link>
-          <nav className="hidden sm:flex items-center gap-6 text-sm text-slate-500">
-            <Link href="/map?mode=browse" className="hover:text-slate-900 transition-colors">Explore</Link>
-            <Link href="/map?mode=build" className="hover:text-slate-900 transition-colors">Design</Link>
-            <Link href="/map?mode=simulate" className="hover:text-slate-900 transition-colors">Simulate</Link>
+          <nav className="hidden md:flex items-center gap-5 text-sm text-slate-500">
+            <Link href={MAP_LINKS.welcome} className="hover:text-slate-900 transition-colors">
+              Map
+            </Link>
+            <Link href={MAP_LINKS.exploreNetwork} className="hover:text-slate-900 transition-colors">
+              Explore
+            </Link>
+            <Link href={MAP_LINKS.designFresh} className="hover:text-slate-900 transition-colors">
+              Design
+            </Link>
+            <Link href={MAP_LINKS.schedules} className="hover:text-slate-900 transition-colors">
+              Schedules
+            </Link>
+            <Link href={MAP_LINKS.simulate} className="hover:text-slate-900 transition-colors">
+              Simulate
+            </Link>
           </nav>
           <Link
-            href="/map"
+            href={MAP_LINKS.welcome}
             className="inline-flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg transition-colors"
           >
             Open map <ArrowRight className="w-3.5 h-3.5" />
@@ -199,7 +212,7 @@ export default function LandingPage() {
             </p>
           </div>
           <Link
-            href="/map"
+            href={MAP_LINKS.welcome}
             className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-emerald-700 hover:bg-emerald-50 font-semibold text-sm px-6 py-3 rounded-lg transition-colors shadow-sm whitespace-nowrap"
           >
             Open the map <ArrowRight className="w-4 h-4" />
@@ -217,7 +230,22 @@ export default function LandingPage() {
             <span className="font-medium text-slate-500">TransitFlow</span>
             <span>— GO Transit route design &amp; simulation</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:justify-end">
+            <Link href={MAP_LINKS.welcome} className="hover:text-slate-600 transition-colors">
+              Map
+            </Link>
+            <Link href={MAP_LINKS.exploreNetwork} className="hover:text-slate-600 transition-colors">
+              Explore GO
+            </Link>
+            <Link href={MAP_LINKS.designFresh} className="hover:text-slate-600 transition-colors">
+              New route
+            </Link>
+            <Link href={MAP_LINKS.simulate} className="hover:text-slate-600 transition-colors">
+              Simulate
+            </Link>
+            <span className="hidden sm:inline text-slate-200" aria-hidden>
+              |
+            </span>
             <a href="https://github.com/faizm10/transit-flow" className="hover:text-slate-600 transition-colors">
               GitHub
             </a>

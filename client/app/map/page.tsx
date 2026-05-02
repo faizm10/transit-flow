@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import mapboxgl from "mapbox-gl";
 import { Train, Map as MapIcon, PlayCircle, Pencil, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 import { MapHandle } from "@/components/Map";
 import BrowsePanel from "@/components/panels/BrowsePanel";
+import DesignEntryChooser from "@/components/panels/DesignEntryChooser";
 import DesignPanel, { type DesignTab } from "@/components/panels/DesignPanel";
 import ScheduleModal from "@/components/panels/ScheduleModal";
 import SimulationHUD from "@/components/panels/SimulationHUD";
@@ -15,11 +17,20 @@ import RouteTooltip from "@/components/overlays/RouteTooltip";
 import RouteInfoCard from "@/components/overlays/RouteInfoCard";
 import VehicleInfoPopup from "@/components/overlays/VehicleInfoPopup";
 import DrawGuide from "@/components/overlays/DrawGuide";
+import MapEntryLanding from "@/components/overlays/MapEntryLanding";
 import RouteFilterControl from "@/components/overlays/RouteFilterControl";
 import { useRoutes } from "@/hooks/useRoutes";
 import { useStations } from "@/hooks/useStations";
 import { useSimulation } from "@/hooks/useSimulation";
-import { type CustomRoute, type CustomSchedule, type RouteFilters } from "@/lib/gtfs";
+import {
+  freshRouteFilters,
+  networkRouteFilters,
+  pendingRouteFilters,
+  routeVisibilityFromSearch,
+  showMapEntryLanding,
+  type MapSessionPreset,
+} from "@/lib/mapEntry";
+import { type CustomRoute, type CustomSchedule, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
 
 // Dynamically import Map to avoid SSR issues with mapbox-gl
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
@@ -44,6 +55,30 @@ const NAV_ITEMS = [
   { mode: "schedule" as Mode, icon: CalendarClock, label: "Schedules" },
   { mode: "simulate" as Mode, icon: PlayCircle,    label: "Simulate"  },
 ];
+
+const VALID_MODES: Mode[] = ["browse", "build", "schedule", "simulate"];
+
+function designParamToTab(d: string | null): DesignTab | null {
+  if (d === "new") return "new";
+  if (d === "extend") return "existing";
+  if (d === "stations") return "stations";
+  return null;
+}
+
+function designTabToUrl(tab: DesignTab): "new" | "extend" | "stations" {
+  if (tab === "existing") return "extend";
+  if (tab === "new") return "new";
+  return "stations";
+}
+
+/** Build mode without a committed design=new|extend|stations (unless goRoute hints Extend). */
+function isBuildChooserActive(sp: Pick<URLSearchParams, "get">): boolean {
+  if (sp.get("mode") !== "build") return false;
+  const d = sp.get("design");
+  if (d && designParamToTab(d) !== null) return false;
+  if (sp.get("goRoute")?.trim()) return false;
+  return true;
+}
 
 /** Stable numeric id from a trip_id string (for Mapbox feature-state) */
 function tripIdToNum(id: string): number {
@@ -83,7 +118,11 @@ async function getRoutesCache() {
   return routesCache!;
 }
 
-export default function MapPage() {
+function MapPageContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const mapRef = useRef<MapHandle | null>(null);
   const [mode, setMode] = useState<Mode>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -92,15 +131,20 @@ export default function MapPage() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnGeometry, setDrawnGeometry] = useState<[number, number][] | null>(null);
   const [editingRoute, setEditingRoute] = useState<CustomRoute | undefined>();
-  const [designTab, setDesignTab] = useState<DesignTab>("existing");
+  const [designTab, setDesignTab] = useState<DesignTab>(() => {
+    if (typeof window === "undefined") return "existing";
+    return designParamToTab(new URLSearchParams(window.location.search).get("design")) ?? "existing";
+  });
+  const [extendSeedRoute, setExtendSeedRoute] = useState<EnrichedRoute | undefined>();
+  /** Resolves GO line for Extend deep link (goRoute=) */
+  const [extendSeedStatus, setExtendSeedStatus] = useState<"idle" | "loading" | "done" | "notfound">("idle");
   const [railMapVisible, setRailMapVisible] = useState(true);
   // true when one of the wizards signals a train route is being designed
   const [isTrainDesignMode, setIsTrainDesignMode] = useState(false);
   const [selectedVehicleTripId, setSelectedVehicleTripId] = useState<string | null>(null);
-  const [routeFilters, setRouteFilters] = useState<RouteFilters>({
-    goRouteShortNames: null,
-    customRouteIds: null,
-  });
+  const [routeFilters, setRouteFilters] = useState<RouteFilters>(pendingRouteFilters());
+  const mapSessionPreset = routeVisibilityFromSearch(searchParams);
+  const mapSessionAppliedRef = useRef<MapSessionPreset | null>(null);
 
   const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
   const { stations: customStations, saveStation, deleteStation } = useStations();
@@ -114,18 +158,114 @@ export default function MapPage() {
   }, [customRoutes, saveRoute]);
   const sim = useSimulation(customRoutes);
 
-  // ── Read URL mode param on mount ────────────────────────────────────────
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const m = params.get("mode") as Mode;
-    if (m && ["browse", "build", "schedule", "simulate"].includes(m)) {
-      setMode(m);
-      if (m === "simulate") {
-        setTimeout(() => sim.loadSimulation(), 500);
+  const patchSearch = useCallback(
+    (updates: Record<string, string | null | undefined>) => {
+      const p = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(updates)) {
+        if (v === null || v === undefined || v === "") p.delete(k);
+        else p.set(k, String(v));
       }
+      const qs = p.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
+  // Commit map session preset → route layer filters (Explore tweaks are not overwritten until preset changes)
+  useEffect(() => {
+    if (mapSessionAppliedRef.current === mapSessionPreset) return;
+    mapSessionAppliedRef.current = mapSessionPreset;
+    if (mapSessionPreset === "pending") setRouteFilters(pendingRouteFilters());
+    else if (mapSessionPreset === "fresh") setRouteFilters(freshRouteFilters());
+    else setRouteFilters(networkRouteFilters());
+  }, [mapSessionPreset]);
+
+  // Short links: /map?entry=network|fresh without mode
+  useEffect(() => {
+    const entry = searchParams.get("entry");
+    if (!entry || searchParams.get("mode")) return;
+    if (entry === "network") {
+      patchSearch({ mode: "browse" });
+      return;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (entry === "fresh") {
+      patchSearch({ mode: "build", design: "new", goRoute: null });
+    }
+  }, [searchParams, patchSearch]);
+
+  const fetchExtendSeedIfNeeded = useCallback(
+    async (goShort: string | null | undefined, tabIsExtend: boolean) => {
+      const trimmed = goShort?.trim();
+      if (!tabIsExtend || !trimmed) {
+        setExtendSeedRoute(undefined);
+        setExtendSeedStatus("idle");
+        return;
+      }
+      const keyUpper = trimmed.toUpperCase();
+      setExtendSeedStatus("loading");
+      try {
+        const res = await fetch("/api/routes");
+        const data = await res.json();
+        const routes: EnrichedRoute[] = data.routes ?? [];
+        const match = routes.find((r) => r.short_name.toUpperCase() === keyUpper);
+        if (match) {
+          setExtendSeedRoute(match);
+          setExtendSeedStatus("done");
+        } else {
+          setExtendSeedRoute(undefined);
+          setExtendSeedStatus("notfound");
+          toast.error(`GO route "${trimmed}" was not found`);
+        }
+      } catch {
+        setExtendSeedRoute(undefined);
+        setExtendSeedStatus("notfound");
+        toast.error("Could not load GO routes");
+      }
+    },
+    []
+  );
+
+  // ── Mode mirrors URL ───────────────────────────────────────────────────
+  useEffect(() => {
+    const m = searchParams.get("mode") as Mode | null;
+    if (!m || !VALID_MODES.includes(m)) {
+      setMode(null);
+      return;
+    }
+    setMode(m);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const m = searchParams.get("mode");
+    if (m !== "simulate") return;
+    const t = window.setTimeout(() => sim.loadSimulation(), 500);
+    return () => window.clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot sim.loadSimulation; sim identity churns
+  }, [searchParams]);
+
+  // ── Design tab + Extend seed when build is committed in URL ───────────────
+  useEffect(() => {
+    if (searchParams.get("mode") !== "build") {
+      setExtendSeedRoute(undefined);
+      setExtendSeedStatus("idle");
+      return;
+    }
+    const parsedDesign =
+      searchParams.get("design") ? designParamToTab(searchParams.get("design")) : null;
+    const resolvedTab =
+      parsedDesign
+        ?? (searchParams.get("goRoute")?.trim() ? ("existing" as DesignTab) : null);
+
+    if (!resolvedTab) {
+      setExtendSeedRoute(undefined);
+      setExtendSeedStatus("idle");
+      return;
+    }
+
+    setDesignTab(resolvedTab);
+    const go = searchParams.get("goRoute");
+    void fetchExtendSeedIfNeeded(go, resolvedTab === "existing");
+  }, [searchParams, fetchExtendSeedIfNeeded]);
 
   // ── Sync simulation vehicles to map ────────────────────────────────────
   useEffect(() => {
@@ -393,7 +533,7 @@ export default function MapPage() {
     });
     mapRef.current?.stopEdit();     // clean up if edit was active
     mapRef.current?.clearPreviewRoute();
-    setMode(null);
+    patchSearch({ mode: null, design: null, goRoute: null });
     setEditingRoute(undefined);
     setDrawnGeometry(null);
   }
@@ -409,37 +549,100 @@ export default function MapPage() {
   function handleDesignTabChange(tab: DesignTab) {
     cleanupDesignTools();
     setDesignTab(tab);
+    const goPreserve =
+      tab === "existing" ? searchParams.get("goRoute")?.trim() ?? null : null;
     if (tab === "existing") {
       setEditingRoute(undefined);
       setDrawnGeometry(null);
     }
+    patchSearch({
+      mode: "build",
+      entry: tab === "existing" ? "network" : "fresh",
+      design: designTabToUrl(tab),
+      goRoute:
+        tab === "existing" && goPreserve
+          ? goPreserve
+          : null,
+    });
   }
 
   function closeDesignPanel() {
     cleanupDesignTools();
-    setMode(null);
+    patchSearch({ mode: null, design: null, goRoute: null });
     setEditingRoute(undefined);
     setDrawnGeometry(null);
   }
 
-  // ── Mode switcher ───────────────────────────────────────────────────────
+  // ── Mode switcher (URL drives mode via patchSearch → useEffect) ─────────────
   function handleModeToggle(m: Mode) {
     if (mode === m) {
-      setMode(null);
       mapRef.current?.setRouteHighlight(null);
       setClickedRoute(null);
-      if (m === "build") closeDesignPanel();
-    } else {
-      if (mode === "build") closeDesignPanel();
-      setMode(m);
       if (m === "build") {
-        setDesignTab("existing");
+        cleanupDesignTools();
         setEditingRoute(undefined);
         setDrawnGeometry(null);
       }
-      // Clear route info card when switching to build/simulate
-      if (m !== "browse") setClickedRoute(null);
-      if (m !== "browse") mapRef.current?.setRouteHighlight(null);
+      patchSearch({ mode: null, design: null, goRoute: null, entry: null });
+      return;
+    }
+
+    if (mode === "build") {
+      cleanupDesignTools();
+      setEditingRoute(undefined);
+      setDrawnGeometry(null);
+    }
+
+    // Clear route info card when switching to build/simulate/schedule
+    if (m !== "browse") setClickedRoute(null);
+    if (m !== "browse") mapRef.current?.setRouteHighlight(null);
+
+    if (m === "browse") {
+      patchSearch({
+        mode: "browse",
+        entry: "network",
+        design: null,
+        goRoute: null,
+      });
+    } else if (m === "schedule") {
+      patchSearch({
+        mode: "schedule",
+        entry: "network",
+        design: null,
+        goRoute: null,
+      });
+    } else if (m === "simulate") {
+      patchSearch({
+        mode: "simulate",
+        entry: "network",
+        design: null,
+        goRoute: null,
+      });
+    } else if (m === "build") {
+      const raw = searchParams.get("design");
+      const parsed = raw ? designParamToTab(raw) : null;
+      const go = searchParams.get("goRoute");
+
+      if (parsed) {
+        patchSearch({
+          mode: "build",
+          entry: parsed === "existing" ? "network" : "fresh",
+          design: designTabToUrl(parsed),
+          goRoute:
+            parsed === "existing" && go?.trim()
+              ? go.trim()
+              : null,
+        });
+      } else if (go?.trim()) {
+        patchSearch({
+          mode: "build",
+          entry: "network",
+          design: "extend",
+          goRoute: go.trim(),
+        });
+      } else {
+        patchSearch({ mode: "build", design: null, goRoute: null });
+      }
     }
   }
 
@@ -451,13 +654,22 @@ export default function MapPage() {
       if (route) {
         setEditingRoute(route);
         setDrawnGeometry(route.geometry ?? null);
-        setDesignTab("new");
-        setMode("build");
+        patchSearch({
+          mode: "build",
+          entry: "fresh",
+          design: designTabToUrl("new"),
+          goRoute: null,
+        });
       }
       return;
     }
-    setMode("browse");
-    // Keep highlight active
+    patchSearch({
+      mode: "browse",
+      entry: "network",
+      design: null,
+      goRoute: null,
+    });
+    // Highlight stays applied on map
   }
 
   function deleteCustomRoute(routeId: string) {
@@ -468,7 +680,7 @@ export default function MapPage() {
     if (editingRoute?.id === routeId) {
       setEditingRoute(undefined);
       setDrawnGeometry(null);
-      setMode(null);
+      patchSearch({ mode: null, design: null, goRoute: null });
     }
     mapRef.current?.stopEdit();
     mapRef.current?.clearPreviewRoute();
@@ -544,7 +756,28 @@ export default function MapPage() {
         </div>
       </div>
 
-      {!isDrawing && (
+      {showMapEntryLanding(searchParams) && (
+        <MapEntryLanding
+          onStartFresh={() =>
+            patchSearch({
+              entry: "fresh",
+              mode: "build",
+              design: "new",
+              goRoute: null,
+            })
+          }
+          onUseExistingNetwork={() =>
+            patchSearch({
+              entry: "network",
+              mode: "browse",
+              design: null,
+              goRoute: null,
+            })
+          }
+        />
+      )}
+
+      {!isDrawing && !showMapEntryLanding(searchParams) && (
         <RouteFilterControl
           customRoutes={customRoutes}
           routeFilters={routeFilters}
@@ -586,27 +819,67 @@ export default function MapPage() {
                 onDeleteCustomRoute={requestDeleteCustomRoute}
               />
             )}
-            {mode === "build" && (
-              <DesignPanel
-                activeTab={designTab}
-                onActiveTabChange={handleDesignTabChange}
-                onSaveRoute={handleSaveRoute}
-                onDrawRequest={startDrawing}
-                onEditRequest={handleEditRequest}
-                onEditDone={handleEditDone}
-                onPreviewRoute={handlePreviewRoute}
-                onClearPreview={handleClearPreview}
-                onStartPinMode={(cb) => mapRef.current?.startPinMode(cb)}
-                onStopPinMode={() => mapRef.current?.stopPinMode()}
-                onCancel={closeDesignPanel}
-                drawGeometry={drawnGeometry ?? undefined}
-                editingRoute={editingRoute}
-                onTrainModeChange={setIsTrainDesignMode}
-                customStations={customStations}
-                onSaveStation={saveStation}
-                onDeleteStation={deleteStation}
-              />
-            )}
+            {mode === "build"
+              && (isBuildChooserActive(searchParams) ? (
+                <DesignEntryChooser
+                  onPickExtendGO={() =>
+                    patchSearch({
+                      mode: "build",
+                      entry: "network",
+                      design: "extend",
+                      goRoute: null,
+                    })
+                  }
+                  onPickCreateFresh={() =>
+                    patchSearch({
+                      mode: "build",
+                      entry: "fresh",
+                      design: "new",
+                      goRoute: null,
+                    })
+                  }
+                  onPickStationsOnly={() =>
+                    patchSearch({
+                      mode: "build",
+                      entry: "fresh",
+                      design: "stations",
+                      goRoute: null,
+                    })
+                  }
+                  onCancel={closeDesignPanel}
+                />
+              ) : (
+                <DesignPanel
+                  activeTab={designTab}
+                  onActiveTabChange={handleDesignTabChange}
+                  extendInitialRoute={extendSeedRoute}
+                  extendWizardKey={
+                    extendSeedRoute?.route_id
+                      ?? searchParams.get("goRoute")?.trim()
+                      ?? "pick"
+                  }
+                  extendTabLoading={
+                    designTab === "existing"
+                    && Boolean(searchParams.get("goRoute")?.trim())
+                    && extendSeedStatus === "loading"
+                  }
+                  onSaveRoute={handleSaveRoute}
+                  onDrawRequest={startDrawing}
+                  onEditRequest={handleEditRequest}
+                  onEditDone={handleEditDone}
+                  onPreviewRoute={handlePreviewRoute}
+                  onClearPreview={handleClearPreview}
+                  onStartPinMode={(cb) => mapRef.current?.startPinMode(cb)}
+                  onStopPinMode={() => mapRef.current?.stopPinMode()}
+                  onCancel={closeDesignPanel}
+                  drawGeometry={drawnGeometry ?? undefined}
+                  editingRoute={editingRoute}
+                  onTrainModeChange={setIsTrainDesignMode}
+                  customStations={customStations}
+                  onSaveStation={saveStation}
+                  onDeleteStation={deleteStation}
+                />
+              ))}
           </div>
         </div>
       )}
@@ -697,21 +970,33 @@ export default function MapPage() {
       )}
 
       {/* ── Empty state hint ────────────────────────────────────────────── */}
-      {!mode && !clickedRoute && mapLoaded && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-          <div className="bg-white/90 backdrop-blur-md rounded-xl px-4 py-2.5 border border-slate-100 shadow-md text-sm text-slate-500">
-            Tap any coloured line to explore a route
+      {!mode
+        && !clickedRoute
+        && mapLoaded
+        && !showMapEntryLanding(searchParams)
+        && routeVisibilityFromSearch(searchParams) !== "pending" && (
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none max-w-[min(360px,calc(100vw-32px))] text-center">
+          <div className="rounded-xl border border-slate-100 bg-white/90 px-4 py-2.5 text-sm leading-snug text-slate-500 shadow-md backdrop-blur-md">
+            Tap a coloured line for details — open <strong className="font-semibold text-slate-700">Explore</strong>{" "}
+            for the route list, or <strong className="font-semibold text-slate-700">Design</strong> to model corridors.
           </div>
         </div>
       )}
 
       {/* ── Saved routes badge ──────────────────────────────────────────── */}
-      {customRoutes.length > 0 && !panelOpen && mode !== "simulate" && (
+      {customRoutes.length > 0
+        && !panelOpen
+        && mode !== "simulate"
+        && !showMapEntryLanding(searchParams) && (
         <div className="absolute bottom-20 right-4 z-20">
           <button
             onClick={() => {
-              setDesignTab("new");
-              setMode("build");
+              patchSearch({
+                entry: "fresh",
+                mode: "build",
+                design: designTabToUrl("new"),
+                goRoute: null,
+              });
             }}
             className="bg-white/95 backdrop-blur-xl rounded-xl border border-slate-200 shadow-md px-3 py-2 text-xs font-medium text-slate-700 flex items-center gap-1.5 hover:shadow-lg transition-shadow"
           >
@@ -721,5 +1006,19 @@ export default function MapPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MapPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen w-screen items-center justify-center bg-slate-100 text-sm text-slate-500">
+          Loading map…
+        </div>
+      }
+    >
+      <MapPageContent />
+    </Suspense>
   );
 }

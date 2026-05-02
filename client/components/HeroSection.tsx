@@ -4,6 +4,7 @@ import { motion, type Variants } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Play } from "lucide-react";
+import { MAP_LINKS } from "@/lib/mapLinks";
 
 export default function HeroSection() {
   const fade = (delay = 0): Variants => ({
@@ -59,13 +60,19 @@ export default function HeroSection() {
             className="flex flex-wrap gap-3 pt-1"
           >
             <Link
-              href="/map?mode=browse"
+              href={MAP_LINKS.exploreNetwork}
               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-5 py-2.5 transition-colors"
             >
               Start exploring <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/map?mode=simulate"
+              href={MAP_LINKS.designFresh}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 hover:border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-sm font-semibold px-5 py-2.5 transition-colors"
+            >
+              Start designing <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href={MAP_LINKS.simulate}
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 hover:border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-sm font-semibold px-5 py-2.5 transition-colors"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
@@ -110,8 +117,8 @@ export default function HeroSection() {
               <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-              <span className="flex-1 ml-3 bg-white rounded-md px-3 py-1 text-[10px] text-slate-400 border border-slate-200">
-                https://transit-flow-two.vercel.app/map
+              <span className="flex-1 ml-3 bg-white rounded-md px-3 py-1 text-[10px] text-slate-400 border border-slate-200 truncate">
+                /map
               </span>
             </div>
 

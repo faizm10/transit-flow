@@ -88,12 +88,6 @@ function sampleCoords(coords: [number, number][], max = 25): [number, number][] 
   return result;
 }
 
-function simplifyForEdit(coords: [number, number][], target = 60): [number, number][] {
-  if (coords.length <= target) return coords;
-  const step = Math.ceil(coords.length / target);
-  return coords.filter((_, i) => i === 0 || i === coords.length - 1 || i % step === 0);
-}
-
 function distanceM(a: [number, number], b: [number, number]): number {
   const r = 6371000;
   const dLat = ((b[1] - a[1]) * Math.PI) / 180;
@@ -332,15 +326,14 @@ export default function ExtendRouteWizard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRailExtension]);
 
-  // ── Load routes for step 1 ─────────────────────────────────────────────────
+  // ── Load routes for step 1 (always fetch — needed when navigating back from step 2 with initialRoute seed)
   useEffect(() => {
-    if (initialRoute) return; // skip if pre-selected
     setRoutesLoading(true);
     fetch("/api/routes")
       .then((r) => r.json())
       .then((d) => { setAllRoutes(d.routes ?? []); setRoutesLoading(false); })
       .catch(() => setRoutesLoading(false));
-  }, [initialRoute]);
+  }, []);
 
   useEffect(() => {
     const variantId = selectedRoute?.variants[0]?.variant_id;
@@ -619,10 +612,9 @@ export default function ExtendRouteWizard({
       onStopPinMode();
       setPinActive(false);
     }
-    const editCoords = simplifyForEdit(extensionGeometry);
     setIsEditingGeometry(true);
     setRoutedRailGeometry(null);
-    onEditRequest(editCoords, (coords) => {
+    onEditRequest(extensionGeometry, (coords) => {
       setExtensionGeometry(coords);
     });
   }, [extensionGeometry, onEditRequest, onStopPinMode, pinActive]);
