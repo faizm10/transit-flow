@@ -41,7 +41,7 @@ export default function MapEntryLanding({
               Start fresh
             </span>
             <span className="text-center text-[11px] font-normal leading-snug text-slate-500">
-              Empty map — sketch new bus or rail routes without GO lines on the canvas.
+              No route lines shown — explore the map, then open Design or Explore whenever you&apos;re ready.
             </span>
           </Button>
 

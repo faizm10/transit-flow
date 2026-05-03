@@ -72,6 +72,8 @@ function applyLayerFilter(map: mapboxgl.Map, layerIds: string[], filter: LayerFi
 
 interface MapProps {
   onLoad?: (map: mapboxgl.Map) => void;
+  /** Fires before the underlying Map instance is destroyed (Strict Mode remount, navigation). */
+  onMapDestroy?: () => void;
   onRouteClick?: (variantId: string, routeShortName: string) => void;
   onCustomRouteClick?: (route: {
     id: string;
@@ -90,11 +92,30 @@ const TORONTO_CENTER: [number, number] = [-79.385, 43.693];
 const DEFAULT_ZOOM = 9.5;
 
 const Map = forwardRef<MapHandle, MapProps>(function Map(
-  { onLoad, onRouteClick, onCustomRouteClick, onRouteHover, onVehicleClick, onVehicleHover },
+  { onLoad, onMapDestroy, onRouteClick, onCustomRouteClick, onRouteHover, onVehicleClick, onVehicleHover },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  /** Keeps visibility intent when callers run before GO/custom layers exist (first paint / remount race). */
+  const lastVisibleRouteFilterRef = useRef<{ go: string[] | null; custom: string[] | null } | null>(
+    null
+  );
+
+  function applyStoredVisibleRouteFilters(map: mapboxgl.Map): void {
+    const last = lastVisibleRouteFilterRef.current;
+    if (!last || !map.getLayer("go-routes-line")) return;
+    applyLayerFilter(
+      map,
+      GO_ROUTE_LAYER_IDS,
+      makeVisibilityFilter("route_short_name", last.go)
+    );
+    applyLayerFilter(
+      map,
+      CUSTOM_ROUTE_LAYER_IDS,
+      makeVisibilityFilter("id", last.custom)
+    );
+  }
   const hoveredVariantRef = useRef<string | null>(null);
   const hoveredTripRef = useRef<string | null>(null);
   const hoveredTripNumericIdRef = useRef<number | null>(null);
@@ -138,11 +159,14 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
     },
 
     setVisibleRouteFilter: (goRouteShortNames, customRouteIds) => {
+      lastVisibleRouteFilterRef.current = {
+        go: goRouteShortNames,
+        custom: customRouteIds,
+      };
       const map = mapRef.current;
       if (!map || !map.isStyleLoaded()) return;
 
-      applyLayerFilter(map, GO_ROUTE_LAYER_IDS, makeVisibilityFilter("route_short_name", goRouteShortNames));
-      applyLayerFilter(map, CUSTOM_ROUTE_LAYER_IDS, makeVisibilityFilter("id", customRouteIds));
+      applyStoredVisibleRouteFilters(map);
     },
 
     setRailMapVisible: (visible) => {
@@ -708,6 +732,8 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         },
       });
 
+      applyStoredVisibleRouteFilters(map);
+
       onLoad?.(map);
     });
 
@@ -854,10 +880,11 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
     mapRef.current = map;
 
     return () => {
+      onMapDestroy?.();
       map.remove();
       mapRef.current = null;
     };
-  }, [onLoad, onRouteClick, onCustomRouteClick, onRouteHover, onVehicleClick, onVehicleHover]);
+  }, [onLoad, onMapDestroy, onRouteClick, onCustomRouteClick, onRouteHover, onVehicleClick, onVehicleHover]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 });

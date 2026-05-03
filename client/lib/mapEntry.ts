@@ -5,7 +5,7 @@ export type MapSessionPreset = "pending" | "fresh" | "network";
 
 /**
  * Landing gate: bare /map until the user commits.
- * Fresh: hide all GO routes; still show saved custom routes.
+ * Fresh: hide GO and custom route lines (empty canvas until the user chooses).
  * Network: full GO network + custom routes (Explore filters apply).
  */
 export function routeVisibilityFromSearch(sp: Pick<URLSearchParams, "get">): MapSessionPreset {
@@ -32,7 +32,7 @@ export function showMapEntryLanding(sp: Pick<URLSearchParams, "get">): boolean {
 }
 
 export function freshRouteFilters(): RouteFilters {
-  return { goRouteShortNames: [], customRouteIds: null };
+  return { goRouteShortNames: [], customRouteIds: [] };
 }
 
 export function networkRouteFilters(): RouteFilters {

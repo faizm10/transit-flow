@@ -180,17 +180,12 @@ function MapPageContent() {
     else setRouteFilters(networkRouteFilters());
   }, [mapSessionPreset]);
 
-  // Short links: /map?entry=network|fresh without mode
+  // Deep link: /map?entry=network without mode → open Explore (full network).
+  // entry=fresh: stay on blank map until the user picks a mode (no auto-create).
   useEffect(() => {
     const entry = searchParams.get("entry");
     if (!entry || searchParams.get("mode")) return;
-    if (entry === "network") {
-      patchSearch({ mode: "browse" });
-      return;
-    }
-    if (entry === "fresh") {
-      patchSearch({ mode: "build", design: "new", goRoute: null });
-    }
+    if (entry === "network") patchSearch({ mode: "browse" });
   }, [searchParams, patchSearch]);
 
   const fetchExtendSeedIfNeeded = useCallback(
@@ -345,6 +340,10 @@ function MapPageContent() {
   // ── Map event handlers ──────────────────────────────────────────────────
   const handleMapLoad = useCallback((_map: mapboxgl.Map) => {
     setMapLoaded(true);
+  }, []);
+
+  const handleMapDestroy = useCallback(() => {
+    setMapLoaded(false);
   }, []);
 
   // Click works in ALL modes — always highlights + shows info card
@@ -719,6 +718,7 @@ function MapPageContent() {
         <Map
           ref={mapRef}
           onLoad={handleMapLoad}
+          onMapDestroy={handleMapDestroy}
           onRouteClick={handleRouteClick}
           onCustomRouteClick={handleCustomRouteClick}
           onRouteHover={handleRouteHover}
@@ -761,8 +761,8 @@ function MapPageContent() {
           onStartFresh={() =>
             patchSearch({
               entry: "fresh",
-              mode: "build",
-              design: "new",
+              mode: null,
+              design: null,
               goRoute: null,
             })
           }
@@ -977,8 +977,17 @@ function MapPageContent() {
         && routeVisibilityFromSearch(searchParams) !== "pending" && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none max-w-[min(360px,calc(100vw-32px))] text-center">
           <div className="rounded-xl border border-slate-100 bg-white/90 px-4 py-2.5 text-sm leading-snug text-slate-500 shadow-md backdrop-blur-md">
-            Tap a coloured line for details — open <strong className="font-semibold text-slate-700">Explore</strong>{" "}
-            for the route list, or <strong className="font-semibold text-slate-700">Design</strong> to model corridors.
+            {routeVisibilityFromSearch(searchParams) === "fresh" ? (
+              <>
+                Blank canvas — use <strong className="font-semibold text-slate-700">Explore</strong> to show GO routes,{" "}
+                <strong className="font-semibold text-slate-700">Design</strong> when you want to sketch, or explore the map freely.
+              </>
+            ) : (
+              <>
+                Tap a coloured line for details — open <strong className="font-semibold text-slate-700">Explore</strong>{" "}
+                for the route list, or <strong className="font-semibold text-slate-700">Design</strong> to model corridors.
+              </>
+            )}
           </div>
         </div>
       )}
@@ -992,9 +1001,8 @@ function MapPageContent() {
           <button
             onClick={() => {
               patchSearch({
-                entry: "fresh",
                 mode: "build",
-                design: designTabToUrl("new"),
+                design: null,
                 goRoute: null,
               });
             }}
