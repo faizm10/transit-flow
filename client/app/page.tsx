@@ -129,6 +129,9 @@ export default function LandingPage() {
             <Link href={MAP_LINKS.simulate} className="hover:text-slate-900 transition-colors">
               Simulate
             </Link>
+            <Link href="/about" className="hover:text-slate-900 transition-colors">
+              About
+            </Link>
           </nav>
           <Link
             href={MAP_LINKS.welcome}
@@ -242,6 +245,9 @@ export default function LandingPage() {
             </Link>
             <Link href={MAP_LINKS.simulate} className="hover:text-slate-600 transition-colors">
               Simulate
+            </Link>
+            <Link href="/about" className="hover:text-slate-600 transition-colors">
+              About
             </Link>
             <span className="hidden sm:inline text-slate-200" aria-hidden>
               |
