@@ -17,19 +17,11 @@ import RouteTooltip from "@/components/overlays/RouteTooltip";
 import RouteInfoCard from "@/components/overlays/RouteInfoCard";
 import VehicleInfoPopup from "@/components/overlays/VehicleInfoPopup";
 import DrawGuide from "@/components/overlays/DrawGuide";
-import MapEntryLanding from "@/components/overlays/MapEntryLanding";
 import RouteFilterControl from "@/components/overlays/RouteFilterControl";
 import { useRoutes } from "@/hooks/useRoutes";
 import { useStations } from "@/hooks/useStations";
 import { useSimulation } from "@/hooks/useSimulation";
-import {
-  freshRouteFilters,
-  networkRouteFilters,
-  pendingRouteFilters,
-  routeVisibilityFromSearch,
-  showMapEntryLanding,
-  type MapSessionPreset,
-} from "@/lib/mapEntry";
+import { networkRouteFilters } from "@/lib/mapEntry";
 import { type CustomRoute, type CustomSchedule, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
 
 // Dynamically import Map to avoid SSR issues with mapbox-gl
@@ -142,9 +134,7 @@ function MapPageContent() {
   // true when one of the wizards signals a train route is being designed
   const [isTrainDesignMode, setIsTrainDesignMode] = useState(false);
   const [selectedVehicleTripId, setSelectedVehicleTripId] = useState<string | null>(null);
-  const [routeFilters, setRouteFilters] = useState<RouteFilters>(pendingRouteFilters());
-  const mapSessionPreset = routeVisibilityFromSearch(searchParams);
-  const mapSessionAppliedRef = useRef<MapSessionPreset | null>(null);
+  const [routeFilters, setRouteFilters] = useState<RouteFilters>(networkRouteFilters());
 
   const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
   const { stations: customStations, saveStation, deleteStation } = useStations();
@@ -171,21 +161,13 @@ function MapPageContent() {
     [pathname, router, searchParams]
   );
 
-  // Commit map session preset → route layer filters (Explore tweaks are not overwritten until preset changes)
-  useEffect(() => {
-    if (mapSessionAppliedRef.current === mapSessionPreset) return;
-    mapSessionAppliedRef.current = mapSessionPreset;
-    if (mapSessionPreset === "pending") setRouteFilters(pendingRouteFilters());
-    else if (mapSessionPreset === "fresh") setRouteFilters(freshRouteFilters());
-    else setRouteFilters(networkRouteFilters());
-  }, [mapSessionPreset]);
 
-  // Deep link: /map?entry=network without mode → open Explore (full network).
-  // entry=fresh: stay on blank map until the user picks a mode (no auto-create).
+  // Default to full GO network on bare /map (no entry/mode params).
   useEffect(() => {
     const entry = searchParams.get("entry");
-    if (!entry || searchParams.get("mode")) return;
-    if (entry === "network") patchSearch({ mode: "browse" });
+    const mode = searchParams.get("mode");
+    if (mode) return;
+    if (!entry || entry === "network") patchSearch({ entry: "network", mode: "browse" });
   }, [searchParams, patchSearch]);
 
   const fetchExtendSeedIfNeeded = useCallback(
@@ -756,28 +738,7 @@ function MapPageContent() {
         </div>
       </div>
 
-      {showMapEntryLanding(searchParams) && (
-        <MapEntryLanding
-          onStartFresh={() =>
-            patchSearch({
-              entry: "fresh",
-              mode: null,
-              design: null,
-              goRoute: null,
-            })
-          }
-          onUseExistingNetwork={() =>
-            patchSearch({
-              entry: "network",
-              mode: "browse",
-              design: null,
-              goRoute: null,
-            })
-          }
-        />
-      )}
-
-      {!isDrawing && !showMapEntryLanding(searchParams) && (
+      {!isDrawing && (
         <RouteFilterControl
           customRoutes={customRoutes}
           routeFilters={routeFilters}
@@ -972,22 +933,11 @@ function MapPageContent() {
       {/* ── Empty state hint ────────────────────────────────────────────── */}
       {!mode
         && !clickedRoute
-        && mapLoaded
-        && !showMapEntryLanding(searchParams)
-        && routeVisibilityFromSearch(searchParams) !== "pending" && (
+        && mapLoaded && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none max-w-[min(360px,calc(100vw-32px))] text-center">
           <div className="rounded-xl border border-slate-100 bg-white/90 px-4 py-2.5 text-sm leading-snug text-slate-500 shadow-md backdrop-blur-md">
-            {routeVisibilityFromSearch(searchParams) === "fresh" ? (
-              <>
-                Blank canvas — use <strong className="font-semibold text-slate-700">Explore</strong> to show GO routes,{" "}
-                <strong className="font-semibold text-slate-700">Design</strong> when you want to sketch, or explore the map freely.
-              </>
-            ) : (
-              <>
-                Tap a coloured line for details — open <strong className="font-semibold text-slate-700">Explore</strong>{" "}
-                for the route list, or <strong className="font-semibold text-slate-700">Design</strong> to model corridors.
-              </>
-            )}
+            Tap a coloured line for details — open <strong className="font-semibold text-slate-700">Explore</strong>{" "}
+            for the route list, or <strong className="font-semibold text-slate-700">Design</strong> to model corridors.
           </div>
         </div>
       )}
@@ -995,8 +945,7 @@ function MapPageContent() {
       {/* ── Saved routes badge ──────────────────────────────────────────── */}
       {customRoutes.length > 0
         && !panelOpen
-        && mode !== "simulate"
-        && !showMapEntryLanding(searchParams) && (
+        && mode !== "simulate" && (
         <div className="absolute bottom-20 right-4 z-20">
           <button
             onClick={() => {

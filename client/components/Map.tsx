@@ -99,7 +99,7 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
   const mapRef = useRef<mapboxgl.Map | null>(null);
   /** Keeps visibility intent when callers run before GO/custom layers exist (first paint / remount race). */
   const lastVisibleRouteFilterRef = useRef<{ go: string[] | null; custom: string[] | null } | null>(
-    null
+    { go: null, custom: null }
   );
 
   function applyStoredVisibleRouteFilters(map: mapboxgl.Map): void {
