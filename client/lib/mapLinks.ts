@@ -6,8 +6,8 @@ export const MAP_LINKS = {
   welcome: "/map?entry=network&mode=browse",
   /** Full GO network + Explore panel */
   exploreNetwork: "/map?entry=network&mode=browse",
-  /** Full network + Design panel */
-  designFresh: "/map?entry=network&mode=build",
+  /** Full network + Design panel (Create tab; chooser removed) */
+  designFresh: "/map?entry=fresh&mode=build&design=new",
   /** Full network + extend wizard */
   extendGo: "/map?entry=network&mode=build&design=extend",
   /** Full network + simulation HUD */

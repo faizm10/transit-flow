@@ -70,24 +70,56 @@ function douglasPeuckerRetain(
   }
 }
 
+/** Evenly subsample along the polyline so Mapbox Draw never shows more than `max` handles. */
+function capVertexCount(coords: [number, number][], max: number): [number, number][] {
+  if (coords.length <= max) return coords;
+  const n = coords.length;
+  const out: [number, number][] = [];
+  for (let k = 0; k < max; k++) {
+    const idx = Math.round((k / (max - 1)) * (n - 1));
+    out.push(coords[idx]!);
+  }
+  const deduped: [number, number][] = [];
+  for (const p of out) {
+    const last = deduped[deduped.length - 1];
+    if (!last || last[0] !== p[0] || last[1] !== p[1]) deduped.push(p);
+  }
+  return deduped.length >= 2 ? deduped : coords.slice(0, 2);
+}
+
+export type VertexEditSimplifyOptions = {
+  /** Douglas–Peucker tolerance in metres (larger → fewer corners). */
+  toleranceM?: number;
+  /** Hard cap on draggable vertices (Mapbox Draw also shows midpoints between them). */
+  maxVertices?: number;
+};
+
 /**
- * Reduces vertices so Mapbox Draw shows one handle roughly per bend
- * (Douglas–Peucker in approximate metres). Keeps shape for typical road corridors.
+ * Reduces vertices before Mapbox Draw `direct_select`: Douglas–Peucker in approximate metres,
+ * then an even cap so the map stays manageable (Draw adds midpoint handles between vertices).
  *
  * Applied when entering vertex-edit mode, not during freehand draw.
  */
 export function simplifyPolylineForVertexEdit(
   coords: [number, number][],
-  toleranceM = 115,
+  options?: number | VertexEditSimplifyOptions,
 ): [number, number][] {
+  const tol =
+    typeof options === "number"
+      ? options
+      : (options?.toleranceM ?? 320);
+  const maxVertices = typeof options === "number" ? 14 : (options?.maxVertices ?? 14);
+
   const n = coords.length;
   if (n <= 2) return coords.slice();
 
   const xy = coordsToMeterPoints(coords);
   const keep = new Set<number>();
-  douglasPeuckerRetain(xy, toleranceM, 0, n - 1, keep);
+  douglasPeuckerRetain(xy, tol, 0, n - 1, keep);
 
   const sorted = [...keep].sort((a, b) => a - b);
-  const simplified = sorted.map((i) => coords[i]);
+  let simplified = sorted.map((i) => coords[i]!);
+  if (simplified.length < 2) simplified = coords.slice(0, 2);
+  simplified = capVertexCount(simplified, maxVertices);
   return simplified.length >= 2 ? simplified : coords.slice(0, 2);
 }

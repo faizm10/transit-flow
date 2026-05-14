@@ -272,8 +272,11 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         map.addControl(draw as unknown as mapboxgl.IControl);
         drawRef.current = draw;
 
-        // Few handles: corners/turns stay, dense Directions knots drop (Douglas–Peucker, metres).
-        const editCoords = simplifyPolylineForVertexEdit(coords);
+        // Few handles: DP in metres + hard cap (Draw also shows midpoints between vertices).
+        const editCoords = simplifyPolylineForVertexEdit(coords, {
+          toleranceM: 340,
+          maxVertices: 12,
+        });
 
         // Load geometry as an editable feature
         const [featureId] = draw.add({

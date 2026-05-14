@@ -14,7 +14,7 @@ import { CustomRoute, CustomStop, CustomSchedule, CustomStation } from "@/lib/gt
 import { CUSTOM_ROUTE_COLORS } from "@/lib/routeColors";
 import { v4 as uuidv4 } from "uuid";
 
-type Step = "type" | "draw" | "name" | "stops" | "schedule" | "review";
+type Step = "type" | "draw" | "stops" | "schedule" | "review";
 
 interface BuilderWizardProps {
   onSave: (route: CustomRoute) => void;
@@ -42,6 +42,8 @@ interface BuilderWizardProps {
   onStopPinMode?: () => void;
   /** If set, user can optionally persist a placed stop to the shared station library. */
   onSaveStation?: (station: Omit<CustomStation, "id" | "createdAt"> & { id?: string }) => void;
+  /** Open the saved-stations panel (secondary entry from Create). */
+  onOpenSavedStations?: () => void;
 }
 
 const ROUTE_TYPE_OPTIONS = [
@@ -175,6 +177,7 @@ export default function BuilderWizard({
   onStartPinMode,
   onStopPinMode,
   onSaveStation,
+  onOpenSavedStations,
 }: BuilderWizardProps) {
   const [step, setStep] = useState<Step>(existingRoute ? "review" : "type");
   const [routeType, setRouteType] = useState<"bus" | "train">(
@@ -571,24 +574,35 @@ export default function BuilderWizard({
   }
 
   const steps: Step[] = routeType === "train"
-    ? ["type", "draw", "name", "stops", "schedule", "review"]
-    : ["type", "name", "stops", "schedule", "review"];
+    ? ["type", "draw", "stops", "schedule", "review"]
+    : ["type", "stops", "schedule", "review"];
   const stepIndex = steps.indexOf(step);
 
   // ── Step renderer ────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
-        <div>
+      <div className="px-4 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between gap-2">
+        <div className="min-w-0">
           <h2 className="font-semibold text-slate-900 text-base">Design a route</h2>
           <p className="text-xs text-slate-400 mt-0.5">
             Step {stepIndex + 1} of {steps.length}
           </p>
         </div>
-        <button onClick={handleCancel} className="text-slate-400 hover:text-slate-600 transition-colors">
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {onOpenSavedStations && (
+            <button
+              type="button"
+              onClick={onOpenSavedStations}
+              className="text-xs font-medium text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline"
+            >
+              Saved stations
+            </button>
+          )}
+          <button onClick={handleCancel} className="text-slate-400 hover:text-slate-600 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Progress bar */}
@@ -620,7 +634,7 @@ export default function BuilderWizard({
                     setStep("draw");
                     onDrawRequest();
                   } else {
-                    setStep("name");
+                    setStep("stops");
                   }
                 }}
               >
@@ -688,7 +702,7 @@ export default function BuilderWizard({
                 {isEditing ? (
                   <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
                     <Move className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-                    <span className="text-xs text-amber-700 font-medium flex-1">Drag vertices to reshape</span>
+                    <span className="text-xs text-amber-700 font-medium flex-1">Drag points to adjust the line</span>
                     <button
                       onClick={handleEditDone}
                       className="text-xs font-semibold text-[#007A33] hover:underline whitespace-nowrap"
@@ -703,7 +717,7 @@ export default function BuilderWizard({
                       onClick={handleEditRequest}
                     >
                       <Move className="w-3.5 h-3.5 text-slate-400" />
-                      Fine-tune vertices
+                      Edit shape
                     </button>
                     <button
                       className="flex items-center justify-center gap-1.5 text-sm text-slate-500 py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
@@ -723,57 +737,53 @@ export default function BuilderWizard({
           </div>
         )}
 
-        {/* ── Step 3 (was 2): Name & style ────────────────────────────────── */}
-        {step === "name" && (
-          <div className="flex flex-col gap-4">
-            <div>
-              <Label className="text-sm font-medium text-slate-700 mb-1.5 block">
-                What should we call it?
-              </Label>
-              <Input
-                placeholder={routeType === "train" ? "e.g. East Bayfront Rail" : "e.g. Airport Express"}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="rounded-xl h-11"
-                autoFocus
-              />
-            </div>
-
-            <div>
-              <Label className="text-sm font-medium text-slate-700 mb-1.5 block">
-                Pick a colour
-              </Label>
-              <div className="flex gap-2 flex-wrap">
-                {CUSTOM_ROUTE_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    className={`w-8 h-8 rounded-full transition-transform ${
-                      color === c ? "scale-125 ring-2 ring-offset-2 ring-slate-400" : "hover:scale-110"
-                    }`}
-                    style={{ backgroundColor: c }}
-                    onClick={() => setColor(c)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <Label className="text-sm font-medium text-slate-700 mb-1.5 block">
-                Short description <span className="text-slate-400 font-normal">(optional)</span>
-              </Label>
-              <Input
-                placeholder="e.g. Connects downtown to the waterfront"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="rounded-xl h-11"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* ── Step 3: Stops ───────────────────────────────────────────────── */}
+        {/* ── Stops (includes name & style) ─────────────────────────────── */}
         {step === "stops" && (
           <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4 rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+              <div>
+                <Label className="text-sm font-medium text-slate-700 mb-1.5 block">
+                  What should we call it?
+                </Label>
+                <Input
+                  placeholder={routeType === "train" ? "e.g. East Bayfront Rail" : "e.g. Airport Express"}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="rounded-xl h-11"
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium text-slate-700 mb-1.5 block">
+                  Pick a colour
+                </Label>
+                <div className="flex gap-2 flex-wrap">
+                  {CUSTOM_ROUTE_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`w-8 h-8 rounded-full transition-transform ${
+                        color === c ? "scale-125 ring-2 ring-offset-2 ring-slate-400" : "hover:scale-110"
+                      }`}
+                      style={{ backgroundColor: c }}
+                      onClick={() => setColor(c)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium text-slate-700 mb-1.5 block">
+                  Short description <span className="text-slate-400 font-normal">(optional)</span>
+                </Label>
+                <Input
+                  placeholder="e.g. Connects downtown to the waterfront"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="rounded-xl h-11"
+                />
+              </div>
+            </div>
 
             {/* ── Bus: search stops + auto-route ──────────────────────────── */}
             {routeType === "bus" && (
@@ -957,7 +967,7 @@ export default function BuilderWizard({
                           <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
                             <Move className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
                             <span className="text-xs text-amber-700 font-medium flex-1">
-                              Drag vertices to adjust route
+                              Drag points to adjust the route
                             </span>
                             <button
                               onClick={handleEditDone}
@@ -973,7 +983,7 @@ export default function BuilderWizard({
                           >
                             <Move className="w-4 h-4 text-slate-400" />
                             Adjust route on map
-                            <span className="ml-auto text-xs text-slate-400">drag to reshape</span>
+                            <span className="ml-auto text-xs text-slate-400">few control points</span>
                           </button>
                         )}
                       </>
@@ -1071,8 +1081,8 @@ export default function BuilderWizard({
                     <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
                       <Move className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-amber-700 font-medium">Drag vertices to reshape</p>
-                        <p className="text-[10px] text-amber-600">Click midpoints to add new vertices</p>
+                        <p className="text-xs text-amber-700 font-medium">Drag points to adjust the line</p>
+                        <p className="text-[10px] text-amber-600">Tap + on the line if you need an extra point</p>
                       </div>
                       <button
                         onClick={handleEditDone}
@@ -1330,7 +1340,10 @@ export default function BuilderWizard({
         {step !== "review" ? (
           <Button
             className="rounded-xl flex-1 bg-[#007A33] hover:bg-[#005f28] text-white"
-            disabled={step === "draw" && (!routeGeometry || fetchingRoute)}
+            disabled={
+              (step === "draw" && (!routeGeometry || fetchingRoute))
+              || (step === "stops" && stops.length < 2)
+            }
             onClick={() => {
               if (isEditing) handleEditDone();
               const i = steps.indexOf(step);

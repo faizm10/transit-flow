@@ -36,9 +36,11 @@ interface ExtendRouteWizardProps {
   onTrainModeChange?: (isTrain: boolean) => void;
   /** Custom stations created by the user — included in stop search results. */
   customStations?: CustomStation[];
+  /** Open the saved-stations panel (secondary entry from Extend). */
+  onOpenSavedStations?: () => void;
 }
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3;
 type FreqChip = "quarter" | "half" | "same" | "custom";
 
 // ─── Schedule builder ────────────────────────────────────────────────────────
@@ -197,6 +199,7 @@ export default function ExtendRouteWizard({
   drawGeometry,
   onTrainModeChange,
   customStations = [],
+  onOpenSavedStations,
 }: ExtendRouteWizardProps) {
   // ── Step management ────────────────────────────────────────────────────────
   const [step, setStep] = useState<Step>(initialRoute ? 2 : 1);
@@ -832,19 +835,30 @@ export default function ExtendRouteWizard({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-slate-100">
-        <div className="flex items-center gap-2 mb-2">
-          <button
-            onClick={onCancel}
-            className="p-1 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
-            aria-label="Cancel"
-          >
-            <X className="w-4 h-4" />
-          </button>
-          <h2 className="font-semibold text-slate-900 text-base">Extend a GO Route</h2>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              onClick={onCancel}
+              className="p-1 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
+              aria-label="Cancel"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <h2 className="truncate font-semibold text-slate-900 text-base">Extend a GO Route</h2>
+          </div>
+          {onOpenSavedStations && (
+            <button
+              type="button"
+              onClick={onOpenSavedStations}
+              className="shrink-0 text-xs font-medium text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline"
+            >
+              Saved stations
+            </button>
+          )}
         </div>
         {/* Step indicator */}
         <div className="flex items-center gap-1.5">
-          {([1, 2, 3, 4] as Step[]).map((s) => (
+          {([1, 2, 3] as const).map((s) => (
             <div
               key={s}
               className={`h-1.5 flex-1 rounded-full transition-colors ${
@@ -856,8 +870,7 @@ export default function ExtendRouteWizard({
         <p className="text-xs text-slate-400 mt-1.5">
           {step === 1 && "Select a base route"}
           {step === 2 && "Choose branch & add extension stops"}
-          {step === 3 && "Name & options"}
-          {step === 4 && "Schedule"}
+          {step === 3 && "Name & schedule"}
         </p>
       </div>
 
@@ -1025,7 +1038,7 @@ export default function ExtendRouteWizard({
                   <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
                     <Move className="h-3.5 w-3.5 shrink-0 text-amber-600" />
                     <span className="min-w-0 flex-1 text-xs font-medium text-amber-700">
-                      Drag vertices to reshape the extension.
+                      Drag the highlighted points to reshape the extension.
                     </span>
                     <button
                       type="button"
@@ -1279,7 +1292,7 @@ export default function ExtendRouteWizard({
           </>
         )}
 
-        {/* ── Step 3: Name & options ── */}
+        {/* ── Step 3: Name, options & schedule ── */}
         {step === 3 && selectedRoute && (
           <>
             <div>
@@ -1336,73 +1349,71 @@ export default function ExtendRouteWizard({
               </div>
               <span>Keep Route {selectedRoute.short_name} running alongside</span>
             </button>
-          </>
-        )}
 
-        {/* ── Step 4: Schedule ── */}
-        {step === 4 && selectedRoute && (
-          <>
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600">
-              Selected branch runs ~
-              <span className="font-semibold"> {parentWeeklyTrips.toLocaleString()}</span> trips/week
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-slate-700 mb-1.5 block">Frequency relative to parent</label>
-              <div className="flex gap-2">
-                {(["quarter", "half", "same", "custom"] as FreqChip[]).map((chip) => (
-                  <button
-                    key={chip}
-                    onClick={() => setFreqChip(chip)}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
-                      freqChip === chip
-                        ? "bg-slate-900 text-white border-slate-900"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
-                    }`}
-                  >
-                    {chip === "quarter" ? "¼×" : chip === "half" ? "½×" : chip === "same" ? "Same" : "Custom"}
-                  </button>
-                ))}
+            <div className="my-2 border-t border-slate-100 pt-3">
+              <p className="text-xs font-medium text-slate-600 mb-2">Schedule</p>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600">
+                Selected branch runs ~
+                <span className="font-semibold"> {parentWeeklyTrips.toLocaleString()}</span> trips/week
               </div>
-            </div>
 
-            {freqChip === "custom" && (
-              <div>
-                <label className="text-xs font-medium text-slate-700 mb-1.5 block">Headway (minutes)</label>
-                <Input
-                  type="number"
-                  min={5}
-                  max={120}
-                  value={customHeadway}
-                  onChange={(e) => setCustomHeadway(e.target.value)}
-                  className="h-9 text-sm w-28"
-                  placeholder="e.g. 20"
-                />
+              <div className="mt-3">
+                <label className="text-xs font-medium text-slate-700 mb-1.5 block">Frequency relative to parent</label>
+                <div className="flex gap-2">
+                  {(["quarter", "half", "same", "custom"] as FreqChip[]).map((chip) => (
+                    <button
+                      key={chip}
+                      onClick={() => setFreqChip(chip)}
+                      className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                        freqChip === chip
+                          ? "bg-slate-900 text-white border-slate-900"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+                      }`}
+                    >
+                      {chip === "quarter" ? "¼×" : chip === "half" ? "½×" : chip === "same" ? "Same" : "Custom"}
+                    </button>
+                  ))}
+                </div>
               </div>
-            )}
 
-            <div>
-              <label className="text-xs font-medium text-slate-700 mb-1.5 block">Direction</label>
-              <div className="flex gap-2">
-                {(["one-way", "two-way"] as const).map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => setDirection(d)}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
-                      direction === d
-                        ? "bg-slate-900 text-white border-slate-900"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
-                    }`}
-                  >
-                    {d === "one-way" ? "One-way" : "Two-way"}
-                  </button>
-                ))}
+              {freqChip === "custom" && (
+                <div className="mt-3">
+                  <label className="text-xs font-medium text-slate-700 mb-1.5 block">Headway (minutes)</label>
+                  <Input
+                    type="number"
+                    min={5}
+                    max={120}
+                    value={customHeadway}
+                    onChange={(e) => setCustomHeadway(e.target.value)}
+                    className="h-9 text-sm w-28"
+                    placeholder="e.g. 20"
+                  />
+                </div>
+              )}
+
+              <div className="mt-3">
+                <label className="text-xs font-medium text-slate-700 mb-1.5 block">Direction</label>
+                <div className="flex gap-2">
+                  {(["one-way", "two-way"] as const).map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setDirection(d)}
+                      className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                        direction === d
+                          ? "bg-slate-900 text-white border-slate-900"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+                      }`}
+                    >
+                      {d === "one-way" ? "One-way" : "Two-way"}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-emerald-700">
-              <span className="font-semibold">{selectedRoute.short_name}{branchSuffix}</span> will run ~
-              <span className="font-semibold"> {estimatedWeeklyTrips.toLocaleString()}</span> trips/week
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-emerald-700 mt-3">
+                <span className="font-semibold">{selectedRoute.short_name}{branchSuffix}</span> will run ~
+                <span className="font-semibold"> {estimatedWeeklyTrips.toLocaleString()}</span> trips/week
+              </div>
             </div>
           </>
         )}
@@ -1421,7 +1432,7 @@ export default function ExtendRouteWizard({
           </Button>
         )}
 
-        {step < 4 && step !== 1 && (
+        {step < 3 && step !== 1 && (
           <Button
             size="sm"
             className="flex-1 gap-1 bg-[#007A33] hover:bg-[#005f28] text-white"
@@ -1435,7 +1446,7 @@ export default function ExtendRouteWizard({
           </Button>
         )}
 
-        {step === 4 && (
+        {step === 3 && (
           <Button
             size="sm"
             className="flex-1 gap-1 bg-[#007A33] hover:bg-[#005f28] text-white"

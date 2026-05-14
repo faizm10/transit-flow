@@ -9,7 +9,6 @@ import { Train, Map as MapIcon, PlayCircle, Pencil, CalendarClock } from "lucide
 import { toast } from "sonner";
 import { MapHandle } from "@/components/Map";
 import BrowsePanel from "@/components/panels/BrowsePanel";
-import DesignEntryChooser from "@/components/panels/DesignEntryChooser";
 import DesignPanel, { type DesignTab } from "@/components/panels/DesignPanel";
 import ScheduleModal from "@/components/panels/ScheduleModal";
 import SimulationHUD from "@/components/panels/SimulationHUD";
@@ -61,15 +60,6 @@ function designTabToUrl(tab: DesignTab): "new" | "extend" | "stations" {
   if (tab === "existing") return "extend";
   if (tab === "new") return "new";
   return "stations";
-}
-
-/** Build mode without a committed design=new|extend|stations (unless goRoute hints Extend). */
-function isBuildChooserActive(sp: Pick<URLSearchParams, "get">): boolean {
-  if (sp.get("mode") !== "build") return false;
-  const d = sp.get("design");
-  if (d && designParamToTab(d) !== null) return false;
-  if (sp.get("goRoute")?.trim()) return false;
-  return true;
 }
 
 /** Stable numeric id from a trip_id string (for Mapbox feature-state) */
@@ -126,8 +116,13 @@ function MapPageContent() {
   const [drawnGeometry, setDrawnGeometry] = useState<[number, number][] | null>(null);
   const [editingRoute, setEditingRoute] = useState<CustomRoute | undefined>();
   const [designTab, setDesignTab] = useState<DesignTab>(() => {
-    if (typeof window === "undefined") return "existing";
-    return designParamToTab(new URLSearchParams(window.location.search).get("design")) ?? "existing";
+    if (typeof window === "undefined") return "new";
+    const sp = new URLSearchParams(window.location.search);
+    return (
+      designParamToTab(sp.get("design"))
+      ?? (sp.get("goRoute")?.trim() ? ("existing" as DesignTab) : null)
+      ?? "new"
+    );
   });
   const [extendSeedRoute, setExtendSeedRoute] = useState<EnrichedRoute | undefined>();
   /** Resolves GO line for Extend deep link (goRoute=) */
@@ -243,13 +238,19 @@ function MapPageContent() {
     if (!resolvedTab) {
       setExtendSeedRoute(undefined);
       setExtendSeedStatus("idle");
+      patchSearch({
+        mode: "build",
+        entry: "fresh",
+        design: "new",
+        goRoute: null,
+      });
       return;
     }
 
     setDesignTab(resolvedTab);
     const go = searchParams.get("goRoute");
     void fetchExtendSeedIfNeeded(go, resolvedTab === "existing");
-  }, [searchParams, fetchExtendSeedIfNeeded]);
+  }, [searchParams, fetchExtendSeedIfNeeded, patchSearch]);
 
   // ── Sync simulation vehicles to map ────────────────────────────────────
   useEffect(() => {
@@ -632,7 +633,12 @@ function MapPageContent() {
           goRoute: go.trim(),
         });
       } else {
-        patchSearch({ mode: "build", design: null, goRoute: null });
+        patchSearch({
+          mode: "build",
+          entry: "fresh",
+          design: "new",
+          goRoute: null,
+        });
       }
     }
   }
@@ -803,36 +809,7 @@ function MapPageContent() {
                 onDeleteCustomRoute={requestDeleteCustomRoute}
               />
             )}
-            {mode === "build"
-              && (isBuildChooserActive(searchParams) ? (
-                <DesignEntryChooser
-                  onPickExtendGO={() =>
-                    patchSearch({
-                      mode: "build",
-                      entry: "network",
-                      design: "extend",
-                      goRoute: null,
-                    })
-                  }
-                  onPickCreateFresh={() =>
-                    patchSearch({
-                      mode: "build",
-                      entry: "fresh",
-                      design: "new",
-                      goRoute: null,
-                    })
-                  }
-                  onPickStationsOnly={() =>
-                    patchSearch({
-                      mode: "build",
-                      entry: "fresh",
-                      design: "stations",
-                      goRoute: null,
-                    })
-                  }
-                  onCancel={closeDesignPanel}
-                />
-              ) : (
+            {mode === "build" && (
                 <DesignPanel
                   activeTab={designTab}
                   onActiveTabChange={handleDesignTabChange}
@@ -863,7 +840,7 @@ function MapPageContent() {
                   onSaveStation={saveStation}
                   onDeleteStation={deleteStation}
                 />
-              ))}
+              )}
           </div>
         </div>
       )}
@@ -974,7 +951,8 @@ function MapPageContent() {
             onClick={() => {
               patchSearch({
                 mode: "build",
-                design: null,
+                entry: "fresh",
+                design: "new",
                 goRoute: null,
               });
             }}
