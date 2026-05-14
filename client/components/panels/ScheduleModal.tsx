@@ -45,7 +45,7 @@ interface EditorState {
 
 interface DepartureDestination {
   headsign: string;
-  departures: { time: string }[];
+  departures: { time: string; fromStop?: string }[];
 }
 
 interface DepartureDirection {
@@ -55,7 +55,7 @@ interface DepartureDirection {
   /** Per-destination breakdown, sorted most-trips-first */
   destinations: DepartureDestination[];
   /** All departures tagged with their individual headsign */
-  departures: { time: string; headsign: string }[];
+  departures: { time: string; headsign: string; fromStop?: string }[];
 }
 
 interface DeparturesState {
@@ -81,6 +81,21 @@ interface ScheduleModalProps {
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_FULL   = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+/** Encodes optional first-stop so two trips at the same clock time stay distinct in the stop-times picker. */
+const DEPARTURE_SLOT_SEP = "::";
+
+function departureSlotKey(d: { time: string; fromStop?: string }): string {
+  const t = d.time.trim();
+  const o = d.fromStop?.trim();
+  return o ? `${t}${DEPARTURE_SLOT_SEP}${o}` : t;
+}
+
+function departureSlotTime(key: string | null | undefined): string | null {
+  if (!key) return null;
+  const i = key.indexOf(DEPARTURE_SLOT_SEP);
+  return i === -1 ? key : key.slice(0, i);
+}
+
 /** Strip redundant "LINE - " prefix from trip_headsign when it repeats the route short name (e.g. "KI - Kitchener GO" → "Kitchener GO"). */
 function simplifyTripHeadsign(headsign: string, routeShortName: string): string {
   const h = headsign.trim();
@@ -91,6 +106,32 @@ function simplifyTripHeadsign(headsign: string, routeShortName: string): string 
     return h.slice(prefix.length).trim();
   }
   return h;
+}
+
+/**
+ * Direction pills: when several trip_headsign branches exist, the API's `headsign` is only the
+ * dominant branch (often a short-turn). Label by corridor end from route endpoints instead.
+ */
+function directionPillLabel(
+  dir: DepartureDirection,
+  lineFrom: string,
+  lineTo: string,
+  routeShortName: string,
+): { label: string; title: string } {
+  const dests = dir.destinations ?? [];
+  const fromT = lineFrom.trim();
+  const toT = lineTo.trim();
+  if (dests.length <= 1 || !fromT || !toT) {
+    return {
+      label: simplifyTripHeadsign(dir.headsign, routeShortName),
+      title: dir.headsign,
+    };
+  }
+  const towardRaw = dir.directionId === 0 ? toT : fromT;
+  const label = `Toward ${simplifyTripHeadsign(towardRaw, routeShortName)}`;
+  const branchTitle = dests.map((d) => d.headsign).join(" · ");
+  const title = branchTitle ? `Branches: ${branchTitle}` : dir.headsign;
+  return { label, title };
 }
 
 // ─── Custom schedule departure computation ────────────────────────────────────
@@ -487,8 +528,8 @@ export default function ScheduleModal({
     const dest = selectedDestination
       ? dir?.destinations.find((d) => d.headsign === selectedDestination)
       : dir?.destinations[0]; // dominant destination
-    const firstTime = dest?.departures[0]?.time ?? dir?.departures[0]?.time;
-    if (firstTime) setSelectedDeparture(firstTime);
+    const firstSlot = dest?.departures[0] ?? dir?.departures[0];
+    if (firstSlot) setSelectedDeparture(departureSlotKey({ time: firstSlot.time, fromStop: firstSlot.fromStop }));
   }, [deptState.status, deptDirection, selectedDestination]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fetch departures for a GO route ──────────────────────────────────────
@@ -896,7 +937,9 @@ export default function ScheduleModal({
     if (!selectedDeparture) return editor.rows;
     const baseFirst = editor.rows[0]?.timeHHMM;
     if (!baseFirst) return editor.rows;
-    const offset = hhmmToSec(selectedDeparture) - hhmmToSec(baseFirst);
+    const selectedTime = departureSlotTime(selectedDeparture);
+    if (!selectedTime) return editor.rows;
+    const offset = hhmmToSec(selectedTime) - hhmmToSec(baseFirst);
     if (offset === 0) return editor.rows;
     return editor.rows.map((row) => ({
       ...row,
@@ -911,8 +954,7 @@ export default function ScheduleModal({
       return currentDir.destinations
         .find((d) => d.headsign === selectedDestination)?.departures ?? [];
     }
-    // All departures, but only the time field (headsign shown on card separately)
-    return currentDir.departures.map((d) => ({ time: d.time }));
+    return currentDir.departures;
   }, [currentDir, selectedDestination]);
 
   // ── Origin stop for the current direction / destination ───────────────────
@@ -1033,6 +1075,8 @@ export default function ScheduleModal({
                         departures={currentDirDepartures}
                         directions={deptState.directions}
                         routeShortName={selected.route.short_name}
+                        lineFromStop={selected.route.from_stop}
+                        lineToStop={selected.route.to_stop}
                         selectedDeparture={selectedDeparture}
                         selectedDirection={deptDirection}
                         selectedDestination={selectedDestination}
@@ -1386,13 +1430,17 @@ function CustomEditorHeader({ route }: { route: CustomRoute }) {
 // Toolbar shown in the Stop Times tab: pick destination sub-route + departure time.
 
 function DepartureSelector({
-  departures, directions, routeShortName, selectedDeparture, selectedDirection,
+  departures, directions, routeShortName, lineFromStop, lineToStop,
+  selectedDeparture, selectedDirection,
   selectedDestination, originStop,
   onSelectDeparture, onSelectDirection, onDestinationChange,
 }: {
-  departures: { time: string }[];
+  departures: { time: string; fromStop?: string }[];
   directions: DepartureDirection[];
   routeShortName: string;
+  /** Corridor endpoints (e.g. Union ↔ Kitchener); used for direction labels when branches exist */
+  lineFromStop: string;
+  lineToStop: string;
   selectedDeparture: string | null;
   selectedDirection: number;
   selectedDestination: string | null;
@@ -1423,12 +1471,12 @@ function DepartureSelector({
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {directions.map((dir) => {
-                  const short = simplifyTripHeadsign(dir.headsign, routeShortName);
+                  const { label, title } = directionPillLabel(dir, lineFromStop, lineToStop, routeShortName);
                   return (
                     <button
                       key={dir.directionId}
                       type="button"
-                      title={dir.headsign}
+                      title={title}
                       onClick={() => onSelectDirection(dir.directionId)}
                       className={`max-w-[min(100%,14rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                         selectedDirection === dir.directionId
@@ -1436,7 +1484,7 @@ function DepartureSelector({
                           : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
                       }`}
                     >
-                      {short}
+                      {label}
                     </button>
                   );
                 })}
@@ -1509,7 +1557,10 @@ function DepartureSelector({
           >
             {departures.length === 0 && <option value="">No departures</option>}
             {departures.map((dep) => (
-              <option key={dep.time} value={dep.time}>{toDisplayTime(dep.time)}</option>
+              <option key={departureSlotKey(dep)} value={departureSlotKey(dep)}>
+                {toDisplayTime(dep.time)}
+                {dep.fromStop ? ` · ${dep.fromStop}` : ""}
+              </option>
             ))}
           </select>
           <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1570,11 +1621,15 @@ function DeparturesView({
   const currentDir = deptState.directions.find((d) => d.directionId === deptDirection);
 
   // Departures to show — filtered by destination if one is selected
-  type DepEntry = { time: string; headsign?: string };
+  type DepEntry = { time: string; headsign?: string; fromStop?: string };
   const visibleDepartures: DepEntry[] = selectedDestination
     ? (currentDir?.destinations.find((d) => d.headsign === selectedDestination)?.departures ?? [])
     : (currentDir?.destinations.flatMap((d) =>
-        d.departures.map((dep): DepEntry => ({ time: dep.time, headsign: d.headsign }))
+        d.departures.map((dep): DepEntry => ({
+          time: dep.time,
+          headsign: d.headsign,
+          fromStop: dep.fromStop,
+        }))
       ) ?? []).sort((a, b) => a.time.localeCompare(b.time));
 
   const hasMultipleDestinations = (currentDir?.destinations.length ?? 0) > 1;
@@ -1587,22 +1642,27 @@ function DeparturesView({
     <div className="flex-1 flex flex-col min-h-0">
       {/* Day selector */}
       <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-1 flex-wrap">
-        {deptState.status === "done" && deptState.availableDays.length > 0
-          ? deptState.availableDays.map((d) => (
-              <button key={d} onClick={() => onDayChange(d)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                  deptDay === d ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >{DAY_LABELS[d]}</button>
-            ))
-          : DAY_LABELS.map((label, d) => (
-              <button key={d} onClick={() => onDayChange(d)}
-                disabled={deptState.status === "loading"}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-40 ${
-                  deptDay === d ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >{label}</button>
-            ))}
+        {DAY_LABELS.map((label, d) => {
+          const done = deptState.status === "done";
+          const loading = deptState.status === "loading";
+          const selectable =
+            !done ||
+            (deptState.availableDays.length > 0 &&
+              deptState.availableDays.includes(d));
+          return (
+            <button
+              key={d}
+              type="button"
+              onClick={() => onDayChange(d)}
+              disabled={loading || (done && !selectable)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                deptDay === d ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Direction + destination filters — labeled rows, short labels, full text in title="" */}
@@ -1616,8 +1676,13 @@ function DeparturesView({
               <div className="flex flex-wrap gap-1.5">
                 {deptState.directions.map((dir) => {
                   const origin = getOriginForDir(dir.directionId);
-                  const short = simplifyTripHeadsign(dir.headsign, route.short_name);
-                  const tip = origin ? `${origin} → ${dir.headsign}` : dir.headsign;
+                  const { label, title: dirTitle } = directionPillLabel(
+                    dir,
+                    route.from_stop,
+                    route.to_stop,
+                    route.short_name,
+                  );
+                  const tip = origin ? `Board near ${origin}. ${dirTitle}` : dirTitle;
                   return (
                     <button
                       key={dir.directionId}
@@ -1630,7 +1695,7 @@ function DeparturesView({
                           : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
                       }`}
                     >
-                      {short}
+                      {label}
                     </button>
                   );
                 })}
@@ -1835,9 +1900,9 @@ function DeparturesView({
             <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-1.5">
               {visibleDepartures.map((dep, i) => (
                 <DepartureCard
-                  key={i}
+                  key={`${dep.time}|${dep.headsign ?? ""}|${dep.fromStop ?? ""}|${i}`}
                   time={dep.time}
-                  originStop={originStop}
+                  originStop={dep.fromStop ?? originStop}
                   destination={
                     !selectedDestination && dep.headsign
                       ? simplifyTripHeadsign(dep.headsign, route.short_name)

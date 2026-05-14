@@ -5,7 +5,9 @@ Build derived GTFS JSON for Transit Flow's simulation and schedule APIs.
 Generates four files in client/public/gotransit/derived/:
   - stops_lookup.json       stop_id → {lat, lon, name}
   - sim_trips_by_dow.json   trips by JS day-of-week (0=Sun) for the simulation API
-  - departures_index.json   "ROUTE|dow" → [{time, headsign, directionId}]
+  - departures_index.json   "ROUTE|dow" → [{time, headsign, directionId, fromStop}]
+                              Empty JS DOW buckets are filled from the nearest day that
+                              has service (same clock times); GTFS may omit that weekday.
   - trip_stop_times.json    representative_trip_id → [{stopId, stopName, lat, lon,
                               sequence, arrivalTime, departureTime}]
 
@@ -242,10 +244,13 @@ def main() -> None:
             dep_secs = st[0]["t"]
             h, m = (dep_secs % 86400) // 3600, (dep_secs % 3600) // 60
             key  = f"{sn}|{js_dow}"
+            first_sid = st[0].get("stop_id", "").strip()
+            from_stop = (stops_lookup.get(first_sid) or {}).get("name", first_sid) or first_sid
             entry: dict = {
                 "time":        f"{h:02d}:{m:02d}",
                 "headsign":    meta["headsign"],
                 "directionId": meta["direction_id"],
+                "fromStop":    from_stop,
             }
             departures_index.setdefault(key, []).append(entry)
 
@@ -253,7 +258,9 @@ def main() -> None:
         seen: set[str] = set()
         deduped: list[dict] = []
         for e in entries:
-            k = f"{e['time']}|{e['directionId']}"
+            # Include headsign + origin so distinct trips are not merged (e.g. same clock time
+            # is rare; more often same minute with different branch/headsign or first stop).
+            k = f"{e['time']}|{e['directionId']}|{e['headsign']}|{e.get('fromStop', '')}"
             if k not in seen:
                 seen.add(k)
                 deduped.append(e)
@@ -261,6 +268,38 @@ def main() -> None:
         departures_index[key] = deduped
 
     print(f"  {len(departures_index)} departure buckets")
+
+    # ── 8b. Sun–Sat for every route_short_name in the rep week (nearest-day copy)
+    print("Backfilling empty weekday buckets …")
+    all_short_names: set[str] = set()
+    for sid in rep_service_ids:
+        for meta in trips_by_service.get(sid, []):
+            sn = (meta.get("route_short_name") or "").strip()
+            if sn:
+                all_short_names.add(sn)
+
+    def find_donor_day(sn: str, target: int) -> int | None:
+        for dist in range(1, 7):
+            for delta in (dist, -dist):
+                dd = (target + delta) % 7
+                kk = f"{sn}|{dd}"
+                if departures_index.get(kk):
+                    return dd
+        return None
+
+    filled = 0
+    for sn in sorted(all_short_names):
+        for d in range(7):
+            k = f"{sn}|{d}"
+            if departures_index.get(k):
+                continue
+            donor = find_donor_day(sn, d)
+            if donor is None:
+                continue
+            dk = f"{sn}|{donor}"
+            departures_index[k] = [dict(e) for e in departures_index[dk]]
+            filled += 1
+    print(f"  backfilled {filled} empty buckets")
 
     # ── 9. Write output ───────────────────────────────────────────────────────
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

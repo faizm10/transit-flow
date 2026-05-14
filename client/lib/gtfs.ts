@@ -49,9 +49,9 @@ export interface EnrichedRoute {
   is_rail: boolean;
   color: string;
   variants: GTFSVariant[];
-  /** First stop name of the first variant */
+  /** Corridor end (Union when present); from longest variant, not necessarily the first variant */
   from_stop: string;
-  /** Last stop name of the first variant */
+  /** Corridor end (outer terminal); from longest variant */
   to_stop: string;
   /** Total trips across all variants for this route */
   total_trips: number;

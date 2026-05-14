@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       const times = normalizeTimes(v);
       if (times) map.set(k, times);
     }
-    return map;
+    return map.size > 0 ? map : null;
   })();
 
   try {
@@ -62,25 +62,38 @@ export async function GET(request: NextRequest) {
     const key = `${route}|${dayOfWeek}`;
     const allEntries = departures.get(key) ?? [];
 
-    // Group by directionId → headsign → departures
-    const dirMap = new Map<number, Map<string, string[]>>();
+    // Group by directionId → headsign → { time, fromStop }[]
+    type DepSlot = { time: string; fromStop?: string };
+    const dirMap = new Map<number, Map<string, DepSlot[]>>();
     for (const e of allEntries) {
       let dir = dirMap.get(e.directionId);
       if (!dir) { dir = new Map(); dirMap.set(e.directionId, dir); }
       const bucket = dir.get(e.headsign) ?? [];
-      bucket.push(e.time);
+      bucket.push({ time: e.time, fromStop: e.fromStop });
       dir.set(e.headsign, bucket);
+    }
+
+    /** Reattach first-stop names from GTFS slots when the client only sends HH:MM overrides. */
+    function mergeOverrideSlots(base: DepSlot[], overriddenTimes: string[]): DepSlot[] {
+      const pool = [...base];
+      return overriddenTimes.map((t) => {
+        const idx = pool.findIndex((s) => s.time === t);
+        if (idx < 0) return { time: t };
+        const [match] = pool.splice(idx, 1);
+        return { time: t, fromStop: match.fromStop };
+      });
     }
 
     const directions = Array.from(dirMap.entries())
       .map(([directionId, headsignMap]) => {
         // Build per-destination groups (sorted most-trips-first)
-        const destinations = Array.from(headsignMap.entries()).map(([headsign, times]) => {
+        const destinations = Array.from(headsignMap.entries()).map(([headsign, slots]) => {
           const overrideKey = `${route}|${dayOfWeek}|${directionId}|${headsign}`;
-          const finalTimes = departuresByKey?.get(overrideKey) ?? times;
+          const overridden = departuresByKey?.get(overrideKey);
+          const finalSlots: DepSlot[] = overridden ? mergeOverrideSlots(slots, overridden) : slots;
           return {
             headsign,
-            departures: finalTimes.map((t) => ({ time: t })),
+            departures: finalSlots,
           };
         })
           .sort((a, b) => b.departures.length - a.departures.length);
@@ -90,15 +103,19 @@ export async function GET(request: NextRequest) {
 
         // All departures for this direction, each tagged with its headsign
         const allDeps = (() => {
-          // If no overrides, preserve existing behavior
           if (!departuresByKey) {
             return allEntries
               .filter((e) => e.directionId === directionId)
-              .map((e) => ({ time: e.time, headsign: e.headsign }));
+              .map((e) => ({ time: e.time, headsign: e.headsign, fromStop: e.fromStop }));
           }
-          // Rebuild from the (possibly overridden) destination buckets
           return destinations
-            .flatMap((dest) => dest.departures.map((d) => ({ time: d.time, headsign: dest.headsign })))
+            .flatMap((dest) =>
+              dest.departures.map((d) => ({
+                time: d.time,
+                headsign: dest.headsign,
+                fromStop: d.fromStop,
+              })),
+            )
             .sort((a, b) => a.time.localeCompare(b.time));
         })();
 
@@ -106,11 +123,10 @@ export async function GET(request: NextRequest) {
       })
       .sort((a, b) => a.directionId - b.directionId);
 
-    // Which days have data for this route?
-    const availableDays: number[] = [];
-    for (let d = 0; d <= 6; d++) {
-      if ((departures.get(`${route}|${d}`) ?? []).length > 0) availableDays.push(d);
-    }
+    // Full week in the UI when this route has any schedule rows (empty buckets are
+    // backfilled in build_gtfs_derived.py from the nearest day with GTFS service).
+    const availableDays =
+      directions.length > 0 ? [0, 1, 2, 3, 4, 5, 6] : [];
 
     return NextResponse.json({ route, day: dayOfWeek, directions, availableDays });
   } catch (err) {

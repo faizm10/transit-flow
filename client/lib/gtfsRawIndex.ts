@@ -8,7 +8,7 @@
  * Shared by /api/departures and /api/schedule.
  */
 
-import { readFileSync } from "fs";
+import { readFileSync, statSync } from "fs";
 import { join } from "path";
 
 const DERIVED_DIR = join(process.cwd(), "public", "gotransit", "derived");
@@ -19,6 +19,8 @@ export interface DepartureEntry {
   time:        string;  // "HH:MM"
   headsign:    string;
   directionId: number;
+  /** First stop name on this trip (board-here origin for departures cards) */
+  fromStop?:   string;
 }
 
 export interface StopTimeEntry {
@@ -41,6 +43,17 @@ export interface FullIndex {
 // ─── Module-level cache ───────────────────────────────────────────────────────
 
 let cachedIndex: FullIndex | null = null;
+let cachedIndexDepsMtimeMs = 0;
+
+function derivedDepsMtimeMs(): number {
+  try {
+    const depPath = join(DERIVED_DIR, "departures_index.json");
+    const tripPath = join(DERIVED_DIR, "trip_stop_times.json");
+    return Math.max(statSync(depPath).mtimeMs, statSync(tripPath).mtimeMs);
+  } catch {
+    return 0;
+  }
+}
 
 function buildIndex(): FullIndex {
   const departuresRaw = JSON.parse(
@@ -60,7 +73,11 @@ function buildIndex(): FullIndex {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export function getFullIndex(): Promise<FullIndex> {
-  if (!cachedIndex) cachedIndex = buildIndex();
+  const mtime = derivedDepsMtimeMs();
+  if (!cachedIndex || mtime !== cachedIndexDepsMtimeMs) {
+    cachedIndexDepsMtimeMs = mtime;
+    cachedIndex = buildIndex();
+  }
   return Promise.resolve(cachedIndex);
 }
 
