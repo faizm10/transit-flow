@@ -26,7 +26,7 @@ export default function DrawGuide({ onFinish, onCancel, mode = "route" }: DrawGu
           <MousePointer2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span className="text-sm font-medium">
             {mode === "rail"
-              ? "Click to pave your rail corridor"
+              ? "Click to place points for the train line"
               : "Click to place points along the new route"}
           </span>
         </div>
@@ -36,9 +36,7 @@ export default function DrawGuide({ onFinish, onCancel, mode = "route" }: DrawGu
           <div className="bg-white/90 backdrop-blur-md rounded-xl px-4 py-2.5 shadow-md flex items-center gap-1.5 text-xs text-slate-500 animate-in fade-in slide-in-from-top-2">
             <DotLine />
             <span>
-              {mode === "rail"
-                ? "Double-click to finish laying track"
-                : "Double-click or press Enter to finish"}
+              Double-click or press Enter to finish
             </span>
           </div>
         )}

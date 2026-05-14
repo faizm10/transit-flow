@@ -16,6 +16,8 @@ import RouteTooltip from "@/components/overlays/RouteTooltip";
 import RouteInfoCard from "@/components/overlays/RouteInfoCard";
 import VehicleInfoPopup from "@/components/overlays/VehicleInfoPopup";
 import DrawGuide from "@/components/overlays/DrawGuide";
+import OpenRailwayMapOverlayControls from "@/components/overlays/OpenRailwayMapOverlayControls";
+import { OPENRAILWAYMAP_OVERLAY_ENABLED } from "@/lib/features";
 import RouteFilterControl from "@/components/overlays/RouteFilterControl";
 import { useRoutes } from "@/hooks/useRoutes";
 import { useStations } from "@/hooks/useStations";
@@ -127,7 +129,6 @@ function MapPageContent() {
   const [extendSeedRoute, setExtendSeedRoute] = useState<EnrichedRoute | undefined>();
   /** Resolves GO line for Extend deep link (goRoute=) */
   const [extendSeedStatus, setExtendSeedStatus] = useState<"idle" | "loading" | "done" | "notfound">("idle");
-  const [railMapVisible, setRailMapVisible] = useState(true);
   // true when one of the wizards signals a train route is being designed
   const [isTrainDesignMode, setIsTrainDesignMode] = useState(false);
   const [selectedVehicleTripId, setSelectedVehicleTripId] = useState<string | null>(null);
@@ -320,12 +321,6 @@ function MapPageContent() {
     if (!mapLoaded) return;
     mapRef.current?.setVisibleRouteFilter(routeFilters.goRouteShortNames, routeFilters.customRouteIds);
   }, [mapLoaded, routeFilters]);
-
-  // ── Rail-design visual overlay — only for train route design ──────────
-  useEffect(() => {
-    if (!mapLoaded) return;
-    mapRef.current?.setRailMapVisible(isTrainDesignMode && railMapVisible);
-  }, [mapLoaded, isTrainDesignMode, railMapVisible]);
 
   // ── Map event handlers ──────────────────────────────────────────────────
   const handleMapLoad = useCallback((_map: mapboxgl.Map) => {
@@ -763,24 +758,13 @@ function MapPageContent() {
         />
       )}
 
-      {isTrainDesignMode && !isDrawing && (
-        <div className="absolute right-4 top-24 z-20 flex flex-col items-end gap-2">
-          <button
-            type="button"
-            onClick={() => setRailMapVisible((visible) => !visible)}
-            className={`pointer-events-auto flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold shadow-md backdrop-blur-xl transition-colors ${
-              railMapVisible
-                ? "border-emerald-200 bg-emerald-50/95 text-[#007A33]"
-                : "border-slate-200 bg-white/95 text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            <Train className="h-3.5 w-3.5" />
-            Rail map
-          </button>
-          <div className="max-w-56 rounded-lg border border-slate-200 bg-white/90 px-2.5 py-1.5 text-[10px] leading-snug text-slate-500 shadow-sm backdrop-blur-md">
-            Rail routing data © OpenStreetMap contributors, ODbL
-          </div>
-        </div>
+      {OPENRAILWAYMAP_OVERLAY_ENABLED && (
+        <OpenRailwayMapOverlayControls
+          mapLoaded={mapLoaded}
+          isTrainDesignMode={isTrainDesignMode}
+          isDrawing={isDrawing}
+          mapRef={mapRef}
+        />
       )}
 
       {/* ── Left side panel ─────────────────────────────────────────────── */}

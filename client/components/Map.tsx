@@ -7,6 +7,7 @@ import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import { GO_RAIL_LINES, PINK_BUS_COLOR, PURPLE_BUS_COLOR } from "@/lib/routeColors";
 import type { CustomStation } from "@/lib/gtfs";
 import { simplifyPolylineForVertexEdit } from "@/lib/polylineSimplify";
+import { OPENRAILWAYMAP_OVERLAY_ENABLED } from "@/lib/features";
 
 const KITCHENER_BUS_ROUTES = ["30", "31", "32", "33", "34", "35", "36", "37", "38", "39"];
 const BARRIE_BUS_ROUTES = ["65", "68"];
@@ -451,21 +452,23 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         },
       });
 
-      // ── OpenRailwayMap visual overlay ─────────────────────────────────────
-      map.addSource("openrailwaymap", {
-        type: "raster",
-        tiles: ["https://tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png"],
-        tileSize: 256,
-        attribution:
-          'Data <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>, Style: <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA 2.0</a> <a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>',
-      });
-      map.addLayer({
-        id: OPENRAILWAYMAP_LAYER_ID,
-        type: "raster",
-        source: "openrailwaymap",
-        layout: { visibility: "none" },
-        paint: { "raster-opacity": 0.62 },
-      });
+      // OpenRailwayMap reference tiles — toggle via `OPENRAILWAYMAP_OVERLAY_ENABLED` in `lib/features.ts`
+      if (OPENRAILWAYMAP_OVERLAY_ENABLED) {
+        map.addSource("openrailwaymap", {
+          type: "raster",
+          tiles: ["https://tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png"],
+          tileSize: 256,
+          attribution:
+            'Data <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>, Style: <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA 2.0</a> <a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>',
+        });
+        map.addLayer({
+          id: OPENRAILWAYMAP_LAYER_ID,
+          type: "raster",
+          source: "openrailwaymap",
+          layout: { visibility: "none" },
+          paint: { "raster-opacity": 0.62 },
+        });
+      }
 
       // ── GO Transit routes layer ────────────────────────────────────────────
       map.addSource("go-routes", {

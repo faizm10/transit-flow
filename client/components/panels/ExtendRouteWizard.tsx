@@ -13,6 +13,7 @@ import {
   CustomTimetableTrip, StopTimeEntry,
 } from "@/lib/gtfs";
 import { CUSTOM_ROUTE_COLORS } from "@/lib/routeColors";
+import { estimateTrainTravelSecsForPathLengthMeters } from "@/lib/trainRouteEstimate";
 import { v4 as uuidv4 } from "uuid";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -155,30 +156,6 @@ async function fetchDrivingRoute(coords: [number, number][]): Promise<{
   };
 }
 
-async function fetchRailRoute(
-  coords: [number, number][],
-  dwellStopCount: number
-): Promise<{
-  geometry: [number, number][];
-  durationSecs: number;
-  distanceM: number;
-}> {
-  const sampled = sampleCoords(coords, 24);
-  const res = await fetch("/api/rail/route", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      points: sampled,
-      dwellStopCount,
-      maxSnapDistanceM: 1800,
-      terminalBufferSec: 60,
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? "Rail route unavailable");
-  return data;
-}
-
 function baseStopKey(stop: GTFSStop, index: number): string {
   return `${stop.stop_id}:${index}`;
 }
@@ -228,8 +205,6 @@ export default function ExtendRouteWizard({
   const [directionInfo, setDirectionInfo] = useState<{ durationSecs: number; distanceM: number } | null>(null);
   const [directionLoading, setDirectionLoading] = useState(false);
   const [extensionGeometry, setExtensionGeometry] = useState<[number, number][] | null>(null);
-  const [routedRailGeometry, setRoutedRailGeometry] = useState<[number, number][] | null>(null);
-  const [railRouteError, setRailRouteError] = useState<string | null>(null);
   const [isEditingGeometry, setIsEditingGeometry] = useState(false);
   const pinCounterRef = useRef(0);
   const ignoredDrawGeometryRef = useRef<[number, number][] | null>(null);
@@ -297,30 +272,9 @@ export default function ExtendRouteWizard({
     .map((stop, index) => `${stop.stop_id}:${index}:${stop.stop_lat}:${stop.stop_lon}`)
     .join("|");
   const routeWaypoints: [number, number][] = previewGeometry;
-  const railRoutePoints: [number, number][] = (() => {
-    if (!isRailExtension) return routeWaypoints;
-    const base = includedBaseStops.map((stop) => [stop.stop_lon, stop.stop_lat] as [number, number]);
-    if (extensionStops.length > 0) {
-      return [
-        ...base,
-        ...extensionStops.map((stop) => [stop.lon, stop.lat] as [number, number]),
-      ];
-    }
-    if (extensionGeometry && extensionGeometry.length >= 2) {
-      const sampledExtension = sampleCoords(extensionGeometry, 18);
-      const result = [...base];
-      for (const coord of sampledExtension) {
-        const last = result[result.length - 1];
-        if (!last || !nearlySamePoint(last, coord)) result.push(coord);
-      }
-      return result;
-    }
-    return base;
-  })();
-  const railRouteKey = railRoutePoints
-    .map((point) => `${point[0].toFixed(5)},${point[1].toFixed(5)}`)
-    .join("|");
-  const railDwellStopCount = Math.max(0, includedBaseStops.length + extensionStops.length - 2);
+  const railPreviewKey = isRailExtension
+    ? previewGeometry.map((p) => `${p[0].toFixed(5)},${p[1].toFixed(5)}`).join("|")
+    : "";
 
   // ── Notify parent whenever rail extension status changes ──────────────────
   useEffect(() => {
@@ -347,8 +301,6 @@ export default function ExtendRouteWizard({
     setRangeStartIndex(null);
     setRangeEndIndex(null);
     setExtensionGeometry(null);
-    setRoutedRailGeometry(null);
-    setRailRouteError(null);
     setIsEditingGeometry(false);
     onEditDone();
   }, [selectedRoute, onEditDone]);
@@ -357,8 +309,6 @@ export default function ExtendRouteWizard({
     if (!isRailExtension || !drawGeometry || drawGeometry.length < 2) return;
     if (drawGeometry === ignoredDrawGeometryRef.current) return;
     setExtensionGeometry(drawGeometry);
-    setRoutedRailGeometry(null);
-    setRailRouteError(null);
   }, [drawGeometry, isRailExtension]);
 
   // ── Load base stops when branch variant selected ──────────────────────────
@@ -379,8 +329,6 @@ export default function ExtendRouteWizard({
         setExcludedBaseStopKeys([]);
         setRangeStartIndex(null);
         setRangeEndIndex(null);
-        setRoutedRailGeometry(null);
-        setRailRouteError(null);
         setBaseStopsLoading(false);
       })
       .catch(() => {
@@ -389,8 +337,6 @@ export default function ExtendRouteWizard({
         setExcludedBaseStopKeys([]);
         setRangeStartIndex(null);
         setRangeEndIndex(null);
-        setRoutedRailGeometry(null);
-        setRailRouteError(null);
         setBaseStopsLoading(false);
       });
   }, [selectedVariantId]);
@@ -456,35 +402,18 @@ export default function ExtendRouteWizard({
 
     if (isRailExtension) {
       if (isEditingGeometry) return;
-      let cancelled = false;
-      setDirectionLoading(true);
-      setRailRouteError(null);
-      setRoutedRailGeometry(null);
-      fetchRailRoute(railRoutePoints, railDwellStopCount)
-        .then((route) => {
-          if (cancelled) return;
-          if (route.geometry.length >= 2) {
-            setRoutedRailGeometry(route.geometry);
-            setDirectionInfo({ durationSecs: route.durationSecs, distanceM: route.distanceM });
-            onPreviewRoute(route.geometry, color);
-          } else {
-            throw new Error("Rail route returned no geometry");
-          }
-          setDirectionLoading(false);
-        })
-        .catch((err) => {
-          if (cancelled) return;
-          const distanceM = geometryDistanceM(previewGeometry);
-          const durationSecs = Math.round((distanceM / 1000 / 65) * 3600);
-          setRoutedRailGeometry(null);
-          setRailRouteError(`${err instanceof Error ? err.message : "Rail route unavailable"} Using manual line.`);
-          setDirectionInfo({ durationSecs, distanceM });
-          onPreviewRoute(previewGeometry, color);
-          setDirectionLoading(false);
-        });
-      return () => {
-        cancelled = true;
-      };
+      const line = previewGeometry;
+      if (line.length < 2) {
+        setDirectionInfo(null);
+        onClearPreview();
+        return;
+      }
+      const distanceM = geometryDistanceM(line);
+      const durationSecs = estimateTrainTravelSecsForPathLengthMeters(distanceM);
+      setDirectionInfo({ durationSecs, distanceM });
+      setDirectionLoading(false);
+      onPreviewRoute(line, color);
+      return;
     }
 
     let cancelled = false;
@@ -522,7 +451,7 @@ export default function ExtendRouteWizard({
     isRailExtension,
     isEditingGeometry,
     extensionGeometry,
-    railRouteKey,
+    railPreviewKey,
   ]);
 
   // ── Cleanup pin mode on unmount ───────────────────────────────────────────
@@ -602,8 +531,6 @@ export default function ExtendRouteWizard({
       setPinActive(false);
     }
     setIsEditingGeometry(false);
-    setRoutedRailGeometry(null);
-    setRailRouteError(null);
     ignoredDrawGeometryRef.current = drawGeometry ?? null;
     onEditDone();
     onDrawRequest();
@@ -616,7 +543,6 @@ export default function ExtendRouteWizard({
       setPinActive(false);
     }
     setIsEditingGeometry(true);
-    setRoutedRailGeometry(null);
     onEditRequest(extensionGeometry, (coords) => {
       setExtensionGeometry(coords);
     });
@@ -629,8 +555,6 @@ export default function ExtendRouteWizard({
 
   const handleRedrawExtension = useCallback(() => {
     setExtensionGeometry(null);
-    setRoutedRailGeometry(null);
-    setRailRouteError(null);
     setIsEditingGeometry(false);
     ignoredDrawGeometryRef.current = drawGeometry ?? null;
     onEditDone();
@@ -679,7 +603,7 @@ export default function ExtendRouteWizard({
       // Build one geometry through retained base stops plus any added extension alignment.
       let geometry: [number, number][] | undefined;
       if (selectedRoute.is_rail) {
-        geometry = routedRailGeometry ?? combineRailGeometry(includedBaseStops, extensionStops, extensionGeometry);
+        geometry = combineRailGeometry(includedBaseStops, extensionStops, extensionGeometry);
       } else {
         try {
           const routed = await fetchDrivingRoute(allStops.map((s) => [s.lon, s.lat] as [number, number]));
@@ -815,7 +739,6 @@ export default function ExtendRouteWizard({
     selectedRoute, selectedVariant, branchStop, extensionStops, includedBaseStops, routeName, color,
     branchSuffix, keepOriginal, multiplier, headwayOverride, direction, directionInfo, parentWeeklyTrips,
     baseStopsThroughBranch.length, skippedBaseStopCount, extensionGeometry, onSave, onClearPreview,
-    routedRailGeometry,
   ]);
 
   // ── Filtered routes for step 1 ─────────────────────────────────────────────
@@ -958,8 +881,6 @@ export default function ExtendRouteWizard({
                     setRangeEndIndex(null);
                     setDirectionInfo(null);
                     setExtensionGeometry(null);
-                    setRoutedRailGeometry(null);
-                    setRailRouteError(null);
                     setIsEditingGeometry(false);
                     ignoredDrawGeometryRef.current = drawGeometry ?? null;
                     onEditDone();
@@ -987,8 +908,6 @@ export default function ExtendRouteWizard({
                     setRangeEndIndex(null);
                     setDirectionInfo(null);
                     setExtensionGeometry(null);
-                    setRoutedRailGeometry(null);
-                    setRailRouteError(null);
                     setIsEditingGeometry(false);
                     ignoredDrawGeometryRef.current = drawGeometry ?? null;
                     onEditDone();
@@ -1024,7 +943,8 @@ export default function ExtendRouteWizard({
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-slate-700">Rail alignment</p>
                     <p className="text-[11px] text-slate-400">
-                      Draw the new track from the branch stop, then refine the shape on the map.
+                      Draw from the branch stop outward (click points, then finish). The preview follows your line; edit
+                      vertices if needed.
                     </p>
                   </div>
                   {extensionGeometry && extensionGeometry.length >= 2 && !isEditingGeometry && (
@@ -1279,14 +1199,9 @@ export default function ExtendRouteWizard({
                 <Loader2 className="w-3 h-3 animate-spin" /> Calculating route…
               </p>
             )}
-            {railRouteError && !directionLoading && isRailExtension && (
-              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-100 text-xs text-amber-700">
-                {railRouteError}
-              </div>
-            )}
             {directionInfo && !directionLoading && (
               <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-emerald-700">
-                {isRailExtension && routedRailGeometry ? "Rail graph route" : isRailExtension ? "Manual rail path" : "Mapbox route"}: ~{Math.round(directionInfo.durationSecs / 60)} min · {(directionInfo.distanceM / 1000).toFixed(1)} km
+                {isRailExtension ? "Custom path" : "Mapbox route"}: ~{Math.round(directionInfo.durationSecs / 60)} min · {(directionInfo.distanceM / 1000).toFixed(1)} km
               </div>
             )}
           </>

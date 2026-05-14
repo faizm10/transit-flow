@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { CustomRoute, CustomStop, CustomSchedule, CustomStation } from "@/lib/gtfs";
 import { CUSTOM_ROUTE_COLORS } from "@/lib/routeColors";
+import { estimateTrainTravelSecsForPathLengthMeters } from "@/lib/trainRouteEstimate";
 import { v4 as uuidv4 } from "uuid";
 
 type Step = "type" | "draw" | "stops" | "schedule" | "review";
@@ -59,7 +60,7 @@ const ROUTE_TYPE_OPTIONS = [
     type: "train" as const,
     icon: Train,
     label: "New train line",
-    description: "Custom rail corridor or extension",
+    description: "Draw the line you want; saved shape is used as-is for the map and simulation",
     color: "border-emerald-200 bg-emerald-50",
     iconColor: "text-emerald-600",
   },
@@ -129,39 +130,6 @@ async function fetchMapboxDrivingRoute(coords: [number, number][]): Promise<{
   };
 }
 
-function sampleRailHints(coords: [number, number][], max = 18): [number, number][] {
-  if (coords.length <= max) return coords;
-  const result: [number, number][] = [coords[0]];
-  const step = (coords.length - 2) / (max - 2);
-  for (let i = 1; i < max - 1; i++) result.push(coords[Math.round(i * step)]);
-  result.push(coords[coords.length - 1]);
-  return result;
-}
-
-async function fetchRailRoute(
-  points: [number, number][],
-  dwellStopCount: number
-): Promise<{
-  geometry: [number, number][];
-  distanceM: number;
-  durationSecs: number;
-  warnings?: string[];
-}> {
-  const res = await fetch("/api/rail/route", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      points,
-      dwellStopCount,
-      maxSnapDistanceM: 1800,
-      terminalBufferSec: 60,
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? "Rail route unavailable");
-  return data;
-}
-
 export default function BuilderWizard({
   onSave,
   onDrawRequest,
@@ -216,6 +184,8 @@ export default function BuilderWizard({
 
   /** Rail + misc; bus stop-based fetch uses `lastBusStopDirectionsKeyRef` so edited geometry does not retrigger it. */
   const lastFetchKeyRef = useRef<string>("");
+  /** Dedupes train drawGeometry → routeGeometry sync when the serialized line is unchanged. */
+  const prevTrainDrawKeyRef = useRef<string>("");
   const lastBusStopDirectionsKeyRef = useRef<string>("");
   /** Latest line from Mapbox Draw (vertex edit). */
   const lastVertexEditCoordsRef = useRef<[number, number][] | null>(null);
@@ -288,14 +258,55 @@ export default function BuilderWizard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeType]);
 
-  // ── Sync drawGeometry → routeGeometry (train) ────────────────────────────
+  // ── Train: geometry is your drawn line (or straight segments between stations if you never drew) ──
   useEffect(() => {
-    if (routeType === "train" && drawGeometry && drawGeometry.length >= 2) {
-      setRouteGeometry(drawGeometry);
-      setRouteDistanceKm(geometryDistanceKm(drawGeometry));
-      setRouteDurationSecs(null);
+    if (routeType !== "train") return;
+
+    const hasDraw = Boolean(drawGeometry && drawGeometry.length >= 2);
+    if (!hasDraw) {
+      prevTrainDrawKeyRef.current = "";
     }
-  }, [drawGeometry, routeType]);
+
+    if (hasDraw && drawGeometry) {
+      const drawKey = drawGeometry.map((p) => `${p[0]},${p[1]}`).join("|");
+      if (drawKey !== prevTrainDrawKeyRef.current) {
+        prevTrainDrawKeyRef.current = drawKey;
+        setRouteGeometry(drawGeometry);
+      }
+      const km = geometryDistanceKm(drawGeometry);
+      setRouteDistanceKm(km);
+      setRouteDurationSecs(
+        km != null ? estimateTrainTravelSecsForPathLengthMeters(km * 1000) : null
+      );
+      setRouteError(null);
+      setRouteWarnings([]);
+      lastFetchKeyRef.current = "";
+      return;
+    }
+
+    if (stops.length < 2) {
+      setRouteGeometry(null);
+      setRouteDistanceKm(null);
+      setRouteDurationSecs(null);
+      setRouteError(null);
+      setRouteWarnings([]);
+      return;
+    }
+
+    const coords = stops.map((s) => [s.lon, s.lat] as [number, number]);
+    const stopsKey = stops.map((s) => `${s.lon},${s.lat}`).join("|");
+    if (stopsKey === lastFetchKeyRef.current) return;
+    lastFetchKeyRef.current = stopsKey;
+
+    setRouteGeometry(coords);
+    const km = geometryDistanceKm(coords);
+    setRouteDistanceKm(km);
+    setRouteDurationSecs(
+      km != null ? estimateTrainTravelSecsForPathLengthMeters(km * 1000) : null
+    );
+    setRouteError(null);
+    setRouteWarnings([]);
+  }, [drawGeometry, routeType, stops]);
 
   // ── Auto-fetch directions for bus when stops change ────────────────────────
   useEffect(() => {
@@ -340,60 +351,6 @@ export default function BuilderWizard({
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stops, routeType]);
-
-  // ── Snap/reroute trains along the local OSM rail graph ───────────────────
-  useEffect(() => {
-    if (routeType !== "train") return;
-
-    const routePoints = stops.length >= 2
-      ? stops.map((s) => [s.lon, s.lat] as [number, number])
-      : drawGeometry;
-
-    if (!routePoints || routePoints.length < 2) {
-      if (!drawGeometry) {
-        setRouteGeometry(null);
-        setRouteDistanceKm(null);
-        setRouteDurationSecs(null);
-        setRouteError(null);
-        setRouteWarnings([]);
-      }
-      return;
-    }
-
-    const sampled = stops.length >= 2 ? routePoints : sampleRailHints(routePoints);
-    const key = `rail:${stops.length >= 2 ? "stops" : "draw"}:${sampled.map((p) => `${p[0].toFixed(5)},${p[1].toFixed(5)}`).join("|")}`;
-    if (key === lastFetchKeyRef.current) return;
-
-    setFetchingRoute(true);
-    setRouteError(null);
-    setRouteWarnings([]);
-
-    const timer = setTimeout(async () => {
-      try {
-        const railRoute = await fetchRailRoute(
-          sampled,
-          stops.length >= 2 ? Math.max(0, stops.length - 2) : 0
-        );
-        if (railRoute.geometry.length < 2) throw new Error("Rail route returned no geometry");
-        setRouteGeometry(railRoute.geometry);
-        setRouteDistanceKm(Math.round(railRoute.distanceM / 100) / 10);
-        setRouteDurationSecs(railRoute.durationSecs);
-        setRouteWarnings(railRoute.warnings ?? []);
-        lastFetchKeyRef.current = key;
-      } catch (err) {
-        const fallback = routePoints.length >= 2 ? routePoints : null;
-        setRouteGeometry(fallback);
-        setRouteDistanceKm(fallback ? geometryDistanceKm(fallback) : null);
-        setRouteDurationSecs(null);
-        setRouteError(`${err instanceof Error ? err.message : "Rail route unavailable"} Using manual line.`);
-      } finally {
-        setFetchingRoute(false);
-      }
-    }, 450);
-
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawGeometry, routeType, stops]);
 
   // ── Auto-seed terminus stops when entering stops step for train ──────────
   useEffect(() => {
@@ -441,6 +398,13 @@ export default function BuilderWizard({
     onEditRequest(routeGeometry, (newCoords) => {
       lastVertexEditCoordsRef.current = newCoords;
       setRouteGeometry(newCoords);
+      if (routeType === "train" && newCoords.length >= 2) {
+        const km = geometryDistanceKm(newCoords);
+        setRouteDistanceKm(km);
+        setRouteDurationSecs(
+          km != null ? estimateTrainTravelSecsForPathLengthMeters(km * 1000) : null
+        );
+      }
     });
   }
 
@@ -651,7 +615,7 @@ export default function BuilderWizard({
           </div>
         )}
 
-        {/* ── Step 2 (train only): Pave rail corridor ─────────────────────── */}
+        {/* ── Step 2 (train only): draw path ─────────────────────── */}
         {step === "draw" && (
           <div className="flex flex-col gap-4">
             <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3.5 flex items-start gap-3">
@@ -659,14 +623,15 @@ export default function BuilderWizard({
                 <Train className="w-4 h-4 text-emerald-700" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-900">Pave your rail corridor</p>
+                <p className="text-sm font-semibold text-slate-900">Draw your line</p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Click on the map to lay track points. Double-click or press Enter to finish.
+                  Click the map to place points. Double-click or press Enter to finish—the green preview follows your line
+                  exactly.
                 </p>
               </div>
             </div>
 
-            {!routeGeometry && !fetchingRoute && (
+            {!routeGeometry && (
               <button
                 className="flex items-center gap-2 text-sm text-[#007A33] font-medium py-3 px-4 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors"
                 onClick={onDrawRequest}
@@ -677,20 +642,13 @@ export default function BuilderWizard({
               </button>
             )}
 
-            {fetchingRoute && (
-              <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-3">
-                <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
-                Snapping to rail network…
-              </div>
-            )}
-
-            {!fetchingRoute && routeGeometry && (
+            {routeGeometry && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2.5">
                   <Check className="w-3.5 h-3.5 flex-shrink-0" />
                   {routeDurationSecs
-                    ? `Rail route · ~${Math.round(routeDurationSecs / 60)} min${routeDistanceKm ? ` · ${routeDistanceKm} km` : ""}`
-                    : `Track paved · ${routeGeometry.length} points`}
+                    ? `Your line · ~${Math.round(routeDurationSecs / 60)} min${routeDistanceKm ? ` · ${routeDistanceKm} km` : ""}`
+                    : `${routeGeometry.length} points on the map`}
                 </div>
 
                 {routeWarnings.length > 0 && (
@@ -732,7 +690,7 @@ export default function BuilderWizard({
             )}
 
             <p className="text-xs text-slate-400 text-center">
-              Your track snaps to the local rail network where possible
+              Travel time is estimated from line length (not real-world timetables). Use Edit to reshape anytime.
             </p>
           </div>
         )}
@@ -997,7 +955,8 @@ export default function BuilderWizard({
             {routeType === "train" && (
               <>
                 <p className="text-sm text-slate-500">
-                  Add stations or draw a corridor. TransitFlow snaps it to the local rail graph when possible.
+                  Optional: add or reorder stations. Your drawn line stays the path unless you clear it and build from
+                  stations only (2+ stops in order).
                 </p>
 
                 {/* Optional stop search */}
@@ -1055,21 +1014,14 @@ export default function BuilderWizard({
                 )}
 
                 <div className="flex flex-col gap-2 pt-1">
-                  {fetchingRoute && (
-                    <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2.5">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
-                      Snapping to rail network…
-                    </div>
-                  )}
-
-                  {routeError && !fetchingRoute && (
+                  {routeError && (
                     <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
                       <X className="w-3.5 h-3.5 flex-shrink-0" />
                       {routeError}
                     </div>
                   )}
 
-                  {routeWarnings.length > 0 && !fetchingRoute && (
+                  {routeWarnings.length > 0 && (
                     <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
                       <Navigation className="w-3.5 h-3.5 flex-shrink-0" />
                       {routeWarnings[0]}
@@ -1097,7 +1049,7 @@ export default function BuilderWizard({
                       <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2.5">
                         <Check className="w-3.5 h-3.5 flex-shrink-0" />
                         {routeDurationSecs
-                          ? `Rail route · ~${Math.round(routeDurationSecs / 60)} min${routeDistanceKm ? ` · ${routeDistanceKm} km` : ""}`
+                          ? `Your line · ~${Math.round(routeDurationSecs / 60)} min${routeDistanceKm ? ` · ${routeDistanceKm} km` : ""}`
                           : `Route drawn · ${routeGeometry.length} points`}
                       </div>
                       <div className="flex gap-2">
@@ -1341,7 +1293,7 @@ export default function BuilderWizard({
           <Button
             className="rounded-xl flex-1 bg-[#007A33] hover:bg-[#005f28] text-white"
             disabled={
-              (step === "draw" && (!routeGeometry || fetchingRoute))
+              (step === "draw" && !routeGeometry)
               || (step === "stops" && stops.length < 2)
             }
             onClick={() => {
