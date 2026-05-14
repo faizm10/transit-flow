@@ -768,6 +768,11 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
     map.on("click", "go-routes-hit", (e) => {
       if (isDrawingRef.current) return;
       if (!e.features?.length) return;
+      // Prefer simulation vehicle under cursor (route hit buffer is wide)
+      if (map.getLayer("sim-vehicles-dot")) {
+        const vehiclesHere = map.queryRenderedFeatures(e.point, { layers: ["sim-vehicles-dot"] });
+        if (vehiclesHere.length > 0) return;
+      }
       if (map.getLayer("custom-routes-hit")) {
         const customFeatures = map.queryRenderedFeatures(e.point, { layers: ["custom-routes-hit"] });
         if (customFeatures.length > 0) return;
@@ -791,6 +796,10 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       if (isDrawingRef.current) return;
       e.preventDefault();
       if (!e.features?.length) return;
+      if (map.getLayer("sim-vehicles-dot")) {
+        const vehiclesHere = map.queryRenderedFeatures(e.point, { layers: ["sim-vehicles-dot"] });
+        if (vehiclesHere.length > 0) return;
+      }
       const props = e.features[0].properties as Record<string, string> | undefined;
       if (!props?.id) return;
       onCustomRouteClick?.({

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Play, Pause, Loader2, Train, Bus, ChevronUp, Pencil, X } from "lucide-react";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { Play, Pause, Loader2, Train, Bus, ChevronDown, Pencil, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 import { customRouteSelectionId, formatSimTime } from "@/lib/simulation";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
 import { type CustomRoute, type EnrichedRoute } from "@/lib/gtfs";
@@ -63,6 +64,16 @@ function formatEndWindow(startHour: number): { label: string; nextDay: boolean }
   return { label: `${h12}:00 ${ampm}`, nextDay };
 }
 
+function formatHudDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map((x) => Number(x));
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function SimulationHUD({
   trips,
   currentTime,
@@ -104,10 +115,6 @@ export default function SimulationHUD({
     setEditingDate(false);
   }
 
-  const scrubProgress = endTime > startTime
-    ? (currentTime - startTime) / (endTime - startTime)
-    : 0;
-
   // ── Onboarding / empty state ──────────────────────────────────────────────
   // Distinguish "never started" from "started but no service on this date"
   const hasLoadedOnce = startTime !== endTime || error !== null;
@@ -117,7 +124,7 @@ export default function SimulationHUD({
 
     return (
       <div className={`${baseShellClass} w-[min(480px,calc(100vw-32px))] ${placement === "bottom-right" ? "w-auto sm:w-[min(480px,calc(100vw-32px))]" : ""}`}>
-        <div className="bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-xl p-5">
+        <div className="rounded-xl border border-slate-200/90 bg-white/95 p-4 shadow-lg shadow-slate-900/6 backdrop-blur-xl">
           <div className="flex items-center gap-3 mb-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${noServiceOnDate ? "bg-amber-100" : "bg-emerald-100"}`}>
               <Train className={`w-5 h-5 ${noServiceOnDate ? "text-amber-700" : "text-emerald-700"}`} />
@@ -193,14 +200,19 @@ export default function SimulationHUD({
             <SheetTrigger className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100">
               <Bus className="h-4 w-4 text-slate-500" />
               {selectedRoutes.length} selected route{selectedRoutes.length !== 1 ? "s" : ""}
-              <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
+              <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
             </SheetTrigger>
             <SheetContent
               side="bottom"
-              className="max-h-[64vh] gap-2 overflow-y-auto rounded-t-lg sm:!bottom-4 sm:!left-1/2 sm:!right-auto sm:!w-[min(580px,calc(100vw-32px))] sm:!-translate-x-1/2 sm:rounded-lg sm:border"
+              className="flex max-h-[min(72vh,640px)] flex-col gap-0 overflow-hidden rounded-t-2xl border-t border-slate-200/90 bg-white/98 p-0 shadow-2xl supports-backdrop-filter:backdrop-blur-md sm:!bottom-4 sm:!left-1/2 sm:!right-auto sm:!w-[min(480px,calc(100vw-20px))] sm:!-translate-x-1/2 sm:rounded-xl sm:border sm:border-slate-200/80"
             >
-              <SheetHeader className="px-4 pb-1 pt-3">
-                <SheetTitle className="text-sm">Select routes</SheetTitle>
+              <SheetHeader className="shrink-0 border-b border-slate-100 px-4 pb-3 pt-3 text-left">
+                <SheetTitle className="text-base font-semibold tracking-tight text-slate-900">
+                  Simulation routes
+                </SheetTitle>
+                <SheetDescription className="text-xs leading-relaxed text-slate-500">
+                  Pick train and bus lines, then apply to update the map.
+                </SheetDescription>
               </SheetHeader>
               <RoutePicker
                 selected={selectedRoutes}
@@ -234,9 +246,9 @@ export default function SimulationHUD({
   if (loading) {
     return (
       <div className={baseShellClass}>
-        <div className="bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-xl px-6 py-3.5 flex items-center gap-3">
-          <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
-          <span className="text-sm font-medium text-slate-700">Loading trips…</span>
+        <div className="flex items-center gap-2.5 rounded-xl border border-slate-200/90 bg-white/95 px-4 py-2.5 shadow-md shadow-slate-900/5 backdrop-blur-xl">
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-600" />
+          <span className="text-xs font-medium text-slate-600">Loading trips…</span>
         </div>
       </div>
     );
@@ -244,23 +256,27 @@ export default function SimulationHUD({
 
   // ── Active playback HUD ───────────────────────────────────────────────────
   return (
-    <div className={`${baseShellClass} w-[min(560px,calc(100vw-32px))] ${placement === "bottom-right" ? `w-auto ${cardWidthClass}` : ""}`}>
-      <div className="bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-xl px-4 py-3">
-        {/* Top row: routes chip + time + speed */}
-        <div className="flex items-center justify-between mb-2.5">
-          {/* Route picker */}
+    <div className={`${baseShellClass} w-[min(500px,calc(100vw-24px))] ${placement === "bottom-right" ? `w-auto ${cardWidthClass}` : ""}`}>
+      <div className="rounded-xl border border-slate-200/90 bg-white/95 px-3 py-2 shadow-lg shadow-slate-900/8 ring-1 ring-slate-900/[0.04] backdrop-blur-xl">
+        {/* Row 1: routes · clock · controls */}
+        <div className="flex items-center gap-2">
           <Sheet open={routePickerOpen} onOpenChange={setRoutePickerOpen}>
-            <SheetTrigger className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg px-2.5 py-1.5 transition-colors">
-              {selectedHasBus ? <Bus className="w-3.5 h-3.5" /> : <Train className="w-3.5 h-3.5" />}
-              {selectedRoutes.length} routes
-              <ChevronUp className="w-3 h-3" />
+            <SheetTrigger className="inline-flex max-w-[40%] shrink-0 items-center gap-1 rounded-lg border border-slate-200/90 bg-slate-50/90 py-1 pl-2 pr-1.5 text-[11px] font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-100 sm:max-w-[46%]">
+              {selectedHasBus ? <Bus className="h-3.5 w-3.5 text-slate-500" /> : <Train className="h-3.5 w-3.5 text-slate-500" />}
+              <span className="truncate">{selectedRoutes.length} routes</span>
+              <ChevronDown className="h-3 w-3 shrink-0 text-slate-400" />
             </SheetTrigger>
             <SheetContent
               side="bottom"
-              className="max-h-[56vh] gap-2 overflow-y-auto rounded-t-lg sm:!bottom-4 sm:!left-1/2 sm:!right-auto sm:!w-[min(540px,calc(100vw-32px))] sm:!-translate-x-1/2 sm:rounded-lg sm:border"
+              className="flex max-h-[min(72vh,640px)] flex-col gap-0 overflow-hidden rounded-t-2xl border-t border-slate-200/90 bg-white/98 p-0 shadow-2xl supports-backdrop-filter:backdrop-blur-md sm:!bottom-4 sm:!left-1/2 sm:!right-auto sm:!w-[min(480px,calc(100vw-20px))] sm:!-translate-x-1/2 sm:rounded-xl sm:border sm:border-slate-200/80"
             >
-              <SheetHeader className="px-4 pb-1 pt-3">
-                <SheetTitle className="text-sm">Select routes</SheetTitle>
+              <SheetHeader className="shrink-0 border-b border-slate-100 px-4 pb-3 pt-3 text-left">
+                <SheetTitle className="text-base font-semibold tracking-tight text-slate-900">
+                  Simulation routes
+                </SheetTitle>
+                <SheetDescription className="text-xs leading-relaxed text-slate-500">
+                  Pick lines to show on the map. Apply reloads trips for your selection.
+                </SheetDescription>
               </SheetHeader>
               <RoutePicker
                 selected={selectedRoutes}
@@ -275,86 +291,94 @@ export default function SimulationHUD({
             </SheetContent>
           </Sheet>
 
-          {/* Time display */}
-          <span className="text-sm font-semibold text-slate-900 tabular-nums">
-            {formatSimTime(currentTime)}
-          </span>
+          <div className="min-w-0 flex-1 text-center">
+            <p className="font-mono text-xl font-bold leading-none tracking-tight text-slate-900 tabular-nums">
+              {formatSimTime(currentTime)}
+            </p>
+          </div>
 
-          {/* Speed + play + clear */}
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
             <button
-              className="text-xs font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg px-2 py-1.5 transition-colors tabular-nums w-10 text-center"
+              type="button"
+              className="rounded-full border border-slate-200/90 bg-white px-2 py-1 text-[10px] font-bold tabular-nums text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
               onClick={onCycleSpeed}
+              title="Playback speed"
             >
-              {speed}x
+              {speed}×
             </button>
             <button
-              className="w-8 h-8 rounded-xl bg-[#007A33] hover:bg-[#005f28] text-white flex items-center justify-center transition-colors"
+              type="button"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#007A33] text-white shadow-md shadow-emerald-900/25 transition-transform hover:bg-[#006b2d] active:scale-95"
               onClick={onTogglePlay}
+              title={playing ? "Pause" : "Play"}
             >
-              {playing ? (
-                <Pause className="w-4 h-4" />
-              ) : (
-                <Play className="w-4 h-4 ml-0.5" />
-              )}
+              {playing ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
             </button>
             <button
-              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-red-50 hover:text-red-500 text-slate-400 flex items-center justify-center transition-colors"
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
               onClick={onClear}
               title="Clear simulation"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        {/* Scrubber */}
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-400 tabular-nums w-12 text-right">
-            {formatSimTime(startTime)}
-          </span>
-          <input
-            type="range"
-            min={startTime}
-            max={endTime}
-            step={60}
-            value={currentTime}
-            onChange={(e) => onScrub(Number(e.target.value))}
-            className="flex-1 h-1.5 accent-[#007A33] cursor-pointer"
-          />
-          <span className="text-[10px] text-slate-400 tabular-nums w-12 flex items-center gap-0.5">
-            {formatSimTime(endTime)}
-            {endTime > 86400 && (
-              <span className="rounded bg-amber-100 px-0.5 text-[8px] font-bold text-amber-700">+1</span>
-            )}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-center gap-2 mt-1.5">
-          <span className="text-[10px] text-slate-300">{trips.length} trips</span>
-          <span className="text-[10px] text-slate-200">·</span>
-          {editingDate ? (
+        {/* Row 2: scrubber + meta */}
+        <div className="mt-1.5 border-t border-slate-100 pt-1.5">
+          <div className="flex items-center gap-2">
+            <span className="w-10 shrink-0 text-right text-[10px] font-semibold tabular-nums text-slate-400">
+              {formatSimTime(startTime)}
+            </span>
             <input
-              autoFocus
-              type="date"
-              defaultValue={date}
-              min="2026-01-06"
-              max="2026-04-24"
-              onBlur={(e) => handleDateChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleDateChange((e.target as HTMLInputElement).value);
-                if (e.key === "Escape") setEditingDate(false);
-              }}
-              className="text-[10px] rounded border border-slate-200 bg-white px-1 py-0.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#007A33]/40"
+              type="range"
+              min={startTime}
+              max={endTime}
+              step={60}
+              value={currentTime}
+              onChange={(e) => onScrub(Number(e.target.value))}
+              className="sim-hud-slider flex-1"
+              aria-label="Simulation time"
             />
-          ) : (
-            <button
-              onClick={() => setEditingDate(true)}
-              className="text-[10px] text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors"
-            >
-              {date}
-            </button>
-          )}
+            <span className="flex w-12 shrink-0 items-center justify-end gap-0.5 text-[10px] font-semibold tabular-nums text-slate-400">
+              {formatSimTime(endTime)}
+              {endTime > 86400 && (
+                <span className="rounded bg-amber-100 px-0.5 text-[8px] font-bold text-amber-800">+1</span>
+              )}
+            </span>
+          </div>
+
+          <div className="mt-1 flex items-center justify-center gap-2 text-[11px] text-slate-500">
+            <span>
+              <span className="font-semibold text-slate-700 tabular-nums">{trips.length.toLocaleString()}</span>{" "}
+              trips
+            </span>
+            <span className="text-slate-300">·</span>
+            {editingDate ? (
+              <input
+                autoFocus
+                type="date"
+                defaultValue={date}
+                min="2026-01-06"
+                max="2026-04-24"
+                onBlur={(e) => handleDateChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleDateChange((e.target as HTMLInputElement).value);
+                  if (e.key === "Escape") setEditingDate(false);
+                }}
+                className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#007A33]/25"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditingDate(true)}
+                className="rounded-md px-1 py-0.5 font-medium text-slate-600 underline decoration-slate-300 underline-offset-2 transition-colors hover:bg-slate-100 hover:text-slate-900 hover:decoration-slate-400"
+              >
+                {formatHudDate(date)}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -415,117 +439,137 @@ function RoutePicker({
   }
 
   return (
-    <div className="flex flex-col gap-3 px-4 pb-4 pt-0">
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <p className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
-            <Train className="h-3.5 w-3.5" /> Train lines
-          </p>
-          <button
-            className="text-xs text-[#007A33] font-medium"
-            onClick={() => toggleGroup(railCodes, allRailSelected)}
-            disabled={railCodes.length === 0}
-          >
-            {allRailSelected ? "Deselect all" : "Select all"}
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          {loading ? (
-            <RoutePickerSkeleton count={7} />
-          ) : (
-            railRoutes.map((route) => (
-              <RoutePickerOption
-                key={route.short_name}
-                code={route.short_name}
-                label={(GO_RAIL_LINES[route.short_name]?.name ?? route.long_name).replace(" Line", "")}
-                color={route.color}
-                selected={local.includes(route.short_name)}
-                onClick={() => toggle(route.short_name)}
-              />
-            ))
-          )}
-        </div>
-      </div>
-
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <p className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
-            <Bus className="h-3.5 w-3.5" /> Bus routes
-          </p>
-          <button
-            className="text-xs text-[#007A33] font-medium"
-            onClick={() => toggleGroup(busCodes, allBusSelected)}
-            disabled={busCodes.length === 0}
-          >
-            {allBusSelected ? "Deselect all" : "Select all"}
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          {loading ? (
-            <RoutePickerSkeleton count={8} />
-          ) : (
-            busRoutes.map((route) => (
-              <RoutePickerOption
-                key={route.short_name}
-                code={route.short_name}
-                label={route.long_name || `Route ${route.short_name}`}
-                color={route.color}
-                selected={local.includes(route.short_name)}
-                onClick={() => toggle(route.short_name)}
-              />
-            ))
-          )}
-        </div>
-      </div>
-
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <p className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
-            <Pencil className="h-3.5 w-3.5" /> Custom routes
-          </p>
-          <button
-            className="text-xs text-[#007A33] font-medium"
-            onClick={() => toggleGroup(customCodes, allCustomSelected)}
-            disabled={customCodes.length === 0}
-          >
-            {allCustomSelected ? "Deselect all" : "Select all"}
-          </button>
-        </div>
-        {customRoutes.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-xs text-slate-400">
-            Saved custom routes will appear here.
-          </p>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-2 pt-2">
+        {loading ? (
+          <RoutePickerSkeleton />
         ) : (
-          <div className="grid grid-cols-2 gap-1.5">
-            {customRoutes.map((route) => {
-              const code = customRouteSelectionId(route.id);
-              return (
-                <RoutePickerOption
-                  key={route.id}
-                  code={route.type === "train" ? "TR" : "BU"}
-                  label={route.name || "Custom route"}
-                  color={route.color}
-                  selected={local.includes(code)}
-                  onClick={() => toggle(code)}
-                />
-              );
-            })}
-          </div>
+          <>
+            <PickerSection
+              title="Train lines"
+              icon={Train}
+              actionLabel={allRailSelected ? "Clear" : "All"}
+              onAction={() => toggleGroup(railCodes, allRailSelected)}
+              disabled={railCodes.length === 0}
+            >
+              <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200/80 bg-white">
+                {railRoutes.map((route) => (
+                  <RoutePickerRow
+                    key={route.short_name}
+                    code={route.short_name}
+                    label={(GO_RAIL_LINES[route.short_name]?.name ?? route.long_name).replace(" Line", "")}
+                    color={route.color}
+                    selected={local.includes(route.short_name)}
+                    onClick={() => toggle(route.short_name)}
+                  />
+                ))}
+              </div>
+            </PickerSection>
+
+            <PickerSection
+              title="Bus routes"
+              icon={Bus}
+              actionLabel={allBusSelected ? "Clear" : "All"}
+              onAction={() => toggleGroup(busCodes, allBusSelected)}
+              disabled={busCodes.length === 0}
+            >
+              <div className="max-h-[min(40vh,320px)] divide-y divide-slate-100 overflow-y-auto overscroll-contain rounded-lg border border-slate-200/80 bg-white shadow-[inset_0_1px_0_rgb(255_255_255/0.6)]">
+                {busRoutes.map((route) => (
+                  <RoutePickerRow
+                    key={route.short_name}
+                    code={route.short_name}
+                    label={route.long_name || `Route ${route.short_name}`}
+                    color={route.color}
+                    selected={local.includes(route.short_name)}
+                    onClick={() => toggle(route.short_name)}
+                  />
+                ))}
+              </div>
+            </PickerSection>
+
+            <PickerSection
+              title="Custom routes"
+              icon={Pencil}
+              actionLabel={allCustomSelected ? "Clear" : "All"}
+              onAction={() => toggleGroup(customCodes, allCustomSelected)}
+              disabled={customCodes.length === 0}
+            >
+              {customRoutes.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 px-3 py-2.5 text-center text-[11px] text-slate-400">
+                  Saved custom routes appear here.
+                </p>
+              ) : (
+                <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200/80 bg-white">
+                  {customRoutes.map((route) => {
+                    const code = customRouteSelectionId(route.id);
+                    return (
+                      <RoutePickerRow
+                        key={route.id}
+                        code={route.type === "train" ? "TR" : "CU"}
+                        label={route.name || "Custom route"}
+                        color={route.color}
+                        selected={local.includes(code)}
+                        onClick={() => toggle(code)}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </PickerSection>
+          </>
         )}
       </div>
 
-      <Button
-        className="h-9 w-full rounded-lg bg-[#007A33] text-sm text-white hover:bg-[#005f28]"
-        onClick={() => onApply(local)}
-        disabled={local.length === 0}
-      >
-        Show {local.length} route{local.length !== 1 ? "s" : ""}
-      </Button>
+      <div className="shrink-0 border-t border-slate-100 bg-slate-50/95 px-3 py-2.5">
+        <Button
+          className="h-9 w-full rounded-lg bg-[#007A33] text-sm font-semibold text-white shadow-sm hover:bg-[#005f28]"
+          onClick={() => onApply(local)}
+          disabled={local.length === 0}
+        >
+          Apply · {local.length} route{local.length !== 1 ? "s" : ""}
+        </Button>
+      </div>
     </div>
   );
 }
 
-function RoutePickerOption({
+function PickerSection({
+  title,
+  icon: Icon,
+  actionLabel,
+  onAction,
+  disabled,
+  children,
+}: {
+  title: string;
+  icon: ComponentType<{ className?: string }>;
+  actionLabel: string;
+  onAction: () => void;
+  disabled: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <section>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h3 className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+          <Icon className="h-3 w-3 text-slate-400" aria-hidden />
+          {title}
+        </h3>
+        <button
+          type="button"
+          className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-[#006b2d] transition-colors hover:bg-emerald-50 hover:underline disabled:pointer-events-none disabled:opacity-35"
+          onClick={onAction}
+          disabled={disabled}
+        >
+          {actionLabel}
+        </button>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function RoutePickerRow({
   code,
   label,
   color,
@@ -538,36 +582,54 @@ function RoutePickerOption({
   selected: boolean;
   onClick: () => void;
 }) {
+  const badgeText = code.length <= 4 ? code : code.slice(0, 3);
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`flex min-h-10 items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-all ${
-        selected
-          ? "bg-slate-50 shadow-sm"
-          : "border-slate-100 hover:border-slate-200"
-      }`}
-      style={selected ? { borderColor: color } : {}}
+      className={cn(
+        "flex w-full items-center gap-2 px-2.5 py-1.5 text-left transition-colors outline-none",
+        "focus-visible:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500/25 focus-visible:ring-inset",
+        selected ? "bg-emerald-50/80" : "hover:bg-slate-50/90 active:bg-slate-100/80",
+      )}
     >
-      <div
-        className="flex h-6 w-7 flex-shrink-0 items-center justify-center rounded-md text-[11px] font-bold text-white"
+      <span
+        className="flex h-5 min-w-[1.5rem] max-w-[2.75rem] shrink-0 items-center justify-center rounded px-0.5 text-[10px] font-bold leading-none text-white tabular-nums shadow-sm"
         style={{ backgroundColor: color }}
       >
-        {code.slice(0, 3)}
-      </div>
-      <span className="truncate text-xs font-medium text-slate-800">
+        <span className="truncate">{badgeText}</span>
+      </span>
+      <span className="min-w-0 flex-1 truncate text-[11px] font-medium leading-snug text-slate-800">
         {label}
       </span>
-      {selected && <div className="ml-auto h-2 w-2 rounded-full bg-emerald-500" />}
+      <span
+        className={cn(
+          "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+          selected
+            ? "border-emerald-600 bg-emerald-600 text-white"
+            : "border-slate-200 bg-white",
+        )}
+        aria-hidden
+      >
+        {selected ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
+      </span>
     </button>
   );
 }
 
-function RoutePickerSkeleton({ count }: { count: number }) {
+function RoutePickerSkeleton() {
   return (
-    <>
-      {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className="h-10 rounded-lg bg-slate-100" />
+    <div className="space-y-3">
+      {[0, 1].map((block) => (
+        <div key={block} className="overflow-hidden rounded-lg border border-slate-100">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-9 animate-pulse border-b border-slate-50 bg-gradient-to-r from-slate-50 to-slate-100/80 last:border-b-0"
+            />
+          ))}
+        </div>
       ))}
-    </>
+    </div>
   );
 }

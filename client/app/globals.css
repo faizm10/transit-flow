@@ -192,6 +192,46 @@
   font-size: 10.5px;
 }
 
+/* Simulation HUD — compact scrubber (used by SimulationHUD.tsx) */
+.sim-hud-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+.sim-hud-slider::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 9999px;
+  background: rgb(226 232 240);
+}
+.sim-hud-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: -4px;
+  border-radius: 9999px;
+  background: #007a33;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 0.2);
+}
+.sim-hud-slider::-moz-range-track {
+  height: 5px;
+  border-radius: 9999px;
+  background: rgb(226 232 240);
+}
+.sim-hud-slider::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: 2px solid white;
+  border-radius: 9999px;
+  background: #007a33;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 0.2);
+  cursor: pointer;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

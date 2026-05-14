@@ -146,6 +146,17 @@ function MapPageContent() {
   }, [customRoutes, saveRoute]);
   const sim = useSimulation(customRoutes);
 
+  useEffect(() => {
+    if (mode !== "simulate") setSelectedVehicleTripId(null);
+  }, [mode]);
+
+  useEffect(() => {
+    if (!selectedVehicleTripId) return;
+    if (!sim.trips.some((t) => t.trip_id === selectedVehicleTripId)) {
+      setSelectedVehicleTripId(null);
+    }
+  }, [sim.trips, selectedVehicleTripId]);
+
   const patchSearch = useCallback(
     (updates: Record<string, string | null | undefined>) => {
       const p = new URLSearchParams(searchParams.toString());
@@ -333,6 +344,7 @@ function MapPageContent() {
 
   // Click works in ALL modes — always highlights + shows info card
   const handleRouteClick = useCallback(async (variantId: string, shortName: string) => {
+    setSelectedVehicleTripId(null);
     // Highlight just this variant
     mapRef.current?.setRouteHighlight([variantId]);
 
@@ -364,6 +376,7 @@ function MapPageContent() {
     fromStop?: string;
     toStop?: string;
   }) => {
+    setSelectedVehicleTripId(null);
     mapRef.current?.setRouteHighlight(null);
     setClickedRoute({
       shortName: route.name,
@@ -387,6 +400,8 @@ function MapPageContent() {
 
   // ── Vehicle handlers ────────────────────────────────────────────────────
   const handleVehicleClick = useCallback((tripId: string) => {
+    setClickedRoute(null);
+    mapRef.current?.setRouteHighlight(null);
     setSelectedVehicleTripId((prev) => (prev === tripId ? null : tripId));
   }, []);
 
