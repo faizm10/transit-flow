@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Play } from "lucide-react";
-import { MAP_LINKS } from "@/lib/mapLinks";
 
 export default function HeroSection() {
   return (
@@ -67,13 +66,13 @@ export default function HeroSection() {
             className="flex flex-col sm:flex-row gap-3"
           >
             <Link
-              href={MAP_LINKS.exploreNetwork}
+              href="/map"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-bold text-sm px-6 py-3.5 transition-all shadow-xl shadow-emerald-500/25"
             >
               Open the map <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href={MAP_LINKS.simulate}
+              href="/map"
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] hover:bg-white/10 active:scale-95 text-white font-semibold text-sm px-6 py-3.5 transition-all"
             >
               <Play className="w-3.5 h-3.5 fill-white" />

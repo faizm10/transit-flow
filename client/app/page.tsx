@@ -13,7 +13,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import HeroSection from "@/components/HeroSection";
-import { MAP_LINKS } from "@/lib/mapLinks";
+
+const MAP = "/map";
 
 /* ─── helpers ─── */
 
@@ -44,10 +45,10 @@ export default function LandingPage() {
 
           <nav className="hidden md:flex items-center gap-1 text-sm">
             {[
-              { label: "Explore", href: MAP_LINKS.exploreNetwork },
-              { label: "Design", href: MAP_LINKS.designFresh },
-              { label: "Schedules", href: MAP_LINKS.schedules },
-              { label: "Simulate", href: MAP_LINKS.simulate },
+              { label: "Explore", href: MAP },
+              { label: "Design", href: MAP },
+              { label: "Schedules", href: MAP },
+              { label: "Simulate", href: MAP },
               { label: "About", href: "/about" },
             ].map(({ label, href }) => (
               <Link
@@ -61,7 +62,7 @@ export default function LandingPage() {
           </nav>
 
           <Link
-            href={MAP_LINKS.welcome}
+            href={MAP}
             className="inline-flex items-center gap-1.5 text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-1.5 rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
           >
             Open map <ArrowRight className="w-3.5 h-3.5" />
@@ -102,7 +103,7 @@ export default function LandingPage() {
               className="md:col-span-7"
             >
               <Link
-                href={MAP_LINKS.exploreNetwork}
+                href={MAP}
                 className="group relative flex flex-col h-full min-h-[280px] rounded-2xl bg-emerald-950/40 border border-emerald-500/20 p-8 overflow-hidden hover:border-emerald-500/40 transition-all"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent" />
@@ -155,7 +156,7 @@ export default function LandingPage() {
               className="md:col-span-4"
             >
               <Link
-                href={MAP_LINKS.designFresh}
+                href={MAP}
                 className="group relative flex flex-col h-full min-h-[220px] rounded-2xl bg-blue-950/40 border border-blue-500/20 p-7 overflow-hidden hover:border-blue-500/40 transition-all"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent" />
@@ -184,7 +185,7 @@ export default function LandingPage() {
               className="md:col-span-4"
             >
               <Link
-                href={MAP_LINKS.simulate}
+                href={MAP}
                 className="group relative flex flex-col h-full min-h-[220px] rounded-2xl bg-orange-950/40 border border-orange-500/20 p-7 overflow-hidden hover:border-orange-500/40 transition-all"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent" />
@@ -213,7 +214,7 @@ export default function LandingPage() {
               className="md:col-span-4"
             >
               <Link
-                href={MAP_LINKS.schedules}
+                href={MAP}
                 className="group relative flex flex-col h-full min-h-[220px] rounded-2xl bg-violet-950/40 border border-violet-500/20 p-7 overflow-hidden hover:border-violet-500/40 transition-all"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-transparent" />
@@ -255,7 +256,7 @@ export default function LandingPage() {
             TransitFlow puts the entire GO Transit network in your hands — live data, a drawing canvas, timetable views, and a full simulation engine — all in one map.
           </p>
           <Link
-            href={MAP_LINKS.welcome}
+            href={MAP}
             className="inline-flex items-center gap-2 mt-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-6 py-3.5 transition-colors"
           >
             Try it now — no sign up <ArrowRight className="w-4 h-4" />
@@ -345,7 +346,7 @@ export default function LandingPage() {
             Open the map and every GO Transit route is right there. No account needed.
           </p>
           <Link
-            href={MAP_LINKS.welcome}
+            href={MAP}
             className="inline-flex items-center gap-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-base px-8 py-4 rounded-xl transition-colors shadow-2xl shadow-emerald-500/20"
           >
             <Map className="w-5 h-5" />
@@ -365,10 +366,10 @@ export default function LandingPage() {
             <span className="text-xs text-slate-600">— GO Transit design &amp; simulation</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500">
-            <Link href={MAP_LINKS.exploreNetwork} className="hover:text-slate-300 transition-colors">Explore</Link>
-            <Link href={MAP_LINKS.designFresh} className="hover:text-slate-300 transition-colors">Design</Link>
-            <Link href={MAP_LINKS.schedules} className="hover:text-slate-300 transition-colors">Schedules</Link>
-            <Link href={MAP_LINKS.simulate} className="hover:text-slate-300 transition-colors">Simulate</Link>
+            <Link href={MAP} className="hover:text-slate-300 transition-colors">Explore</Link>
+            <Link href={MAP} className="hover:text-slate-300 transition-colors">Design</Link>
+            <Link href={MAP} className="hover:text-slate-300 transition-colors">Schedules</Link>
+            <Link href={MAP} className="hover:text-slate-300 transition-colors">Simulate</Link>
             <Link href="/about" className="hover:text-slate-300 transition-colors">About</Link>
             <a href="https://github.com/faizm10/transit-flow" className="hover:text-slate-300 transition-colors">GitHub</a>
             <span>© {new Date().getFullYear()}</span>
