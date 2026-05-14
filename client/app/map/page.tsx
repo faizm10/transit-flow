@@ -116,6 +116,8 @@ function MapPageContent() {
   const searchParams = useSearchParams();
 
   const mapRef = useRef<MapHandle | null>(null);
+  /** After user turns off Explore/Design/etc., bare /map must not auto-reopen Explore. */
+  const suppressBareMapExploreAutoRef = useRef(false);
   const [mode, setMode] = useState<Mode>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [hoveredRoute, setHoveredRoute] = useState<{ shortName: string; variantId: string } | null>(null);
@@ -162,12 +164,17 @@ function MapPageContent() {
   );
 
 
-  // Default to full GO network on bare /map (no entry/mode params).
+  // First visit to bare /map: open Explore + network entry. After user dismisses a mode, do not snap back.
   useEffect(() => {
     const entry = searchParams.get("entry");
-    const mode = searchParams.get("mode");
-    if (mode) return;
-    if (!entry || entry === "network") patchSearch({ entry: "network", mode: "browse" });
+    const modeParam = searchParams.get("mode");
+    if (modeParam) return;
+    if (searchParams.toString() === "" && suppressBareMapExploreAutoRef.current) {
+      return;
+    }
+    if (!entry || entry === "network") {
+      patchSearch({ entry: "network", mode: "browse" });
+    }
   }, [searchParams, patchSearch]);
 
   const fetchExtendSeedIfNeeded = useCallback(
@@ -514,7 +521,8 @@ function MapPageContent() {
     });
     mapRef.current?.stopEdit();     // clean up if edit was active
     mapRef.current?.clearPreviewRoute();
-    patchSearch({ mode: null, design: null, goRoute: null });
+    suppressBareMapExploreAutoRef.current = true;
+    patchSearch({ mode: null, design: null, goRoute: null, entry: null });
     setEditingRoute(undefined);
     setDrawnGeometry(null);
   }
@@ -549,7 +557,8 @@ function MapPageContent() {
 
   function closeDesignPanel() {
     cleanupDesignTools();
-    patchSearch({ mode: null, design: null, goRoute: null });
+    suppressBareMapExploreAutoRef.current = true;
+    patchSearch({ mode: null, design: null, goRoute: null, entry: null });
     setEditingRoute(undefined);
     setDrawnGeometry(null);
   }
@@ -557,6 +566,7 @@ function MapPageContent() {
   // ── Mode switcher (URL drives mode via patchSearch → useEffect) ─────────────
   function handleModeToggle(m: Mode) {
     if (mode === m) {
+      suppressBareMapExploreAutoRef.current = true;
       mapRef.current?.setRouteHighlight(null);
       setClickedRoute(null);
       if (m === "build") {
@@ -661,7 +671,8 @@ function MapPageContent() {
     if (editingRoute?.id === routeId) {
       setEditingRoute(undefined);
       setDrawnGeometry(null);
-      patchSearch({ mode: null, design: null, goRoute: null });
+      suppressBareMapExploreAutoRef.current = true;
+      patchSearch({ mode: null, design: null, goRoute: null, entry: null });
     }
     mapRef.current?.stopEdit();
     mapRef.current?.clearPreviewRoute();
@@ -768,8 +779,20 @@ function MapPageContent() {
 
       {/* ── Left side panel ─────────────────────────────────────────────── */}
       {panelOpen && (
-        <div className="absolute left-4 top-20 bottom-4 z-20 w-72">
-          <div className="h-full rounded-2xl bg-white/95 backdrop-blur-xl border border-slate-200 shadow-xl overflow-hidden flex flex-col">
+        <div
+          className={
+            mode === "browse"
+              ? "absolute left-4 top-20 z-20 w-72 max-h-[calc(100dvh-5.5rem)] overflow-hidden"
+              : "absolute left-4 top-20 bottom-4 z-20 w-72"
+          }
+        >
+          <div
+            className={
+              mode === "browse"
+                ? "flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-xl"
+                : "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-xl"
+            }
+          >
             {mode === "browse" && (
               <BrowsePanel
                 onRouteSelect={handleRouteSelect}

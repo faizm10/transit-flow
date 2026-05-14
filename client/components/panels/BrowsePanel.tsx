@@ -39,6 +39,10 @@ function tripsLabel(route: EnrichedRoute) {
   return `${n.toLocaleString()}/wk`;
 }
 
+/** Caps list height on large screens; panel shrink-wraps when the list is short. */
+const ROUTE_LIST_BOX =
+  "mt-1 max-h-[min(26rem,calc(100dvh-11rem))] overflow-y-auto rounded-lg border border-slate-100 bg-white";
+
 export default function BrowsePanel({
   onRouteSelect,
   onRouteClear,
@@ -116,73 +120,71 @@ export default function BrowsePanel({
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="shrink-0 border-b border-slate-100 px-3 pb-2.5 pt-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold tracking-tight text-slate-900">GO Transit routes</h2>
-            <p className="text-[10px] leading-snug text-slate-500">
-              Row highlights on map · checkbox toggles visibility
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-0.5 rounded-md bg-slate-100 p-0.5 text-[10px] font-semibold">
-            <button
-              type="button"
-              className="rounded px-1.5 py-0.5 text-[#155ba0] hover:bg-white"
-              onClick={() => onRouteFilterChange({ goRouteShortNames: null, customRouteIds: null })}
-            >
-              All
-            </button>
-            <span className="text-slate-300">|</span>
-            <button
-              type="button"
-              className="rounded px-1.5 py-0.5 text-slate-600 hover:bg-white"
-              onClick={() => onRouteFilterChange({ goRouteShortNames: [], customRouteIds: [] })}
-            >
-              None
-            </button>
-          </div>
+    <div className="flex flex-col">
+      <header
+        className="flex shrink-0 items-center gap-1.5 border-b border-slate-100 px-2 py-1"
+        title="Row highlights on the map; checkboxes toggle route visibility."
+      >
+        <h2 className="min-w-0 flex-1 truncate text-xs font-semibold tracking-tight text-slate-900">
+          GO Transit routes
+        </h2>
+        <span className="shrink-0 text-[10px] tabular-nums text-slate-400">
+          {totalRouteCount === 0 ? "…" : `${visibleRouteCount}/${totalRouteCount}`}
+        </span>
+        <div className="flex shrink-0 items-center gap-0.5 rounded bg-slate-100 p-px text-[10px] font-semibold">
+          <button
+            type="button"
+            className="rounded px-1 py-px text-[#155ba0] hover:bg-white"
+            onClick={() => onRouteFilterChange({ goRouteShortNames: null, customRouteIds: null })}
+          >
+            All
+          </button>
+          <span className="text-slate-300">|</span>
+          <button
+            type="button"
+            className="rounded px-1 py-px text-slate-600 hover:bg-white"
+            onClick={() => onRouteFilterChange({ goRouteShortNames: [], customRouteIds: [] })}
+          >
+            None
+          </button>
         </div>
-        <p className="mt-1.5 text-[10px] tabular-nums text-slate-400">
-          {totalRouteCount === 0 ? "Loading…" : `${visibleRouteCount}/${totalRouteCount} visible on map`}
-        </p>
       </header>
 
-      <Tabs defaultValue="trains" className="flex min-h-0 flex-1 flex-col">
-        <div className="shrink-0 space-y-2 px-3 pt-2">
-          <TabsList className="grid h-8 w-full grid-cols-3 gap-0 bg-slate-100 p-0.5">
-            <TabsTrigger value="trains" className="gap-1 text-[11px] font-medium data-[state=active]:shadow-sm">
+      <Tabs defaultValue="trains" className="flex flex-col">
+        <div className="shrink-0 space-y-1 px-2 pb-1 pt-1">
+          <TabsList className="grid h-7 w-full grid-cols-3 gap-0 bg-slate-100 p-px">
+            <TabsTrigger value="trains" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
               <Train className="h-3 w-3 shrink-0" aria-hidden />
               Train
             </TabsTrigger>
-            <TabsTrigger value="buses" className="gap-1 text-[11px] font-medium data-[state=active]:shadow-sm">
+            <TabsTrigger value="buses" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
               <Bus className="h-3 w-3 shrink-0" aria-hidden />
               Bus
             </TabsTrigger>
-            <TabsTrigger value="custom" className="gap-1 text-[11px] font-medium data-[state=active]:shadow-sm">
+            <TabsTrigger value="custom" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
               <Pencil className="h-3 w-3 shrink-0" aria-hidden />
               Custom
             </TabsTrigger>
           </TabsList>
           <div className="relative">
-            <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" aria-hidden />
+            <Search className="pointer-events-none absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" aria-hidden />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Filter…"
-              className="h-7 border-slate-200 bg-slate-50/80 pl-7 text-xs placeholder:text-slate-400"
+              className="h-6 border-slate-200 bg-slate-50/80 pl-7 text-[11px] placeholder:text-slate-400"
               aria-label="Filter routes by name"
             />
           </div>
         </div>
 
-        <TabsContent value="trains" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-2">
+        <TabsContent value="trains" className="mt-0 px-2 pb-2">
           {loading ? (
             <SkeletonList count={9} />
           ) : filteredRail.length === 0 ? (
             <EmptyFilter />
           ) : (
-            <div className="mt-1 min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-100 bg-white">
+            <div className={ROUTE_LIST_BOX}>
               <ul className="divide-y divide-slate-100">
                 {filteredRail.map((route) => {
                   const lineInfo = GO_RAIL_LINES[route.short_name];
@@ -238,33 +240,37 @@ export default function BrowsePanel({
                           onChange={(checked) => toggleGoRoute(route.short_name, checked)}
                         />
                       </div>
-                      {isExpanded && (
+                      {isExpanded && (route.variants.length > 0 || (route.from_stop && route.to_stop)) && (
                         <div className="border-t border-slate-50 bg-slate-50/50 px-2 py-1.5">
                           {route.from_stop && route.to_stop && (
                             <p className="mb-1.5 truncate text-[10px] text-slate-500">
                               {route.from_stop} → {route.to_stop}
                             </p>
                           )}
-                          <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                            Variants
-                          </p>
-                          <ul className="space-y-0.5">
-                            {route.variants.slice(0, 8).map((v) => (
-                              <li
-                                key={v.variant_id}
-                                className="flex items-center justify-between gap-2 rounded px-1.5 py-0.5 text-[11px] text-slate-600"
-                              >
-                                <span className="min-w-0 truncate">{v.label}</span>
-                                <span className="shrink-0 tabular-nums text-[10px] text-slate-400">
-                                  {(v.weekly_trip_count ?? v.trip_count).toLocaleString()}/wk
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                          {route.variants.length > 8 && (
-                            <p className="mt-1 px-1.5 text-[10px] text-slate-400">
-                              +{route.variants.length - 8} more
-                            </p>
+                          {route.variants.length > 0 && (
+                            <>
+                              <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                                Variants
+                              </p>
+                              <ul className="space-y-0.5">
+                                {route.variants.slice(0, 8).map((v) => (
+                                  <li
+                                    key={v.variant_id}
+                                    className="flex items-center justify-between gap-2 rounded px-1.5 py-0.5 text-[11px] text-slate-600"
+                                  >
+                                    <span className="min-w-0 truncate">{v.label}</span>
+                                    <span className="shrink-0 tabular-nums text-[10px] text-slate-400">
+                                      {(v.weekly_trip_count ?? v.trip_count).toLocaleString()}/wk
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                              {route.variants.length > 8 && (
+                                <p className="mt-1 px-1.5 text-[10px] text-slate-400">
+                                  +{route.variants.length - 8} more
+                                </p>
+                              )}
+                            </>
                           )}
                         </div>
                       )}
@@ -276,13 +282,13 @@ export default function BrowsePanel({
           )}
         </TabsContent>
 
-        <TabsContent value="buses" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-2">
+        <TabsContent value="buses" className="mt-0 px-2 pb-2">
           {loading ? (
             <SkeletonList count={10} />
           ) : filteredBus.length === 0 ? (
             <EmptyFilter />
           ) : (
-            <div className="mt-1 min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-100 bg-white">
+            <div className={ROUTE_LIST_BOX}>
               <ul className="divide-y divide-slate-100">
                 {filteredBus.map((route) => {
                   const variantIds = route.variants.map((v) => v.variant_id);
@@ -376,7 +382,7 @@ export default function BrowsePanel({
           )}
         </TabsContent>
 
-        <TabsContent value="custom" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-2">
+        <TabsContent value="custom" className="mt-0 px-2 pb-2">
           {customRoutes.length === 0 ? (
             <div className="mt-2 rounded-lg border border-dashed border-slate-200 px-3 py-3 text-center text-[11px] leading-relaxed text-slate-500">
               Custom routes from <span className="font-medium text-slate-600">Design</span> appear here.
@@ -384,7 +390,7 @@ export default function BrowsePanel({
           ) : filteredCustom.length === 0 ? (
             <EmptyFilter />
           ) : (
-            <div className="mt-1 min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-100 bg-white">
+            <div className={ROUTE_LIST_BOX}>
               <ul className="divide-y divide-slate-100">
                 {filteredCustom.map((route) => {
                   const visible = isCustomRouteVisible(route.id);
