@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import {
   X, Search, Train, Bus, ChevronDown, Clock, AlertCircle,
   Loader2, CheckCircle, Lock, CalendarDays, TableProperties,
-  ArrowRight, ArrowLeft, MapPin, Plus, Trash2,
+  ArrowRight, MapPin, Plus, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
@@ -80,6 +80,18 @@ interface ScheduleModalProps {
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_FULL   = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** Strip redundant "LINE - " prefix from trip_headsign when it repeats the route short name (e.g. "KI - Kitchener GO" → "Kitchener GO"). */
+function simplifyTripHeadsign(headsign: string, routeShortName: string): string {
+  const h = headsign.trim();
+  const sn = routeShortName.trim();
+  if (!sn || !h) return h;
+  const prefix = `${sn} - `;
+  if (h.length >= prefix.length && h.slice(0, prefix.length).toLowerCase() === prefix.toLowerCase()) {
+    return h.slice(prefix.length).trim();
+  }
+  return h;
+}
 
 // ─── Custom schedule departure computation ────────────────────────────────────
 
@@ -1020,6 +1032,7 @@ export default function ScheduleModal({
                       <DepartureSelector
                         departures={currentDirDepartures}
                         directions={deptState.directions}
+                        routeShortName={selected.route.short_name}
                         selectedDeparture={selectedDeparture}
                         selectedDirection={deptDirection}
                         selectedDestination={selectedDestination}
@@ -1373,12 +1386,13 @@ function CustomEditorHeader({ route }: { route: CustomRoute }) {
 // Toolbar shown in the Stop Times tab: pick destination sub-route + departure time.
 
 function DepartureSelector({
-  departures, directions, selectedDeparture, selectedDirection,
+  departures, directions, routeShortName, selectedDeparture, selectedDirection,
   selectedDestination, originStop,
   onSelectDeparture, onSelectDirection, onDestinationChange,
 }: {
   departures: { time: string }[];
   directions: DepartureDirection[];
+  routeShortName: string;
   selectedDeparture: string | null;
   selectedDirection: number;
   selectedDestination: string | null;
@@ -1389,59 +1403,103 @@ function DepartureSelector({
 }) {
   const currentDir = directions.find((d) => d.directionId === selectedDirection);
   const hasMultipleDestinations = (currentDir?.destinations.length ?? 0) > 1;
-  const activeDestination = selectedDestination ?? currentDir?.destinations[0]?.headsign;
+  const summaryDestination =
+    selectedDestination != null
+      ? simplifyTripHeadsign(selectedDestination, routeShortName)
+      : hasMultipleDestinations
+        ? "All terminals"
+        : (currentDir?.destinations[0]
+          ? simplifyTripHeadsign(currentDir.destinations[0].headsign, routeShortName)
+          : null);
 
   return (
     <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2">
-      {/* Row 1: direction + destination sub-route filter */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* Direction toggle */}
-        {directions.length > 1 && directions.map((dir) => (
-          <button
-            key={dir.directionId}
-            onClick={() => onSelectDirection(dir.directionId)}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
-              selectedDirection === dir.directionId
-                ? "bg-slate-900 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            {dir.directionId === 0 ? <ArrowRight className="w-3 h-3" /> : <ArrowLeft className="w-3 h-3" />}
-            <span className="truncate max-w-[120px]">{dir.headsign}</span>
-          </button>
-        ))}
+      {(directions.length > 1 || hasMultipleDestinations) && (
+        <div className="flex flex-col gap-2">
+          {directions.length > 1 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+                Direction
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {directions.map((dir) => {
+                  const short = simplifyTripHeadsign(dir.headsign, routeShortName);
+                  return (
+                    <button
+                      key={dir.directionId}
+                      type="button"
+                      title={dir.headsign}
+                      onClick={() => onSelectDirection(dir.directionId)}
+                      className={`max-w-[min(100%,14rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                        selectedDirection === dir.directionId
+                          ? "bg-slate-900 text-white"
+                          : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {short}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {hasMultipleDestinations && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+                Trip ends at
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  title="Show departures for every branch on this line"
+                  onClick={() => onDestinationChange(null)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                    selectedDestination === null
+                      ? "bg-emerald-700 text-white"
+                      : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  All
+                  <span className="ml-1 opacity-70 font-normal tabular-nums">
+                    {currentDir!.departures.length}
+                  </span>
+                </button>
+                {currentDir!.destinations.map((dest) => {
+                  const label = simplifyTripHeadsign(dest.headsign, routeShortName);
+                  return (
+                    <button
+                      key={dest.headsign}
+                      type="button"
+                      title={dest.headsign}
+                      onClick={() =>
+                        onDestinationChange(
+                          selectedDestination === dest.headsign ? null : dest.headsign,
+                        )
+                      }
+                      className={`max-w-[min(100%,12rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                        selectedDestination === dest.headsign
+                          ? "bg-emerald-700 text-white"
+                          : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {label}
+                      <span className="ml-1 opacity-70 font-normal tabular-nums">
+                        {dest.departures.length}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
-        {/* Destination pills (sub-routes) */}
-        {hasMultipleDestinations && (
-          <>
-            <span className="text-slate-200 text-sm">|</span>
-            {currentDir!.destinations.map((dest) => (
-              <button
-                key={dest.headsign}
-                onClick={() => onDestinationChange(
-                  selectedDestination === dest.headsign ? null : dest.headsign
-                )}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                  activeDestination === dest.headsign
-                    ? "bg-emerald-700 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                → {dest.headsign}
-                <span className="ml-1.5 opacity-60 font-normal">
-                  {dest.departures.length}
-                </span>
-              </button>
-            ))}
-          </>
-        )}
-      </div>
-
-      {/* Row 2: departure time dropdown + origin pill */}
+      {/* Departure time + route summary */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
+        <Clock className="w-3 h-3 text-slate-400 shrink-0" />
         <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
-          Departure
+          First stop time
         </label>
         <div className="relative">
           <select
@@ -1457,17 +1515,21 @@ function DepartureSelector({
           <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
 
-        {/* Origin → destination pill */}
-        {originStop && (
-          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1">
-            <MapPin className="w-2.5 h-2.5 text-slate-400 flex-shrink-0" />
-            <span className="text-[11px] text-slate-600 font-medium">{originStop}</span>
-            {activeDestination && (
-              <>
-                <ArrowRight className="w-2.5 h-2.5 text-slate-300 flex-shrink-0" />
-                <span className="text-[11px] text-slate-500 truncate max-w-[120px]">{activeDestination}</span>
-              </>
-            )}
+        {originStop && summaryDestination && (
+          <div
+            className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1 max-w-full min-w-0"
+            title={
+              selectedDestination != null
+                ? `${originStop} → ${selectedDestination}`
+                : `${originStop} · all branches`
+            }
+          >
+            <MapPin className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+            <span className="text-[11px] text-slate-600 font-medium shrink-0">{originStop}</span>
+            <span className="text-[11px] text-slate-300 shrink-0" aria-hidden>
+              ·
+            </span>
+            <span className="text-[11px] text-slate-500 truncate min-w-0">{summaryDestination}</span>
           </div>
         )}
       </div>
@@ -1543,70 +1605,87 @@ function DeparturesView({
             ))}
       </div>
 
-      {/* Direction + destination filter bar */}
+      {/* Direction + destination filters — labeled rows, short labels, full text in title="" */}
       {deptState.status === "done" && (deptState.directions.length > 1 || hasMultipleDestinations) && (
-        <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-1.5 flex-wrap">
-          {/* Direction toggle */}
-          {deptState.directions.length > 1 && deptState.directions.map((dir) => {
-            const origin = getOriginForDir(dir.directionId);
-            return (
-              <button key={dir.directionId} onClick={() => onDirectionChange(dir.directionId)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                  deptDirection === dir.directionId
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {dir.directionId === 0 ? <ArrowRight className="w-3 h-3" /> : <ArrowLeft className="w-3 h-3" />}
-                {origin
-                  ? <span className="flex items-center gap-1">
-                      <span className="truncate max-w-[100px]">{origin}</span>
-                      <ArrowRight className="w-2.5 h-2.5 opacity-50" />
-                      <span className="truncate max-w-[100px]">{dir.headsign}</span>
-                    </span>
-                  : <span className="truncate max-w-[180px]">{dir.headsign}</span>
-                }
-              </button>
-            );
-          })}
+        <div className="px-4 py-2 border-b border-slate-100 flex flex-col gap-2">
+          {deptState.directions.length > 1 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+                Direction
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {deptState.directions.map((dir) => {
+                  const origin = getOriginForDir(dir.directionId);
+                  const short = simplifyTripHeadsign(dir.headsign, route.short_name);
+                  const tip = origin ? `${origin} → ${dir.headsign}` : dir.headsign;
+                  return (
+                    <button
+                      key={dir.directionId}
+                      type="button"
+                      title={tip}
+                      onClick={() => onDirectionChange(dir.directionId)}
+                      className={`max-w-[min(100%,14rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                        deptDirection === dir.directionId
+                          ? "bg-slate-900 text-white"
+                          : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {short}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-          {/* Destination (sub-route) pills — e.g. Georgetown, Kitchener, Mount Pleasant */}
           {hasMultipleDestinations && (
-            <>
-              {deptState.directions.length > 1 && (
-                <span className="w-px h-4 bg-slate-200" />
-              )}
-              {/* "All" pill */}
-              <button
-                onClick={() => onDestinationChange(null)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                  selectedDestination === null
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                }`}
-              >
-                All
-                <span className="ml-1.5 opacity-60 font-normal">
-                  {currentDir?.departures.length}
-                </span>
-              </button>
-              {currentDir!.destinations.map((dest) => (
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+                Trip ends at
+              </span>
+              <div className="flex flex-wrap gap-1.5">
                 <button
-                  key={dest.headsign}
-                  onClick={() => onDestinationChange(
-                    selectedDestination === dest.headsign ? null : dest.headsign
-                  )}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                    selectedDestination === dest.headsign
+                  type="button"
+                  title="Show every branch in this direction"
+                  onClick={() => onDestinationChange(null)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                    selectedDestination === null
                       ? "bg-emerald-700 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  <span className="truncate max-w-[120px]">→ {dest.headsign}</span>
-                  <span className="opacity-60 font-normal ml-1">{dest.departures.length}</span>
+                  All
+                  <span className="ml-1 opacity-70 font-normal tabular-nums">
+                    {currentDir?.departures.length}
+                  </span>
                 </button>
-              ))}
-            </>
+                {currentDir!.destinations.map((dest) => {
+                  const label = simplifyTripHeadsign(dest.headsign, route.short_name);
+                  return (
+                    <button
+                      key={dest.headsign}
+                      type="button"
+                      title={dest.headsign}
+                      onClick={() =>
+                        onDestinationChange(
+                          selectedDestination === dest.headsign ? null : dest.headsign,
+                        )
+                      }
+                      className={`max-w-[min(100%,12rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                        selectedDestination === dest.headsign
+                          ? "bg-emerald-700 text-white"
+                          : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {label}
+                      <span className="ml-1 opacity-70 font-normal tabular-nums">
+                        {dest.departures.length}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -1618,7 +1697,10 @@ function DeparturesView({
           <span className="font-semibold">Departures</span>
           {activeHeadsign && (
             <span className="text-slate-400">
-              for <span className="font-medium text-slate-600">→ {activeHeadsign}</span>
+              ·{" "}
+              <span className="font-medium text-slate-600" title={activeHeadsign}>
+                {simplifyTripHeadsign(activeHeadsign, route.short_name)}
+              </span>
             </span>
           )}
         </div>
@@ -1744,7 +1826,11 @@ function DeparturesView({
           <div className="px-4 py-2">
             <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
               {visibleDepartures.length} departure{visibleDepartures.length !== 1 ? "s" : ""} · {DAY_FULL[deptDay]}
-              {selectedDestination ? ` · → ${selectedDestination}` : currentDir ? ` · ${currentDir.headsign}` : ""}
+              {selectedDestination
+                ? ` · ${simplifyTripHeadsign(selectedDestination, route.short_name)}`
+                : currentDir
+                  ? ` · ${simplifyTripHeadsign(currentDir.headsign, route.short_name)}`
+                  : ""}
             </p>
             <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-1.5">
               {visibleDepartures.map((dep, i) => (
@@ -1752,7 +1838,12 @@ function DeparturesView({
                   key={i}
                   time={dep.time}
                   originStop={originStop}
-                  destination={!selectedDestination ? dep.headsign : undefined}
+                  destination={
+                    !selectedDestination && dep.headsign
+                      ? simplifyTripHeadsign(dep.headsign, route.short_name)
+                      : undefined
+                  }
+                  destinationTitle={!selectedDestination ? dep.headsign : undefined}
                 />
               ))}
             </div>
@@ -1766,15 +1857,20 @@ function DeparturesView({
 // ─── DepartureCard ────────────────────────────────────────────────────────────
 
 function DepartureCard({
-  time, originStop, destination,
+  time, originStop, destination, destinationTitle,
 }: {
   time: string;
   originStop?: string;
   /** Shown when "All" is selected and cards have mixed destinations */
   destination?: string;
+  /** Full GTFS headsign for tooltip when destination is shortened */
+  destinationTitle?: string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5 text-center">
+    <div
+      className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5 text-center"
+      title={destinationTitle}
+    >
       <p className="text-xs font-semibold text-slate-800 tabular-nums font-mono leading-none">
         {toDisplayTime(time)}
       </p>
@@ -1785,7 +1881,7 @@ function DepartureCard({
       )}
       {destination && (
         <p className="text-[9px] text-emerald-600 font-medium mt-0.5 truncate leading-tight">
-          → {destination}
+          {destination}
         </p>
       )}
     </div>
