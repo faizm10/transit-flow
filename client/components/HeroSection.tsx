@@ -3,132 +3,141 @@
 import { motion, type Variants } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight, Play, Zap } from "lucide-react";
 import { MAP_LINKS } from "@/lib/mapLinks";
 
 export default function HeroSection() {
   const fade = (delay = 0): Variants => ({
-    hidden: { opacity: 0, y: 16 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: "easeOut" as const, delay } },
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1], delay } },
   });
 
   const imageAnim: Variants = {
-    hidden: { opacity: 0, x: 24, scale: 0.98 },
-    visible: { opacity: 1, x: 0, scale: 1, transition: { duration: 0.7, ease: "easeOut" as const, delay: 0.2 } },
+    hidden: { opacity: 0, y: 32, scale: 0.97 },
+    visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.3 } },
   };
 
   return (
-    <section className="w-full bg-white border-b border-slate-100">
-      <div className="max-w-7xl mx-auto px-6 lg:px-10 py-20 lg:py-28 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+    <section className="relative w-full overflow-hidden bg-slate-950">
+      {/* Background grid */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.04]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
+        }}
+      />
+      {/* Emerald glow top-right */}
+      <div className="pointer-events-none absolute -top-40 right-0 h-[600px] w-[600px] rounded-full bg-emerald-500/10 blur-[120px]" />
+      {/* Subtle bottom fade */}
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-950 to-transparent" />
 
-        {/* LEFT — copy */}
-        <div className="flex flex-col gap-6 max-w-lg">
-          {/* Badge */}
-          <motion.div initial="hidden" animate="visible" variants={fade(0)}>
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-slate-200 text-xs font-medium text-slate-500 bg-slate-50">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              GO Transit · Live GTFS data
+      <div className="relative max-w-7xl mx-auto px-6 lg:px-10 pt-20 pb-0 lg:pt-28 flex flex-col items-center text-center gap-8">
+
+        {/* Badge */}
+        <motion.div initial="hidden" animate="visible" variants={fade(0)}>
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 text-xs font-medium text-slate-400 bg-white/5 backdrop-blur-sm">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
             </span>
-          </motion.div>
+            Live GO Transit GTFS data
+          </span>
+        </motion.div>
 
-          {/* Headline */}
-          <motion.h1
-            initial="hidden"
-            animate="visible"
-            variants={fade(0.1)}
-            className="text-[2.8rem] sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.08]"
+        {/* Headline */}
+        <motion.h1
+          initial="hidden"
+          animate="visible"
+          variants={fade(0.1)}
+          className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.05] text-white max-w-4xl"
+        >
+          The GO Transit network,{" "}
+          <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
+            reimagined.
+          </span>
+        </motion.h1>
+
+        {/* Subtext */}
+        <motion.p
+          initial="hidden"
+          animate="visible"
+          variants={fade(0.2)}
+          className="text-lg text-slate-400 leading-relaxed max-w-xl"
+        >
+          All 45 GO Transit routes on a live interactive map. Explore lines, sketch new corridors, compare timetables, and simulate service — all in your browser.
+        </motion.p>
+
+        {/* CTAs */}
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={fade(0.3)}
+          className="flex flex-wrap justify-center gap-3"
+        >
+          <Link
+            href={MAP_LINKS.exploreNetwork}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-bold px-6 py-3 transition-colors shadow-lg shadow-emerald-500/20"
           >
-            Explore GO Transit.<br />
-            <span className="text-emerald-600">Design what&apos;s next.</span>
-          </motion.h1>
-
-          {/* Subtext */}
-          <motion.p
-            initial="hidden"
-            animate="visible"
-            variants={fade(0.2)}
-            className="text-[1.05rem] text-slate-500 leading-relaxed"
+            Open the map <ArrowRight className="w-4 h-4" />
+          </Link>
+          <Link
+            href={MAP_LINKS.simulate}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-sm font-semibold px-6 py-3 transition-colors backdrop-blur-sm"
           >
-            All 45 GO Transit routes on a live map. Sketch new corridors, review timetables, and simulate how service would run — in your browser.
-          </motion.p>
+            <Play className="w-3.5 h-3.5 fill-current" />
+            Watch a simulation
+          </Link>
+        </motion.div>
 
-          {/* CTAs */}
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fade(0.3)}
-            className="flex flex-wrap gap-3 pt-1"
-          >
-            <Link
-              href={MAP_LINKS.exploreNetwork}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-5 py-2.5 transition-colors"
-            >
-              Start exploring <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href={MAP_LINKS.designFresh}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 hover:border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-sm font-semibold px-5 py-2.5 transition-colors"
-            >
-              Design a route <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href={MAP_LINKS.simulate}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 hover:border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-sm font-semibold px-5 py-2.5 transition-colors"
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              Run simulation
-            </Link>
-          </motion.div>
+        {/* Stats */}
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={fade(0.4)}
+          className="flex gap-10 pt-2"
+        >
+          {[
+            { value: "45", label: "GO routes" },
+            { value: "8", label: "Rail lines" },
+            { value: "Live", label: "GTFS data" },
+          ].map(({ value, label }) => (
+            <div key={label} className="text-center">
+              <p className="text-2xl font-bold text-white">{value}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{label}</p>
+            </div>
+          ))}
+        </motion.div>
 
-          {/* Stat row */}
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fade(0.4)}
-            className="flex gap-8 pt-4 border-t border-slate-100 mt-2"
-          >
-            {[
-              { value: "45", label: "GO routes" },
-              { value: "8", label: "Rail lines" },
-              { value: "Live", label: "GTFS data" },
-            ].map(({ value, label }) => (
-              <div key={label}>
-                <p className="text-2xl font-bold text-slate-900">{value}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{label}</p>
-              </div>
-            ))}
-          </motion.div>
-        </div>
-
-        {/* RIGHT — product screenshot */}
+        {/* Screenshot */}
         <motion.div
           initial="hidden"
           animate="visible"
           variants={imageAnim}
-          className="relative"
+          className="relative w-full max-w-5xl mt-6"
         >
-          {/* Decorative backdrop */}
-          <div className="absolute -inset-3 rounded-2xl bg-gradient-to-br from-emerald-50 to-slate-100 -z-10" />
+          {/* Glow beneath screenshot */}
+          <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-emerald-500/15 blur-3xl rounded-full" />
 
-          {/* Screenshot frame */}
-          <div className="rounded-xl overflow-hidden shadow-2xl shadow-slate-200/80 border border-slate-200/60 ring-1 ring-black/5">
-            {/* Fake browser chrome */}
-            <div className="bg-slate-100 border-b border-slate-200 px-4 py-2.5 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-              <span className="flex-1 ml-3 bg-white rounded-md px-3 py-1 text-[10px] text-slate-400 border border-slate-200 truncate">
-                /map
+          <div className="relative rounded-t-xl overflow-hidden border border-white/10 shadow-2xl shadow-black/60">
+            {/* Browser chrome */}
+            <div className="bg-slate-900 border-b border-white/10 px-4 py-3 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500/70" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/70" />
+              <span className="flex-1 ml-3 bg-white/5 rounded-md px-3 py-1 text-[11px] text-slate-500 border border-white/5 truncate text-left">
+                transitflow.app/map
               </span>
+              <Zap className="w-3 h-3 text-emerald-500 ml-2" />
             </div>
-
             <Image
               src="/landing-page.png"
               alt="TransitFlow map showing GO Transit routes"
-              width={960}
-              height={600}
+              width={1200}
+              height={700}
               priority
-              quality={92}
+              quality={95}
               className="w-full object-cover object-top"
             />
           </div>
