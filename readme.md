@@ -34,16 +34,17 @@ The repo is set up for a Vercel-first public beta:
 python3 scripts/build_subroutes.py --input_dir <path-to-gtfs> --output_dir <path-to-output>
 ```
 
-Example:
+Example (raw GTFS lives under `server/data/gotransit`; derived JSON/GeoJSON under `client/public/gotransit/derived`):
 
 ```bash
-python3 scripts/build_subroutes.py --input_dir client/public/gotransit --output_dir client/public/gotransit/derived
+python3 scripts/build_subroutes.py --input_dir server/data/gotransit --output_dir client/public/gotransit/derived
+python3 scripts/build_gtfs_derived.py
 ```
 
 Simulation artifacts for production-style deployments:
 
 ```bash
-python3 scripts/build_simulation_artifacts.py --input_dir client/public/gotransit --output_dir client/public/gotransit/derived/simulation --source gotransit
+python3 scripts/build_simulation_artifacts.py --input_dir server/data/gotransit --output_dir client/public/gotransit/derived/simulation --source gotransit
 ```
 
 Publish GO simulation artifacts to Vercel Blob:
