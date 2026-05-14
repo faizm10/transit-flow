@@ -1047,7 +1047,7 @@ export default function ScheduleModal({
                       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading stop times…
                     </div>
                   )}
-                  <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center gap-2 text-[11px] text-slate-400">
+                  <div className="px-4 py-2 border-t border-slate-100 bg-slate-50/50 flex items-center gap-2 text-[10px] text-slate-400">
                     <Lock className="w-3 h-3" />
                     GO Transit · editable via local overrides · based on GTFS scheduled times
                   </div>
@@ -1111,14 +1111,14 @@ function RouteSidebar({
   onSelectRoute: (sel: SelectedRoute) => void;
 }) {
   return (
-    <div className="w-72 flex-shrink-0 border-r border-slate-100 flex flex-col bg-slate-50/50">
-      <div className="px-4 pt-5 pb-3">
-        <h2 className="text-base font-semibold text-slate-900">Schedules</h2>
-        <p className="text-xs text-slate-400 mt-0.5">Select a route to view stop times</p>
+    <div className="w-64 flex-shrink-0 border-r border-slate-100 flex flex-col bg-slate-50/50">
+      <div className="px-3 pt-3 pb-2">
+        <h2 className="text-sm font-semibold text-slate-900 tracking-tight">Schedules</h2>
+        <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">Pick a route for times & departures</p>
       </div>
 
-      <div className="px-3 pb-2">
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
+      <div className="px-2.5 pb-2">
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 shadow-sm">
           <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
           <input
             type="text"
@@ -1130,12 +1130,12 @@ function RouteSidebar({
         </div>
       </div>
 
-      <div className="px-3 pb-2 flex gap-1">
+      <div className="px-2.5 pb-1.5 flex gap-0.5">
         {(["all", "trains", "buses", "mine"] as FilterTab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => onFilterChange(tab)}
-            className={`flex-1 rounded-lg py-1 text-[10px] font-semibold transition-colors capitalize ${
+            className={`flex-1 rounded-md py-0.5 text-[10px] font-semibold transition-colors capitalize ${
               filter === tab ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100"
             }`}
           >
@@ -1144,7 +1144,7 @@ function RouteSidebar({
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 pb-4">
+      <div className="flex-1 overflow-y-auto px-1.5 pb-3">
         {loadingGO && (
           <div className="flex items-center gap-2 px-2 py-4 text-xs text-slate-400">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading routes…
@@ -1154,7 +1154,7 @@ function RouteSidebar({
         {filteredGO.length > 0 && (
           <>
             {filter === "all" && (
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-2 pt-3 pb-1">GO Transit</p>
+              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider px-2 pt-2 pb-0.5">GO Transit</p>
             )}
             {filteredGO.map((route) => {
               const lineInfo = GO_RAIL_LINES[route.short_name];
@@ -1180,7 +1180,7 @@ function RouteSidebar({
         {filteredCustom.length > 0 && (
           <>
             {filter === "all" && (
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-2 pt-3 pb-1">My routes</p>
+              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider px-2 pt-2 pb-0.5">My routes</p>
             )}
             {filteredCustom.map((route) => {
               const isSel = selected?.kind === "custom" && selected.route.id === route.id;
@@ -1218,12 +1218,12 @@ function RouteListItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-left transition-colors ${
+      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors ${
         isSelected ? "bg-slate-900 text-white" : "hover:bg-white hover:shadow-sm text-slate-700"
       }`}
     >
       <div
-        className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold"
+        className="w-7 h-7 rounded-md flex-shrink-0 flex items-center justify-center text-white text-[9px] font-bold"
         style={{ backgroundColor: color }}
       >
         {shortName
@@ -1233,9 +1233,9 @@ function RouteListItem({
             : <Bus className="w-4 h-4" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-xs font-semibold truncate ${isSelected ? "text-white" : "text-slate-800"}`}>{label}</p>
+        <p className={`text-[11px] font-semibold truncate leading-tight ${isSelected ? "text-white" : "text-slate-800"}`}>{label}</p>
         {sublabel && (
-          <p className={`text-[10px] truncate mt-0.5 ${isSelected ? "text-white/60" : "text-slate-400"}`}>{sublabel}</p>
+          <p className={`text-[9px] truncate mt-0.5 leading-tight ${isSelected ? "text-white/55" : "text-slate-400"}`}>{sublabel}</p>
         )}
       </div>
     </button>
@@ -1275,19 +1275,19 @@ function GoEditorHeader({
   const name = lineInfo?.name ?? selected.route.long_name;
 
   return (
-    <div className="px-6 pt-5 pb-0 border-b border-slate-100">
-      <div className="flex items-start justify-between gap-4 pb-4">
-        <div className="flex items-center gap-3 min-w-0">
+    <div className="px-4 pt-3 pb-0 border-b border-slate-100">
+      <div className="flex items-start justify-between gap-3 pb-3">
+        <div className="flex items-center gap-2.5 min-w-0">
           <div
-            className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-white font-bold text-sm"
+            className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center text-white font-bold text-xs"
             style={{ backgroundColor: color }}
           >
             {selected.route.short_name}
           </div>
           <div className="min-w-0">
-            <h3 className="text-base font-semibold text-slate-900 truncate">{name}</h3>
+            <h3 className="text-sm font-semibold text-slate-900 truncate leading-tight">{name}</h3>
             {selected.route.from_stop && (
-              <p className="text-xs text-slate-400 mt-0.5 truncate">
+              <p className="text-[11px] text-slate-400 mt-0.5 truncate leading-snug">
                 {selected.route.from_stop} → {selected.route.to_stop}
               </p>
             )}
@@ -1299,7 +1299,7 @@ function GoEditorHeader({
           <select
             value={selected.variantId}
             onChange={(e) => onVariantChange(e.target.value)}
-            className="text-xs rounded-xl border border-slate-200 bg-white pl-3 pr-7 py-1.5 text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-slate-200 max-w-[220px] truncate"
+            className="text-[11px] rounded-lg border border-slate-200 bg-white pl-2.5 pr-6 py-1 text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-slate-200 max-w-[200px] truncate"
           >
             {[...selected.route.variants]
               .sort((a, b) => (b.weekly_trip_count ?? 0) - (a.weekly_trip_count ?? 0))
@@ -1314,16 +1314,16 @@ function GoEditorHeader({
       </div>
 
       {/* View mode tabs */}
-      <div className="flex gap-1 -mb-px">
+      <div className="flex gap-0.5 -mb-px">
         <ViewTab
           active={viewMode === "departures"}
-          icon={<CalendarDays className="w-3.5 h-3.5" />}
+          icon={<CalendarDays className="w-3 h-3" />}
           label="Departures"
           onClick={() => onViewModeChange("departures")}
         />
         <ViewTab
           active={viewMode === "stoptimes"}
-          icon={<TableProperties className="w-3.5 h-3.5" />}
+          icon={<TableProperties className="w-3 h-3" />}
           label="Stop times"
           onClick={() => onViewModeChange("stoptimes")}
         />
@@ -1338,7 +1338,7 @@ function ViewTab({ active, icon, label, onClick }: {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+      className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold border-b-2 transition-colors ${
         active
           ? "border-slate-900 text-slate-900"
           : "border-transparent text-slate-400 hover:text-slate-600"
@@ -1354,16 +1354,16 @@ function ViewTab({ active, icon, label, onClick }: {
 
 function CustomEditorHeader({ route }: { route: CustomRoute }) {
   return (
-    <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex items-center gap-3">
+    <div className="px-4 pt-3 pb-3 border-b border-slate-100 flex items-center gap-2.5">
       <div
-        className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-white font-bold text-sm"
+        className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center text-white font-bold text-xs"
         style={{ backgroundColor: route.color }}
       >
         {route.type === "train" ? "TR" : "BU"}
       </div>
       <div className="min-w-0">
-        <h3 className="text-base font-semibold text-slate-900 truncate">{route.name || "Custom route"}</h3>
-        <p className="text-xs text-slate-400 mt-0.5">{route.stops.length} stops · Edit departure times below</p>
+        <h3 className="text-sm font-semibold text-slate-900 truncate leading-tight">{route.name || "Custom route"}</h3>
+        <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{route.stops.length} stops · edit departures below</p>
       </div>
     </div>
   );
@@ -1392,7 +1392,7 @@ function DepartureSelector({
   const activeDestination = selectedDestination ?? currentDir?.destinations[0]?.headsign;
 
   return (
-    <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex flex-col gap-2.5">
+    <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2">
       {/* Row 1: direction + destination sub-route filter */}
       <div className="flex items-center gap-2 flex-wrap">
         {/* Direction toggle */}
@@ -1400,7 +1400,7 @@ function DepartureSelector({
           <button
             key={dir.directionId}
             onClick={() => onSelectDirection(dir.directionId)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
               selectedDirection === dir.directionId
                 ? "bg-slate-900 text-white"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -1421,7 +1421,7 @@ function DepartureSelector({
                 onClick={() => onDestinationChange(
                   selectedDestination === dest.headsign ? null : dest.headsign
                 )}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                   activeDestination === dest.headsign
                     ? "bg-emerald-700 text-white"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -1438,16 +1438,16 @@ function DepartureSelector({
       </div>
 
       {/* Row 2: departure time dropdown + origin pill */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <Clock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-        <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
+        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
           Departure
         </label>
         <div className="relative">
           <select
             value={selectedDeparture ?? ""}
             onChange={(e) => onSelectDeparture(e.target.value)}
-            className="text-xs rounded-xl border border-slate-200 bg-white pl-3 pr-7 py-1.5 text-slate-800 font-mono appearance-none focus:outline-none focus:ring-2 focus:ring-slate-200 min-w-[110px]"
+            className="text-[11px] rounded-lg border border-slate-200 bg-white pl-2.5 pr-6 py-1 text-slate-800 font-mono appearance-none focus:outline-none focus:ring-2 focus:ring-slate-200 min-w-[100px]"
           >
             {departures.length === 0 && <option value="">No departures</option>}
             {departures.map((dep) => (
@@ -1459,13 +1459,13 @@ function DepartureSelector({
 
         {/* Origin → destination pill */}
         {originStop && (
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5">
-            <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
-            <span className="text-xs text-slate-600 font-medium">{originStop}</span>
+          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1">
+            <MapPin className="w-2.5 h-2.5 text-slate-400 flex-shrink-0" />
+            <span className="text-[11px] text-slate-600 font-medium">{originStop}</span>
             {activeDestination && (
               <>
-                <ArrowRight className="w-3 h-3 text-slate-300 flex-shrink-0" />
-                <span className="text-xs text-slate-500 truncate max-w-[140px]">{activeDestination}</span>
+                <ArrowRight className="w-2.5 h-2.5 text-slate-300 flex-shrink-0" />
+                <span className="text-[11px] text-slate-500 truncate max-w-[120px]">{activeDestination}</span>
               </>
             )}
           </div>
@@ -1524,11 +1524,11 @@ function DeparturesView({
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Day selector */}
-      <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-1.5 flex-wrap">
+      <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-1 flex-wrap">
         {deptState.status === "done" && deptState.availableDays.length > 0
           ? deptState.availableDays.map((d) => (
               <button key={d} onClick={() => onDayChange(d)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                   deptDay === d ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >{DAY_LABELS[d]}</button>
@@ -1536,7 +1536,7 @@ function DeparturesView({
           : DAY_LABELS.map((label, d) => (
               <button key={d} onClick={() => onDayChange(d)}
                 disabled={deptState.status === "loading"}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors disabled:opacity-40 ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-40 ${
                   deptDay === d ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >{label}</button>
@@ -1545,13 +1545,13 @@ function DeparturesView({
 
       {/* Direction + destination filter bar */}
       {deptState.status === "done" && (deptState.directions.length > 1 || hasMultipleDestinations) && (
-        <div className="px-6 py-2.5 border-b border-slate-100 flex items-center gap-2 flex-wrap">
+        <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-1.5 flex-wrap">
           {/* Direction toggle */}
           {deptState.directions.length > 1 && deptState.directions.map((dir) => {
             const origin = getOriginForDir(dir.directionId);
             return (
               <button key={dir.directionId} onClick={() => onDirectionChange(dir.directionId)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                   deptDirection === dir.directionId
                     ? "bg-slate-900 text-white"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -1579,7 +1579,7 @@ function DeparturesView({
               {/* "All" pill */}
               <button
                 onClick={() => onDestinationChange(null)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                   selectedDestination === null
                     ? "bg-slate-900 text-white"
                     : "bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -1596,13 +1596,13 @@ function DeparturesView({
                   onClick={() => onDestinationChange(
                     selectedDestination === dest.headsign ? null : dest.headsign
                   )}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                     selectedDestination === dest.headsign
                       ? "bg-emerald-700 text-white"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
-                  <span className="truncate max-w-[140px]">→ {dest.headsign}</span>
+                  <span className="truncate max-w-[120px]">→ {dest.headsign}</span>
                   <span className="opacity-60 font-normal ml-1">{dest.departures.length}</span>
                 </button>
               ))}
@@ -1612,9 +1612,9 @@ function DeparturesView({
       )}
 
       {/* Edit toolbar (local overrides) */}
-      <div className="px-6 py-2.5 border-b border-slate-100 bg-slate-50/40 flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 text-xs text-slate-600">
-          <Clock className="w-3.5 h-3.5 text-slate-400" />
+      <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+          <Clock className="w-3 h-3 text-slate-400" />
           <span className="font-semibold">Departures</span>
           {activeHeadsign && (
             <span className="text-slate-400">
@@ -1622,13 +1622,13 @@ function DeparturesView({
             </span>
           )}
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5">
           {editing && (
             <>
               <button
                 type="button"
                 onClick={onDiscardEdits}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
               >
                 Discard
               </button>
@@ -1636,7 +1636,7 @@ function DeparturesView({
                 type="button"
                 onClick={onSaveEdits}
                 disabled={!canSave}
-                className="rounded-xl bg-[#007A33] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="rounded-lg bg-[#007A33] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Save
               </button>
@@ -1645,7 +1645,7 @@ function DeparturesView({
           <button
             type="button"
             onClick={onToggleEdit}
-            className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
               editing ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
@@ -1655,7 +1655,7 @@ function DeparturesView({
       </div>
 
       {editing && (
-        <div className="px-6 py-3 border-b border-slate-100 bg-white">
+        <div className="px-4 py-2 border-b border-slate-100 bg-white">
           <div className="flex items-center gap-2 flex-wrap">
             <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
               Add time
@@ -1664,29 +1664,29 @@ function DeparturesView({
               type="time"
               value={newTime}
               onChange={(e) => onNewTimeChange(e.target.value)}
-              className="text-xs font-mono rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33]"
+              className="text-[11px] font-mono rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33]"
             />
             <button
               type="button"
               onClick={() => onAddTime(newTime)}
               disabled={!newTime}
-              className="rounded-lg bg-[#007A33] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-md bg-[#007A33] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Add
             </button>
-            <span className="ml-auto text-[10px] text-slate-400">
+            <span className="ml-auto text-[9px] text-slate-400">
               Stored locally · applies immediately
             </span>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
             {draftTimes.length === 0 ? (
-              <div className="col-span-full text-xs text-slate-400 italic">
+              <div className="col-span-full text-[11px] text-slate-400 italic">
                 No departures. Add a time above.
               </div>
             ) : (
               draftTimes.map((t) => (
-                <div key={t} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-2">
+                <div key={t} className="flex items-center gap-1.5 rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5">
                   <input
                     type="time"
                     value={t}
@@ -1694,7 +1694,7 @@ function DeparturesView({
                       const next = draftTimes.map((x) => (x === t ? e.target.value : x));
                       onDraftTimesChange(normalizeTimes(next));
                     }}
-                    className="text-xs font-mono rounded-lg border border-slate-200 bg-white px-2 py-1 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33] w-[110px]"
+                    className="text-[11px] font-mono rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33] w-[100px]"
                   />
                   <button
                     type="button"
@@ -1702,7 +1702,7 @@ function DeparturesView({
                     className="ml-auto text-slate-300 hover:text-red-500 transition-colors"
                     title="Remove"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
               ))
@@ -1714,12 +1714,12 @@ function DeparturesView({
       {/* Departures list */}
       <div className="flex-1 overflow-y-auto">
         {deptState.status === "loading" && (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+          <div className="flex flex-col items-center justify-center py-12 gap-2">
+            <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
             <div className="text-center">
-              <p className="text-sm font-medium text-slate-600">Loading schedule…</p>
+              <p className="text-[13px] font-medium text-slate-600">Loading schedule…</p>
               {deptState.isFirstLoad && (
-                <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs">
                   Building the schedule index for the first time — this takes about 5–10 seconds.
                 </p>
               )}
@@ -1728,25 +1728,25 @@ function DeparturesView({
         )}
 
         {deptState.status === "error" && (
-          <div className="flex items-center gap-2 px-6 py-8 text-sm text-amber-600">
+          <div className="flex items-center gap-2 px-4 py-6 text-[13px] text-amber-600">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             {deptState.error ?? "Could not load schedule data."}
           </div>
         )}
 
         {deptState.status === "done" && visibleDepartures.length === 0 && (
-          <div className="px-6 py-8 text-sm text-slate-400 text-center">
+          <div className="px-4 py-6 text-[13px] text-slate-400 text-center">
             No departures found for {route.short_name} on {DAY_FULL[deptDay]}s.
           </div>
         )}
 
         {deptState.status === "done" && visibleDepartures.length > 0 && (
-          <div className="px-6 py-3">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-3">
+          <div className="px-4 py-2">
+            <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
               {visibleDepartures.length} departure{visibleDepartures.length !== 1 ? "s" : ""} · {DAY_FULL[deptDay]}
               {selectedDestination ? ` · → ${selectedDestination}` : currentDir ? ` · ${currentDir.headsign}` : ""}
             </p>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-1.5">
               {visibleDepartures.map((dep, i) => (
                 <DepartureCard
                   key={i}
@@ -1774,17 +1774,17 @@ function DepartureCard({
   destination?: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-center">
-      <p className="text-sm font-semibold text-slate-800 tabular-nums font-mono">
+    <div className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5 text-center">
+      <p className="text-xs font-semibold text-slate-800 tabular-nums font-mono leading-none">
         {toDisplayTime(time)}
       </p>
       {originStop && (
-        <p className="text-[10px] text-slate-400 mt-0.5 truncate leading-tight">
+        <p className="text-[9px] text-slate-400 mt-1 truncate leading-tight">
           from {originStop}
         </p>
       )}
       {destination && (
-        <p className="text-[10px] text-emerald-600 font-medium mt-0.5 truncate leading-tight">
+        <p className="text-[9px] text-emerald-600 font-medium mt-0.5 truncate leading-tight">
           → {destination}
         </p>
       )}
@@ -1804,20 +1804,15 @@ function StopTimesTable({
 }) {
   return (
     <div className="flex-1 overflow-y-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="w-full text-[13px] border-collapse">
         <thead className="sticky top-0 bg-white border-b border-slate-100 z-10">
           <tr>
-            <th className="text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-6 py-2.5 w-12">#</th>
-            <th className="text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-2.5">Stop name</th>
-            <th className="text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-2.5 w-36">
+            <th className="text-left text-[9px] font-semibold text-slate-400 uppercase tracking-wide px-4 py-2 w-10">#</th>
+            <th className="text-left text-[9px] font-semibold text-slate-400 uppercase tracking-wide px-2 py-2">Stop name</th>
+            <th className="text-left text-[9px] font-semibold text-slate-400 uppercase tracking-wide px-2 py-2 w-32">
               Departure
               {isReadOnly && <Lock className="w-2.5 h-2.5 inline ml-1 text-slate-300" />}
             </th>
-            {!isReadOnly && directionsStatus === "done" && (
-              <th className="text-left text-[10px] font-semibold text-emerald-500 uppercase tracking-wide px-3 py-2.5 w-28">
-                Cascade ✓
-              </th>
-            )}
           </tr>
         </thead>
         <tbody>
@@ -1846,16 +1841,16 @@ function StopRowItem({
 }) {
   return (
     <tr className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
-      <td className="px-6 py-2.5 text-xs font-medium text-slate-400 tabular-nums">{index + 1}</td>
-      <td className="px-3 py-2.5">
-        <div className="flex items-center gap-2">
-          <div className={`w-2.5 h-2.5 rounded-full border-2 flex-shrink-0 ${index === 0 ? "border-slate-700 bg-white" : "border-slate-300 bg-white"}`} />
-          <span className="text-sm text-slate-800">{row.name}</span>
+      <td className="px-4 py-2 text-[11px] font-medium text-slate-400 tabular-nums">{index + 1}</td>
+      <td className="px-2 py-2">
+        <div className="flex items-center gap-1.5">
+          <div className={`w-2 h-2 rounded-full border-2 flex-shrink-0 ${index === 0 ? "border-slate-700 bg-white" : "border-slate-300 bg-white"}`} />
+          <span className="text-[13px] text-slate-800 leading-snug">{row.name}</span>
         </div>
       </td>
-      <td className="px-3 py-2.5">
+      <td className="px-2 py-2">
         {isReadOnly ? (
-          <span className={`text-sm tabular-nums font-mono ${directionsLoading ? "text-slate-300 animate-pulse" : "text-slate-600"}`}>
+          <span className={`text-[13px] tabular-nums font-mono ${directionsLoading ? "text-slate-300 animate-pulse" : "text-slate-600"}`}>
             {row.timeHHMM ? toDisplayTime(row.timeHHMM) : "—"}
           </span>
         ) : (
@@ -1863,7 +1858,7 @@ function StopRowItem({
             type="time"
             value={row.timeHHMM ?? ""}
             onChange={(e) => onTimeEdit(index, e.target.value)}
-            className={`text-sm font-mono tabular-nums rounded-lg border px-2 py-1 w-28 outline-none transition-colors focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33] ${
+            className={`text-[13px] font-mono tabular-nums rounded-md border px-1.5 py-0.5 w-[7.25rem] outline-none transition-colors focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33] ${
               directionsLoading ? "border-slate-100 text-slate-300 animate-pulse" : "border-slate-200 text-slate-800"
             }`}
           />
@@ -1887,28 +1882,28 @@ function GoStopTimesEditBar({
   onDiscard: () => void;
 }) {
   return (
-    <div className="px-6 py-2.5 border-b border-slate-100 bg-slate-50/40 flex items-center gap-2">
-      <div className="flex items-center gap-2 text-xs text-slate-600">
-        <TableProperties className="w-3.5 h-3.5 text-slate-400" />
+    <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+      <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+        <TableProperties className="w-3 h-3 text-slate-400" />
         <span className="font-semibold">Stop times</span>
         {editing && (
-          <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-100 rounded-md px-1.5 py-0.5">
+          <span className="text-[9px] font-semibold text-amber-600 bg-amber-50 border border-amber-100 rounded px-1 py-0.5">
             Editing
           </span>
         )}
         {editing && isDirty && (
-          <span className="text-[10px] font-semibold text-amber-600">
+          <span className="text-[9px] font-semibold text-amber-600">
             Unsaved changes
           </span>
         )}
       </div>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1.5">
         {editing && (
           <>
             <button
               type="button"
               onClick={onDiscard}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
             >
               Discard
             </button>
@@ -1916,7 +1911,7 @@ function GoStopTimesEditBar({
               type="button"
               onClick={onSave}
               disabled={!isDirty}
-              className="rounded-xl bg-[#007A33] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-lg bg-[#007A33] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Save
             </button>
@@ -1925,7 +1920,7 @@ function GoStopTimesEditBar({
         <button
           type="button"
           onClick={onToggle}
-          className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${
+          className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
             editing ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
           }`}
         >
@@ -1986,15 +1981,15 @@ function CustomDepartureSelector({
   };
 
   return (
-    <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex flex-col gap-3">
+    <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2">
       {showLegacySeeds && activeDays.length > 1 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mr-1">Day</span>
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mr-0.5">Day</span>
           {activeDays.map((d) => (
             <button
               key={d}
               onClick={() => onDayChange(d)}
-              className={`px-3 py-1 rounded-xl text-xs font-semibold transition-colors ${
+              className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-colors ${
                 deptDay === d
                   ? "bg-slate-900 text-white"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -2006,33 +2001,33 @@ function CustomDepartureSelector({
         </div>
       )}
 
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap">
         {firstStopName && (
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-3 py-1.5">
-            <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
-            <span className="text-xs text-slate-600 font-medium">{firstStopName}</span>
+          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-md px-2 py-1">
+            <MapPin className="w-2.5 h-2.5 text-slate-400 flex-shrink-0" />
+            <span className="text-[11px] text-slate-600 font-medium">{firstStopName}</span>
             {lastStopName && lastStopName !== firstStopName && (
               <>
-                <ArrowRight className="w-3 h-3 text-slate-300 flex-shrink-0" />
-                <span className="text-xs text-slate-500 truncate max-w-[160px]">{lastStopName}</span>
+                <ArrowRight className="w-2.5 h-2.5 text-slate-300 flex-shrink-0" />
+                <span className="text-[11px] text-slate-500 truncate max-w-[140px]">{lastStopName}</span>
               </>
             )}
           </div>
         )}
 
-        <div className="flex items-center gap-2 ml-auto">
-          <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Add timing</label>
+        <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+          <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">Add timing</label>
           <input
             type="time"
             value={newDeparture}
             onChange={(e) => setNewDeparture(e.target.value)}
-            className="text-xs font-mono rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33]"
+            className="text-[11px] font-mono rounded-md border border-slate-200 bg-white px-1.5 py-1 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33]"
           />
           <button
             type="button"
             onClick={handleAdd}
             disabled={!newDeparture}
-            className="flex items-center gap-1 rounded-lg bg-[#007A33] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-0.5 rounded-md bg-[#007A33] px-2 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Plus className="w-3 h-3" /> Add
           </button>
@@ -2040,15 +2035,15 @@ function CustomDepartureSelector({
       </div>
 
       {isFromFreqExpansion && (
-        <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
-          <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">Auto-generated</span>
-          <span className="text-[11px] text-blue-500">
+        <div className="flex items-center gap-1.5 rounded-md bg-blue-50 border border-blue-100 px-2 py-1.5">
+          <span className="text-[9px] font-semibold text-blue-600 uppercase tracking-wide">Auto-generated</span>
+          <span className="text-[10px] text-blue-500 leading-snug">
             Timings from your frequency setting — select any trip, adjust stop times, then Save.
           </span>
         </div>
       )}
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
         {trips.length > 0 ? (
           trips.map((trip) => {
             const isSelected = trip.id === selectedTripId;
@@ -2058,7 +2053,7 @@ function CustomDepartureSelector({
                 type="button"
                 key={trip.id}
                 onClick={() => onSelectTrip(trip.id)}
-                className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap ${
+                className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors whitespace-nowrap ${
                   isSelected
                     ? "border-slate-900 bg-slate-900 text-white"
                     : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
@@ -2070,15 +2065,15 @@ function CustomDepartureSelector({
             );
           })
         ) : (
-          <p className="text-xs text-slate-400 italic">
+          <p className="text-[11px] text-slate-400 italic">
             No custom timings yet. Add one to start scheduling this route.
           </p>
         )}
       </div>
 
       {showLegacySeeds && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">
             Use existing
           </span>
           {legacyDepartures.slice(0, 14).map((time) => (
@@ -2097,24 +2092,24 @@ function CustomDepartureSelector({
         </div>
       )}
 
-      <div className="flex items-center gap-3 flex-wrap border-t border-slate-100 pt-3">
-        <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Selected timing</label>
+      <div className="flex items-center gap-2 flex-wrap border-t border-slate-100 pt-2">
+        <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">Selected timing</label>
         <input
           type="time"
           value={selectedTrip ? secToHHMM(selectedTrip.departureSec) : ""}
           onChange={(e) => onUpdateDeparture(e.target.value)}
           disabled={!selectedTrip}
-          className="text-xs font-mono rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33] disabled:bg-slate-50 disabled:text-slate-300"
+          className="text-[11px] font-mono rounded-md border border-slate-200 bg-white px-1.5 py-1 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33] disabled:bg-slate-50 disabled:text-slate-300"
         />
         <button
           type="button"
           onClick={() => selectedTrip && onDeleteDeparture(selectedTrip.id)}
           disabled={!selectedTrip}
-          className="flex items-center gap-1 rounded-lg border border-red-100 bg-white px-3 py-1.5 text-xs font-semibold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-0.5 rounded-md border border-red-100 bg-white px-2 py-1 text-[11px] font-semibold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Trash2 className="w-3 h-3" /> Delete
         </button>
-        <p className="text-[10px] text-slate-400 ml-auto">
+        <p className="text-[9px] text-slate-400 ml-auto max-w-[11rem] leading-snug">
           Stop edits apply only to the selected timing
         </p>
       </div>
@@ -2132,33 +2127,33 @@ function EditorFooter({
   if (selected.kind === "go") return null;
   const hasTimetable = (selected as { kind: "custom"; route: CustomRoute }).route.schedule?.type === "timetable";
   return (
-    <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between gap-3">
-      <div className="text-xs text-slate-400 flex items-center gap-3">
+    <div className="px-4 py-2 border-t border-slate-100 flex items-center justify-between gap-2">
+      <div className="text-[11px] text-slate-400 flex items-center gap-2 flex-wrap min-w-0">
         {editor?.isDirty && (
           <span className="text-amber-600 font-medium flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" /> Unsaved changes
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block shrink-0" /> Unsaved changes
           </span>
         )}
         {!editor?.isDirty && hasTimetable && (
           <span className="text-emerald-600 flex items-center gap-1">
-            <CheckCircle className="w-3 h-3" /> Timetable saved
+            <CheckCircle className="w-3 h-3 shrink-0" /> Timetable saved
           </span>
         )}
         {editor?.directionsStatus === "loading" && (
           <span className="flex items-center gap-1">
-            <Loader2 className="w-3 h-3 animate-spin" /> Fetching travel times…
+            <Loader2 className="w-3 h-3 animate-spin shrink-0" /> Fetching travel times…
           </span>
         )}
         {editor?.directionsStatus === "done" && (
           <span className="flex items-center gap-1 text-emerald-600">
-            <CheckCircle className="w-3 h-3" /> Travel times ready · editing cascades forward
+            <CheckCircle className="w-3 h-3 shrink-0" /> Travel times ready · editing cascades forward
           </span>
         )}
       </div>
       <button
         onClick={onSave}
         disabled={!editor?.isDirty || editor?.isSaving}
-        className="flex items-center gap-1.5 rounded-xl bg-[#007A33] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+        className="flex items-center gap-1 shrink-0 rounded-lg bg-[#007A33] px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {editor?.isSaving ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving…</> : "Save schedule"}
       </button>
