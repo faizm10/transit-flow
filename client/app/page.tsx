@@ -10,259 +10,367 @@ import {
   CalendarClock,
   Route,
   Search,
+  ChevronRight,
 } from "lucide-react";
 import HeroSection from "@/components/HeroSection";
 import { MAP_LINKS } from "@/lib/mapLinks";
 
-/* ─── data ─── */
+/* ─── helpers ─── */
 
-const MODES = [
-  {
-    icon: Search,
-    tag: "Explore",
-    title: "Browse every GO route",
-    description:
-      "All 45 lines load instantly. Click any route to see stops, service frequency, and headways. Filter by rail or bus corridor.",
-    href: MAP_LINKS.exploreNetwork,
-    color: "emerald",
-    border: "border-emerald-500",
-    iconBg: "bg-emerald-500/10 text-emerald-500",
-    tagColor: "text-emerald-600 bg-emerald-50",
+const reveal = (delay = 0) => ({
+  hidden: { opacity: 0, y: 24 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as number[], delay },
   },
-  {
-    icon: Route,
-    tag: "Design",
-    title: "Sketch a new corridor",
-    description:
-      "Draw a bus or rail route directly on the map. Place stops, configure departure times, and set how often service runs.",
-    href: MAP_LINKS.designFresh,
-    color: "blue",
-    border: "border-blue-500",
-    iconBg: "bg-blue-500/10 text-blue-500",
-    tagColor: "text-blue-600 bg-blue-50",
-  },
-  {
-    icon: CalendarClock,
-    tag: "Schedules",
-    title: "Inspect timetables",
-    description:
-      "Review departure windows for any GO line. Compare morning peak, midday, and overnight coverage to spot service gaps.",
-    href: MAP_LINKS.schedules,
-    color: "violet",
-    border: "border-violet-500",
-    iconBg: "bg-violet-500/10 text-violet-500",
-    tagColor: "text-violet-600 bg-violet-50",
-  },
-  {
-    icon: PlayCircle,
-    tag: "Simulate",
-    title: "Watch it move",
-    description:
-      "Animate trains and buses across the network in real time. Scrub through any time window and compare against live GO operations.",
-    href: MAP_LINKS.simulate,
-    color: "orange",
-    border: "border-orange-500",
-    iconBg: "bg-orange-500/10 text-orange-500",
-    tagColor: "text-orange-600 bg-orange-50",
-  },
-];
-
-const STEPS = [
-  {
-    n: "01",
-    title: "Open the map",
-    body: "All 45 GO Transit lines load the moment you arrive — no account needed.",
-  },
-  {
-    n: "02",
-    title: "Pick a mode",
-    body: "Explore routes, design new corridors, review schedules, or jump straight to the simulation.",
-  },
-  {
-    n: "03",
-    title: "Iterate instantly",
-    body: "Tweak stops and timetables, then watch trains move. Spot coverage gaps in seconds.",
-  },
-];
-
-const fade = (delay = 0) => ({
-  hidden: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as number[], delay } },
 });
 
 /* ─── page ─── */
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-white text-slate-900 antialiased">
+    <main className="bg-white text-slate-900 antialiased overflow-x-hidden">
 
-      {/* ── Nav ── */}
-      <header className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-white/[0.06]">
+      {/* ════════════════════════════════════════ NAV */}
+      <header className="fixed top-0 inset-x-0 z-50 bg-slate-950/80 backdrop-blur-xl border-b border-white/[0.06]">
         <div className="max-w-7xl mx-auto px-6 lg:px-10 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 font-bold text-white">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
               <Train className="w-3.5 h-3.5 text-slate-950" />
             </div>
             TransitFlow
           </Link>
-          <nav className="hidden md:flex items-center gap-5 text-sm text-slate-400">
-            <Link href={MAP_LINKS.exploreNetwork} className="hover:text-white transition-colors">Explore</Link>
-            <Link href={MAP_LINKS.designFresh} className="hover:text-white transition-colors">Design</Link>
-            <Link href={MAP_LINKS.schedules} className="hover:text-white transition-colors">Schedules</Link>
-            <Link href={MAP_LINKS.simulate} className="hover:text-white transition-colors">Simulate</Link>
-            <Link href="/about" className="hover:text-white transition-colors">About</Link>
+
+          <nav className="hidden md:flex items-center gap-1 text-sm">
+            {[
+              { label: "Explore", href: MAP_LINKS.exploreNetwork },
+              { label: "Design", href: MAP_LINKS.designFresh },
+              { label: "Schedules", href: MAP_LINKS.schedules },
+              { label: "Simulate", href: MAP_LINKS.simulate },
+              { label: "About", href: "/about" },
+            ].map(({ label, href }) => (
+              <Link
+                key={label}
+                href={href}
+                className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-all"
+              >
+                {label}
+              </Link>
+            ))}
           </nav>
+
           <Link
             href={MAP_LINKS.welcome}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-1.5 rounded-lg transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-1.5 rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
           >
             Open map <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </header>
 
-      {/* ── Hero ── */}
+      {/* ════════════════════════════════════════ HERO */}
       <HeroSection />
 
-      {/* ── Four modes ── */}
-      <section className="max-w-7xl mx-auto px-6 lg:px-10 py-28">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-80px" }}
-          variants={fade(0)}
-          className="mb-14"
-        >
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 mb-3">What you can do</p>
-          <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">
-            Four modes,<br className="hidden sm:block" /> one map.
-          </h2>
-          <p className="mt-4 text-slate-500 max-w-lg leading-relaxed">
-            Everything lives in the same interactive map — switch between modes at any time without losing your work.
-          </p>
-        </motion.div>
+      {/* ════════════════════════════════════════ BENTO */}
+      <section className="bg-slate-950 pb-24">
+        <div className="max-w-7xl mx-auto px-6 lg:px-10">
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {MODES.map(({ icon: Icon, tag, title, description, href, border, iconBg, tagColor }, i) => (
+          {/* Section label */}
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-60px" }}
+            variants={reveal(0)}
+            className="pt-24 pb-10"
+          >
+            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-500 mb-3">Platform</p>
+            <h2 className="text-4xl sm:text-5xl font-black tracking-tighter text-white leading-tight">
+              Four modes.<br />One map.
+            </h2>
+          </motion.div>
+
+          {/* Bento grid */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+
+            {/* ── Explore — large ── */}
             <motion.div
-              key={tag}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-60px" }}
-              variants={fade(i * 0.08)}
-            >
-              <Link
-                href={href}
-                className={`group relative flex h-full flex-col rounded-2xl border border-slate-100 bg-white p-7 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 overflow-hidden`}
-              >
-                {/* Top accent bar */}
-                <div className={`absolute top-0 left-0 right-0 h-0.5 ${border} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-
-                <div className="flex items-start justify-between mb-5">
-                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl ${iconBg}`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${tagColor}`}>{tag}</span>
-                </div>
-
-                <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-slate-700 transition-colors">{title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed flex-1">{description}</p>
-
-                <div className="mt-6 flex items-center gap-1.5 text-sm font-semibold text-slate-400 group-hover:text-emerald-600 transition-colors">
-                  Open mode <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Divider ── */}
-      <div className="max-w-7xl mx-auto px-6 lg:px-10">
-        <div className="border-t border-slate-100" />
-      </div>
-
-      {/* ── How it works ── */}
-      <section className="max-w-7xl mx-auto px-6 lg:px-10 py-28">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-80px" }}
-          variants={fade(0)}
-          className="mb-16"
-        >
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 mb-3">How it works</p>
-          <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">
-            Up and running<br className="hidden sm:block" /> in seconds.
-          </h2>
-        </motion.div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {STEPS.map(({ n, title, body }, i) => (
-            <motion.div
-              key={n}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-40px" }}
-              variants={fade(i * 0.1)}
-              className="relative flex flex-col gap-4 rounded-2xl bg-slate-50 p-7 border border-slate-100"
+              variants={reveal(0.05)}
+              className="md:col-span-7"
             >
-              <span className="text-5xl font-black text-slate-100 leading-none select-none">{n}</span>
-              <div>
-                <h3 className="font-bold text-slate-900 mb-1.5">{title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{body}</p>
-              </div>
+              <Link
+                href={MAP_LINKS.exploreNetwork}
+                className="group relative flex flex-col h-full min-h-[280px] rounded-2xl bg-emerald-950/40 border border-emerald-500/20 p-8 overflow-hidden hover:border-emerald-500/40 transition-all"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent" />
+                <div className="absolute -right-10 -bottom-10 w-56 h-56 bg-emerald-500/10 rounded-full blur-3xl" />
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 mb-auto">
+                    <Search className="w-5 h-5" />
+                  </div>
+                  <div className="mt-8">
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-500 mb-2">Explore</p>
+                    <h3 className="text-2xl font-bold text-white mb-2">Browse the network</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed max-w-sm">All 45 GO Transit lines on a live map. Click any route for stops, headways, and real GTFS frequency data.</p>
+                  </div>
+                  <div className="mt-6 flex items-center gap-1 text-sm font-semibold text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    Open Explore <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </Link>
             </motion.div>
-          ))}
+
+            {/* ── Stats column ── */}
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-40px" }}
+              variants={reveal(0.1)}
+              className="md:col-span-5 flex flex-col gap-4"
+            >
+              {[
+                { n: "45", label: "GO Transit routes", sub: "Bus + rail" },
+                { n: "8", label: "Rail lines", sub: "Lakeshore, Kitchener, Barrie + more" },
+                { n: "250+", label: "Route variants", sub: "All directions & branches" },
+              ].map(({ n, label, sub }) => (
+                <div key={label} className="flex-1 rounded-2xl bg-white/[0.04] border border-white/[0.07] px-6 py-5 flex items-center gap-5">
+                  <span className="text-3xl font-black text-white tabular-nums">{n}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{label}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{sub}</p>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+
+            {/* ── Design ── */}
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-40px" }}
+              variants={reveal(0.08)}
+              className="md:col-span-4"
+            >
+              <Link
+                href={MAP_LINKS.designFresh}
+                className="group relative flex flex-col h-full min-h-[220px] rounded-2xl bg-blue-950/40 border border-blue-500/20 p-7 overflow-hidden hover:border-blue-500/40 transition-all"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent" />
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 mb-auto">
+                    <Route className="w-5 h-5" />
+                  </div>
+                  <div className="mt-6">
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-400 mb-2">Design</p>
+                    <h3 className="text-xl font-bold text-white mb-1.5">Sketch a route</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed">Draw corridors, place stops, set headways.</p>
+                  </div>
+                  <div className="mt-4 flex items-center gap-1 text-sm font-semibold text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    Open Design <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+
+            {/* ── Simulate ── */}
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-40px" }}
+              variants={reveal(0.12)}
+              className="md:col-span-4"
+            >
+              <Link
+                href={MAP_LINKS.simulate}
+                className="group relative flex flex-col h-full min-h-[220px] rounded-2xl bg-orange-950/40 border border-orange-500/20 p-7 overflow-hidden hover:border-orange-500/40 transition-all"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent" />
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 mb-auto">
+                    <PlayCircle className="w-5 h-5" />
+                  </div>
+                  <div className="mt-6">
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-orange-400 mb-2">Simulate</p>
+                    <h3 className="text-xl font-bold text-white mb-1.5">Watch it move</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed">Animate trains and buses, scrub through time.</p>
+                  </div>
+                  <div className="mt-4 flex items-center gap-1 text-sm font-semibold text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    Open Simulate <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+
+            {/* ── Schedules ── */}
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-40px" }}
+              variants={reveal(0.15)}
+              className="md:col-span-4"
+            >
+              <Link
+                href={MAP_LINKS.schedules}
+                className="group relative flex flex-col h-full min-h-[220px] rounded-2xl bg-violet-950/40 border border-violet-500/20 p-7 overflow-hidden hover:border-violet-500/40 transition-all"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-transparent" />
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-violet-500/20 text-violet-400 mb-auto">
+                    <CalendarClock className="w-5 h-5" />
+                  </div>
+                  <div className="mt-6">
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-violet-400 mb-2">Schedules</p>
+                    <h3 className="text-xl font-bold text-white mb-1.5">Inspect timetables</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed">Compare headways across any GO line.</p>
+                  </div>
+                  <div className="mt-4 flex items-center gap-1 text-sm font-semibold text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    Open Schedules <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+
+          </div>
         </div>
       </section>
 
-      {/* ── CTA strip ── */}
-      <section className="max-w-7xl mx-auto px-6 lg:px-10 pb-28">
+      {/* ════════════════════════════════════════ STATEMENT */}
+      <section className="bg-white py-32 px-6 lg:px-10">
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-60px" }}
-          variants={fade(0)}
-          className="relative rounded-2xl bg-slate-950 px-10 py-16 flex flex-col sm:flex-row items-center justify-between gap-8 overflow-hidden"
+          viewport={{ once: true, margin: "-80px" }}
+          variants={reveal(0)}
+          className="max-w-4xl mx-auto text-center"
         >
-          {/* Background glow */}
-          <div className="pointer-events-none absolute top-0 left-1/4 w-96 h-48 bg-emerald-500/10 blur-3xl rounded-full" />
-
-          <div className="text-white text-center sm:text-left relative z-10">
-            <h2 className="text-3xl sm:text-4xl font-extrabold mb-3 tracking-tight">Ready to explore?</h2>
-            <p className="text-slate-400 text-sm leading-relaxed max-w-md">
-              All 45 GO Transit routes are live. No account, no setup — open the map and start.
-            </p>
-          </div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 mb-6">Why TransitFlow</p>
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter leading-[1.0] text-slate-900">
+            Transit planning is hard enough.{" "}
+            <span className="text-slate-300">Visualizing it shouldn&apos;t be.</span>
+          </h2>
+          <p className="mt-8 text-slate-500 text-lg leading-relaxed max-w-2xl mx-auto">
+            TransitFlow puts the entire GO Transit network in your hands — live data, a drawing canvas, timetable views, and a full simulation engine — all in one map.
+          </p>
           <Link
             href={MAP_LINKS.welcome}
-            className="relative z-10 flex-shrink-0 inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm px-7 py-3.5 rounded-xl transition-colors shadow-lg shadow-emerald-500/20 whitespace-nowrap"
+            className="inline-flex items-center gap-2 mt-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-6 py-3.5 transition-colors"
           >
-            <Map className="w-4 h-4" />
-            Open the map
+            Try it now — no sign up <ArrowRight className="w-4 h-4" />
           </Link>
         </motion.div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-6 lg:px-10 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-emerald-500 flex items-center justify-center">
-              <Train className="w-2.5 h-2.5 text-slate-950" />
-            </div>
-            <span className="font-semibold text-slate-600">TransitFlow</span>
-            <span>— GO Transit route design &amp; simulation</span>
+      {/* ════════════════════════════════════════ HOW IT WORKS */}
+      <section className="bg-slate-50 border-y border-slate-100 py-28 px-6 lg:px-10">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={reveal(0)}
+            className="mb-16"
+          >
+            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 mb-3">How it works</p>
+            <h2 className="text-4xl sm:text-5xl font-black tracking-tighter text-slate-900">
+              Three steps.
+            </h2>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-200 rounded-2xl overflow-hidden">
+            {[
+              {
+                n: "01",
+                title: "Open the map",
+                body: "All 45 GO Transit lines load immediately. No account, no setup, no waiting.",
+                color: "text-emerald-600",
+              },
+              {
+                n: "02",
+                title: "Pick your mode",
+                body: "Explore routes, sketch corridors in Design, check timetables, or jump into Simulate.",
+                color: "text-blue-600",
+              },
+              {
+                n: "03",
+                title: "Iterate",
+                body: "Adjust stops, tweak schedules, replay the simulation. Everything updates instantly.",
+                color: "text-violet-600",
+              },
+            ].map(({ n, title, body, color }, i) => (
+              <motion.div
+                key={n}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-40px" }}
+                variants={reveal(i * 0.08)}
+                className="bg-white px-10 py-12"
+              >
+                <p className={`text-6xl font-black ${color} opacity-20 leading-none mb-6`}>{n}</p>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">{title}</h3>
+                <p className="text-slate-500 text-sm leading-relaxed">{body}</p>
+              </motion.div>
+            ))}
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:justify-end">
-            <Link href={MAP_LINKS.exploreNetwork} className="hover:text-slate-600 transition-colors">Explore</Link>
-            <Link href={MAP_LINKS.designFresh} className="hover:text-slate-600 transition-colors">Design</Link>
-            <Link href={MAP_LINKS.schedules} className="hover:text-slate-600 transition-colors">Schedules</Link>
-            <Link href={MAP_LINKS.simulate} className="hover:text-slate-600 transition-colors">Simulate</Link>
-            <Link href="/about" className="hover:text-slate-600 transition-colors">About</Link>
-            <span className="hidden sm:inline text-slate-200" aria-hidden>|</span>
-            <a href="https://github.com/faizm10/transit-flow" className="hover:text-slate-600 transition-colors">GitHub</a>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════ FINAL CTA */}
+      <section className="relative bg-slate-950 overflow-hidden py-36 px-6 lg:px-10">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[400px] bg-emerald-500/8 blur-[120px] rounded-full" />
+          <div
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              backgroundImage:
+                "linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)",
+              backgroundSize: "48px 48px",
+            }}
+          />
+        </div>
+
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          variants={reveal(0)}
+          className="relative max-w-3xl mx-auto text-center"
+        >
+          <h2 className="text-5xl sm:text-6xl font-black tracking-tighter text-white leading-tight mb-6">
+            Ready to explore<br />the network?
+          </h2>
+          <p className="text-slate-400 text-lg mb-10 max-w-xl mx-auto">
+            Open the map and every GO Transit route is right there. No account needed.
+          </p>
+          <Link
+            href={MAP_LINKS.welcome}
+            className="inline-flex items-center gap-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-base px-8 py-4 rounded-xl transition-colors shadow-2xl shadow-emerald-500/20"
+          >
+            <Map className="w-5 h-5" />
+            Open TransitFlow
+          </Link>
+        </motion.div>
+      </section>
+
+      {/* ════════════════════════════════════════ FOOTER */}
+      <footer className="bg-slate-950 border-t border-white/[0.06]">
+        <div className="max-w-7xl mx-auto px-6 lg:px-10 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-md bg-emerald-500 flex items-center justify-center">
+              <Train className="w-3 h-3 text-slate-950" />
+            </div>
+            <span className="text-sm font-semibold text-white">TransitFlow</span>
+            <span className="text-xs text-slate-600">— GO Transit design &amp; simulation</span>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500">
+            <Link href={MAP_LINKS.exploreNetwork} className="hover:text-slate-300 transition-colors">Explore</Link>
+            <Link href={MAP_LINKS.designFresh} className="hover:text-slate-300 transition-colors">Design</Link>
+            <Link href={MAP_LINKS.schedules} className="hover:text-slate-300 transition-colors">Schedules</Link>
+            <Link href={MAP_LINKS.simulate} className="hover:text-slate-300 transition-colors">Simulate</Link>
+            <Link href="/about" className="hover:text-slate-300 transition-colors">About</Link>
+            <a href="https://github.com/faizm10/transit-flow" className="hover:text-slate-300 transition-colors">GitHub</a>
             <span>© {new Date().getFullYear()}</span>
           </div>
         </div>
