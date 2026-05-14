@@ -1,14 +1,13 @@
 /**
  * Canonical map URLs for marketing + in-app links.
- * Must stay aligned with client/lib/mapEntry.ts (entry=fresh|network).
  */
 export const MAP_LINKS = {
-  /** Welcome: blank map + Start fresh | Use existing network */
-  welcome: "/map",
+  /** GO network + Explore panel (default entry) */
+  welcome: "/map?entry=network&mode=browse",
   /** Full GO network + Explore panel */
   exploreNetwork: "/map?entry=network&mode=browse",
-  /** Empty canvas + create flow */
-  designFresh: "/map?entry=fresh",
+  /** Full network + Design panel */
+  designFresh: "/map?entry=network&mode=build",
   /** Full network + extend wizard */
   extendGo: "/map?entry=network&mode=build&design=extend",
   /** Full network + simulation HUD */

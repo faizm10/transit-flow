@@ -38,8 +38,8 @@ export default function HeroSection() {
             variants={fade(0.1)}
             className="text-[2.8rem] sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.08]"
           >
-            Design transit.<br />
-            <span className="text-emerald-600">Watch it run.</span>
+            Explore GO Transit.<br />
+            <span className="text-emerald-600">Design what&apos;s next.</span>
           </motion.h1>
 
           {/* Subtext */}
@@ -49,7 +49,7 @@ export default function HeroSection() {
             variants={fade(0.2)}
             className="text-[1.05rem] text-slate-500 leading-relaxed"
           >
-            Explore every GO Transit route, sketch your own line, and simulate how trains and buses would operate — all from your browser.
+            All 45 GO Transit routes on a live map. Sketch new corridors, review timetables, and simulate how service would run — in your browser.
           </motion.p>
 
           {/* CTAs */}
@@ -69,14 +69,14 @@ export default function HeroSection() {
               href={MAP_LINKS.designFresh}
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 hover:border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-sm font-semibold px-5 py-2.5 transition-colors"
             >
-              Start designing <ArrowRight className="w-4 h-4" />
+              Design a route <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href={MAP_LINKS.simulate}
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 hover:border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-sm font-semibold px-5 py-2.5 transition-colors"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              Watch simulation
+              Run simulation
             </Link>
           </motion.div>
 
@@ -88,9 +88,9 @@ export default function HeroSection() {
             className="flex gap-8 pt-4 border-t border-slate-100 mt-2"
           >
             {[
-              { value: "47", label: "GO routes" },
-              { value: "7", label: "Rail lines" },
-              { value: "100%", label: "Real GTFS data" },
+              { value: "45", label: "GO routes" },
+              { value: "8", label: "Rail lines" },
+              { value: "Live", label: "GTFS data" },
             ].map(({ value, label }) => (
               <div key={label}>
                 <p className="text-2xl font-bold text-slate-900">{value}</p>
