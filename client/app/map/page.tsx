@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import mapboxgl from "mapbox-gl";
 import { Train, Map as MapIcon, PlayCircle, Pencil, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
+import { v4 as uuidv4 } from "uuid";
 import { MapHandle } from "@/components/Map";
 import BrowsePanel from "@/components/panels/BrowsePanel";
 import DesignPanel, { type DesignTab } from "@/components/panels/DesignPanel";
@@ -14,6 +15,7 @@ import ScheduleModal from "@/components/panels/ScheduleModal";
 import SimulationHUD from "@/components/panels/SimulationHUD";
 import RouteTooltip from "@/components/overlays/RouteTooltip";
 import RouteInfoCard from "@/components/overlays/RouteInfoCard";
+import ShareModal from "@/components/community/ShareModal";
 import VehicleInfoPopup from "@/components/overlays/VehicleInfoPopup";
 import DrawGuide from "@/components/overlays/DrawGuide";
 import OpenRailwayMapOverlayControls from "@/components/overlays/OpenRailwayMapOverlayControls";
@@ -114,6 +116,7 @@ function MapPageContent() {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [hoveredRoute, setHoveredRoute] = useState<{ shortName: string; variantId: string } | null>(null);
   const [clickedRoute, setClickedRoute] = useState<ClickedRoute | null>(null);
+  const [shareTarget, setShareTarget] = useState<CustomRoute | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnGeometry, setDrawnGeometry] = useState<[number, number][] | null>(null);
   const [editingRoute, setEditingRoute] = useState<CustomRoute | undefined>();
@@ -170,6 +173,32 @@ function MapPageContent() {
     [pathname, router, searchParams]
   );
 
+
+  // Import a shared community route when ?community_route=<id> is present
+  useEffect(() => {
+    const communityRouteId = searchParams.get("community_route");
+    if (!communityRouteId) return;
+
+    fetch(`/api/community/posts/${communityRouteId}`)
+      .then((r) => r.json())
+      .then((data: { post?: { routeData?: CustomRoute; title?: string } }) => {
+        const routeData = data.post?.routeData;
+        if (!routeData) return;
+        const importedRoute: CustomRoute = {
+          ...routeData,
+          id: uuidv4(),
+          createdAt: new Date().toISOString(),
+        };
+        saveRoute(importedRoute);
+        toast.success(`"${data.post?.title ?? importedRoute.name}" loaded into your routes`);
+        patchSearch({ community_route: null });
+      })
+      .catch(() => {
+        toast.error("Could not load the shared route");
+        patchSearch({ community_route: null });
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // First visit to bare /map: open Explore + network entry. After user dismisses a mode, do not snap back.
   useEffect(() => {
@@ -876,6 +905,10 @@ function MapPageContent() {
           deleteLabel={clickedRoute.isCustom ? "Delete route" : undefined}
           placement={mode === "simulate" ? "top-left" : "bottom-center"}
           onDelete={clickedRoute.isCustom ? handleDeleteFromCard : undefined}
+          onShare={clickedRoute.isCustom ? () => {
+            const route = customRoutes.find((r) => r.id === clickedRoute.variantId);
+            if (route) setShareTarget(route);
+          } : undefined}
           onClose={() => {
             setClickedRoute(null);
             mapRef.current?.setRouteHighlight(null);
@@ -962,6 +995,9 @@ function MapPageContent() {
           </button>
         </div>
       )}
+
+      {/* Share to community modal */}
+      <ShareModal route={shareTarget} onClose={() => setShareTarget(null)} />
     </div>
   );
 }
