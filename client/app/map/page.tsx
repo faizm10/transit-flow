@@ -827,6 +827,10 @@ function MapPageContent() {
                 routeFilters={routeFilters}
                 onRouteFilterChange={handleRouteFilterChange}
                 onDeleteCustomRoute={requestDeleteCustomRoute}
+                onShareCustomRoute={(id) => {
+                  const route = customRoutes.find((r) => r.id === id);
+                  if (route) setShareTarget(route);
+                }}
               />
             )}
             {mode === "build" && (
