@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Map, Pencil, PlayCircle, Train } from "lucide-react";
+import { ArrowRight, Map, Pencil, PlayCircle } from "lucide-react";
 import { MAP_LINKS } from "@/lib/mapLinks";
+import MarketingShell from "@/components/marketing/MarketingShell";
+import MarketingHeader from "@/components/marketing/MarketingHeader";
+import MarketingFooter from "@/components/marketing/MarketingFooter";
 
 export const metadata: Metadata = {
   title: "About TransitFlow",
@@ -29,89 +32,80 @@ const SIMPLE_STEPS = [
 
 export default function AboutPage() {
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2.5 font-bold text-slate-900">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600">
-              <Train className="h-4 w-4 text-white" />
+    <MarketingShell>
+      <MarketingHeader />
+
+      <main>
+        <section className="border-b border-[var(--landing-border)] bg-[var(--landing-band)]">
+          <div className="mx-auto max-w-6xl px-5 py-14 sm:py-16 lg:px-8">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
+                About
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[var(--landing-fg)] sm:text-4xl">
+                TransitFlow in simple words
+              </h1>
+              <p className="mt-5 text-base leading-relaxed text-[var(--landing-muted)] sm:text-lg">
+                TransitFlow is a map tool for trying out transit ideas. You can look at the GO Transit
+                network, draw your own routes, change stops and schedules, and see how a route might run.
+              </p>
             </div>
-            TransitFlow
-          </Link>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back home
-          </Link>
-        </div>
-      </header>
 
-      <section className="mx-auto max-w-5xl px-6 py-16">
-        <div className="max-w-3xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">
-            About
-          </p>
-          <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900">
-            TransitFlow in simple words
-          </h1>
-          <p className="mt-5 text-lg leading-8 text-slate-600">
-            TransitFlow is a map tool for trying out transit ideas. You can look at the GO
-            Transit network, draw your own routes, change stops and schedules, and see how a
-            route might run.
-          </p>
-        </div>
+            <ul className="mt-12 grid gap-3 sm:grid-cols-3">
+              {SIMPLE_STEPS.map(({ icon: Icon, title, body }) => (
+                <li
+                  key={title}
+                  className="rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-6"
+                >
+                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--landing-border)] bg-white/[0.06] text-[var(--landing-fg)]">
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </div>
+                  <h2 className="text-base font-semibold text-[var(--landing-fg)]">{title}</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--landing-muted)]">{body}</p>
+                </li>
+              ))}
+            </ul>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          {SIMPLE_STEPS.map(({ icon: Icon, title, body }) => (
-            <div
-              key={title}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-            >
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-                <Icon className="h-5 w-5" />
+            <div className="mt-8 rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-6 sm:p-8">
+              <h2 className="text-lg font-semibold text-[var(--landing-fg)] sm:text-xl">What you can do here</h2>
+              <ul className="mt-4 list-inside list-disc space-y-2 text-sm leading-relaxed text-[var(--landing-muted)] marker:text-[var(--landing-muted)]">
+                <li>Browse GO train and bus routes on a live map.</li>
+                <li>Create your own route from scratch.</li>
+                <li>Extend an existing GO line with new stops.</li>
+                <li>Change route schedules and departure times.</li>
+                <li>Run a basic simulation to watch vehicles move.</li>
+              </ul>
+            </div>
+
+            <div className="mt-8 rounded-xl border border-[var(--landing-mixed-border)] bg-[var(--landing-mixed-bg)] p-6 sm:p-8">
+              <h2 className="text-lg font-semibold text-[var(--landing-mixed-fg)] sm:text-xl">
+                Why this project exists
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--landing-mixed-muted)]">
+                It helps people explore transit ideas without needing complicated planning software. The
+                goal is to make route planning easier to understand and easier to test.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href={MAP_LINKS.welcome}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[var(--landing-accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#006b2d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-mixed-bg)]"
+                >
+                  Open the map
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+                <Link
+                  href={MAP_LINKS.designFresh}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[var(--landing-mixed-border)] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--landing-mixed-fg)] transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-mixed-bg)]"
+                >
+                  Start designing
+                </Link>
               </div>
-              <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-              <p className="mt-2 text-sm leading-7 text-slate-600">{body}</p>
             </div>
-          ))}
-        </div>
-
-        <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h2 className="text-2xl font-semibold text-slate-900">What you can do here</h2>
-          <div className="mt-5 space-y-3 text-sm leading-7 text-slate-600">
-            <p>Browse GO train and bus routes on a live map.</p>
-            <p>Create your own route from scratch.</p>
-            <p>Extend an existing GO line with new stops.</p>
-            <p>Change route schedules and departure times.</p>
-            <p>Run a basic simulation to watch vehicles move.</p>
           </div>
-        </div>
+        </section>
+      </main>
 
-        <div className="mt-10 rounded-2xl bg-emerald-600 p-8 text-white">
-          <h2 className="text-2xl font-semibold">Why this project exists</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-emerald-50">
-            It helps people explore transit ideas without needing complicated planning software.
-            The goal is to make route planning easier to understand and easier to test.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href={MAP_LINKS.welcome}
-              className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-50"
-            >
-              Open the map
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href={MAP_LINKS.designFresh}
-              className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
-            >
-              Start designing
-            </Link>
-          </div>
-        </div>
-      </section>
-    </main>
+      <MarketingFooter />
+    </MarketingShell>
   );
 }

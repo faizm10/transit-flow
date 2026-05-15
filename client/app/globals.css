@@ -81,6 +81,64 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Public marketing — light editorial (inspired by modern B2B landings e.g. reducto.ai) */
+  --landing-bg: oklch(0.995 0.002 264);
+  --landing-fg: oklch(0.16 0.02 264);
+  --landing-muted: oklch(0.44 0.02 256);
+  --landing-border: oklch(0.9 0.01 256);
+  --landing-accent: #007a33;
+  --landing-elevated: oklch(1 0 0);
+  --landing-band: oklch(0.97 0.004 264);
+  --landing-ink: oklch(0.14 0.02 264);
+  /* Slightly recessed / inset surfaces */
+  --landing-mixed-bg: oklch(0.98 0.004 264);
+  --landing-mixed-fg: oklch(0.16 0.02 264);
+  --landing-mixed-muted: oklch(0.44 0.02 256);
+  --landing-mixed-border: oklch(0.88 0.01 256);
+}
+
+.marketing-shell {
+  background-color: var(--landing-bg);
+  color: var(--landing-fg);
+}
+
+/* Dotted canvas (product / features bands) */
+.marketing-dot-bg {
+  background-color: var(--landing-bg);
+  background-image: radial-gradient(
+    color-mix(in oklab, var(--landing-fg) 6.5%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+}
+
+/* Logo / trust strip — duplicate track, translate -50% */
+.marketing-marquee {
+  position: relative;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.marketing-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marketing-marquee-shift 42s linear infinite;
+}
+
+@keyframes marketing-marquee-shift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-marquee-track {
+    animation: none;
+  }
 }
 
 .dark {
