@@ -48,6 +48,9 @@ export function useSimulation(customRoutes: CustomRoute[] = []) {
   // Pre-computed shape caches keyed by trip_id — built once when trips load
   const shapeCachesRef = useRef<Map<string, ShapeCache>>(new Map());
 
+  // Tracks whether the user has ever clicked "Start simulation" this session
+  const hasEverLoadedRef = useRef<boolean>(false);
+
   const rafRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
 
@@ -90,6 +93,7 @@ export function useSimulation(customRoutes: CustomRoute[] = []) {
   const clearSimulation = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     shapeCachesRef.current.clear();
+    hasEverLoadedRef.current = false;
     setState((prev) => ({
       ...prev,
       trips: [],
@@ -120,6 +124,7 @@ export function useSimulation(customRoutes: CustomRoute[] = []) {
         .filter((id): id is string => id !== null);
       const goRoutes = routes.filter((route) => getCustomRouteIdFromSelection(route) === null);
 
+      hasEverLoadedRef.current = true;
       setState((prev) => ({ ...prev, loading: true, error: null, playing: false, trips: [] }));
       shapeCachesRef.current.clear();
 
@@ -188,6 +193,7 @@ export function useSimulation(customRoutes: CustomRoute[] = []) {
     selectedRoutes,
     date,
     startHour,
+    hasEverLoaded: hasEverLoadedRef.current,
     activeVehicles,
     setSelectedRoutes,
     setDate,

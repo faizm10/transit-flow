@@ -18,6 +18,7 @@ interface SimulationHUDProps {
   speed: 1 | 10 | 60;
   loading: boolean;
   error: string | null;
+  hasEverLoaded: boolean;
   selectedRoutes: string[];
   customRoutes: CustomRoute[];
   date: string;
@@ -83,6 +84,7 @@ export default function SimulationHUD({
   speed,
   loading,
   error,
+  hasEverLoaded,
   selectedRoutes,
   customRoutes,
   date,
@@ -117,7 +119,7 @@ export default function SimulationHUD({
 
   // ── Onboarding / empty state ──────────────────────────────────────────────
   // Distinguish "never started" from "started but no service on this date"
-  const hasLoadedOnce = startTime !== endTime || error !== null;
+  const hasLoadedOnce = hasEverLoaded;
 
   if (!hasTrips && !loading) {
     const noServiceOnDate = hasLoadedOnce && !error;

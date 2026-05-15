@@ -255,14 +255,6 @@ function MapPageContent() {
     setMode(m);
   }, [searchParams]);
 
-  useEffect(() => {
-    const m = searchParams.get("mode");
-    if (m !== "simulate") return;
-    const t = window.setTimeout(() => sim.loadSimulation(), 500);
-    return () => window.clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot sim.loadSimulation; sim identity churns
-  }, [searchParams]);
-
   // ── Design tab + Extend seed when build is committed in URL ───────────────
   useEffect(() => {
     if (searchParams.get("mode") !== "build") {
@@ -945,6 +937,7 @@ function MapPageContent() {
           playing={sim.playing}
           speed={sim.speed}
           loading={sim.loading}
+          hasEverLoaded={sim.hasEverLoaded}
           error={sim.error}
           selectedRoutes={sim.selectedRoutes}
           customRoutes={customRoutes}
