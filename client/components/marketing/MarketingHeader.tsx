@@ -13,7 +13,7 @@ const NAV = [
 
 export default function MarketingHeader() {
   return (
-    <header className="sticky top-0 z-50 border-b border-[var(--landing-border)] bg-[color-mix(in_oklab,var(--landing-bg)_88%,transparent)] backdrop-blur-md supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--landing-bg)_82%,transparent)]">
+    <header className="sticky top-0 z-50 border-b border-[var(--landing-border)] bg-[color-mix(in_oklab,var(--landing-bg)_88%,transparent)] backdrop-blur-md supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--landing-bg)_78%,transparent)]">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-5 lg:px-8">
         <Link
           href="/"
@@ -30,7 +30,7 @@ export default function MarketingHeader() {
             <Link
               key={label}
               href={href}
-              className="rounded-md px-3 py-2 text-sm text-[var(--landing-muted)] transition-colors hover:bg-white/5 hover:text-[var(--landing-fg)] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
+              className="rounded-md px-3 py-2 text-sm text-[var(--landing-muted)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-fg)_5%,var(--landing-bg))] hover:text-[var(--landing-fg)] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
             >
               {label}
             </Link>

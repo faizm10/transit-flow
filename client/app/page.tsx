@@ -14,6 +14,8 @@ import HeroSection from "@/components/HeroSection";
 import MarketingShell from "@/components/marketing/MarketingShell";
 import MarketingHeader from "@/components/marketing/MarketingHeader";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
+import MarketingTrustMarquee from "@/components/marketing/MarketingTrustMarquee";
+import MarketingFaq from "@/components/marketing/MarketingFaq";
 
 const MAP = "/map";
 
@@ -72,6 +74,8 @@ const STEPS = [
   },
 ] as const;
 
+const AUDIENCES = ["Riders", "Planners", "Students", "Researchers"] as const;
+
 export default function LandingPage() {
   return (
     <MarketingShell>
@@ -79,23 +83,41 @@ export default function LandingPage() {
 
       <HeroSection />
 
-      <section className="border-b border-[var(--landing-border)] bg-[var(--landing-band)] py-16 sm:py-20">
+      <MarketingTrustMarquee />
+
+      <section className="border-b border-[var(--landing-border)] bg-[var(--landing-bg)] py-14 sm:py-20">
+        <div className="mx-auto max-w-6xl px-5 text-center lg:px-8">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
+            Coverage
+          </p>
+          <p className="mt-4 text-sm font-medium text-[var(--landing-muted)]">Across the network</p>
+          <p className="mx-auto mt-2 max-w-4xl text-4xl font-semibold tracking-tight text-[var(--landing-fg)] sm:text-5xl sm:leading-[1.05]">
+            <span className="text-[var(--landing-muted)]">Over</span>{" "}
+            <span className="tabular-nums">45</span>{" "}
+            <span className="text-[var(--landing-muted)]">routes ·</span>{" "}
+            <span className="tabular-nums">8</span>{" "}
+            <span className="text-[var(--landing-muted)]">rail corridors</span>
+          </p>
+        </div>
+      </section>
+
+      <section className="marketing-dot-bg border-b border-[var(--landing-border)] py-16 sm:py-24">
         <div className="mx-auto max-w-6xl px-5 lg:px-8">
           <p className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
-            Platform
+            Product
           </p>
-          <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight text-[var(--landing-fg)] sm:text-4xl">
+          <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight text-[var(--landing-fg)] sm:text-4xl sm:leading-tight">
             Four modes. One map.
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--landing-muted)]">
+          <p className="mt-3 max-w-2xl text-base leading-relaxed text-[var(--landing-muted)]">
             Same live network — switch modes without leaving the page.
           </p>
 
-          <div className="mt-10 grid gap-3 sm:grid-cols-3">
+          <div className="mt-10 grid gap-4 sm:grid-cols-3">
             {STATS.map(({ n, label, sub }) => (
               <div
                 key={label}
-                className="rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] px-5 py-4"
+                className="rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] px-5 py-5 shadow-[0_14px_40px_-28px_color-mix(in_oklab,var(--landing-fg)_18%,transparent)]"
               >
                 <p className="font-mono text-2xl font-semibold tabular-nums text-[var(--landing-fg)]">{n}</p>
                 <p className="mt-1 text-sm font-medium text-[var(--landing-fg)]">{label}</p>
@@ -104,14 +126,14 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <ul className="mt-6 space-y-3">
+          <ul className="mt-10 grid gap-4 md:grid-cols-2">
             {FEATURES.map(({ href, tag, title, body, icon: Icon }) => (
               <li key={tag}>
                 <Link
                   href={href}
-                  className="group flex flex-col gap-4 rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-5 transition-colors hover:border-white/15 hover:bg-white/[0.04] sm:flex-row sm:items-center sm:gap-6 sm:p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-band)]"
+                  className="group flex h-full flex-col gap-4 rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-6 shadow-[0_14px_40px_-28px_color-mix(in_oklab,var(--landing-fg)_14%,transparent)] transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-[color-mix(in_oklab,var(--landing-fg)_12%,var(--landing-border))] hover:shadow-[0_20px_48px_-28px_color-mix(in_oklab,var(--landing-fg)_22%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
                 >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--landing-border)] bg-white/[0.06] text-[var(--landing-fg)]">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--landing-border)] bg-[var(--landing-band)] text-[var(--landing-fg)]">
                     <Icon className="h-5 w-5" aria-hidden />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -119,9 +141,9 @@ export default function LandingPage() {
                       {tag}
                     </p>
                     <h3 className="mt-1 text-lg font-semibold text-[var(--landing-fg)]">{title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-[var(--landing-muted)]">{body}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-[var(--landing-muted)]">{body}</p>
                   </div>
-                  <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-[var(--landing-accent)]">
+                  <span className="mt-auto inline-flex items-center gap-1 text-sm font-semibold text-[var(--landing-accent)]">
                     Open
                     <ChevronRight
                       className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
@@ -135,7 +157,24 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Light band — mixed theme contrast */}
+      <section className="border-b border-[var(--landing-border)] bg-[var(--landing-band)] py-12 sm:py-16">
+        <div className="mx-auto max-w-6xl px-5 lg:px-8">
+          <p className="text-center text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
+            Built for
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+            {AUDIENCES.map((label) => (
+              <span
+                key={label}
+                className="rounded-full border border-[var(--landing-border)] bg-[var(--landing-elevated)] px-4 py-2 text-sm font-medium text-[var(--landing-fg)] shadow-[0_1px_0_color-mix(in_oklab,var(--landing-fg)_5%,transparent)]"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="border-b border-[var(--landing-mixed-border)] bg-[var(--landing-mixed-bg)] py-16 sm:py-24">
         <div className="mx-auto max-w-3xl px-5 text-center lg:px-8">
           <p className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
@@ -158,19 +197,22 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="border-b border-[var(--landing-border)] bg-[var(--landing-bg)] py-16 sm:py-20">
+      <section
+        id="how-it-works"
+        className="scroll-mt-24 border-b border-[var(--landing-border)] bg-[var(--landing-bg)] py-16 sm:py-24"
+      >
         <div className="mx-auto max-w-6xl px-5 lg:px-8">
           <p className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
             How it works
           </p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[var(--landing-fg)] sm:text-4xl">
-            Three steps
+          <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight text-[var(--landing-fg)] sm:text-4xl">
+            From first open to iteration
           </h2>
 
-          <ol className="mt-10 max-w-2xl space-y-8">
+          <ol className="mt-12 grid gap-8 lg:grid-cols-3 lg:gap-10">
             {STEPS.map(({ n, title, body }) => (
-              <li key={n} className="flex gap-4">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--landing-border)] bg-[var(--landing-elevated)] text-xs font-bold text-[var(--landing-muted)]">
+              <li key={n} className="flex flex-col gap-4 lg:pt-2">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--landing-border)] bg-[var(--landing-elevated)] text-xs font-bold text-[var(--landing-muted)] shadow-[0_1px_0_color-mix(in_oklab,var(--landing-fg)_6%,transparent)]">
                   {n}
                 </span>
                 <div>
@@ -183,21 +225,29 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-[var(--landing-band)] py-16 sm:py-24">
+      <MarketingFaq />
+
+      <section className="border-b border-white/10 bg-[var(--landing-fg)] py-16 text-[var(--landing-bg)] sm:py-24">
         <div className="mx-auto max-w-2xl px-5 text-center lg:px-8">
-          <h2 className="text-3xl font-semibold tracking-tight text-[var(--landing-fg)] sm:text-4xl">
-            Ready to explore the network?
-          </h2>
-          <p className="mt-4 text-[var(--landing-muted)]">
+          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Get started in minutes.</h2>
+          <p className="mt-4 text-base leading-relaxed text-[color-mix(in_oklab,var(--landing-bg)_72%,white)]">
             Open the map — every GO Transit route is there. No account needed.
           </p>
-          <Link
-            href={MAP}
-            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-[var(--landing-accent)] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#006b2d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-band)]"
-          >
-            <Map className="h-5 w-5" aria-hidden />
-            Open TransitFlow
-          </Link>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+            <Link
+              href={MAP}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--landing-accent)] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#006b2d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-fg)] sm:w-auto"
+            >
+              <Map className="h-5 w-5" aria-hidden />
+              Open TransitFlow
+            </Link>
+            <Link
+              href="/about"
+              className="inline-flex w-full items-center justify-center rounded-lg border border-white/25 bg-transparent px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-fg)] sm:w-auto"
+            >
+              Read the overview
+            </Link>
+          </div>
         </div>
       </section>
 

@@ -105,7 +105,7 @@ export default function HeroSection() {
               </Link>
             </motion.div>
             <Link
-              href="/about"
+              href="/#how-it-works"
               className="inline-flex items-center justify-center rounded-lg border border-[var(--landing-border)] bg-[var(--landing-elevated)] px-6 py-3.5 text-center text-sm font-semibold text-[var(--landing-fg)] shadow-[0_1px_0_color-mix(in_oklab,var(--landing-fg)_5%,transparent)] transition-[background-color,border-color] hover:border-[color-mix(in_oklab,var(--landing-fg)_18%,var(--landing-border))] hover:bg-[var(--landing-band)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
             >
               How it works

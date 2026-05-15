@@ -48,7 +48,7 @@ export default function MarketingFaq() {
             const panelId = `faq-panel-${i}`;
             const buttonId = `faq-button-${i}`;
             return (
-              <div key={item.q} className="border-b border-[var(--landing-border)]">
+              <div key={item.q}>
                 <h3 className="text-base font-medium text-[var(--landing-fg)]">
                   <button
                     id={buttonId}

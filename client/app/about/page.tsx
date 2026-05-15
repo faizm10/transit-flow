@@ -57,7 +57,7 @@ export default function AboutPage() {
                   key={title}
                   className="rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-6"
                 >
-                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--landing-border)] bg-white/[0.06] text-[var(--landing-fg)]">
+                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--landing-border)] bg-[var(--landing-band)] text-[var(--landing-fg)]">
                     <Icon className="h-5 w-5" aria-hidden />
                   </div>
                   <h2 className="text-base font-semibold text-[var(--landing-fg)]">{title}</h2>
