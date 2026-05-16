@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Heart, MapPin } from "lucide-react";
 import AuthorAvatar from "./AuthorAvatar";
 import RouteTypeBadge from "./RouteTypeBadge";
@@ -12,6 +13,7 @@ export interface PostSummary {
   color: string;
   likesCount: number;
   createdAt: Date | string;
+  previewUrl: string | null;
   user: {
     id: string;
     name: string | null;
@@ -26,51 +28,82 @@ interface PostCardProps {
 
 export default function PostCard({ post }: PostCardProps) {
   const date = new Date(post.createdAt).toLocaleDateString("en-CA", {
-    year: "numeric",
     month: "short",
     day: "numeric",
+    year: "numeric",
   });
 
   return (
     <Link
       href={`/community/${post.id}`}
-      className="group flex flex-col gap-3 rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-5 shadow-[0_4px_24px_-12px_color-mix(in_oklab,var(--landing-fg)_12%,transparent)] transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-[color-mix(in_oklab,var(--landing-fg)_14%,var(--landing-border))] hover:shadow-[0_8px_32px_-12px_color-mix(in_oklab,var(--landing-fg)_18%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2"
     >
-      {/* Color strip */}
-      <div className="h-1 w-full rounded-full" style={{ backgroundColor: post.color }} />
+      {/* Map preview */}
+      <div className="relative h-44 w-full overflow-hidden bg-slate-100">
+        {post.previewUrl ? (
+          <Image
+            src={post.previewUrl}
+            alt={`Map preview for ${post.title}`}
+            fill
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            unoptimized
+          />
+        ) : (
+          /* Fallback: coloured gradient when no image */
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(135deg, ${post.color}22 0%, ${post.color}44 100%)`,
+            }}
+          />
+        )}
 
-      {/* Title + type */}
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="line-clamp-2 text-base font-semibold text-[var(--landing-fg)] leading-snug">
-          {post.title}
-        </h3>
-        <RouteTypeBadge type={post.routeType} />
+        {/* Bottom fade */}
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white/90 to-transparent" />
+
+        {/* Type badge pinned top-right */}
+        <div className="absolute right-3 top-3">
+          <RouteTypeBadge type={post.routeType} />
+        </div>
+
+        {/* Colour accent bar at bottom of image */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-0.5"
+          style={{ backgroundColor: post.color }}
+        />
       </div>
 
-      {/* Description */}
-      {post.description && (
-        <p className="line-clamp-2 text-sm leading-relaxed text-[var(--landing-muted)]">
-          {post.description}
-        </p>
-      )}
+      {/* Card body */}
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <h3 className="line-clamp-2 text-base font-semibold leading-snug text-[var(--landing-fg)] group-hover:text-[var(--landing-accent)] transition-colors">
+          {post.title}
+        </h3>
 
-      {/* Meta row */}
-      <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-        <AuthorAvatar
-          name={post.user.name}
-          avatarUrl={post.user.avatarUrl}
-          githubLogin={post.user.githubLogin}
-        />
-        <div className="flex items-center gap-3 text-xs text-[var(--landing-muted)]">
-          <span className="flex items-center gap-1">
-            <MapPin className="h-3 w-3" aria-hidden />
-            {post.stopCount} stop{post.stopCount !== 1 ? "s" : ""}
-          </span>
-          <span className="flex items-center gap-1">
-            <Heart className="h-3 w-3" aria-hidden />
-            {post.likesCount}
-          </span>
-          <span>{date}</span>
+        {post.description && (
+          <p className="line-clamp-2 text-xs leading-relaxed text-[var(--landing-muted)]">
+            {post.description}
+          </p>
+        )}
+
+        {/* Meta row */}
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+          <AuthorAvatar
+            name={post.user.name}
+            avatarUrl={post.user.avatarUrl}
+            githubLogin={post.user.githubLogin}
+          />
+          <div className="flex items-center gap-2.5 text-[11px] text-[var(--landing-muted)]">
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" aria-hidden />
+              {post.stopCount}
+            </span>
+            <span className="flex items-center gap-1">
+              <Heart className="h-3 w-3" aria-hidden />
+              {post.likesCount}
+            </span>
+            <span>{date}</span>
+          </div>
         </div>
       </div>
     </Link>

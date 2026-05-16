@@ -8,6 +8,8 @@ import CommunityFeed from "@/components/community/CommunityFeed";
 import type { PostSummary } from "@/components/community/PostCard";
 import { db, posts, users } from "@/lib/db";
 import { desc, eq, count } from "drizzle-orm";
+import { buildStaticMapUrl } from "@/lib/mapboxStaticImage";
+import type { CustomRoute } from "@/lib/gtfs";
 
 export const metadata: Metadata = {
   title: "Community — TransitFlow",
@@ -32,6 +34,7 @@ async function getInitialPosts(): Promise<{
         color: posts.color,
         likesCount: posts.likesCount,
         createdAt: posts.createdAt,
+        routeData: posts.routeData,
         userId: posts.userId,
         userName: users.name,
         userAvatar: users.avatarUrl,
@@ -55,6 +58,7 @@ async function getInitialPosts(): Promise<{
         color: r.color,
         likesCount: r.likesCount,
         createdAt: r.createdAt,
+        previewUrl: buildStaticMapUrl(r.routeData as unknown as CustomRoute),
         user: {
           id: r.userId,
           name: r.userName,

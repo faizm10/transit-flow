@@ -4,6 +4,7 @@ import { db, posts, users, likes } from "@/lib/db";
 import { upsertUser } from "@/lib/upsertUser";
 import { desc, eq, sql, count } from "drizzle-orm";
 import type { CustomRoute } from "@/lib/gtfs";
+import { buildStaticMapUrl } from "@/lib/mapboxStaticImage";
 
 const PAGE_SIZE = 20;
 
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
         color: posts.color,
         likesCount: posts.likesCount,
         createdAt: posts.createdAt,
+        routeData: posts.routeData,
         userId: posts.userId,
         userName: users.name,
         userAvatar: users.avatarUrl,
@@ -57,6 +59,7 @@ export async function GET(req: NextRequest) {
         color: r.color,
         likesCount: r.likesCount,
         createdAt: r.createdAt,
+        previewUrl: buildStaticMapUrl(r.routeData as unknown as CustomRoute),
         user: {
           id: r.userId,
           name: r.userName,
