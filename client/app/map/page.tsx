@@ -117,6 +117,14 @@ function MapPageContent() {
   const [hoveredRoute, setHoveredRoute] = useState<{ shortName: string; variantId: string } | null>(null);
   const [clickedRoute, setClickedRoute] = useState<ClickedRoute | null>(null);
   const [shareTarget, setShareTarget] = useState<CustomRoute | null>(null);
+  const [sharePickerOpen, setSharePickerOpen] = useState(false);
+  // Close share picker on outside click
+  useEffect(() => {
+    if (!sharePickerOpen) return;
+    const handler = () => setSharePickerOpen(false);
+    window.addEventListener("click", handler, { capture: true, once: true });
+    return () => window.removeEventListener("click", handler, { capture: true });
+  }, [sharePickerOpen]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnGeometry, setDrawnGeometry] = useState<[number, number][] | null>(null);
   const [editingRoute, setEditingRoute] = useState<CustomRoute | undefined>();
@@ -990,14 +998,49 @@ function MapPageContent() {
             <Pencil className="w-3.5 h-3.5 text-slate-400" />
             {customRoutes.length} saved route{customRoutes.length !== 1 ? "s" : ""}
           </button>
-          <button
-            onClick={() => setShareTarget(customRoutes[customRoutes.length - 1])}
-            className="bg-[#007A33] backdrop-blur-xl rounded-xl border border-[#007A33] shadow-md px-3 py-2 text-xs font-semibold text-white flex items-center gap-1.5 hover:bg-[#005f28] hover:shadow-lg transition-all"
-            title="Share your latest route to the community"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            Share
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => {
+                if (customRoutes.length === 1) {
+                  setShareTarget(customRoutes[0]);
+                } else {
+                  setSharePickerOpen((o) => !o);
+                }
+              }}
+              className="bg-[#007A33] backdrop-blur-xl rounded-xl border border-[#007A33] shadow-md px-3 py-2 text-xs font-semibold text-white flex items-center gap-1.5 hover:bg-[#005f28] hover:shadow-lg transition-all"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              Share
+            </button>
+            {sharePickerOpen && (
+              <div className="absolute bottom-full right-0 mb-2 w-56 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden z-30">
+                <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                  Pick a route to share
+                </p>
+                <ul>
+                  {customRoutes.map((r) => (
+                    <li key={r.id}>
+                      <button
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-slate-800 hover:bg-slate-50 transition-colors"
+                        onClick={() => {
+                          setShareTarget(r);
+                          setSharePickerOpen(false);
+                        }}
+                      >
+                        <span
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[9px] font-bold text-white"
+                          style={{ backgroundColor: r.color }}
+                        >
+                          {r.type === "train" ? "R" : "B"}
+                        </span>
+                        <span className="truncate">{r.name || "Custom route"}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
