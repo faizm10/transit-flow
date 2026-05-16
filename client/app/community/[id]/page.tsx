@@ -7,7 +7,7 @@ import MarketingHeader from "@/components/marketing/MarketingHeader";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
 import AuthorAvatar from "@/components/community/AuthorAvatar";
 import RouteTypeBadge from "@/components/community/RouteTypeBadge";
-import MiniRouteMap from "@/components/community/MiniRouteMap";
+import CommunityMapPreviewWrapper from "@/components/community/CommunityMapPreviewWrapper";
 import LikeButton from "@/components/community/LikeButton";
 import CommentSection from "@/components/community/CommentSection";
 import { db, posts, users, comments, likes } from "@/lib/db";
@@ -156,9 +156,9 @@ export default async function CommunityPostPage({ params }: PageProps) {
           />
         </div>
 
-        {/* Mini map */}
+        {/* Route map */}
         <div className="mb-6 overflow-hidden rounded-2xl border border-[var(--landing-border)]">
-          <MiniRouteMap route={route} />
+          <CommunityMapPreviewWrapper route={route} />
         </div>
 
         {/* Actions */}
