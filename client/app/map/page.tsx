@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import mapboxgl from "mapbox-gl";
-import { Train, Map as MapIcon, PlayCircle, Pencil, CalendarClock } from "lucide-react";
+import { Train, Map as MapIcon, PlayCircle, Pencil, CalendarClock, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { MapHandle } from "@/components/Map";
@@ -975,7 +975,7 @@ function MapPageContent() {
       {customRoutes.length > 0
         && !panelOpen
         && mode !== "simulate" && (
-        <div className="absolute bottom-20 right-4 z-20">
+        <div className="absolute bottom-20 right-4 z-20 flex items-center gap-2">
           <button
             onClick={() => {
               patchSearch({
@@ -989,6 +989,14 @@ function MapPageContent() {
           >
             <Pencil className="w-3.5 h-3.5 text-slate-400" />
             {customRoutes.length} saved route{customRoutes.length !== 1 ? "s" : ""}
+          </button>
+          <button
+            onClick={() => setShareTarget(customRoutes[customRoutes.length - 1])}
+            className="bg-[#007A33] backdrop-blur-xl rounded-xl border border-[#007A33] shadow-md px-3 py-2 text-xs font-semibold text-white flex items-center gap-1.5 hover:bg-[#005f28] hover:shadow-lg transition-all"
+            title="Share your latest route to the community"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            Share
           </button>
         </div>
       )}
