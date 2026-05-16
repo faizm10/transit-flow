@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bus, ChevronDown, ChevronUp, Pencil, Search, Train, Trash2 } from "lucide-react";
+import { Bus, ChevronDown, ChevronUp, Pencil, Search, Share2, Train, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
@@ -14,6 +14,7 @@ interface BrowsePanelProps {
   routeFilters: RouteFilters;
   onRouteFilterChange: (filters: RouteFilters) => void;
   onDeleteCustomRoute: (routeId: string, routeName: string) => void;
+  onShareCustomRoute: (routeId: string) => void;
 }
 
 function matchesSearch(route: EnrichedRoute, lineName: string | undefined, q: string) {
@@ -50,6 +51,7 @@ export default function BrowsePanel({
   routeFilters,
   onRouteFilterChange,
   onDeleteCustomRoute,
+  onShareCustomRoute,
 }: BrowsePanelProps) {
   const [routes, setRoutes] = useState<EnrichedRoute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -416,6 +418,18 @@ export default function BrowsePanel({
                         <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-900">
                           {route.name || "Custom route"}
                         </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onShareCustomRoute(route.id);
+                        }}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+                        aria-label={`Share ${route.name || "custom route"} to community`}
+                        title="Share to community"
+                      >
+                        <Share2 className="h-3 w-3" />
                       </button>
                       <button
                         type="button"

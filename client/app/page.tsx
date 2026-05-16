@@ -225,6 +225,34 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Community CTA */}
+      <section className="border-b border-[var(--landing-border)] bg-[var(--landing-elevated)] py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl px-5 lg:px-8">
+          <div className="flex flex-col gap-8 sm:flex-row sm:items-center sm:justify-between">
+            <div className="max-w-xl">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
+                Community
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[var(--landing-fg)] sm:text-4xl">
+                Share your network.{" "}
+                <span className="text-[var(--landing-muted)]">Load others&apos; ideas.</span>
+              </h2>
+              <p className="mt-4 text-base leading-relaxed text-[var(--landing-muted)]">
+                Post your custom routes publicly so anyone can explore them. One click loads any shared
+                network into your own map.
+              </p>
+            </div>
+            <Link
+              href="/community"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--landing-accent)] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#006b2d]"
+            >
+              Browse the community
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <MarketingFaq />
 
       <section className="border-b border-white/10 bg-[var(--landing-fg)] py-16 text-[var(--landing-bg)] sm:py-24">

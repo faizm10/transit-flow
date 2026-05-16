@@ -5,8 +5,9 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import mapboxgl from "mapbox-gl";
-import { Train, Map as MapIcon, PlayCircle, Pencil, CalendarClock } from "lucide-react";
+import { Train, Map as MapIcon, PlayCircle, Pencil, CalendarClock, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { v4 as uuidv4 } from "uuid";
 import { MapHandle } from "@/components/Map";
 import BrowsePanel from "@/components/panels/BrowsePanel";
 import DesignPanel, { type DesignTab } from "@/components/panels/DesignPanel";
@@ -14,6 +15,7 @@ import ScheduleModal from "@/components/panels/ScheduleModal";
 import SimulationHUD from "@/components/panels/SimulationHUD";
 import RouteTooltip from "@/components/overlays/RouteTooltip";
 import RouteInfoCard from "@/components/overlays/RouteInfoCard";
+import ShareModal from "@/components/community/ShareModal";
 import VehicleInfoPopup from "@/components/overlays/VehicleInfoPopup";
 import DrawGuide from "@/components/overlays/DrawGuide";
 import OpenRailwayMapOverlayControls from "@/components/overlays/OpenRailwayMapOverlayControls";
@@ -114,6 +116,15 @@ function MapPageContent() {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [hoveredRoute, setHoveredRoute] = useState<{ shortName: string; variantId: string } | null>(null);
   const [clickedRoute, setClickedRoute] = useState<ClickedRoute | null>(null);
+  const [shareTarget, setShareTarget] = useState<CustomRoute | null>(null);
+  const [sharePickerOpen, setSharePickerOpen] = useState(false);
+  // Close share picker on outside click
+  useEffect(() => {
+    if (!sharePickerOpen) return;
+    const handler = () => setSharePickerOpen(false);
+    window.addEventListener("click", handler, { capture: true, once: true });
+    return () => window.removeEventListener("click", handler, { capture: true });
+  }, [sharePickerOpen]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnGeometry, setDrawnGeometry] = useState<[number, number][] | null>(null);
   const [editingRoute, setEditingRoute] = useState<CustomRoute | undefined>();
@@ -171,6 +182,32 @@ function MapPageContent() {
   );
 
 
+  // Import a shared community route when ?community_route=<id> is present
+  useEffect(() => {
+    const communityRouteId = searchParams.get("community_route");
+    if (!communityRouteId) return;
+
+    fetch(`/api/community/posts/${communityRouteId}`)
+      .then((r) => r.json())
+      .then((data: { post?: { routeData?: CustomRoute; title?: string } }) => {
+        const routeData = data.post?.routeData;
+        if (!routeData) return;
+        const importedRoute: CustomRoute = {
+          ...routeData,
+          id: uuidv4(),
+          createdAt: new Date().toISOString(),
+        };
+        saveRoute(importedRoute);
+        toast.success(`"${data.post?.title ?? importedRoute.name}" loaded into your routes`);
+        patchSearch({ community_route: null });
+      })
+      .catch(() => {
+        toast.error("Could not load the shared route");
+        patchSearch({ community_route: null });
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // First visit to bare /map: open Explore + network entry. After user dismisses a mode, do not snap back.
   useEffect(() => {
     const entry = searchParams.get("entry");
@@ -224,14 +261,6 @@ function MapPageContent() {
       return;
     }
     setMode(m);
-  }, [searchParams]);
-
-  useEffect(() => {
-    const m = searchParams.get("mode");
-    if (m !== "simulate") return;
-    const t = window.setTimeout(() => sim.loadSimulation(), 500);
-    return () => window.clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot sim.loadSimulation; sim identity churns
   }, [searchParams]);
 
   // ── Design tab + Extend seed when build is committed in URL ───────────────
@@ -806,6 +835,10 @@ function MapPageContent() {
                 routeFilters={routeFilters}
                 onRouteFilterChange={handleRouteFilterChange}
                 onDeleteCustomRoute={requestDeleteCustomRoute}
+                onShareCustomRoute={(id) => {
+                  const route = customRoutes.find((r) => r.id === id);
+                  if (route) setShareTarget(route);
+                }}
               />
             )}
             {mode === "build" && (
@@ -876,6 +909,10 @@ function MapPageContent() {
           deleteLabel={clickedRoute.isCustom ? "Delete route" : undefined}
           placement={mode === "simulate" ? "top-left" : "bottom-center"}
           onDelete={clickedRoute.isCustom ? handleDeleteFromCard : undefined}
+          onShare={clickedRoute.isCustom ? () => {
+            const route = customRoutes.find((r) => r.id === clickedRoute.variantId);
+            if (route) setShareTarget(route);
+          } : undefined}
           onClose={() => {
             setClickedRoute(null);
             mapRef.current?.setRouteHighlight(null);
@@ -912,6 +949,7 @@ function MapPageContent() {
           playing={sim.playing}
           speed={sim.speed}
           loading={sim.loading}
+          hasEverLoaded={sim.hasEverLoaded}
           error={sim.error}
           selectedRoutes={sim.selectedRoutes}
           customRoutes={customRoutes}
@@ -945,7 +983,7 @@ function MapPageContent() {
       {customRoutes.length > 0
         && !panelOpen
         && mode !== "simulate" && (
-        <div className="absolute bottom-20 right-4 z-20">
+        <div className="absolute bottom-20 right-4 z-20 flex items-center gap-2">
           <button
             onClick={() => {
               patchSearch({
@@ -960,8 +998,54 @@ function MapPageContent() {
             <Pencil className="w-3.5 h-3.5 text-slate-400" />
             {customRoutes.length} saved route{customRoutes.length !== 1 ? "s" : ""}
           </button>
+          <div className="relative">
+            <button
+              onClick={() => {
+                if (customRoutes.length === 1) {
+                  setShareTarget(customRoutes[0]);
+                } else {
+                  setSharePickerOpen((o) => !o);
+                }
+              }}
+              className="bg-[#007A33] backdrop-blur-xl rounded-xl border border-[#007A33] shadow-md px-3 py-2 text-xs font-semibold text-white flex items-center gap-1.5 hover:bg-[#005f28] hover:shadow-lg transition-all"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              Share
+            </button>
+            {sharePickerOpen && (
+              <div className="absolute bottom-full right-0 mb-2 w-56 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden z-30">
+                <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                  Pick a route to share
+                </p>
+                <ul>
+                  {customRoutes.map((r) => (
+                    <li key={r.id}>
+                      <button
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-slate-800 hover:bg-slate-50 transition-colors"
+                        onClick={() => {
+                          setShareTarget(r);
+                          setSharePickerOpen(false);
+                        }}
+                      >
+                        <span
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[9px] font-bold text-white"
+                          style={{ backgroundColor: r.color }}
+                        >
+                          {r.type === "train" ? "R" : "B"}
+                        </span>
+                        <span className="truncate">{r.name || "Custom route"}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       )}
+
+      {/* Share to community modal */}
+      <ShareModal route={shareTarget} onClose={() => setShareTarget(null)} />
     </div>
   );
 }
