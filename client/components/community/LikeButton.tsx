@@ -29,7 +29,7 @@ export default function LikeButton({ postId, initialLikesCount }: LikeButtonProp
 
   const handleToggle = async () => {
     if (status === "unauthenticated") {
-      signIn("github");
+      signIn();
       return;
     }
     if (loading) return;
