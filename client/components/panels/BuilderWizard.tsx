@@ -163,7 +163,15 @@ export default function BuilderWizard({
   const [scheduleType, setScheduleType] = useState<"frequency" | "fixed">(
     existingScheduleType === "fixed" ? "fixed" : "frequency"
   );
-  const [frequencyInterval, setFrequencyInterval] = useState(15);
+  const [frequencyInterval, setFrequencyInterval] = useState(
+    existingRoute?.schedule?.frequency?.weekday?.interval ?? 15
+  );
+  const [serviceStart, setServiceStart] = useState(
+    existingRoute?.schedule?.frequency?.weekday?.start ?? "06:00"
+  );
+  const [serviceEnd, setServiceEnd] = useState(
+    existingRoute?.schedule?.frequency?.weekday?.end ?? "23:00"
+  );
   const [fixedDepartures, setFixedDepartures] = useState<string[]>(
     existingRoute?.schedule?.fixedDepartures ?? []
   );
@@ -520,8 +528,8 @@ export default function BuilderWizard({
     return {
       type: "frequency",
       frequency: {
-        weekday: { start: "06:00", end: "23:00", interval: frequencyInterval },
-        weekend: { start: "07:00", end: "22:00", interval: frequencyInterval * 2 },
+        weekday: { start: serviceStart, end: serviceEnd, interval: frequencyInterval },
+        weekend: { start: serviceStart, end: serviceEnd, interval: frequencyInterval * 2 },
       },
       direction: "two-way",
     };
@@ -1125,26 +1133,69 @@ export default function BuilderWizard({
             </div>
 
             {scheduleType === "frequency" && (
-              <div>
-                <Label className="text-sm font-medium text-slate-700 mb-2 block">Service frequency</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {FREQUENCY_PRESETS.map(({ label, interval }) => (
-                    <button
-                      key={interval}
-                      onClick={() => setFrequencyInterval(interval)}
-                      className={`rounded-xl border p-3 text-sm font-medium transition-all ${
-                        frequencyInterval === interval
-                          ? "border-[#007A33] bg-emerald-50 text-[#007A33]"
-                          : "border-slate-100 hover:border-slate-200 text-slate-700"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+              <div className="flex flex-col gap-4">
+                {/* Service window */}
+                <div>
+                  <Label className="text-sm font-medium text-slate-700 mb-2 block">Service hours</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-400">Start</span>
+                      <Input
+                        type="time"
+                        value={serviceStart}
+                        onChange={(e) => setServiceStart(e.target.value)}
+                        className="rounded-xl h-9"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-400">End</span>
+                      <Input
+                        type="time"
+                        value={serviceEnd}
+                        onChange={(e) => setServiceEnd(e.target.value)}
+                        className="rounded-xl h-9"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-400 mt-2">
-                  Weekdays 6 AM – 11 PM · Weekends every {frequencyInterval * 2} min
-                </p>
+
+                {/* Frequency */}
+                <div>
+                  <Label className="text-sm font-medium text-slate-700 mb-2 block">Frequency</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {FREQUENCY_PRESETS.map(({ label, interval }) => (
+                      <button
+                        key={interval}
+                        onClick={() => setFrequencyInterval(interval)}
+                        className={`rounded-xl border p-3 text-sm font-medium transition-all ${
+                          frequencyInterval === interval
+                            ? "border-[#007A33] bg-emerald-50 text-[#007A33]"
+                            : "border-slate-100 hover:border-slate-200 text-slate-700"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Custom interval */}
+                  <div className="mt-2 flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={240}
+                      value={frequencyInterval}
+                      onChange={(e) => {
+                        const v = Math.max(1, Math.min(240, Number(e.target.value)));
+                        setFrequencyInterval(v);
+                      }}
+                      className="rounded-xl h-9 w-24"
+                    />
+                    <span className="text-sm text-slate-500">min custom interval</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">
+                    Weekends run every {frequencyInterval * 2} min
+                  </p>
+                </div>
               </div>
             )}
 
