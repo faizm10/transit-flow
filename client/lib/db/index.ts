@@ -1,8 +1,20 @@
-import { neon } from "@neondatabase/serverless";
+import { neon, neonConfig } from "@neondatabase/serverless";
 import { drizzle, type NeonHttpDatabase } from "drizzle-orm/neon-http";
 import * as schema from "./schema";
 
 type Schema = typeof schema;
+
+/**
+ * In Node.js (local dev / Vercel serverless), the built-in fetch → undici can
+ * fail to establish TLS connections to Neon ("fetch failed / AggregateError").
+ * Supplying a WebSocket constructor switches the driver to the stable WS path.
+ * In Edge Runtime, WebSocket is built-in so we skip this.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+if (typeof (globalThis as any).EdgeRuntime === "undefined" && typeof WebSocket === "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  neonConfig.webSocketConstructor = require("ws");
+}
 
 let _db: NeonHttpDatabase<Schema> | null = null;
 
