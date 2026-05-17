@@ -8,7 +8,9 @@
     "test:e2e": "playwright test",
     "build": "next build",
     "gtfs:derive": "python3 ../scripts/build_gtfs_derived.py",
-    "start": "next start"
+    "start": "next start",
+    "video:preview": "remotion studio remotion/index.ts",
+    "video:render": "remotion render remotion/index.ts TransitFlowDemo public/demo.mp4 --codec=h264"
   },
   "dependencies": {
     "@auth/core": "^0.41.2",
@@ -34,6 +36,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "@remotion/cli": "^4.0.462",
+    "@remotion/player": "^4.0.462",
     "@tailwindcss/postcss": "^4",
     "@types/mapbox__mapbox-gl-draw": "^1.4.9",
     "@types/node": "^20",
@@ -41,7 +45,9 @@
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
     "drizzle-kit": "^0.31.10",
+    "remotion": "^4.0.462",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "zod": "^4.3.6"
   }
 }
