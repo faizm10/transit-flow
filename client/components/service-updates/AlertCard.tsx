@@ -20,13 +20,13 @@ function formatDate(iso: string): string {
 function severityStyle(type: AlertType): { bg: string; text: string; dot: string; label: string } {
   switch (type) {
     case "delay":
-      return { bg: "bg-red-500/10", text: "text-red-400", dot: "bg-red-400", label: "Delay" };
+      return { bg: "bg-red-50", text: "text-red-600", dot: "bg-red-500", label: "Delay" };
     case "cancellation":
-      return { bg: "bg-red-600/15", text: "text-red-300", dot: "bg-red-300", label: "Cancelled" };
+      return { bg: "bg-red-50", text: "text-red-700", dot: "bg-red-600", label: "Cancelled" };
     case "information":
-      return { bg: "bg-yellow-400/10", text: "text-yellow-300", dot: "bg-yellow-300", label: "Notice" };
+      return { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500", label: "Notice" };
     default:
-      return { bg: "bg-slate-700/50", text: "text-slate-300", dot: "bg-slate-400", label: "Update" };
+      return { bg: "bg-gray-100", text: "text-gray-600", dot: "bg-gray-400", label: "Update" };
   }
 }
 
@@ -35,7 +35,7 @@ export function AlertCard({ alert }: { alert: ServiceAlert }) {
   const mapRoute = alert.routes[0];
 
   return (
-    <article className="rounded-2xl border border-[#1e3a5f] bg-[#0f1e35] p-5 flex flex-col gap-3">
+    <article className="rounded-2xl border border-gray-200 bg-white p-5 flex flex-col gap-3 shadow-sm">
       {/* Top row: badges + time */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Route badges */}
@@ -61,23 +61,20 @@ export function AlertCard({ alert }: { alert: ServiceAlert }) {
 
         {/* Time */}
         {alert.postedAt && (
-          <time
-            dateTime={alert.postedAt}
-            className="ml-auto text-xs text-slate-500 shrink-0"
-          >
+          <time dateTime={alert.postedAt} className="ml-auto text-xs text-gray-400 shrink-0">
             {formatDate(alert.postedAt)}
           </time>
         )}
       </div>
 
       {/* Title */}
-      <h3 className="text-sm font-semibold text-white leading-snug">
+      <h3 className="text-sm font-semibold text-gray-900 leading-snug">
         {alert.title}
       </h3>
 
       {/* Body */}
       {alert.body && (
-        <p className="text-sm text-slate-400 leading-relaxed line-clamp-3">
+        <p className="text-sm text-gray-500 leading-relaxed line-clamp-3">
           {alert.body}
         </p>
       )}
@@ -87,7 +84,7 @@ export function AlertCard({ alert }: { alert: ServiceAlert }) {
         <div className="mt-1 flex justify-end">
           <Link
             href={`/map?mode=browse&goRoute=${mapRoute}`}
-            className="inline-flex items-center gap-1 text-xs font-medium text-[#007A33] hover:text-[#00a844] transition-colors"
+            className="inline-flex items-center gap-1 text-xs font-medium text-[#007A33] hover:text-[#005c26] transition-colors"
           >
             View on map
             <ArrowRight className="h-3.5 w-3.5" />

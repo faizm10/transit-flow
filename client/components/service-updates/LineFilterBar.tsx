@@ -4,7 +4,7 @@ import { GO_RAIL_LINES } from "@/lib/routeColors";
 const LINES = Object.entries(GO_RAIL_LINES);
 
 const INACTIVE =
-  "inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-medium bg-[#0f1e35] border border-[#1e3a5f] text-slate-400 hover:text-slate-200 hover:border-slate-500 transition-colors";
+  "inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-medium bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors";
 
 export function LineFilterBar({ activeLine }: { activeLine?: string }) {
   const active = activeLine?.toUpperCase();

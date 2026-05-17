@@ -36,26 +36,26 @@ export default async function ServiceUpdatesPage({
     : alerts;
 
   return (
-    <div className="min-h-screen bg-[#0a1628]">
+    <div className="min-h-screen bg-white">
       <MarketingHeader />
 
       <main className="mx-auto max-w-3xl px-5 pb-24 pt-14 lg:px-8">
         {/* Page header */}
         <div className="mb-10">
-          <h1 className="text-3xl font-bold tracking-tight text-white">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
             Service Updates
           </h1>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-gray-500">
             Live GO Transit alerts — delays, cancellations, and service notices.
           </p>
 
           {/* Last refreshed */}
-          <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-500">
+          <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-gray-400">
             <RefreshCw className="h-3 w-3" />
             <span>
               Updated at {formatFetchTime(fetchedAt)}
               {source === "error" && (
-                <span className="ml-2 text-red-400">
+                <span className="ml-2 text-red-500">
                   (could not reach gotransit.com)
                 </span>
               )}
@@ -73,12 +73,12 @@ export default async function ServiceUpdatesPage({
               <CheckCircle className="h-8 w-8 text-[#007A33]" />
             </div>
             <div>
-              <p className="text-base font-semibold text-white">
+              <p className="text-base font-semibold text-gray-900">
                 {alerts.length === 0
                   ? "No active service alerts"
                   : `No alerts for ${line?.toUpperCase()} right now`}
               </p>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-gray-500">
                 {alerts.length === 0
                   ? "All GO Transit lines are operating normally."
                   : "This line appears to be running on schedule."}
@@ -94,13 +94,13 @@ export default async function ServiceUpdatesPage({
         )}
 
         {/* Footer note */}
-        <p className="mt-12 text-center text-xs text-slate-600">
+        <p className="mt-12 text-center text-xs text-gray-400">
           Data sourced from{" "}
           <a
             href="https://www.gotransit.com/en/service-updates"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:text-slate-400 transition-colors"
+            className="underline hover:text-gray-600 transition-colors"
           >
             gotransit.com
           </a>
