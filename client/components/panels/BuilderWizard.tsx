@@ -168,6 +168,13 @@ export default function BuilderWizard({
     existingRoute?.schedule?.fixedDepartures ?? []
   );
   const [newDeparture, setNewDeparture] = useState("");
+  const [returnEnabled, setReturnEnabled] = useState(
+    (existingRoute?.schedule?.returnDepartures?.length ?? 0) > 0
+  );
+  const [returnDepartures, setReturnDepartures] = useState<string[]>(
+    existingRoute?.schedule?.returnDepartures ?? []
+  );
+  const [newReturnDeparture, setNewReturnDeparture] = useState("");
 
   // ── Route geometry state ──────────────────────────────────────────────────
   // For bus: computed from Directions API based on stops
@@ -503,7 +510,12 @@ export default function BuilderWizard({
 
   function buildSchedule(): CustomSchedule {
     if (scheduleType === "fixed") {
-      return { type: "fixed", fixedDepartures, direction: "two-way" };
+      return {
+        type: "fixed",
+        fixedDepartures,
+        ...(returnEnabled && returnDepartures.length > 0 ? { returnDepartures } : {}),
+        direction: returnEnabled ? "two-way" : "one-way",
+      };
     }
     return {
       type: "frequency",
@@ -1137,45 +1149,124 @@ export default function BuilderWizard({
             )}
 
             {scheduleType === "fixed" && (
-              <div>
-                <Label className="text-sm font-medium text-slate-700 mb-2 block">
-                  Departure times
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="time"
-                    value={newDeparture}
-                    onChange={(e) => setNewDeparture(e.target.value)}
-                    className="rounded-xl h-9 flex-1"
-                  />
-                  <Button
-                    size="sm"
-                    className="rounded-xl bg-[#007A33] text-white"
+              <div className="flex flex-col gap-4">
+                {/* Outbound times */}
+                <div>
+                  <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                    Outbound departures
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="time"
+                      value={newDeparture}
+                      onChange={(e) => setNewDeparture(e.target.value)}
+                      className="rounded-xl h-9 flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      className="rounded-xl bg-[#007A33] text-white"
+                      onClick={() => {
+                        if (newDeparture && !fixedDepartures.includes(newDeparture)) {
+                          setFixedDepartures((prev) => [...prev, newDeparture].sort());
+                          setNewDeparture("");
+                        }
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {fixedDepartures.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {fixedDepartures.map((t) => (
+                        <Badge key={t} variant="secondary" className="gap-1 pr-1">
+                          {t}
+                          <button
+                            onClick={() => setFixedDepartures((p) => p.filter((d) => d !== t))}
+                            className="ml-0.5 hover:text-red-500"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Return direction toggle */}
+                <div className="rounded-xl border border-slate-100 p-3">
+                  <button
+                    type="button"
                     onClick={() => {
-                      if (newDeparture && !fixedDepartures.includes(newDeparture)) {
-                        setFixedDepartures((prev) => [...prev, newDeparture].sort());
-                        setNewDeparture("");
+                      setReturnEnabled((v) => !v);
+                      if (!returnEnabled && returnDepartures.length === 0) {
+                        // Pre-fill with same times as outbound
+                        setReturnDepartures([...fixedDepartures]);
                       }
                     }}
+                    className={`flex w-full items-center justify-between text-sm font-medium transition-colors ${
+                      returnEnabled ? "text-[#007A33]" : "text-slate-600"
+                    }`}
                   >
-                    Add
-                  </Button>
-                </div>
-                {fixedDepartures.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {fixedDepartures.map((t) => (
-                      <Badge key={t} variant="secondary" className="gap-1 pr-1">
-                        {t}
+                    <span className="flex items-center gap-2">
+                      <Repeat className="w-4 h-4" />
+                      Return direction times
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      returnEnabled ? "bg-emerald-100 text-[#007A33]" : "bg-slate-100 text-slate-400"
+                    }`}>
+                      {returnEnabled ? "On" : "Off"}
+                    </span>
+                  </button>
+
+                  {returnEnabled && (
+                    <div className="mt-3 flex flex-col gap-2">
+                      {fixedDepartures.length > 0 && (
                         <button
-                          onClick={() => setFixedDepartures((p) => p.filter((d) => d !== t))}
-                          className="ml-0.5 hover:text-red-500"
+                          type="button"
+                          onClick={() => setReturnDepartures([...fixedDepartures])}
+                          className="self-start text-xs text-[#007A33] underline underline-offset-2 hover:text-[#005f28]"
                         >
-                          <X className="w-3 h-3" />
+                          Copy from outbound
                         </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
+                      )}
+                      <div className="flex gap-2">
+                        <Input
+                          type="time"
+                          value={newReturnDeparture}
+                          onChange={(e) => setNewReturnDeparture(e.target.value)}
+                          className="rounded-xl h-9 flex-1"
+                        />
+                        <Button
+                          size="sm"
+                          className="rounded-xl bg-[#007A33] text-white"
+                          onClick={() => {
+                            if (newReturnDeparture && !returnDepartures.includes(newReturnDeparture)) {
+                              setReturnDepartures((prev) => [...prev, newReturnDeparture].sort());
+                              setNewReturnDeparture("");
+                            }
+                          }}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      {returnDepartures.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {returnDepartures.map((t) => (
+                            <Badge key={t} variant="secondary" className="gap-1 pr-1">
+                              {t}
+                              <button
+                                onClick={() => setReturnDepartures((p) => p.filter((d) => d !== t))}
+                                className="ml-0.5 hover:text-red-500"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

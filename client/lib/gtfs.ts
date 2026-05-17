@@ -164,7 +164,8 @@ export interface CustomSchedule {
     weekend: { start: string; end: string; interval: number } | null;
   };
   // ── fixed mode ────────────────────────────────────────────────────────────
-  fixedDepartures?: string[]; // HH:MM
+  fixedDepartures?: string[];       // HH:MM outbound
+  returnDepartures?: string[];      // HH:MM return direction (optional)
   // ── timetable mode ───────────────────────────────────────────────────────
   stopTimes?:         StopTimeEntry[];
   firstDepartureSec?: number; // seconds since midnight for simulation seed
