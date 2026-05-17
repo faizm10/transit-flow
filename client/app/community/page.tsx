@@ -11,6 +11,9 @@ import { desc, eq, count } from "drizzle-orm";
 import { buildStaticMapUrl } from "@/lib/mapboxStaticImage";
 import type { CustomRoute } from "@/lib/gtfs";
 
+// Always fetch fresh posts from the DB — never serve a stale static snapshot
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Community — TransitFlow",
   description:

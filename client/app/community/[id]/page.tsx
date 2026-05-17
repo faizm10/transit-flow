@@ -14,6 +14,8 @@ import { db, posts, users, comments, likes } from "@/lib/db";
 import { eq, asc } from "drizzle-orm";
 import type { CustomRoute } from "@/lib/gtfs";
 
+export const dynamic = "force-dynamic";
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
