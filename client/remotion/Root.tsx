@@ -1,12 +1,12 @@
 import { Composition } from "remotion";
-import { TransitFlowDemo } from "./TransitFlowDemo";
+import { TransitFlowDemo, TOTAL_FRAMES } from "./TransitFlowDemo";
 
 export const RemotionRoot = () => {
   return (
     <Composition
       id="TransitFlowDemo"
       component={TransitFlowDemo}
-      durationInFrames={1200} // 40s @ 30fps
+      durationInFrames={TOTAL_FRAMES}
       fps={30}
       width={1280}
       height={720}

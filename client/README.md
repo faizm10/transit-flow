@@ -1,61 +1,62 @@
-# TransitFlow
+# TransitFlow (client)
 
-GO Transit network design and simulation in the browser — live GTFS, one map, four modes.
+Next.js app: marketing pages, interactive map (`/map`), API routes, and prebuilt GO Transit assets under `public/gotransit/`.
 
-## Tech Stack
+## Prerequisites
 
-**Framework & Language**
-- [Next.js 16](https://nextjs.org) (App Router, Turbopack)
-- [React 19](https://react.dev)
-- [TypeScript](https://www.typescriptlang.org)
+- Node.js 20+
+- Python 3 (only if you regenerate GTFS-derived files — see [../readme.md](../readme.md))
 
-**Mapping**
-- [Mapbox GL JS](https://docs.mapbox.com/mapbox-gl-js/) — interactive map
-- [Mapbox Static Images API](https://docs.mapbox.com/api/maps/static-images/) — server-side map previews
-- [@mapbox/mapbox-gl-draw](https://github.com/mapbox/mapbox-gl-draw) — freehand route drawing
-
-**Styling & UI**
-- [Tailwind CSS v4](https://tailwindcss.com)
-- [shadcn/ui](https://ui.shadcn.com) — component library
-- [Base UI](https://base-ui.com) — headless primitives
-- [Lucide React](https://lucide.dev) — icons
-
-**Auth**
-- [NextAuth v5 (Auth.js)](https://authjs.dev) — GitHub & Google OAuth, JWT sessions
-
-**Database**
-- [Neon Postgres](https://neon.tech) — serverless PostgreSQL
-- [Drizzle ORM](https://orm.drizzle.team) — schema, queries, migrations
-- [@neondatabase/serverless](https://github.com/neondatabase/serverless) — HTTP driver
-
-**AI**
-- [Anthropic Claude API](https://docs.anthropic.com) — route agent & schedule optimiser (`claude-sonnet-4-6`)
-
-**Data**
-- [GTFS](https://gtfs.org) — real GO Transit schedule data (pre-computed + live)
-
-**Deployment**
-- [Vercel](https://vercel.com) — hosting, preview deployments, environment variables
-
-## Getting Started
+## Setup
 
 ```bash
-cd client
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+- App: [http://localhost:3000](http://localhost:3000)
+- Map: [http://localhost:3000/map](http://localhost:3000/map)
 
-Copy `.env.example` to `.env.local` and fill in the required keys:
+Create `client/.env.local` with at least:
 
-```
+```env
 NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=
 MAPBOX_ACCESS_TOKEN=
+
+# Optional — community / saved routes
 AUTH_SECRET=
 AUTH_GITHUB_ID=
 AUTH_GITHUB_SECRET=
 AUTH_GOOGLE_ID=
 AUTH_GOOGLE_SECRET=
 DATABASE_URL=
+```
+
+Mapbox tokens are required for the interactive map. Auth and `DATABASE_URL` are only needed for features that persist data (e.g. community routes).
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Dev server (Turbopack) |
+| `npm run build` | Production build |
+| `npm run start` | Serve production build |
+| `npm run lint` | Typecheck (`tsc`) |
+| `npm run test:e2e` | Playwright tests |
+| `npm run gtfs:derive` | Run `scripts/build_gtfs_derived.py` |
+| `npm run video:preview` | Remotion studio |
+| `npm run video:render` | Export demo video to `public/demo.mp4` |
+
+## Stack
+
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Mapbox GL · NextAuth · Neon Postgres · Drizzle ORM
+
+## Project layout (high level)
+
+```
+app/           Routes (marketing, /map, API)
+components/    UI and map panels
+lib/           Auth, DB, GTFS helpers, server utilities
+public/        Static assets + gotransit/derived
+remotion/      Marketing demo video composition
 ```

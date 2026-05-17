@@ -1,57 +1,51 @@
 # TransitFlow
 
-TransitFlow is a transit planning workspace for designing routes, comparing service, generating schedules, and simulating GTFS-backed operations.
+Browser-based workspace for exploring GO Transit, sketching routes, comparing schedules, and running simulations on live GTFS data.
 
-## App layout
+## Repository layout
 
-- `client/`: production Next.js app, API routes, static GTFS assets
-- `server/`: data prep and source GTFS files
-- `scripts/`: preprocessing helpers such as GTFS subroute generation
+| Path | Purpose |
+|------|---------|
+| `client/` | Next.js app (UI, API routes, static GTFS assets) — **start here** |
+| `server/data/` | Source GTFS feeds |
+| `scripts/` | Python pipelines to build derived JSON/GeoJSON |
 
-## Local setup
+## Quick start
 
 ```bash
 cd client
 npm install
-cp .env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000/map`.
+Add `client/.env.local` before using the map (see [client/README.md](client/README.md)).
 
-## Production target
+Open [http://localhost:3000/map](http://localhost:3000/map).
 
-The repo is set up for a Vercel-first public beta:
+Details, environment variables, and npm scripts: **[client/README.md](client/README.md)**.
 
-- Vercel app root is `client/`
-- CI lives in [client-ci.yml](/Applications/vscode/transit-flow/.github/workflows/client-ci.yml)
-- Runtime hardening utilities live in [api.ts](/Applications/vscode/transit-flow/client/lib/server/api.ts)
-- Launch procedures live in [production-runbook.md](/Applications/vscode/transit-flow/client/docs/production-runbook.md)
+## Deploy
 
-## GTFS preprocessing
+- **Host:** [Vercel](https://vercel.com) with project root set to `client/`
+- **CI:** [.github/workflows/client-ci.yml](.github/workflows/client-ci.yml)
 
-```bash
-python3 scripts/build_subroutes.py --input_dir <path-to-gtfs> --output_dir <path-to-output>
-```
+## GTFS data pipeline
 
-Example (raw GTFS lives under `server/data/gotransit`; derived JSON/GeoJSON under `client/public/gotransit/derived`):
+Raw feeds live under `server/data/gotransit`. Derived assets are written to `client/public/gotransit/derived`.
 
 ```bash
-python3 scripts/build_subroutes.py --input_dir server/data/gotransit --output_dir client/public/gotransit/derived
+# Subroutes + derived tables (from repo root)
+python3 scripts/build_subroutes.py \
+  --input_dir server/data/gotransit \
+  --output_dir client/public/gotransit/derived
+
 python3 scripts/build_gtfs_derived.py
+
+# Simulation artifacts (optional)
+python3 scripts/build_simulation_artifacts.py \
+  --input_dir server/data/gotransit \
+  --output_dir client/public/gotransit/derived/simulation \
+  --source gotransit
 ```
 
-Simulation artifacts for production-style deployments:
-
-```bash
-python3 scripts/build_simulation_artifacts.py --input_dir server/data/gotransit --output_dir client/public/gotransit/derived/simulation --source gotransit
-```
-
-Publish GO simulation artifacts to Vercel Blob:
-
-```bash
-cd client
-npm run simulation:publish
-```
-
-The publish command prints the `SIMULATION_ARTIFACT_BASE_URL` value to use with `SIMULATION_DATA_MODE=remote`.
+Or from `client/`: `npm run gtfs:derive` runs `build_gtfs_derived.py`.

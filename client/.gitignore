@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Remotion raw footage — large files, not tracked in git
+remotion/assets/*.mov
+remotion/assets/*.mp4
+public/demo.mp4

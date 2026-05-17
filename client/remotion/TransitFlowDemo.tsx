@@ -1,11 +1,12 @@
 /**
- * TransitFlow demo video.
+ * TransitFlow demo video — built from 4 real screen-recording clips.
  *
- * Background: the raw screen recording at ./assets/demo-raw.mp4
- * On top: animated title cards, feature labels, logo intro and outro.
+ * clip1.mov  12s   Map & Explore the GO network
+ * clip2.mov  72s   Design a route  (played at 1.5× → ~48s)
+ * clip3.mov  30s   Simulate the new custom route
+ * clip4.mov  44s   Simulate the full GO network
  *
- * Adjust SEGMENT_* constants to match where each section starts/ends
- * in your recording (in seconds), then re-run `npm run video:preview`.
+ * Total ≈ 2:20 at 30 fps
  */
 
 import {
@@ -19,95 +20,77 @@ import {
   staticFile,
 } from "remotion";
 
-// ─── Tweak these to match your recording timestamps (in seconds) ─────────────
-const SEGMENTS = {
-  landing:   { start:  0, end:  5 },
-  explore:   { start:  5, end: 20 },
-  design:    { start: 20, end: 45 },
-  schedule:  { start: 45, end: 55 },
-  simulate:  { start: 55, end: 70 },
-  community: { start: 70, end: 80 },
-  account:   { start: 80, end: 88 },
-};
+// ── Brand ──────────────────────────────────────────────────────────────────
+const GREEN   = "#007A33";
+const DARK    = "#0a1628";
+const WHITE   = "#ffffff";
+const YELLOW  = "#FFD047";   // feature label text
 
-// Total raw recording length in seconds — update after you record
-const RAW_DURATION_S = 88;
+// ── Clip timing @ 30 fps composition ─────────────────────────────────────
+// clip2 plays at 1.5× so 71.9 s of footage → 47.9 s of screen time
+const CLIPS = [
+  { file: "clip1.mov", label: "Browse real GO Transit routes on a live map.",          durationS: 12.1, playbackRate: 1   },
+  { file: "clip2.mov", label: "Draw your own route, add stops, set a schedule.",       durationS: 71.9, playbackRate: 1.5 },
+  { file: "clip3.mov", label: "Watch your route run as a time simulation.",            durationS: 29.6, playbackRate: 1   },
+  { file: "clip4.mov", label: "Simulate the entire GO network at any time of day.",    durationS: 43.6, playbackRate: 1   },
+];
 
-// ─── Brand colours ────────────────────────────────────────────────────────────
-const GREEN  = "#007A33";
-const DARK   = "#0a1628";
-const WHITE  = "#ffffff";
+const FPS     = 30;
+const INTRO_S = 3;
+const CROSS_S = 1.2;  // crossfade overlap between clips (both visible simultaneously)
+const OUTRO_S = 5;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function toFrames(seconds: number, fps: number) {
-  return Math.round(seconds * fps);
-}
-
-function fadeIn(frame: number, startFrame: number, durationFrames = 15) {
-  return interpolate(frame, [startFrame, startFrame + durationFrames], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
+// Pre-compute timeline — each clip starts CROSS_S before the previous one ends
+// so they overlap during the transition, producing a true crossfade.
+function buildTimeline() {
+  let cursor = INTRO_S;
+  return CLIPS.map((c, i) => {
+    const screenS = c.durationS / c.playbackRate;
+    const startS  = i === 0 ? cursor : cursor - CROSS_S;
+    const endS    = startS + screenS;
+    cursor = endS;
+    return { ...c, screenS, startS, endS };
   });
 }
 
-function fadeOut(frame: number, startFrame: number, durationFrames = 15) {
-  return interpolate(frame, [startFrame, startFrame + durationFrames], [1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+const TIMELINE = buildTimeline();
+const TOTAL_S  = TIMELINE[TIMELINE.length - 1].endS + OUTRO_S;
+const TOTAL_FRAMES = Math.ceil(TOTAL_S * FPS);
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+const f = (s: number) => Math.round(s * FPS);
+const clamp = (v: number) => Math.max(0, Math.min(1, v));
+
+function fadeIn(frame: number, startS: number, durS = 0.5) {
+  return clamp(interpolate(frame, [f(startS), f(startS + durS)], [0, 1]));
+}
+function fadeOut(frame: number, startS: number, durS = 0.5) {
+  return clamp(interpolate(frame, [f(startS), f(startS + durS)], [1, 0]));
+}
+function ramp(frame: number, inS: number, holdS: number, outS: number) {
+  return clamp(
+    interpolate(
+      frame,
+      [f(inS), f(inS + 0.4), f(inS + holdS), f(inS + holdS + 0.4)],
+      [0, 1, 1, 0],
+      { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+    )
+  );
 }
 
-function slideUpFade(
-  frame: number,
-  startFrame: number,
-  endFrame: number,
-  distance = 28
-) {
-  const opacity = interpolate(
-    frame,
-    [startFrame, startFrame + 18, endFrame - 12, endFrame],
-    [0, 1, 1, 0],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
-  const y = interpolate(
-    frame,
-    [startFrame, startFrame + 18],
-    [distance, 0],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.out(Easing.cubic),
-    }
-  );
-  return { opacity, y };
-}
-
-// ─── Components ───────────────────────────────────────────────────────────────
+// ── Sub-components ────────────────────────────────────────────────────────
 
 function Logo({ size = 64 }: { size?: number }) {
-  const r = size * 0.22;
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: r,
-        background: GREEN,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: `0 0 ${size * 0.8}px rgba(0,122,51,0.55)`,
-        flexShrink: 0,
-      }}
-    >
-      <svg
-        width={size * 0.54}
-        height={size * 0.54}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="white"
-        strokeWidth="2"
-      >
+    <div style={{
+      width: size, height: size,
+      borderRadius: size * 0.22,
+      background: GREEN,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      boxShadow: `0 0 ${size * 0.9}px rgba(0,122,51,0.5)`,
+      flexShrink: 0,
+    }}>
+      <svg width={size * 0.54} height={size * 0.54} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
         <rect x="3" y="6" width="18" height="13" rx="2" />
         <path d="M3 10h18M8 6V4M16 6V4" />
       </svg>
@@ -115,240 +98,189 @@ function Logo({ size = 64 }: { size?: number }) {
   );
 }
 
-/** Pill badge shown above each feature title */
-function Pill({ label }: { label: string }) {
+/** Dark vignette so text stays readable over any map background */
+function Vignette() {
   return (
-    <div
-      style={{
-        display: "inline-block",
-        background: "rgba(0,122,51,0.18)",
-        border: "1px solid rgba(0,122,51,0.45)",
-        borderRadius: 99,
-        padding: "4px 14px",
-        marginBottom: 10,
-      }}
-    >
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: "0.09em",
-          color: "#4ade80",
-          textTransform: "uppercase" as const,
-          fontFamily: "system-ui",
-        }}
-      >
-        {label}
-      </span>
-    </div>
+    <div style={{
+      position: "absolute", inset: 0, pointerEvents: "none",
+      background: "linear-gradient(to top, rgba(10,22,40,0.75) 0%, transparent 45%)",
+    }} />
   );
 }
 
-/** Large feature title over the recording */
-function FeatureOverlay({
-  pill,
-  title,
-  frame,
-  startFrame,
-  endFrame,
-}: {
-  pill: string;
-  title: string;
-  frame: number;
-  startFrame: number;
-  endFrame: number;
+/** Simple sentence label — no badges, no pills, just clean text */
+function FeatureLabel({ title, opacity, slideY }: {
+  title: string; opacity: number; slideY: number;
 }) {
-  const { opacity, y } = slideUpFade(frame, startFrame, endFrame);
-  const lines = title.split("\n");
-
   return (
-    <div
-      style={{
-        position: "absolute",
-        bottom: 64,
-        left: 64,
-        opacity,
-        transform: `translateY(${y}px)`,
-      }}
-    >
-      <Pill label={pill} />
-      <div
-        style={{
-          fontSize: 52,
-          fontWeight: 800,
-          color: WHITE,
-          fontFamily: "system-ui, -apple-system, sans-serif",
-          lineHeight: 1.1,
-          textShadow: "0 3px 28px rgba(0,0,0,0.55)",
-        }}
-      >
-        {lines.map((l, i) => (
-          <div key={i}>{l}</div>
-        ))}
+    <div style={{
+      position: "absolute", bottom: 64, left: 64,
+      opacity, transform: `translateY(${slideY}px)`,
+    }}>
+      <div style={{
+        fontSize: 28, fontWeight: 600, color: YELLOW,
+        fontFamily: "system-ui, -apple-system, sans-serif",
+        lineHeight: 1.4,
+        textShadow: "0 2px 16px rgba(0,0,0,0.7)",
+        letterSpacing: "-0.2px",
+      }}>
+        {title}
       </div>
     </div>
   );
 }
 
-/** Dark vignette at the bottom so text is legible over any map background */
-function BottomVignette() {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: 300,
-        background:
-          "linear-gradient(to top, rgba(10,22,40,0.72) 0%, transparent 100%)",
-        pointerEvents: "none",
-      }}
-    />
-  );
-}
 
-// ─── Main composition ─────────────────────────────────────────────────────────
+// ── Main composition ───────────────────────────────────────────────────────
 export const TransitFlowDemo = () => {
   const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
-  const f = (s: number) => toFrames(s, fps);
 
-  // ── Intro: 0 → 3 s ───────────────────────────────────────────────────────
-  const INTRO_IN  = 0;
-  const INTRO_OUT = f(2.5);
-  const introBg   = frame < f(3) ? 1 : fadeOut(frame, INTRO_OUT, 18);
-  const logoScale = spring({ frame, fps, from: 0.72, to: 1, config: { damping: 14, stiffness: 130 } });
-  const logoOp    = fadeIn(frame, INTRO_IN, 14);
+  // ── INTRO (0 → INTRO_S) ────────────────────────────────────────────────
+  // Fades out smoothly into the first clip (overlapping by CROSS_S)
+  const introBgOp = clamp(interpolate(
+    frame,
+    [f(INTRO_S - CROSS_S), f(INTRO_S)],
+    [1, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp",
+      easing: Easing.in(Easing.ease) }
+  ));
+  const logoScale  = spring({ frame, fps: FPS, from: 0.7, to: 1, config: { damping: 14, stiffness: 120 } });
+  const logoOp     = fadeIn(frame, 0, 0.4);
+  const taglineOp  = fadeIn(frame, 0.6, 0.5);
 
-  // ── Video starts at intro end, offset so it aligns ────────────────────────
-  //    We start the <Video> slightly before the intro fades so there's no gap.
-  const VIDEO_START_FRAME = f(2.8); // frame at which the raw video begins playing
-  const videoOpacity = frame < VIDEO_START_FRAME
-    ? 0
-    : interpolate(frame, [VIDEO_START_FRAME, VIDEO_START_FRAME + 14], [0, 1], {
-        extrapolateRight: "clamp",
-      });
-
-  // ── Feature overlays: keyed to SEGMENTS ──────────────────────────────────
-  const seg = SEGMENTS;
-  const features: { pill: string; title: string; seg: keyof typeof SEGMENTS }[] = [
-    { pill: "Live GTFS data",           title: "Explore the\nGO network",      seg: "explore"   },
-    { pill: "Route Builder",            title: "Design your\nown route",        seg: "design"    },
-    { pill: "Frequency & Fixed times",  title: "Set a custom\nschedule",        seg: "schedule"  },
-    { pill: "Time simulation",          title: "Simulate vehicle\nmovement",    seg: "simulate"  },
-    { pill: "Community feed",           title: "Share with\nthe community",     seg: "community" },
-    { pill: "Your routes",              title: "Manage your\naccount",           seg: "account"   },
-  ];
-
-  // ── Outro: last 4 s ───────────────────────────────────────────────────────
-  const OUTRO_START = durationInFrames - f(4);
-  const outroOp = fadeIn(frame, OUTRO_START, 20);
-  const outroScale = spring({
-    frame: Math.max(0, frame - OUTRO_START),
-    fps,
-    from: 0.82,
-    to: 1,
-    config: { damping: 14 },
+  // ── OUTRO ─────────────────────────────────────────────────────────────
+  // Fades in over the tail of the last clip (crossfade in)
+  const outroStartS = TOTAL_S - OUTRO_S;
+  const outroOp     = clamp(interpolate(
+    frame,
+    [f(outroStartS), f(outroStartS + CROSS_S)],
+    [0, 1],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp",
+      easing: Easing.out(Easing.ease) }
+  ));
+  const outroScale  = spring({
+    frame: Math.max(0, frame - f(outroStartS)),
+    fps: FPS, from: 0.88, to: 1, config: { damping: 16 },
   });
 
   return (
-    <AbsoluteFill
-      style={{ background: DARK, fontFamily: "system-ui, -apple-system, sans-serif" }}
-    >
-      {/* ── Logo intro ──────────────────────────────────────────────────────── */}
-      <AbsoluteFill
-        style={{
-          opacity: introBg,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexDirection: "column",
-          gap: 22,
-          pointerEvents: "none",
-          zIndex: frame < f(3) ? 10 : -1,
-        }}
-      >
-        <div style={{ transform: `scale(${logoScale})`, opacity: logoOp, display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
-          <Logo size={100} />
-          <div style={{ fontSize: 58, fontWeight: 800, color: WHITE, letterSpacing: "-1.5px" }}>
-            TransitFlow
-          </div>
-          <div style={{ fontSize: 20, color: "#4ade80", fontWeight: 500 }}>
-            Design. Simulate. Share.
-          </div>
-        </div>
-      </AbsoluteFill>
+    <AbsoluteFill style={{ background: DARK, fontFamily: "system-ui, -apple-system, sans-serif" }}>
 
-      {/* ── Screen recording ────────────────────────────────────────────────── */}
-      <AbsoluteFill style={{ opacity: videoOpacity }}>
-        <Video
-          src={staticFile("demo-raw.mp4")}
-          startFrom={0}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
-        <BottomVignette />
+      {/* ── CLIPS with crossfade transitions ──────────────────────────── */}
+      {TIMELINE.map((clip, i) => {
+        const { startS, endS } = clip;
+        const isFirst = i === 0;
+        const isLast  = i === CLIPS.length - 1;
 
-        {/* Feature label overlays synced to segments */}
-        {features.map(({ pill, title, seg: segKey }) => {
-          const s = seg[segKey];
-          const startF = f(s.start) + (VIDEO_START_FRAME - f(0));
-          const endF   = f(s.end)   + (VIDEO_START_FRAME - f(0));
-          // Only render within the segment window
-          if (frame < startF - 10 || frame > endF + 10) return null;
-          return (
-            <FeatureOverlay
-              key={segKey}
-              pill={pill}
-              title={title}
-              frame={frame}
-              startFrame={startF}
-              endFrame={endF}
+        // Fade-in: ease out (starts fast, settles smoothly)
+        const fadeInOp = interpolate(
+          frame,
+          [f(startS), f(startS + CROSS_S)],
+          [isFirst ? 0 : 0, 1],
+          { extrapolateLeft: "clamp", extrapolateRight: "clamp",
+            easing: Easing.out(Easing.ease) }
+        );
+
+        // Fade-out: ease in (lingers then drops — feels like a dissolve)
+        const fadeOutOp = isLast ? 1 : interpolate(
+          frame,
+          [f(endS - CROSS_S), f(endS)],
+          [1, 0],
+          { extrapolateLeft: "clamp", extrapolateRight: "clamp",
+            easing: Easing.in(Easing.ease) }
+        );
+
+        const clipOp = clamp(Math.min(fadeInOp, fadeOutOp));
+        if (clipOp < 0.01 && frame > f(endS)) return null;
+
+        // Label: slides up + fades in for the first 4 s after the crossfade settles,
+        // then fades out 1 s before the next transition starts
+        const labelStart = startS + CROSS_S * 0.5;
+        const labelEnd   = isLast ? endS - 1 : endS - CROSS_S - 0.5;
+        const labelOp    = clamp(
+          interpolate(frame,
+            [f(labelStart), f(labelStart + 0.5), f(labelEnd - 0.5), f(labelEnd)],
+            [0, 1, 1, 0],
+            { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+          )
+        );
+        const labelY = interpolate(frame, [f(labelStart), f(labelStart + 0.6)], [20, 0], {
+          extrapolateLeft: "clamp", extrapolateRight: "clamp",
+          easing: Easing.out(Easing.cubic),
+        });
+
+        return (
+          <AbsoluteFill key={i} style={{ opacity: clipOp }}>
+            <Video
+              src={staticFile(clip.file)}
+              playbackRate={clip.playbackRate}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
-          );
-        })}
-      </AbsoluteFill>
+            <Vignette />
+            <FeatureLabel title={clip.label} opacity={labelOp} slideY={labelY} />
+          </AbsoluteFill>
+        );
+      })}
 
-      {/* ── Outro ───────────────────────────────────────────────────────────── */}
-      {frame >= OUTRO_START && (
-        <AbsoluteFill
-          style={{
-            opacity: outroOp,
-            background: DARK,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexDirection: "column",
-            gap: 24,
-            zIndex: 20,
-          }}
-        >
-          <div style={{ transform: `scale(${outroScale})`, display: "flex", flexDirection: "column", alignItems: "center", gap: 24 }}>
-            <Logo size={90} />
-            <div style={{ fontSize: 54, fontWeight: 800, color: WHITE, letterSpacing: "-1.5px" }}>
+      {/* ── INTRO overlay ─────────────────────────────────────────────── */}
+      {introBgOp > 0.01 && (
+        <AbsoluteFill style={{
+          opacity: introBgOp, background: DARK,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexDirection: "column", gap: 22,
+        }}>
+          <div style={{
+            transform: `scale(${logoScale})`, opacity: logoOp,
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 20,
+          }}>
+            <Logo size={96} />
+            <div style={{ fontSize: 60, fontWeight: 800, color: WHITE, letterSpacing: "-2px" }}>
               TransitFlow
             </div>
-            <div style={{ fontSize: 19, color: "#94a3b8", maxWidth: 500, textAlign: "center", lineHeight: 1.55 }}>
-              Design and simulate your own transit network.<br />
-              No software required.
+            <div style={{
+              opacity: taglineOp, fontSize: 18, fontWeight: 400,
+              color: "#94a3b8", letterSpacing: "0.01em",
+            }}>
+              GO Transit design and simulation in the browser.
             </div>
-            <div
-              style={{
-                marginTop: 8,
-                background: GREEN,
-                borderRadius: 14,
-                padding: "14px 38px",
-                fontSize: 18,
-                fontWeight: 700,
-                color: WHITE,
-                boxShadow: "0 0 50px rgba(0,122,51,0.45)",
-              }}
-            >
+          </div>
+        </AbsoluteFill>
+      )}
+
+      {/* ── OUTRO overlay ─────────────────────────────────────────────── */}
+      {outroOp > 0.01 && (
+        <AbsoluteFill style={{
+          opacity: outroOp, background: DARK,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexDirection: "column", gap: 24,
+        }}>
+          <div style={{
+            transform: `scale(${outroScale})`,
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 22,
+          }}>
+            <Logo size={88} />
+            <div style={{ fontSize: 54, fontWeight: 800, color: WHITE, letterSpacing: "-2px" }}>
+              TransitFlow
+            </div>
+            <div style={{
+              fontSize: 18, color: "#64748b", maxWidth: 460,
+              textAlign: "center" as const, lineHeight: 1.7,
+            }}>
+              Design and simulate your own transit network.
+            </div>
+            <div style={{
+              marginTop: 4, fontSize: 16, fontWeight: 500,
+              color: YELLOW, letterSpacing: "0.01em",
+            }}>
               transit-flow-two.vercel.app
             </div>
           </div>
         </AbsoluteFill>
       )}
+
     </AbsoluteFill>
   );
 };
+
+// Export computed total for Root.tsx
+export { TOTAL_FRAMES };
