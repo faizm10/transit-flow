@@ -166,6 +166,8 @@ export interface CustomSchedule {
   // ── fixed mode ────────────────────────────────────────────────────────────
   fixedDepartures?: string[];       // HH:MM outbound
   returnDepartures?: string[];      // HH:MM return direction (optional)
+  // ── return direction hours (frequency mode) ───────────────────────────────
+  returnFrequency?: { start: string; end: string }; // same interval, different window
   // ── timetable mode ───────────────────────────────────────────────────────
   stopTimes?:         StopTimeEntry[];
   firstDepartureSec?: number; // seconds since midnight for simulation seed
