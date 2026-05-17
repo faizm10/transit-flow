@@ -7,6 +7,7 @@ const MAP = "/map";
 const NAV = [
   { label: "Explore", href: MAP },
   { label: "Community", href: "/community" },
+  { label: "Service Updates", href: "/service-updates" },
   { label: "About", href: "/about" },
 ] as const;
 
