@@ -183,6 +183,16 @@ export default function BuilderWizard({
     existingRoute?.schedule?.returnDepartures ?? []
   );
   const [newReturnDeparture, setNewReturnDeparture] = useState("");
+  // Frequency-mode return direction
+  const [returnFreqEnabled, setReturnFreqEnabled] = useState(
+    !!existingRoute?.schedule?.returnFrequency
+  );
+  const [returnServiceStart, setReturnServiceStart] = useState(
+    existingRoute?.schedule?.returnFrequency?.start ?? "06:00"
+  );
+  const [returnServiceEnd, setReturnServiceEnd] = useState(
+    existingRoute?.schedule?.returnFrequency?.end ?? "23:00"
+  );
 
   // ── Route geometry state ──────────────────────────────────────────────────
   // For bus: computed from Directions API based on stops
@@ -531,6 +541,9 @@ export default function BuilderWizard({
         weekday: { start: serviceStart, end: serviceEnd, interval: frequencyInterval },
         weekend: { start: serviceStart, end: serviceEnd, interval: frequencyInterval * 2 },
       },
+      ...(returnFreqEnabled
+        ? { returnFrequency: { start: returnServiceStart, end: returnServiceEnd } }
+        : {}),
       direction: "two-way",
     };
   }
@@ -1195,6 +1208,68 @@ export default function BuilderWizard({
                   <p className="text-xs text-slate-400 mt-2">
                     Weekends run every {frequencyInterval * 2} min
                   </p>
+                </div>
+
+                {/* Return direction */}
+                <div className="rounded-xl border border-slate-100 p-3">
+                  <button
+                    type="button"
+                    onClick={() => setReturnFreqEnabled((v) => !v)}
+                    className={`flex w-full items-center justify-between text-sm font-medium transition-colors ${
+                      returnFreqEnabled ? "text-[#007A33]" : "text-slate-600"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Repeat className="w-4 h-4" />
+                      Return direction
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      returnFreqEnabled ? "bg-emerald-100 text-[#007A33]" : "bg-slate-100 text-slate-400"
+                    }`}>
+                      {returnFreqEnabled ? "On" : "Off"}
+                    </span>
+                  </button>
+
+                  {returnFreqEnabled && (
+                    <div className="mt-3 flex flex-col gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReturnServiceStart(serviceStart);
+                          setReturnServiceEnd(serviceEnd);
+                        }}
+                        className="self-start text-xs text-[#007A33] underline underline-offset-2 hover:text-[#005f28]"
+                      >
+                        Copy from outbound
+                      </button>
+                      <div>
+                        <Label className="text-xs text-slate-500 mb-1.5 block">Return service hours</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs text-slate-400">Start</span>
+                            <Input
+                              type="time"
+                              value={returnServiceStart}
+                              onChange={(e) => setReturnServiceStart(e.target.value)}
+                              className="rounded-xl h-9"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs text-slate-400">End</span>
+                            <Input
+                              type="time"
+                              value={returnServiceEnd}
+                              onChange={(e) => setReturnServiceEnd(e.target.value)}
+                              className="rounded-xl h-9"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Same frequency ({frequencyInterval} min) in the return direction
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
