@@ -1,12 +1,13 @@
 /**
  * TransitFlow demo video — built from 4 real screen-recording clips.
+ * Target: ≤ 60 s total
  *
- * clip1.mov  12s   Map & Explore the GO network
- * clip2.mov  72s   Design a route  (played at 1.5× → ~48s)
- * clip3.mov  30s   Simulate the new custom route
- * clip4.mov  44s   Simulate the full GO network
+ * clip1.mov  12.1 s source → 10 s screen  @ 1.2×
+ * clip2.mov  71.9 s source → 17 s screen  @ ~4.2×
+ * clip3.mov  29.6 s source → 12 s screen  @ ~2.5×
+ * clip4.mov  43.6 s source → 14 s screen  @ ~3.1×
  *
- * Total ≈ 2:20 at 30 fps
+ * Intro 2 s + clips 53 s + outro 3 s − 3 crossfades (1 s each) = 55 s
  */
 
 import {
@@ -14,7 +15,6 @@ import {
   interpolate,
   spring,
   useCurrentFrame,
-  useVideoConfig,
   Video,
   Easing,
   staticFile,
@@ -26,30 +26,30 @@ const DARK    = "#0a1628";
 const WHITE   = "#ffffff";
 const YELLOW  = "#FFD047";   // feature label text
 
-// ── Clip timing @ 30 fps composition ─────────────────────────────────────
-// clip2 plays at 1.5× so 71.9 s of footage → 47.9 s of screen time
+// ── Clip definitions ──────────────────────────────────────────────────────
+// screenS  = how long the viewer sees this clip
+// sourceS  = actual recording length (used to compute playbackRate)
 const CLIPS = [
-  { file: "clip1.mov", label: "Browse real GO Transit routes on a live map.",          durationS: 12.1, playbackRate: 1   },
-  { file: "clip2.mov", label: "Draw your own route, add stops, set a schedule.",       durationS: 71.9, playbackRate: 1.5 },
-  { file: "clip3.mov", label: "Watch your route run as a time simulation.",            durationS: 29.6, playbackRate: 1   },
-  { file: "clip4.mov", label: "Simulate the entire GO network at any time of day.",    durationS: 43.6, playbackRate: 1   },
-];
+  { file: "clip1.mov", label: "Browse real GO Transit routes on a live map.",       screenS: 10, sourceS: 12.1 },
+  { file: "clip2.mov", label: "Draw your own route, add stops, set a schedule.",    screenS: 17, sourceS: 71.9 },
+  { file: "clip3.mov", label: "Watch your route run as a time simulation.",         screenS: 12, sourceS: 29.6 },
+  { file: "clip4.mov", label: "Simulate the entire GO network at any time of day.", screenS: 14, sourceS: 43.6 },
+].map(c => ({ ...c, playbackRate: c.sourceS / c.screenS }));
 
 const FPS     = 30;
-const INTRO_S = 3;
-const CROSS_S = 1.2;  // crossfade overlap between clips (both visible simultaneously)
-const OUTRO_S = 5;
+const INTRO_S = 2;
+const CROSS_S = 1.0;  // crossfade overlap between clips (both visible simultaneously)
+const OUTRO_S = 3;
 
 // Pre-compute timeline — each clip starts CROSS_S before the previous one ends
 // so they overlap during the transition, producing a true crossfade.
 function buildTimeline() {
   let cursor = INTRO_S;
   return CLIPS.map((c, i) => {
-    const screenS = c.durationS / c.playbackRate;
-    const startS  = i === 0 ? cursor : cursor - CROSS_S;
-    const endS    = startS + screenS;
+    const startS = i === 0 ? cursor : cursor - CROSS_S;
+    const endS   = startS + c.screenS;
     cursor = endS;
-    return { ...c, screenS, startS, endS };
+    return { ...c, startS, endS };
   });
 }
 
@@ -214,6 +214,7 @@ export const TransitFlowDemo = () => {
             <Video
               src={staticFile(clip.file)}
               playbackRate={clip.playbackRate}
+              endAt={Math.round(clip.sourceS * FPS)}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
             <Vignette />
