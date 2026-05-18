@@ -65,22 +65,6 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## Repository layout
-
-```
-transit-flow/
-├── client/               # Next.js 16 app — UI, API routes, GTFS assets
-│   ├── app/              # App Router pages & API routes
-│   ├── components/       # React components
-│   ├── lib/              # GTFS parsing, DB, auth, utilities
-│   ├── public/gotransit/ # Pre-built GTFS-derived JSON/GeoJSON
-│   └── remotion/         # Demo video composition
-├── server/data/          # Raw GTFS feeds
-└── scripts/              # Python pipelines for derived assets
-```
-
----
-
 ## Tech stack
 
 - **Framework** — Next.js 16 (App Router, React 19)
