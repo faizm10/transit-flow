@@ -4,15 +4,18 @@ import { Train } from "lucide-react";
 const MAP = "/map";
 
 const PRODUCT = [
-  { label: "Explore", href: MAP },
-  { label: "Design", href: MAP },
-  { label: "Schedules", href: MAP },
-  { label: "Simulate", href: MAP },
+  { label: "Explore",        href: MAP },
+  { label: "Design",         href: MAP },
+  { label: "Schedules",      href: MAP },
+  { label: "Simulate",       href: `${MAP}?mode=simulate` },
+  { label: "Service Updates",href: "/service-updates" },
 ] as const;
 
 const COMPANY = [
-  { label: "About", href: "/about" },
-  { label: "How it works", href: "/#how-it-works" },
+  { label: "About",     href: "/about"      },
+  { label: "Community", href: "/community"  },
+  { label: "Roadmap",   href: "https://github.com/faizm10/transit-flow/issues" },
+  { label: "GitHub",    href: "https://github.com/faizm10/transit-flow"        },
 ] as const;
 
 export default function MarketingFooter() {
@@ -56,24 +59,20 @@ export default function MarketingFooter() {
               Company
             </p>
             <ul className="mt-4 space-y-2.5 text-sm">
-              {COMPANY.map(({ label, href }) => (
-                <li key={label}>
-                  <Link
-                    href={href}
-                    className="text-[var(--landing-fg)] transition-colors hover:text-[var(--landing-accent)] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-band)]"
-                  >
-                    {label}
-                  </Link>
-                </li>
-              ))}
-              <li>
-                <a
-                  href="https://github.com/faizm10/transit-flow"
-                  className="text-[var(--landing-fg)] transition-colors hover:text-[var(--landing-accent)] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-band)]"
-                >
-                  GitHub
-                </a>
-              </li>
+              {COMPANY.map(({ label, href }) => {
+                const external = href.startsWith("http");
+                return (
+                  <li key={label}>
+                    <Link
+                      href={href}
+                      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                      className="text-[var(--landing-fg)] transition-colors hover:text-[var(--landing-accent)] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-band)]"
+                    >
+                      {label}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>
