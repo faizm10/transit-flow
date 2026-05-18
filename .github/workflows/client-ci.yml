@@ -21,6 +21,9 @@ jobs:
     env:
       NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: test-token
       NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+      AUTH_TRUST_HOST: "true"
+      NEXTAUTH_URL: http://localhost:3000
+      AUTH_SECRET: ci-test-secret-not-for-production
     steps:
       - uses: actions/checkout@v4
 
