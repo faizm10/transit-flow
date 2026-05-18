@@ -26,11 +26,21 @@ export default async function AccountPage() {
   if (!session?.user) redirect("/community");
 
   const userId = session.user.id!;
-  const userPosts = await db
-    .select()
-    .from(posts)
-    .where(eq(posts.userId, userId))
-    .orderBy(desc(posts.createdAt));
+
+  type PostRow = typeof posts.$inferSelect;
+  let userPosts: PostRow[] = [];
+  let dbError = false;
+
+  try {
+    userPosts = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.userId, userId))
+      .orderBy(desc(posts.createdAt));
+  } catch (err) {
+    console.error("[account] DB query failed:", err);
+    dbError = true;
+  }
 
   const accountPosts: AccountPost[] = userPosts.map((p) => ({
     id: p.id,
@@ -118,7 +128,23 @@ export default async function AccountPage() {
           </Link>
         </div>
 
-        {accountPosts.length === 0 ? (
+        {dbError ? (
+          <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-red-200 bg-red-50 py-20 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-red-200 bg-white">
+              <MapPin className="h-6 w-6 text-red-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-700">Couldn&apos;t load your routes</p>
+              <p className="mt-1 text-sm text-slate-400">There was a temporary problem connecting to the database. Try reloading the page.</p>
+            </div>
+            <Link
+              href="/account"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              Reload
+            </Link>
+          </div>
+        ) : accountPosts.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-slate-300 py-20 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50">
               <MapPin className="h-6 w-6 text-slate-400" />
