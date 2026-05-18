@@ -17,7 +17,7 @@
 
 ## Demo
 
-<video src="https://github.com/faizm10/transit-flow/releases/download/v1.0.0/demo.mp4" controls width="100%"></video>
+[![Watch the demo](client/public/demo-thumbnail.jpg)](https://github.com/faizm10/transit-flow/releases/download/v1.0.0/demo.mp4)
 
 ---
 
