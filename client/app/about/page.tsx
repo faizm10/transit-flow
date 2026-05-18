@@ -15,10 +15,20 @@ import MarketingShell from "@/components/marketing/MarketingShell";
 import MarketingHeader from "@/components/marketing/MarketingHeader";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://transit-flow-two.vercel.app";
+
 export const metadata: Metadata = {
-  title: "About — TransitFlow",
+  title: "About",
   description:
-    "TransitFlow is a map tool for exploring GO Transit and designing your own transit networks.",
+    "TransitFlow is a free, browser-based tool for exploring the GO Transit network, designing custom routes, and simulating transit service — no planning software required.",
+  alternates: { canonical: `${SITE_URL}/about` },
+  openGraph: {
+    title: "About — TransitFlow",
+    description:
+      "TransitFlow is a free, browser-based tool for exploring the GO Transit network, designing custom routes, and simulating transit service — no planning software required.",
+    url: `${SITE_URL}/about`,
+  },
 };
 
 const DOT_BG =

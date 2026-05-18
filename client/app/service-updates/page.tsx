@@ -5,10 +5,20 @@ import { AlertCard } from "@/components/service-updates/AlertCard";
 import { LineFilterBar } from "@/components/service-updates/LineFilterBar";
 import { fetchServiceUpdates } from "@/lib/serviceUpdates";
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://transit-flow-two.vercel.app";
+
 export const metadata: Metadata = {
-  title: "Service Updates — TransitFlow",
+  title: "Service Updates",
   description:
-    "Live GO Transit service alerts — delays, cancellations, and service notices for all GO lines.",
+    "Live GO Transit service alerts — delays, cancellations, and service notices for Lakeshore West, Barrie, Kitchener, Stouffville, Richmond Hill, Milton, and UP Express lines.",
+  alternates: { canonical: `${SITE_URL}/service-updates` },
+  openGraph: {
+    title: "GO Transit Service Updates — TransitFlow",
+    description:
+      "Live GO Transit service alerts — delays, cancellations, and service notices for all GO lines.",
+    url: `${SITE_URL}/service-updates`,
+  },
 };
 
 function formatFetchTime(iso: string): string {

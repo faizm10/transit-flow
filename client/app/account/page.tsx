@@ -17,7 +17,8 @@ import type { CustomRoute } from "@/lib/gtfs";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Account — TransitFlow",
+  title: "Account",
+  robots: { index: false, follow: false },
 };
 
 export default async function AccountPage() {

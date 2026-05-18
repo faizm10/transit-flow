@@ -1,5 +1,23 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
+
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://transit-flow-two.vercel.app";
+
+export const metadata: Metadata = {
+  title: "TransitFlow — GO Transit Explorer & Route Designer",
+  description:
+    "Plan better GO Transit networks with live GTFS intelligence. Explore routes, design new lines, simulate time-of-day service, and share ideas with the community.",
+  alternates: { canonical: SITE_URL },
+  openGraph: {
+    title: "TransitFlow — GO Transit Explorer & Route Designer",
+    description:
+      "Plan better GO Transit networks with live GTFS intelligence. Explore routes, design new lines, simulate time-of-day service, and share ideas with the community.",
+    url: SITE_URL,
+    type: "website",
+  },
+};
 import {
   ArrowRight,
   Check,
@@ -190,9 +208,50 @@ function Cell({ val }: { val: CellVal }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "TransitFlow",
+      url: SITE_URL,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/landing-page.png`,
+      },
+      sameAs: ["https://github.com/faizm10/transit-flow"],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: "TransitFlow",
+      description:
+        "GO Transit route explorer, designer, and simulator built on live GTFS data.",
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "TransitFlow",
+      url: SITE_URL,
+      applicationCategory: "UtilitiesApplication",
+      operatingSystem: "Web",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "CAD" },
+      description:
+        "Browser-based GO Transit network explorer and route designer. View live GTFS data, draw custom routes, simulate time-of-day service, and share designs with the community.",
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+  ],
+};
+
 export default function LandingPage() {
   return (
     <MarketingShell>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <LandingHeader />
 
       {/* ── 1. HERO ────────────────────────────────────────────────────────── */}

@@ -14,10 +14,20 @@ import type { CustomRoute } from "@/lib/gtfs";
 // Always fetch fresh posts from the DB — never serve a stale static snapshot
 export const dynamic = "force-dynamic";
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://transit-flow-two.vercel.app";
+
 export const metadata: Metadata = {
-  title: "Community — TransitFlow",
+  title: "Community",
   description:
-    "Browse and share custom GO Transit network designs from the TransitFlow community.",
+    "Browse and share custom GO Transit network designs. Explore routes created by the TransitFlow community and load them directly onto the map.",
+  alternates: { canonical: `${SITE_URL}/community` },
+  openGraph: {
+    title: "Community — TransitFlow",
+    description:
+      "Browse and share custom GO Transit network designs. Explore routes created by the TransitFlow community and load them directly onto the map.",
+    url: `${SITE_URL}/community`,
+  },
 };
 
 const PAGE_SIZE = 20;

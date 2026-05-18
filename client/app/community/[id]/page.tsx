@@ -62,14 +62,30 @@ async function getComments(postId: string) {
     .orderBy(asc(comments.createdAt));
 }
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://transit-flow-two.vercel.app";
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   try {
     const post = await getPost(id);
-    if (!post) return { title: "Not found — TransitFlow Community" };
+    if (!post) return { title: "Not found" };
+    const description =
+      post.description ??
+      `A custom ${post.routeType ?? "transit"} route with ${post.stopCount} stops, designed in TransitFlow.`;
+    const pageUrl = `${SITE_URL}/community/${id}`;
     return {
-      title: `${post.title} — TransitFlow Community`,
-      description: post.description ?? `A custom ${post.routeType} route with ${post.stopCount} stops.`,
+      title: post.title,
+      description,
+      alternates: { canonical: pageUrl },
+      openGraph: {
+        title: `${post.title} — TransitFlow Community`,
+        description,
+        url: pageUrl,
+        type: "article",
+        authors: post.userName ? [post.userName] : undefined,
+        publishedTime: post.createdAt?.toISOString(),
+      },
     };
   } catch {
     return { title: "TransitFlow Community" };
