@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Train, ArrowRight } from "lucide-react";
+import { Train } from "lucide-react";
 import HeaderUserSection from "./HeaderUserSection";
 
 const MAP = "/map";
@@ -48,13 +48,6 @@ export default function LandingHeader() {
         {/* Right side */}
         <div className="flex shrink-0 items-center gap-3">
           <HeaderUserSection />
-          <Link
-            href={MAP}
-            className="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-[var(--landing-accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#006b2d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2"
-          >
-            Open Map
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-          </Link>
         </div>
 
       </div>
