@@ -230,9 +230,15 @@ export default function BuilderWizard({
   const [pendingTrainStation, setPendingTrainStation] = useState<{ lat: number; lon: number } | null>(null);
   const [pendingTrainStationName, setPendingTrainStationName] = useState("");
   const [saveTrainStationToLibrary, setSaveTrainStationToLibrary] = useState(true);
+  // True when pin mode interrupted an active drawing session — resume after station placed/cancelled
+  const resumeDrawAfterPinRef = useRef(false);
 
   function startPlaceTrainStationOnMap() {
     if (!onStartPinMode || isEditing || pendingTrainStation) return;
+    // If the user is mid-draw (step=draw, no completed geometry yet), we need to
+    // interrupt drawing. Map.tsx's startPinMode will stop MapboxDraw automatically.
+    // Track this so we can restart drawing when they're done.
+    resumeDrawAfterPinRef.current = step === "draw" && !routeGeometry;
     setPlacingTrainStation(true);
     onStartPinMode((lat, lon) => {
       setPendingTrainStation({ lat, lon });
@@ -248,6 +254,11 @@ export default function BuilderWizard({
     setPendingTrainStation(null);
     setPendingTrainStationName("");
     onStopPinMode?.();
+    // Resume drawing if we interrupted it
+    if (resumeDrawAfterPinRef.current) {
+      resumeDrawAfterPinRef.current = false;
+      onDrawRequest();
+    }
   }
 
   function confirmPendingTrainStation() {
@@ -272,6 +283,11 @@ export default function BuilderWizard({
     }
     setPendingTrainStation(null);
     setPendingTrainStationName("");
+    // Resume drawing if we interrupted it
+    if (resumeDrawAfterPinRef.current) {
+      resumeDrawAfterPinRef.current = false;
+      onDrawRequest();
+    }
   }
 
   function busStopCodeFromName(name: string): string {

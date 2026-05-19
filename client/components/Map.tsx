@@ -334,7 +334,13 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
     // ── Pin mode (ExtendRouteWizard) ─────────────────────────────────────────
     startPinMode: (onPin) => {
       const map = mapRef.current;
-      if (!map || isDrawingRef.current) return;
+      if (!map) return;
+
+      // If MapboxDraw is active, stop it first so its click handler doesn't
+      // intercept the pin placement click.
+      if (isDrawingRef.current && drawRef.current) {
+        cleanupDraw(map, drawRef.current);
+      }
 
       // Remove any existing pin listener first
       if (pinListenerRef.current) {
