@@ -15,12 +15,6 @@
 
 ---
 
-## Demo
-
-<img src="client/public/demo-autoplay.gif" alt="TransitFlow demo — simulation running across the GTHA" width="100%" />
-
-▶ [Watch the full demo](https://github.com/faizm10/transit-flow/releases/download/v1.0.0/demo.mp4)
-
 ---
 
 ## What it does
