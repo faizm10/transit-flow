@@ -15,6 +15,18 @@
 
 ---
 
+<!-- GA_STATS_START -->
+## 📊 Live stats
+
+| Metric | Last 7 days | Last 30 days |
+|--------|:-----------:|:------------:|
+| Active users | **—** | **—** |
+| Page views | **—** | **—** |
+| Sessions | — | **—** |
+
+<sub>🤖 Auto-updated every hour &nbsp;·&nbsp; not yet fetched</sub>
+<!-- GA_STATS_END -->
+
 ---
 
 ## What it does
