@@ -75,7 +75,7 @@ async function main() {
 <sub>🤖 Auto-updated every hour &nbsp;·&nbsp; ${updatedAt}</sub>
 <!-- GA_STATS_END -->`;
 
-  const readmePath = path.join(__dirname, "..", "README.md");
+  const readmePath = path.join(__dirname, "..", "readme.md");
   let readme = fs.readFileSync(readmePath, "utf8");
 
   if (
