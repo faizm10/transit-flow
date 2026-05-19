@@ -143,18 +143,6 @@ export default function BugReportModal({ open, onClose }: Props) {
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="bug-page" className="text-xs font-medium text-gray-700">
-                Page <span className="text-gray-400">(auto-filled)</span>
-              </label>
-              <input
-                id="bug-page"
-                value={page}
-                onChange={(e) => setPage(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 focus:border-[#007A33] focus:outline-none focus:ring-1 focus:ring-[#007A33]"
-              />
-            </div>
-
             {error && <p className="text-xs text-red-500">{error}</p>}
 
             <div className="flex items-center justify-end gap-2 border-t border-gray-100 pt-2">
