@@ -771,6 +771,109 @@ export default function BuilderWizard({
               </div>
             )}
 
+            {/* ── Station picker (draw step) ──────────────────────────────── */}
+            <div className="border-t border-slate-100 pt-4 flex flex-col gap-2">
+              <p className="text-xs font-medium text-slate-500">Add stations along your line</p>
+
+              {!pendingTrainStation && (
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      placeholder="Search GO stations…"
+                      value={stopQuery}
+                      onChange={(e) => { setStopQuery(e.target.value); searchStops(e.target.value); }}
+                      className="rounded-xl h-9 text-sm pr-7"
+                      disabled={placingTrainStation}
+                    />
+                    {searching && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+                    )}
+                  </div>
+                  {onStartPinMode && (
+                    <button
+                      onClick={placingTrainStation ? cancelPlaceTrainStationOnMap : startPlaceTrainStationOnMap}
+                      title={placingTrainStation ? "Cancel" : "Place new station on map"}
+                      className={`flex-shrink-0 flex items-center gap-1 rounded-xl px-3 text-xs font-medium border transition-colors ${
+                        placingTrainStation
+                          ? "bg-amber-50 border-amber-200 text-amber-700"
+                          : "bg-white border-slate-200 text-slate-600 hover:border-slate-400"
+                      }`}
+                    >
+                      <MapPin className="w-3.5 h-3.5" />
+                      {placingTrainStation ? "Cancel" : "New"}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {placingTrainStation && !pendingTrainStation && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
+                  <p className="font-medium">Click anywhere on the map to place the station</p>
+                </div>
+              )}
+
+              {pendingTrainStation && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-[#007A33] flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                    {pendingTrainStation.lat.toFixed(4)}, {pendingTrainStation.lon.toFixed(4)}
+                  </p>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Station name"
+                    value={pendingTrainStationName}
+                    onChange={(e) => setPendingTrainStationName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") confirmPendingTrainStation(); }}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/30"
+                  />
+                  <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                    <input type="checkbox" checked={saveTrainStationToLibrary} onChange={(e) => setSaveTrainStationToLibrary(e.target.checked)} className="rounded" />
+                    Save to station library
+                  </label>
+                  <div className="flex gap-2">
+                    <button onClick={cancelPlaceTrainStationOnMap} className="flex-1 rounded-lg border border-slate-200 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+                    <button onClick={confirmPendingTrainStation} className="flex-1 rounded-lg bg-[#007A33] py-1.5 text-xs font-medium text-white hover:bg-[#005f28]">Add to route</button>
+                  </div>
+                </div>
+              )}
+
+              {stopResults.length > 0 && !pendingTrainStation && (
+                <div className="rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden">
+                  {stopResults.map((s) => {
+                    const isCustom = s.id.startsWith("station:");
+                    return (
+                      <button
+                        key={s.id}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-slate-50 text-left border-b border-slate-50 last:border-0"
+                        onClick={() => addStop(s)}
+                      >
+                        {isCustom
+                          ? <Train className="w-4 h-4 text-[#007A33] flex-shrink-0" />
+                          : <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />}
+                        <span className="flex-1 truncate">{s.name}</span>
+                        {isCustom && <span className="text-[10px] text-[#007A33] bg-emerald-50 rounded px-1.5 py-0.5 font-medium">saved</span>}
+                        <Plus className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {stops.length > 0 && (
+                <div className="flex flex-col gap-1 pt-1">
+                  <p className="text-xs text-slate-400">{stops.length} station{stops.length !== 1 ? "s" : ""} added</p>
+                  {stops.map((s, i) => (
+                    <div key={s.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white border border-slate-100">
+                      <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0" style={{ backgroundColor: color }}>{i + 1}</div>
+                      <span className="text-xs text-slate-700 flex-1 truncate">{s.name}</span>
+                      <button onClick={() => removeStop(s.id)} className="text-slate-300 hover:text-red-400 transition-colors"><X className="w-3 h-3" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <p className="text-xs text-slate-400 text-center">
               Travel time is estimated from line length (not real-world timetables). Use Edit to reshape anytime.
             </p>
