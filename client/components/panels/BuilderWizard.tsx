@@ -225,6 +225,55 @@ export default function BuilderWizard({
   const [pendingBusStopName, setPendingBusStopName] = useState("");
   const [savePlacedStopToLibrary, setSavePlacedStopToLibrary] = useState(false);
 
+  // ── Train: place new station on map ──────────────────────────────────────
+  const [placingTrainStation, setPlacingTrainStation] = useState(false);
+  const [pendingTrainStation, setPendingTrainStation] = useState<{ lat: number; lon: number } | null>(null);
+  const [pendingTrainStationName, setPendingTrainStationName] = useState("");
+  const [saveTrainStationToLibrary, setSaveTrainStationToLibrary] = useState(true);
+
+  function startPlaceTrainStationOnMap() {
+    if (!onStartPinMode || isEditing || pendingTrainStation) return;
+    setPlacingTrainStation(true);
+    onStartPinMode((lat, lon) => {
+      setPendingTrainStation({ lat, lon });
+      setPendingTrainStationName("");
+      setSaveTrainStationToLibrary(true);
+      onStopPinMode?.();
+      setPlacingTrainStation(false);
+    });
+  }
+
+  function cancelPlaceTrainStationOnMap() {
+    setPlacingTrainStation(false);
+    setPendingTrainStation(null);
+    setPendingTrainStationName("");
+    onStopPinMode?.();
+  }
+
+  function confirmPendingTrainStation() {
+    if (!pendingTrainStation) return;
+    const name = pendingTrainStationName.trim() || "New Station";
+    const stop: CustomStop = {
+      id: uuidv4(),
+      name,
+      lat: pendingTrainStation.lat,
+      lon: pendingTrainStation.lon,
+      sequence: stops.length + 1,
+    };
+    addStop(stop);
+    if (saveTrainStationToLibrary && onSaveStation) {
+      onSaveStation({
+        name,
+        lat: pendingTrainStation.lat,
+        lon: pendingTrainStation.lon,
+        type: "train",
+        code: name.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 4).toUpperCase(),
+      });
+    }
+    setPendingTrainStation(null);
+    setPendingTrainStationName("");
+  }
+
   function busStopCodeFromName(name: string): string {
     const words = name.trim().split(/\s+/);
     if (words.length === 1) return name.slice(0, 4).toUpperCase();
@@ -988,40 +1037,118 @@ export default function BuilderWizard({
             {routeType === "train" && (
               <>
                 <p className="text-sm text-slate-500">
-                  Optional: add or reorder stations. Your drawn line stays the path unless you clear it and build from
-                  stations only (2+ stops in order).
+                  Search GO Transit stations or your saved stations to add them to the route. No station nearby? Place a new one directly on the map.
                 </p>
 
-                {/* Optional stop search */}
-                <div className="relative">
-                  <Input
-                    placeholder="Add stations (optional)…"
-                    value={stopQuery}
-                    onChange={(e) => {
-                      setStopQuery(e.target.value);
-                      searchStops(e.target.value);
-                    }}
-                    className="rounded-xl h-10 pr-8"
-                    disabled={isEditing}
-                  />
-                  {searching && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
-                  )}
-                </div>
-
-                {stopResults.length > 0 && (
-                  <div className="rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden">
-                    {stopResults.map((s) => (
+                {/* Search + place button row */}
+                {!pendingTrainStation && (
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        placeholder="Search GO stations…"
+                        value={stopQuery}
+                        onChange={(e) => {
+                          setStopQuery(e.target.value);
+                          searchStops(e.target.value);
+                        }}
+                        className="rounded-xl h-10 pr-8"
+                        disabled={isEditing || placingTrainStation}
+                      />
+                      {searching && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+                      )}
+                    </div>
+                    {onStartPinMode && (
                       <button
-                        key={s.id}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-slate-50 text-left border-b border-slate-50 last:border-0"
-                        onClick={() => addStop(s)}
+                        onClick={placingTrainStation ? cancelPlaceTrainStationOnMap : startPlaceTrainStationOnMap}
+                        disabled={isEditing}
+                        title={placingTrainStation ? "Cancel placement" : "Place new station on map"}
+                        className={`flex-shrink-0 flex items-center gap-1.5 rounded-xl px-3 text-xs font-medium border transition-colors ${
+                          placingTrainStation
+                            ? "bg-amber-50 border-amber-200 text-amber-700"
+                            : "bg-white border-slate-200 text-slate-600 hover:border-slate-400 hover:text-slate-800"
+                        }`}
                       >
-                        <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                        {s.name}
-                        <Plus className="ml-auto w-4 h-4 text-slate-300" />
+                        <MapPin className="w-3.5 h-3.5" />
+                        {placingTrainStation ? "Cancel" : "New"}
                       </button>
-                    ))}
+                    )}
+                  </div>
+                )}
+
+                {/* Pin instruction banner */}
+                {placingTrainStation && !pendingTrainStation && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
+                    <p className="font-medium">Click anywhere on the map to place the station</p>
+                    <p className="text-amber-600 mt-0.5">You can name it and save it to your station library</p>
+                  </div>
+                )}
+
+                {/* Pending train station form */}
+                {pendingTrainStation && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex flex-col gap-2.5">
+                    <p className="text-xs font-semibold text-[#007A33] flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                      {pendingTrainStation.lat.toFixed(4)}, {pendingTrainStation.lon.toFixed(4)}
+                    </p>
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Station name (e.g. Guelph Central)"
+                      value={pendingTrainStationName}
+                      onChange={(e) => setPendingTrainStationName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") confirmPendingTrainStation(); }}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/30"
+                    />
+                    <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={saveTrainStationToLibrary}
+                        onChange={(e) => setSaveTrainStationToLibrary(e.target.checked)}
+                        className="rounded"
+                      />
+                      Save to my station library for reuse
+                    </label>
+                    <div className="flex gap-2 pt-0.5">
+                      <button
+                        onClick={cancelPlaceTrainStationOnMap}
+                        className="flex-1 rounded-lg border border-slate-200 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={confirmPendingTrainStation}
+                        className="flex-1 rounded-lg bg-[#007A33] py-1.5 text-xs font-medium text-white hover:bg-[#005f28]"
+                      >
+                        Add to route
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Search results — custom stations first, then GO stops */}
+                {stopResults.length > 0 && !pendingTrainStation && (
+                  <div className="rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden">
+                    {stopResults.map((s) => {
+                      const isCustom = s.id.startsWith("station:");
+                      return (
+                        <button
+                          key={s.id}
+                          className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-slate-50 text-left border-b border-slate-50 last:border-0"
+                          onClick={() => addStop(s)}
+                        >
+                          {isCustom
+                            ? <Train className="w-4 h-4 text-[#007A33] flex-shrink-0" />
+                            : <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                          }
+                          <span className="flex-1 truncate">{s.name}</span>
+                          {isCustom && (
+                            <span className="text-[10px] text-[#007A33] bg-emerald-50 rounded px-1.5 py-0.5 font-medium">saved</span>
+                          )}
+                          <Plus className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
