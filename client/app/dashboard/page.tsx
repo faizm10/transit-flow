@@ -24,12 +24,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const OWNER = "faizm10";
+const OWNER_GITHUB = "faizm10";
+const OWNER_EMAIL  = "faizmustansar10@gmail.com";
 
 export default async function DashboardPage() {
   const session = await auth();
   const login = (session?.user as { login?: string } | undefined)?.login;
-  if (login !== OWNER) notFound();
+  const email = session?.user?.email;
+  if (login !== OWNER_GITHUB && email !== OWNER_EMAIL) notFound();
 
   const [overview, postsOverTime, usersOverTime, topPosts, breakdown, recentUsers] =
     await Promise.all([
