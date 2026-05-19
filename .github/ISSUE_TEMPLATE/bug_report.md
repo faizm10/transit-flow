@@ -5,27 +5,4 @@ title: "[Bug] "
 labels: ["bug", "community-report"]
 ---
 
-## Summary
-
-Describe the bug.
-
-## Steps to reproduce
-
-1.
-2.
-3.
-
-## Expected behavior
-
-What should have happened?
-
-## Actual behavior
-
-What happened instead?
-
-## Captured context
-
-- Page:
-- Browser:
-- Viewport:
-- Source:
+<!-- Describe what happened and any steps to reproduce it. Screenshots or console errors are helpful. -->
