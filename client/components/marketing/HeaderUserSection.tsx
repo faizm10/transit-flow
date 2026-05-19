@@ -58,12 +58,20 @@ export default function HeaderUserSection() {
   }
 
   return (
-    <Link
-      href={MAP}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--landing-accent)] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-[color,background-color,box-shadow] hover:bg-[#006b2d] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
-    >
-      Open map
-      <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-    </Link>
+    <div className="flex items-center gap-2">
+      <Link
+        href="/auth/signin"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--landing-border)] bg-transparent px-3.5 py-2 text-sm font-semibold text-[var(--landing-fg)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-fg)_5%,var(--landing-bg))] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
+      >
+        Sign in
+      </Link>
+      <Link
+        href={MAP}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--landing-accent)] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-[color,background-color,box-shadow] hover:bg-[#006b2d] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
+      >
+        Open map
+        <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+      </Link>
+    </div>
   );
 }
