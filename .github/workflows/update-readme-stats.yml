@@ -37,8 +37,8 @@ jobs:
         run: |
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet README.md || (
-            git add README.md &&
+          git diff --quiet readme.md || (
+            git add readme.md &&
             git commit -m "chore: update live GA4 stats in README [skip ci]" &&
             git push
           )
