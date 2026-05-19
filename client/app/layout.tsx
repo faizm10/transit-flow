@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { SessionProvider } from "next-auth/react";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -98,6 +99,7 @@ export default function RootLayout({
           <Toaster richColors closeButton position="top-right" />
         </SessionProvider>
       </body>
+      <GoogleAnalytics gaId="G-EXFK4TDNWN" />
     </html>
   );
 }
