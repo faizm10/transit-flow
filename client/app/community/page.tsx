@@ -88,7 +88,10 @@ async function getInitialPosts(): Promise<{
 }
 
 export default async function CommunityPage() {
-  const { posts: initialPosts, nextPage } = await getInitialPosts();
+  const [{ posts: initialPosts, nextPage }, session] = await Promise.all([
+    getInitialPosts(),
+    import("@/lib/auth").then((m) => m.auth()),
+  ]);
 
   return (
     <MarketingShell>
@@ -121,7 +124,11 @@ export default async function CommunityPage() {
           </Link>
         </div>
 
-        <CommunityFeed initialPosts={initialPosts} initialNextPage={nextPage} />
+        <CommunityFeed
+          initialPosts={initialPosts}
+          initialNextPage={nextPage}
+          currentUserId={session?.user?.id ?? null}
+        />
       </main>
 
       <MarketingFooter />

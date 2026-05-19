@@ -7,16 +7,22 @@ import { Loader2 } from "lucide-react";
 interface CommunityFeedProps {
   initialPosts: PostSummary[];
   initialNextPage: number | null;
+  currentUserId: string | null;
 }
 
 export default function CommunityFeed({
   initialPosts,
   initialNextPage,
+  currentUserId,
 }: CommunityFeedProps) {
   const [sort, setSort] = useState<"recent" | "top">("recent");
   const [posts, setPosts] = useState<PostSummary[]>(initialPosts);
   const [nextPage, setNextPage] = useState<number | null>(initialNextPage);
   const [loading, setLoading] = useState(false);
+
+  const handleDelete = useCallback((id: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  }, []);
 
   const fetchPage = useCallback(
     async (page: number, newSort: "recent" | "top", replace = false) => {
@@ -77,7 +83,11 @@ export default function CommunityFeed({
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {posts.map((post) => (
             <li key={post.id}>
-              <PostCard post={post} />
+              <PostCard
+                post={post}
+                currentUserId={currentUserId}
+                onDelete={handleDelete}
+              />
             </li>
           ))}
         </ul>
