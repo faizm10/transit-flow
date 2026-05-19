@@ -1,9 +1,6 @@
-import Link from "next/link";
-import { Bug } from "lucide-react";
+import BugReportButton from "@/components/BugReportButton";
 
 const GITHUB_URL = "https://github.com/faizm10/transit-flow";
-const REPORT_BUG_URL =
-  "https://github.com/faizm10/transit-flow/issues/new?template=bug_report.md";
 
 function GitHubIcon() {
   return (
@@ -29,16 +26,7 @@ export default function MarketingFooter() {
           >
             <GitHubIcon />
           </a>
-
-          <a
-            href={REPORT_BUG_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-fg)]"
-          >
-            <Bug className="h-3.5 w-3.5" aria-hidden />
-            Report a bug
-          </a>
+          <BugReportButton variant="nav" />
         </div>
       </div>
     </footer>

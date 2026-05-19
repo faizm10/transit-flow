@@ -1,11 +1,9 @@
 import Link from "next/link";
-import { Train, Bug } from "lucide-react";
+import { Train } from "lucide-react";
 import HeaderUserSection from "./HeaderUserSection";
+import BugReportButton from "@/components/BugReportButton";
 
 const MAP = "/map";
-
-const REPORT_BUG_URL =
-  "https://github.com/faizm10/transit-flow/issues/new?template=bug_report.md";
 
 const NAV = [
   { label: "Explore", href: MAP },
@@ -38,15 +36,7 @@ export default function MarketingHeader() {
             </Link>
           ))}
 
-          <a
-            href={REPORT_BUG_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-1 flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-[var(--landing-muted)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-fg)_5%,var(--landing-bg))] hover:text-[var(--landing-fg)] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
-          >
-            <Bug className="h-3.5 w-3.5" aria-hidden />
-            Report a bug
-          </a>
+          <BugReportButton variant="nav" />
         </nav>
 
         {/* Renders sign-in + "Open map" when signed out, avatar chip when signed in */}
