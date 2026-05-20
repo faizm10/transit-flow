@@ -87,13 +87,15 @@ interface MapProps {
   onRouteHover?: (variantId: string | null, routeShortName: string | null) => void;
   onVehicleClick?: (tripId: string) => void;
   onVehicleHover?: (tripId: string | null) => void;
+  /** When true, show the full OSM rail network overlay (train design mode). */
+  isTrainDesignMode?: boolean;
 }
 
 const TORONTO_CENTER: [number, number] = [-79.385, 43.693];
 const DEFAULT_ZOOM = 9.5;
 
 const Map = forwardRef<MapHandle, MapProps>(function Map(
-  { onLoad, onMapDestroy, onRouteClick, onCustomRouteClick, onRouteHover, onVehicleClick, onVehicleHover },
+  { onLoad, onMapDestroy, onRouteClick, onCustomRouteClick, onRouteHover, onVehicleClick, onVehicleHover, isTrainDesignMode },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -539,6 +541,26 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         },
       });
 
+      // ── Rail network overlay (train design mode) ──────────────────────────
+      map.addSource("rail-network-display", {
+        type: "geojson",
+        data: "/gotransit/derived/rail_display.geojson",
+      });
+      map.addLayer({
+        id: "rail-network-line",
+        type: "line",
+        source: "rail-network-display",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#94a3b8",
+          "line-width": 1.5,
+          "line-opacity": 0.55,
+          "line-dasharray": [3, 2],
+        },
+        filter: ["==", ["get", "railway"], "rail"],
+      });
+      map.setLayoutProperty("rail-network-line", "visibility", "none");
+
       // ── Custom routes (saved) ──────────────────────────────────────────────
       map.addSource("custom-routes", {
         type: "geojson",
@@ -906,6 +928,17 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       mapRef.current = null;
     };
   }, [onLoad, onMapDestroy, onRouteClick, onCustomRouteClick, onRouteHover, onVehicleClick, onVehicleHover]);
+
+  // ── Toggle rail network overlay when entering/leaving train design mode ──
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.getLayer("rail-network-line")) return;
+    map.setLayoutProperty(
+      "rail-network-line",
+      "visibility",
+      isTrainDesignMode ? "visible" : "none"
+    );
+  }, [isTrainDesignMode]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 });
