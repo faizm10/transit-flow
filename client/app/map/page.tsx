@@ -763,6 +763,7 @@ function MapPageContent() {
           onRouteHover={handleRouteHover}
           onVehicleClick={handleVehicleClick}
           onVehicleHover={handleVehicleHover}
+          isTrainDesignMode={isTrainDesignMode}
         />
       </div>
 

@@ -233,6 +233,44 @@ export default function BuilderWizard({
   // True when pin mode interrupted an active drawing session — resume after station placed/cancelled
   const resumeDrawAfterPinRef = useRef(false);
 
+  // ── Snap drawn train geometry to actual rail network ─────────────────────
+  const [isSnappingToRail, setIsSnappingToRail] = useState(false);
+  const [snapRailError, setSnapRailError] = useState<string | null>(null);
+
+  const snapGeometryToRail = useCallback(async (geometry: [number, number][]) => {
+    if (geometry.length < 2) return;
+    setIsSnappingToRail(true);
+    setSnapRailError(null);
+    try {
+      // Use ~8 evenly-spaced waypoints from the drawn line as routing hints
+      const step = Math.max(1, Math.floor((geometry.length - 1) / 7));
+      const waypoints: [number, number][] = [];
+      for (let i = 0; i < geometry.length; i += step) waypoints.push(geometry[i]);
+      if (waypoints[waypoints.length - 1] !== geometry[geometry.length - 1]) {
+        waypoints.push(geometry[geometry.length - 1]);
+      }
+      // drawGeometry is already [lon, lat] (Mapbox format) — same as the API's LngLat
+      const res = await fetch("/api/rail/route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ points: waypoints }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Rail routing failed");
+      // API returns geometry as [lon, lat][] — same format the wizard stores
+      const snapped: [number, number][] = data.geometry as [number, number][];
+      setRouteGeometry(snapped);
+      const km = geometryDistanceKm(snapped);
+      setRouteDistanceKm(km);
+      setRouteDurationSecs(data.travelSecs ?? (km != null ? estimateTrainTravelSecsForPathLengthMeters(km * 1000) : null));
+      if (data.warnings?.length) setRouteWarnings(data.warnings);
+    } catch (err) {
+      setSnapRailError(err instanceof Error ? err.message : "Could not snap to rail network");
+    } finally {
+      setIsSnappingToRail(false);
+    }
+  }, []);
+
   function startPlaceTrainStationOnMap() {
     if (!onStartPinMode || isEditing || pendingTrainStation) return;
     // If the user is mid-draw (step=draw, no completed geometry yet), we need to
@@ -767,21 +805,45 @@ export default function BuilderWizard({
                     </button>
                   </div>
                 ) : (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <button
+                        className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                        onClick={handleEditRequest}
+                      >
+                        <Move className="w-3.5 h-3.5 text-slate-400" />
+                        Edit shape
+                      </button>
+                      <button
+                        className="flex items-center justify-center gap-1.5 text-sm text-slate-500 py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                        onClick={() => { setRouteGeometry(null); setSnapRailError(null); onDrawRequest(); }}
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Redraw
+                      </button>
+                    </div>
+
+                    {/* ── Snap to rail ─────────────────────────────────────── */}
                     <button
-                      className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
-                      onClick={handleEditRequest}
+                      className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50 hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isSnappingToRail}
+                      onClick={() => routeGeometry && snapGeometryToRail(routeGeometry)}
                     >
-                      <Move className="w-3.5 h-3.5 text-slate-400" />
-                      Edit shape
+                      {isSnappingToRail ? (
+                        <Loader2 className="w-3.5 h-3.5 text-emerald-700 animate-spin" />
+                      ) : (
+                        <Train className="w-3.5 h-3.5 text-emerald-700" />
+                      )}
+                      <span className="text-emerald-800">
+                        {isSnappingToRail ? "Snapping to rail…" : "Snap to existing rail track"}
+                      </span>
                     </button>
-                    <button
-                      className="flex items-center justify-center gap-1.5 text-sm text-slate-500 py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
-                      onClick={() => { setRouteGeometry(null); onDrawRequest(); }}
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      Redraw
-                    </button>
+
+                    {snapRailError && (
+                      <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                        {snapRailError}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
