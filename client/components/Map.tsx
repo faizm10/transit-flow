@@ -552,10 +552,10 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         source: "rail-network-display",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#94a3b8",
-          "line-width": 1.5,
-          "line-opacity": 0.55,
-          "line-dasharray": [3, 2],
+          "line-color": "#64748b",
+          "line-width": 2.5,
+          "line-opacity": 0.7,
+          "line-dasharray": [4, 2],
         },
         filter: ["==", ["get", "railway"], "rail"],
       });
