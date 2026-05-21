@@ -1,2 +1,3 @@
 .vercel
 .gstack/
+node_modules/
