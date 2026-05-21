@@ -9,6 +9,7 @@ const NAV = [
   { label: "Use Cases", href: "#use-cases"      },
   { label: "Simulation",href: `${MAP}?mode=simulate` },
   { label: "Data",      href: "#capabilities"   },
+  { label: "Community", href: "/community"      },
   { label: "Roadmap",   href: "https://github.com/faizm10/transit-flow/issues" },
 ];
 
