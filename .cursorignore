@@ -1,0 +1,11 @@
+.next
+node_modules
+data
+generated
+dist
+build
+coverage
+public/gtfs
+*.csv
+*.json
+*.geojson
