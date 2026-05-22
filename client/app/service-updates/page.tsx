@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
-import { CheckCircle, RefreshCw } from "lucide-react";
+import { CheckCircle, RefreshCw, AlertTriangle, Wifi } from "lucide-react";
 import MarketingHeader from "@/components/marketing/MarketingHeader";
 import { AlertCard } from "@/components/service-updates/AlertCard";
 import { LineFilterBar } from "@/components/service-updates/LineFilterBar";
 import { fetchServiceUpdates } from "@/lib/serviceUpdates";
+import type { ServiceUpdatesResult } from "@/lib/serviceUpdates";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://transit-flow-two.vercel.app";
 
 export const metadata: Metadata = {
-  title: "Service Updates",
+  title: "Service Updates — TransitFlow",
   description:
     "Live GO Transit service alerts — delays, cancellations, and service notices for Lakeshore West, Barrie, Kitchener, Stouffville, Richmond Hill, Milton, and UP Express lines.",
   alternates: { canonical: `${SITE_URL}/service-updates` },
@@ -33,6 +34,34 @@ function formatFetchTime(iso: string): string {
   }
 }
 
+function SourceBadge({ source }: { source: ServiceUpdatesResult["source"] }) {
+  if (source === "metrolinx-api") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
+        <Wifi className="h-3 w-3" />
+        Live — Metrolinx API
+      </span>
+    );
+  }
+  if (source === "html-fallback" || source === "nextdata") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 border border-amber-200">
+        <AlertTriangle className="h-3 w-3" />
+        Scraped — gotransit.com
+      </span>
+    );
+  }
+  if (source === "error") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-600 border border-red-200">
+        <AlertTriangle className="h-3 w-3" />
+        Source unavailable
+      </span>
+    );
+  }
+  return null;
+}
+
 export default async function ServiceUpdatesPage({
   searchParams,
 }: {
@@ -45,6 +74,9 @@ export default async function ServiceUpdatesPage({
     ? alerts.filter((a) => a.routes.includes(line.toUpperCase()))
     : alerts;
 
+  const delayCount = alerts.filter((a) => a.type === "delay").length;
+  const cancelCount = alerts.filter((a) => a.type === "cancellation").length;
+
   return (
     <div className="min-h-screen bg-white">
       <MarketingHeader />
@@ -52,24 +84,44 @@ export default async function ServiceUpdatesPage({
       <main className="mx-auto max-w-3xl px-5 pb-24 pt-14 lg:px-8">
         {/* Page header */}
         <div className="mb-10">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            Service Updates
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Live GO Transit alerts — delays, cancellations, and service notices.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                Service Updates
+              </h1>
+              <p className="mt-1.5 text-sm text-gray-500">
+                Real-time GO Transit alerts — delays, cancellations, and service notices.
+              </p>
+            </div>
+            <SourceBadge source={source} />
+          </div>
+
+          {/* Stats row */}
+          {alerts.length > 0 && (
+            <div className="mt-5 flex flex-wrap gap-3">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5 text-center">
+                <p className="text-2xl font-bold text-gray-900">{alerts.length}</p>
+                <p className="text-xs text-gray-500">Active alert{alerts.length !== 1 ? "s" : ""}</p>
+              </div>
+              {delayCount > 0 && (
+                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-center">
+                  <p className="text-2xl font-bold text-red-600">{delayCount}</p>
+                  <p className="text-xs text-red-500">Delay{delayCount !== 1 ? "s" : ""}</p>
+                </div>
+              )}
+              {cancelCount > 0 && (
+                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-center">
+                  <p className="text-2xl font-bold text-red-700">{cancelCount}</p>
+                  <p className="text-xs text-red-600">Cancellation{cancelCount !== 1 ? "s" : ""}</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Last refreshed */}
-          <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-gray-400">
+          <div className="mt-4 inline-flex items-center gap-1.5 text-xs text-gray-400">
             <RefreshCw className="h-3 w-3" />
-            <span>
-              Updated at {formatFetchTime(fetchedAt)}
-              {source === "error" && (
-                <span className="ml-2 text-red-500">
-                  (could not reach gotransit.com)
-                </span>
-              )}
-            </span>
+            <span>Updated at {formatFetchTime(fetchedAt)} · refreshes every 5 min</span>
           </div>
         </div>
 
@@ -105,16 +157,33 @@ export default async function ServiceUpdatesPage({
 
         {/* Footer note */}
         <p className="mt-12 text-center text-xs text-gray-400">
-          Data sourced from{" "}
-          <a
-            href="https://www.gotransit.com/en/service-updates"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-gray-600 transition-colors"
-          >
-            gotransit.com
-          </a>
-          . Refreshes every 5 minutes.
+          {source === "metrolinx-api" ? (
+            <>
+              Powered by the{" "}
+              <a
+                href="https://api.openmetrolinx.com/OpenDataAPI/Help/Index/en"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline transition-colors hover:text-gray-600"
+              >
+                Metrolinx Open Data API
+              </a>
+              . Refreshes every 5 minutes.
+            </>
+          ) : (
+            <>
+              Data sourced from{" "}
+              <a
+                href="https://www.gotransit.com/en/service-updates"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline transition-colors hover:text-gray-600"
+              >
+                gotransit.com
+              </a>
+              . Refreshes every 5 minutes.
+            </>
+          )}
         </p>
       </main>
     </div>

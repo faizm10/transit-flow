@@ -14,7 +14,7 @@ export interface ServiceAlert {
 export interface ServiceUpdatesResult {
   alerts: ServiceAlert[];
   fetchedAt: string;
-  source: "nextdata" | "html-fallback" | "error";
+  source: "metrolinx-api" | "nextdata" | "html-fallback" | "error";
 }
 
 // ── GO Line name → short code map ─────────────────────────────────────────
@@ -263,7 +263,7 @@ function parseFromMetrolinxApi(
     };
   });
 
-  return { alerts, fetchedAt, source: "nextdata" };
+  return { alerts, fetchedAt, source: "metrolinx-api" };
 }
 
 // ── Main fetch function (cached via Next.js Data Cache) ───────────────────
@@ -281,9 +281,9 @@ export async function fetchServiceUpdates(): Promise<ServiceUpdatesResult> {
     try {
       const data = await getServiceAlerts();
       const result = parseFromMetrolinxApi(data, fetchedAt);
-      if (result) return result;
+      if (result) return { ...result, source: "metrolinx-api" as const };
       // API returned empty → no active alerts (valid)
-      return { alerts: [], fetchedAt, source: "nextdata" };
+      return { alerts: [], fetchedAt, source: "metrolinx-api" as const };
     } catch (err) {
       console.warn("[service-updates] Metrolinx API failed, falling back to scrape:", err);
     }
