@@ -209,15 +209,87 @@ function parseFromHtml(html: string, fetchedAt: string): ServiceUpdatesResult {
   return { alerts, fetchedAt, source: "html-fallback" };
 }
 
+// ── Metrolinx API parser ──────────────────────────────────────────────────
+
+import { getServiceAlerts } from "@/lib/metrolinx";
+
+function parseFromMetrolinxApi(
+  data: Awaited<ReturnType<typeof getServiceAlerts>>,
+  fetchedAt: string
+): ServiceUpdatesResult | null {
+  const rawAlerts = data.Messages ?? data.Alerts ?? data.ServiceAlerts;
+  if (!rawAlerts || rawAlerts.length === 0) return null;
+
+  const alerts: ServiceAlert[] = rawAlerts.map((raw, i) => {
+    const title = raw.Title ?? "Service Alert";
+    const body = raw.Description ?? "";
+
+    // Extract affected routes from Lines field or text
+    let routes: string[] = [];
+    if (raw.Lines && raw.Lines.length > 0) {
+      routes = raw.Lines.map((l) => l.Code?.toUpperCase().trim()).filter(
+        (c): c is string => !!c && ["BR", "KI", "LE", "LW", "MI", "RH", "ST", "UP"].includes(c)
+      );
+    }
+    if (routes.length === 0 && raw.Line) {
+      routes = extractRoutes([raw.Line]);
+    }
+    if (routes.length === 0) {
+      routes = extractRoutesFromText(`${title} ${body}`);
+    }
+
+    const type: AlertType = raw.Type
+      ? (/cancel|suspend/i.test(raw.Type) ? "cancellation"
+        : /delay|disruption/i.test(raw.Type) ? "delay"
+        : /info|notice|advisory/i.test(raw.Type) ? "information"
+        : classifyType(title, body))
+      : classifyType(title, body);
+
+    const postedAt = (() => {
+      if (raw.StartDate) {
+        const d = new Date(raw.StartDate);
+        if (!isNaN(d.getTime())) return d.toISOString();
+      }
+      return fetchedAt;
+    })();
+
+    return {
+      id: raw.ID ?? `alert-${i}`,
+      title,
+      body,
+      routes,
+      type,
+      postedAt,
+    };
+  });
+
+  return { alerts, fetchedAt, source: "nextdata" };
+}
+
 // ── Main fetch function (cached via Next.js Data Cache) ───────────────────
 //
-// Using fetch() with `next: { revalidate: 300 }` caches the raw HTTP
-// response at the Next.js Data Cache layer for 5 minutes — no experimental
-// flags required. Parsing is fast (CPU-only) and happens on each revalidation.
+// Primary: Metrolinx Open Data API (real-time, official).
+// Fallback: gotransit.com scrape (HTML / __NEXT_DATA__) when API is unavailable.
+// fetch() with `next: { revalidate: 300 }` caches at the Next.js Data Cache
+// layer for 5 minutes — no experimental flags required.
 
 export async function fetchServiceUpdates(): Promise<ServiceUpdatesResult> {
   const fetchedAt = new Date().toISOString();
 
+  // ── 1. Try the official Metrolinx API ─────────────────────────────────
+  if (process.env.METROLINX_API_KEY) {
+    try {
+      const data = await getServiceAlerts();
+      const result = parseFromMetrolinxApi(data, fetchedAt);
+      if (result) return result;
+      // API returned empty → no active alerts (valid)
+      return { alerts: [], fetchedAt, source: "nextdata" };
+    } catch (err) {
+      console.warn("[service-updates] Metrolinx API failed, falling back to scrape:", err);
+    }
+  }
+
+  // ── 2. Fallback: scrape gotransit.com ─────────────────────────────────
   try {
     const res = await fetch("https://www.gotransit.com/en/service-updates", {
       headers: {
@@ -236,17 +308,12 @@ export async function fetchServiceUpdates(): Promise<ServiceUpdatesResult> {
 
     const html = await res.text();
 
-    // Primary: extract from __NEXT_DATA__
     const nextDataResult = parseFromNextData(html, fetchedAt);
-    if (nextDataResult && nextDataResult.alerts.length > 0) {
-      return nextDataResult;
-    }
+    if (nextDataResult && nextDataResult.alerts.length > 0) return nextDataResult;
 
-    // Fallback: HTML regex parse
     const htmlResult = parseFromHtml(html, fetchedAt);
     if (htmlResult.alerts.length > 0) return htmlResult;
 
-    // No alerts found (valid — service may be running normally)
     return { alerts: [], fetchedAt, source: nextDataResult ? "nextdata" : "html-fallback" };
   } catch {
     return { alerts: [], fetchedAt, source: "error" };
