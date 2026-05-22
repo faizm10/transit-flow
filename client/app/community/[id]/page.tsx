@@ -10,9 +10,11 @@ import RouteTypeBadge from "@/components/community/RouteTypeBadge";
 import CommunityMapPreviewWrapper from "@/components/community/CommunityMapPreviewWrapper";
 import LikeButton from "@/components/community/LikeButton";
 import CommentSection from "@/components/community/CommentSection";
+import RouteScorecard from "@/components/RouteScorecard";
 import { db, posts, users, comments, likes } from "@/lib/db";
 import { eq, asc } from "drizzle-orm";
 import type { CustomRoute } from "@/lib/gtfs";
+import { computeRouteScore } from "@/lib/routeScoring";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +109,7 @@ export default async function CommunityPostPage({ params }: PageProps) {
   if (!post) notFound();
 
   const route = post.routeData as unknown as CustomRoute;
+  const score = route ? computeRouteScore(route) : null;
   const date = new Date(post.createdAt).toLocaleDateString("en-CA", {
     year: "numeric",
     month: "long",
@@ -178,6 +181,11 @@ export default async function CommunityPostPage({ params }: PageProps) {
         <div className="mb-6 overflow-hidden rounded-2xl border border-[var(--landing-border)]">
           <CommunityMapPreviewWrapper route={route} />
         </div>
+
+        {/* Route Impact Score */}
+        {score && (
+          <RouteScorecard score={score} className="mb-6" />
+        )}
 
         {/* Actions */}
         <div className="mb-10 flex flex-wrap items-center gap-3">
