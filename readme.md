@@ -18,11 +18,11 @@
 <!-- GA_STATS_START -->
 ## 📊 Live stats
 
-| Metric | Last 7 days | Last 30 days |
-|--------|:-----------:|:------------:|
-| Active users | **126** | **272** |
-| Page views | **1,538** | **3,163** |
-| Sessions | — | **385** |
+| Metric | Last 7 days | Last 30 days | Last year |
+|--------|:-----------:|:------------:|:---------:|
+| Active users | **126** | **272** | — |
+| Page views | **1,538** | **3,163** | — |
+| Sessions | — | **385** | — |
 
 <sub>🤖 Auto-updated every hour &nbsp;·&nbsp; Thu, 28 May 2026 01:44:04 GMT</sub>
 <!-- GA_STATS_END -->

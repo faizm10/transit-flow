@@ -35,7 +35,16 @@ function fmt(n) {
 async function main() {
   console.log(`Fetching GA4 stats for property ${propertyId}…`);
 
-  const [[r30d], [r7d]] = await Promise.all([
+  const [[r365d], [r30d], [r7d]] = await Promise.all([
+    client.runReport({
+      property: `properties/${propertyId}`,
+      dateRanges: [{ startDate: "365daysAgo", endDate: "today" }],
+      metrics: [
+        { name: "activeUsers" },
+        { name: "screenPageViews" },
+        { name: "sessions" },
+      ],
+    }),
     client.runReport({
       property: `properties/${propertyId}`,
       dateRanges: [{ startDate: "30daysAgo", endDate: "today" }],
@@ -52,9 +61,13 @@ async function main() {
     }),
   ]);
 
+  const mv365 = r365d.rows?.[0]?.metricValues ?? [];
   const mv30 = r30d.rows?.[0]?.metricValues ?? [];
   const mv7 = r7d.rows?.[0]?.metricValues ?? [];
 
+  const activeUsers365d = fmt(mv365[0]?.value);
+  const pageViews365d = fmt(mv365[1]?.value);
+  const sessions365d = fmt(mv365[2]?.value);
   const activeUsers30d = fmt(mv30[0]?.value);
   const pageViews30d = fmt(mv30[1]?.value);
   const sessions30d = fmt(mv30[2]?.value);
@@ -66,11 +79,11 @@ async function main() {
   const block = `<!-- GA_STATS_START -->
 ## 📊 Live stats
 
-| Metric | Last 7 days | Last 30 days |
-|--------|:-----------:|:------------:|
-| Active users | **${activeUsers7d}** | **${activeUsers30d}** |
-| Page views | **${pageViews7d}** | **${pageViews30d}** |
-| Sessions | — | **${sessions30d}** |
+| Metric | Last 7 days | Last 30 days | Last year |
+|--------|:-----------:|:------------:|:---------:|
+| Active users | **${activeUsers7d}** | **${activeUsers30d}** | **${activeUsers365d}** |
+| Page views | **${pageViews7d}** | **${pageViews30d}** | **${pageViews365d}** |
+| Sessions | — | **${sessions30d}** | **${sessions365d}** |
 
 <sub>🤖 Auto-updated every hour &nbsp;·&nbsp; ${updatedAt}</sub>
 <!-- GA_STATS_END -->`;
