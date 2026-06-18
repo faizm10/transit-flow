@@ -16,29 +16,23 @@ export async function POST(req: NextRequest) {
 
   let feedId: string | undefined;
   try {
-    const body = await req.json() as { feedId?: string };
+    const body = await req.json() as { feedId?: string; blobUrl?: string };
     feedId = body.feedId;
     if (!feedId) {
       return NextResponse.json({ error: "Missing feedId" }, { status: 400 });
     }
 
-    // Download raw ZIP from Blob
-    const zipUrl = `https://${process.env.BLOB_READ_WRITE_TOKEN ? "" : ""}feeds/${feedId}/raw/feed.zip`;
-    // Construct blob URL from the stored pattern
-    const blobUrl = `https://blob.vercel-storage.com/feeds/${feedId}/raw/feed.zip`;
-
-    // Fetch the raw ZIP — the URL is the public Vercel Blob URL
-    // We stored it at put(`feeds/${feedId}/raw/feed.zip`) which gives a predictable URL
-    // Actually we need the real URL — let's list the blob to find it
-    const { list } = await import("@vercel/blob");
-    const { blobs } = await list({ prefix: `feeds/${feedId}/raw/` });
-    const rawBlob = blobs.find(b => b.pathname.endsWith("feed.zip"));
-
-    if (!rawBlob) {
-      throw new Error(`Raw ZIP not found in Blob storage for feed ${feedId}`);
+    // Prefer the blobUrl passed directly from the register step; fall back to blob listing
+    let zipUrl = body.blobUrl;
+    if (!zipUrl) {
+      const { list } = await import("@vercel/blob");
+      const { blobs } = await list({ prefix: `feeds/${feedId}/raw/` });
+      const rawBlob = blobs.find(b => b.pathname.endsWith("feed.zip"));
+      if (!rawBlob) throw new Error(`Raw ZIP not found in Blob storage for feed ${feedId}`);
+      zipUrl = rawBlob.url;
     }
 
-    const zipRes = await fetch(rawBlob.url);
+    const zipRes = await fetch(zipUrl);
     if (!zipRes.ok) throw new Error(`Failed to fetch ZIP: ${zipRes.status}`);
     const zipBuffer = await zipRes.arrayBuffer();
 
