@@ -62,10 +62,28 @@ export const comments = pgTable("community_comments", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ── GTFS Feeds ────────────────────────────────────────────────────────────────
+// User-uploaded GTFS feeds for arbitrary city transit networks.
+export const gtfsFeeds = pgTable("gtfs_feeds", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  cityName: text("city_name").notNull(),
+  // "uploading" | "processing" | "ready" | "failed"
+  status: text("status").notNull().default("uploading"),
+  errorMessage: text("error_message"),
+  // Public Vercel Blob base URL for derived files, e.g. https://<store>.blob.vercel-storage.com/feeds/<id>/derived
+  blobBaseUrl: text("blob_base_url"),
+  routeCount: integer("route_count"),
+  stopCount: integer("stop_count"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ── Type exports ──────────────────────────────────────────────────────────
 export type User = typeof users.$inferSelect;
 export type Post = typeof posts.$inferSelect;
 export type Like = typeof likes.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
+export type GtfsFeed = typeof gtfsFeeds.$inferSelect;
 export type NewPost = typeof posts.$inferInsert;
 export type NewComment = typeof comments.$inferInsert;
+export type NewGtfsFeed = typeof gtfsFeeds.$inferInsert;

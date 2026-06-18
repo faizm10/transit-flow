@@ -35,7 +35,7 @@ export interface SimTrip {
   route_long_name: string;
   route_type: number;
   color: string;
-  source: "gotransit" | "custom";
+  source: "gotransit" | "custom" | "city";
   stops: SimStop[];
   shape: [number, number][]; // [lon, lat]
   start_stop_name: string;

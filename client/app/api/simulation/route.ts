@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFileSync } from "fs";
-import { join } from "path";
 import { colorForRoute } from "@/lib/routeColors";
+import { colorForCityRoute } from "@/lib/feedColors";
+import { resolveFeedSource, readDerivedFile } from "@/lib/feedLoader";
 import { SimTrip, SimStop, SimulationData } from "@/lib/simulation";
 
-const DERIVED_DIR = join(process.cwd(), "public/gotransit/derived");
 const MAX_OUTPUT_TRIPS = 2000;
 const MAX_SHAPE_POINTS = 300;
 
@@ -21,27 +20,32 @@ interface SimTripRaw  {
 }
 
 interface AppData {
-  stopsLookup:    Map<string, StopLookup>;
+  stopsLookup:     Map<string, StopLookup>;
   shapesByShapeId: Map<string, [number, number][]>;
-  tripsByDow:     Map<number, SimTripRaw[]>;   // 0=Sun … 6=Sat
+  tripsByDow:      Map<number, SimTripRaw[]>; // 0=Sun … 6=Sat
 }
 
-// ── Module-level cache ────────────────────────────────────────────────────────
-let appData: AppData | null = null;
+// ── Per-feed cache ────────────────────────────────────────────────────────────
+const appDataCache = new Map<string, AppData>();
 
-function loadData(): AppData {
-  if (appData) return appData;
+async function loadData(feedId: string): Promise<AppData> {
+  const cached = appDataCache.get(feedId);
+  if (cached) return cached;
 
-  // Stops
+  const source = await resolveFeedSource(feedId);
+
+  const [stopsJson, simTripsJson, geojsonStr] = await Promise.all([
+    readDerivedFile(source, "stops_lookup.json"),
+    readDerivedFile(source, "sim_trips_by_dow.json"),
+    readDerivedFile(source, "variant_lines.geojson"),
+  ]);
+
   const stopsLookup = new Map<string, StopLookup>(
-    Object.entries(
-      JSON.parse(readFileSync(join(DERIVED_DIR, "stops_lookup.json"), "utf-8")) as Record<string, StopLookup>,
-    ),
+    Object.entries(JSON.parse(stopsJson) as Record<string, StopLookup>),
   );
 
-  // Shapes from variant_lines.geojson (already in derived/)
   const shapesByShapeId = new Map<string, [number, number][]>();
-  const gj = JSON.parse(readFileSync(join(DERIVED_DIR, "variant_lines.geojson"), "utf-8")) as {
+  const gj = JSON.parse(geojsonStr) as {
     features: { properties: { shape_id: string }; geometry: { coordinates: [number, number][] } }[];
   };
   for (const f of gj.features) {
@@ -51,15 +55,15 @@ function loadData(): AppData {
     }
   }
 
-  // Trips by day-of-week
   const tripsByDow = new Map<number, SimTripRaw[]>();
-  const raw = JSON.parse(readFileSync(join(DERIVED_DIR, "sim_trips_by_dow.json"), "utf-8")) as Record<string, SimTripRaw[]>;
+  const raw = JSON.parse(simTripsJson) as Record<string, SimTripRaw[]>;
   for (const [dow, trips] of Object.entries(raw)) {
     tripsByDow.set(Number(dow), trips);
   }
 
-  appData = { stopsLookup, shapesByShapeId, tripsByDow };
-  return appData;
+  const data: AppData = { stopsLookup, shapesByShapeId, tripsByDow };
+  appDataCache.set(feedId, data);
+  return data;
 }
 
 // ── Shape helpers ─────────────────────────────────────────────────────────────
@@ -108,20 +112,22 @@ function gtfsTimeToSecs(t: string): number {
 // ── Route handler ─────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
-  const routesParam = p.get("routes") ?? "KI,LW,LE,BR,ST,RH,MI";
-  const startParam  = p.get("start")  ?? "06:00";
-  const dateParam   = p.get("date")   ?? new Date().toISOString().split("T")[0];
+  const feedId       = p.get("feed")   ?? "gotransit";
+  const routesParam  = p.get("routes") ?? "KI,LW,LE,BR,ST,RH,MI";
+  const startParam   = p.get("start")  ?? "06:00";
+  const dateParam    = p.get("date")   ?? new Date().toISOString().split("T")[0];
 
   const requestedRoutes = new Set(routesParam.split(",").map(s => s.trim()).filter(Boolean));
   const startSec = gtfsTimeToSecs(startParam + ":00");
   const endSec   = startSec + 43200;
 
-  // Map date → JS day-of-week (0=Sun … 6=Sat)
   const dateObj = new Date(dateParam + "T12:00:00Z");
   const dow     = dateObj.getUTCDay();
 
+  const isCity = feedId !== "gotransit";
+
   try {
-    const { stopsLookup, shapesByShapeId, tripsByDow } = loadData();
+    const { stopsLookup, shapesByShapeId, tripsByDow } = await loadData(feedId);
     const rawTrips = tripsByDow.get(dow) ?? [];
     const trips: SimTrip[] = [];
 
@@ -160,20 +166,23 @@ export async function GET(req: NextRequest) {
         };
       });
 
-      // Enforce monotonic shape fractions
       for (let i = 1; i < timedStops.length; i++) {
         if (timedStops[i].shapeFrac < timedStops[i - 1].shapeFrac) {
           timedStops[i].shapeFrac = timedStops[i - 1].shapeFrac;
         }
       }
 
+      const color = isCity
+        ? colorForCityRoute(undefined, raw.route_short_name, feedId)
+        : colorForRoute(raw.route_short_name, raw.route_type);
+
       trips.push({
         trip_id:          raw.trip_id,
         route_short_name: raw.route_short_name,
         route_long_name:  raw.route_long_name,
         route_type:       raw.route_type,
-        color:            colorForRoute(raw.route_short_name, raw.route_type),
-        source:           "gotransit",
+        color,
+        source:           isCity ? "city" : "gotransit",
         stops:            timedStops,
         shape,
         start_stop_name:  stopsLookup.get(raw.stops[0].stop_id)?.name ?? "",

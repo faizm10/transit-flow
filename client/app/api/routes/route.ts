@@ -1,14 +1,12 @@
-import { NextResponse } from "next/server";
-import { readFileSync } from "fs";
-import { join } from "path";
+import { NextRequest, NextResponse } from "next/server";
 import { GTFSRoute, GTFSVariant, GTFSStop, EnrichedRoute, VariantsIndex, VariantStops } from "@/lib/gtfs";
 import { colorForRoute, isRailRoute } from "@/lib/routeColors";
+import { colorForCityRoute } from "@/lib/feedColors";
+import { resolveFeedSource, readDerivedFile } from "@/lib/feedLoader";
 
-const PUBLIC_DIR = join(process.cwd(), "public", "gotransit", "derived");
+// Per-feed cache
+const routesCache = new Map<string, EnrichedRoute[]>();
 
-let cachedRoutes: EnrichedRoute[] | null = null;
-
-/** Prefer Union as the corridor "city" end when it appears on one terminal only (typical GO rail). */
 function orderCorridorEndpoints(firstStop: string, lastStop: string): { from: string; to: string } {
   const a = firstStop.trim();
   const b = lastStop.trim();
@@ -18,7 +16,6 @@ function orderCorridorEndpoints(firstStop: string, lastStop: string): { from: st
   return { from: a, to: b };
 }
 
-/** Use the longest variant so corridor endpoints reflect full line (e.g. Kitchener), not a short-turn first variant. */
 function corridorEndpointsFromVariants(
   variants: GTFSVariant[],
   variantStops: VariantStops,
@@ -34,21 +31,25 @@ function corridorEndpointsFromVariants(
   return orderCorridorEndpoints(first, last);
 }
 
-function loadRoutes(): EnrichedRoute[] {
-  if (cachedRoutes) return cachedRoutes;
+async function loadRoutes(feedId: string): Promise<EnrichedRoute[]> {
+  const cached = routesCache.get(feedId);
+  if (cached) return cached;
 
-  const routesRaw: GTFSRoute[] = JSON.parse(
-    readFileSync(join(PUBLIC_DIR, "routes_index.json"), "utf-8")
-  );
-  const variantsIndex: VariantsIndex = JSON.parse(
-    readFileSync(join(PUBLIC_DIR, "variants_index.json"), "utf-8")
-  );
-  const variantStops: VariantStops = JSON.parse(
-    readFileSync(join(PUBLIC_DIR, "variant_stops.json"), "utf-8")
-  );
+  const source = await resolveFeedSource(feedId);
+  const [routesJson, variantsJson, stopsJson] = await Promise.all([
+    readDerivedFile(source, "routes_index.json"),
+    readDerivedFile(source, "variants_index.json"),
+    readDerivedFile(source, "variant_stops.json"),
+  ]);
+
+  const routesRaw: (GTFSRoute & { route_color?: string })[] = JSON.parse(routesJson);
+  const variantsIndex: VariantsIndex = JSON.parse(variantsJson);
+  const variantStops: VariantStops = JSON.parse(stopsJson);
 
   const seenShort = new Set<string>();
-  cachedRoutes = routesRaw
+  const isCity = feedId !== "gotransit";
+
+  const enriched = routesRaw
     .map((r) => {
       const variants: GTFSVariant[] = variantsIndex[r.route_short_name] ?? [];
       const { from: fromStop, to: toStop } = corridorEndpointsFromVariants(variants, variantStops);
@@ -57,13 +58,17 @@ function loadRoutes(): EnrichedRoute[] {
         0
       );
 
+      const color = isCity
+        ? colorForCityRoute(r.route_color, r.route_short_name, feedId)
+        : colorForRoute(r.route_short_name, r.route_type);
+
       return {
         route_id: r.route_id,
         short_name: r.route_short_name,
         long_name: r.route_long_name,
         route_type: r.route_type,
         is_rail: isRailRoute(r.route_short_name, r.route_type),
-        color: colorForRoute(r.route_short_name, r.route_type),
+        color,
         variants,
         from_stop: fromStop,
         to_stop: toStop,
@@ -77,12 +82,14 @@ function loadRoutes(): EnrichedRoute[] {
       return true;
     });
 
-  return cachedRoutes;
+  routesCache.set(feedId, enriched);
+  return enriched;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const feedId = req.nextUrl.searchParams.get("feed") ?? "gotransit";
   try {
-    const routes = loadRoutes();
+    const routes = await loadRoutes(feedId);
     return NextResponse.json({ routes });
   } catch (err) {
     console.error("routes API error:", err);

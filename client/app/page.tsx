@@ -33,6 +33,7 @@ import {
 import MarketingShell from "@/components/marketing/MarketingShell";
 import LandingHeader from "@/components/marketing/LandingHeader";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
+import AnnouncementBanner from "@/components/marketing/AnnouncementBanner";
 import {
   FadeUp,
   ScrollFade,
@@ -112,9 +113,10 @@ export default function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <LandingHeader />
+      <AnnouncementBanner />
 
       {/* ── 1. HERO ────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden border-b border-[var(--landing-border)] bg-white px-5 pb-0 pt-24 text-center lg:px-8 lg:pt-32">
+      <section className="relative overflow-hidden border-b border-[var(--landing-border)] bg-white px-5 pb-0 pt-14 text-center lg:px-8 lg:pt-20">
         {/* Radial glow */}
         <div
           aria-hidden

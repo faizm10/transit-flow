@@ -21,7 +21,9 @@ import DrawGuide from "@/components/overlays/DrawGuide";
 import OpenRailwayMapOverlayControls from "@/components/overlays/OpenRailwayMapOverlayControls";
 import { OPENRAILWAYMAP_OVERLAY_ENABLED } from "@/lib/features";
 import RouteFilterControl from "@/components/overlays/RouteFilterControl";
+import FeedSelector from "@/components/overlays/FeedSelector";
 import { useRoutes } from "@/hooks/useRoutes";
+import { useFeed } from "@/hooks/useFeed";
 import { useStations } from "@/hooks/useStations";
 import { useSimulation } from "@/hooks/useSimulation";
 import { networkRouteFilters } from "@/lib/mapEntry";
@@ -148,6 +150,7 @@ function MapPageContent() {
 
   const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
   const { stations: customStations, saveStation, deleteStation } = useStations();
+  const { activeFeedId, setActiveFeedId, feedMode, setFeedMode, readyFeeds, getCityGeoJsonUrl } = useFeed();
 
   // Patch just the schedule field of a custom route
   const handleSaveSchedule = useCallback((routeId: string, schedule: CustomSchedule) => {
@@ -362,6 +365,15 @@ function MapPageContent() {
     if (!mapLoaded) return;
     mapRef.current?.setVisibleRouteFilter(routeFilters.goRouteShortNames, routeFilters.customRouteIds);
   }, [mapLoaded, routeFilters]);
+
+  // ── Sync feed mode to map layers ──────────────────────────────────────────
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const cityGeoJsonUrl = feedMode !== "go" && activeFeedId
+      ? getCityGeoJsonUrl()
+      : undefined;
+    mapRef.current?.setFeedMode(feedMode, cityGeoJsonUrl);
+  }, [mapLoaded, feedMode, activeFeedId, getCityGeoJsonUrl]);
 
   // ── Map event handlers ──────────────────────────────────────────────────
   const handleMapLoad = useCallback((_map: mapboxgl.Map) => {
@@ -793,6 +805,18 @@ function MapPageContent() {
               {label}
             </button>
           ))}
+
+          {/* City Feeds — always visible in nav */}
+          <div className="ml-1 pl-1 border-l border-slate-100">
+            <FeedSelector
+              readyFeeds={readyFeeds}
+              activeFeedId={activeFeedId}
+              feedMode={feedMode}
+              onFeedChange={setActiveFeedId}
+              onModeChange={setFeedMode}
+              navStyle
+            />
+          </div>
         </div>
       </div>
 
