@@ -76,14 +76,17 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
         body:    JSON.stringify({ blobUrl: blob.url, cityName: cityName.trim() }),
       });
       if (!res.ok) {
-        const err = await res.json() as { error?: string };
-        setState({ phase: "error", message: err.error ?? "Registration failed" });
+        let message = "Registration failed";
+        try { message = ((await res.json()) as { error?: string }).error ?? message; } catch {}
+        setState({ phase: "error", message });
         return;
       }
       const data = await res.json() as { feedId: string };
       setState({ phase: "processing", feedId: data.feedId });
     } catch (err) {
-      setState({ phase: "error", message: String(err) });
+      // Surface a readable message — e.g. if the upload token endpoint fails
+      const msg = err instanceof Error ? err.message : String(err);
+      setState({ phase: "error", message: msg });
     }
   }
 
