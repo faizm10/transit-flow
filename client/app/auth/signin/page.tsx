@@ -37,7 +37,7 @@ export default async function SignInPage({
   const callback = callbackUrl ?? "/";
 
   const session = await auth();
-  if (session) redirect("/");
+  if (session) redirect(callback);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">

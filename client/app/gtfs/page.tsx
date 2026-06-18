@@ -2,13 +2,12 @@ import { auth } from "@/lib/auth";
 import GtfsClient from "./GtfsClient";
 
 export default async function GtfsPage() {
-  let authenticated = false;
+  let user: { name?: string | null; email?: string | null; image?: string | null } | null = null;
   try {
     const session = await auth();
-    authenticated = !!session?.user;
+    user = session?.user ?? null;
   } catch {
-    // auth() can throw in some environments; treat as unauthenticated.
-    // The upload API still enforces auth server-side and returns 401.
+    // auth() can throw in some environments; API enforces auth server-side.
   }
-  return <GtfsClient authenticated={authenticated} />;
+  return <GtfsClient user={user} />;
 }

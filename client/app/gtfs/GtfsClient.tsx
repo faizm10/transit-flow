@@ -12,7 +12,10 @@ type UploadState =
   | { phase: "done"; feedId: string }
   | { phase: "error"; message: string };
 
-export default function GtfsClient({ authenticated }: { authenticated: boolean }) {
+type UserInfo = { name?: string | null; email?: string | null; image?: string | null } | null;
+
+export default function GtfsClient({ user }: { user: UserInfo }) {
+  const authenticated = !!user;
   const [state, setState] = useState<UploadState>({ phase: "idle" });
   const [feeds, setFeeds]   = useState<FeedMeta[]>([]);
   const [cityName, setCityName] = useState("");
@@ -123,9 +126,22 @@ export default function GtfsClient({ authenticated }: { authenticated: boolean }
             <Globe className="w-5 h-5 text-blue-400" />
             <h1 className="text-lg font-semibold">City Transit Feeds</h1>
           </div>
-          <a href="/map" className="text-sm text-white/50 hover:text-white transition-colors flex items-center gap-1.5">
-            <Map className="w-4 h-4" /> Back to map
-          </a>
+          <div className="flex items-center gap-4">
+            {user && (
+              <div className="flex items-center gap-2">
+                {user.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.image} alt="" className="w-6 h-6 rounded-full" />
+                )}
+                <span className="text-xs text-white/50 hidden sm:block">
+                  {user.name ?? user.email}
+                </span>
+              </div>
+            )}
+            <a href="/map" className="text-sm text-white/50 hover:text-white transition-colors flex items-center gap-1.5">
+              <Map className="w-4 h-4" /> Back to map
+            </a>
+          </div>
         </div>
       </div>
 
