@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { upload } from "@vercel/blob/client";
-import { Upload, CheckCircle, XCircle, Clock, Trash2, Map, Globe, LogIn, AlertTriangle } from "lucide-react";
+import { Upload, CheckCircle, XCircle, Clock, Trash2, Map, Globe, AlertTriangle } from "lucide-react";
 import type { FeedMeta } from "@/hooks/useFeed";
+import { addLocalFeedId, removeLocalFeedId, myFeedsUrl } from "@/lib/localFeeds";
 
 type UploadState =
   | { phase: "idle" }
@@ -28,7 +29,6 @@ function isStaleProcessing(feed: FeedMeta): boolean {
 }
 
 export default function GtfsClient({ user }: { user: UserInfo }) {
-  const authenticated = !!user;
   const [state, setState] = useState<UploadState>({ phase: "idle" });
   const [feeds, setFeeds]   = useState<FeedMeta[]>([]);
   const [cityName, setCityName] = useState("");
@@ -38,7 +38,7 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
 
   const loadFeeds = useCallback(async () => {
     try {
-      const res = await fetch("/api/gtfs/feeds");
+      const res = await fetch(myFeedsUrl());
       if (res.ok) {
         const data = await res.json() as { feeds: FeedMeta[] };
         setFeeds(data.feeds);
@@ -62,7 +62,7 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
         });
         return;
       }
-      const res = await fetch("/api/gtfs/feeds");
+      const res = await fetch(myFeedsUrl());
       if (!res.ok) return;
       const data = await res.json() as { feeds: FeedMeta[] };
       setFeeds(data.feeds);
@@ -133,6 +133,9 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
         return;
       }
       const data = await res.json() as { feedId: string };
+      // Remember this feed in the browser — sign-in is currently optional,
+      // so localStorage is what ties feeds to "you".
+      addLocalFeedId(data.feedId);
       setState({ phase: "processing", feedId: data.feedId, startedAt: Date.now() });
       await loadFeeds();
     } catch (err) {
@@ -144,34 +147,12 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
 
   async function handleDelete(feedId: string) {
     if (!confirm("Delete this feed? This removes it from the map too.")) return;
-    await fetch(`/api/gtfs/feeds/${feedId}`, { method: "DELETE" });
+    const res = await fetch(`/api/gtfs/feeds/${feedId}`, { method: "DELETE" });
+    if (res.ok) removeLocalFeedId(feedId);
     await loadFeeds();
   }
 
   const busy = state.phase === "uploading" || state.phase === "processing";
-
-  if (!authenticated) {
-    return (
-      <div className="min-h-screen bg-[#0d0d1a] text-white flex flex-col items-center justify-center gap-6 px-4">
-        <Globe className="w-10 h-10 text-blue-400 opacity-60" />
-        <div className="text-center space-y-2">
-          <h2 className="text-xl font-semibold">Sign in to upload GTFS feeds</h2>
-          <p className="text-sm text-white/50">
-            A free account lets you upload and manage custom city transit data.
-          </p>
-        </div>
-        <a
-          href="/auth/signin?callbackUrl=/gtfs"
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
-        >
-          <LogIn className="w-4 h-4" /> Sign in to continue
-        </a>
-        <a href="/map" className="text-xs text-white/30 hover:text-white/60 transition-colors">
-          Back to map
-        </a>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#0d0d1a] text-white">
@@ -340,6 +321,7 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
         <section className="text-sm text-white/40 space-y-1">
           <p>Accepted format: standard <strong className="text-white/50">GTFS ZIP</strong> (routes.txt, trips.txt, stop_times.txt, stops.txt, shapes.txt).</p>
           <p>Download feeds from your transit agency&apos;s open data portal, or from sources like <strong className="text-white/50">Transitland</strong>.</p>
+          <p>No account needed — your feeds are remembered in this browser.</p>
         </section>
       </div>
     </div>

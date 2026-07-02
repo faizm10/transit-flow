@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { auth } from "@/lib/auth";
+import { upsertUser } from "@/lib/upsertUser";
 import { db } from "@/lib/db";
 import { gtfsFeeds } from "@/lib/db/schema";
 import { randomUUID } from "crypto";
@@ -8,10 +9,16 @@ import { randomUUID } from "crypto";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Sign in required" }, { status: 401 });
-  }
+  // Sign-in is currently optional — anonymous feeds are stored with a null
+  // userId and tracked client-side in localStorage (see lib/localFeeds.ts).
+  let userId: string | null = null;
+  try {
+    const session = await auth();
+    if (session?.user?.id) {
+      await upsertUser(session);
+      userId = session.user.id;
+    }
+  } catch { /* treat as anonymous */ }
 
   const { blobUrl, cityName } = (await req.json()) as {
     blobUrl?: string;
@@ -26,7 +33,7 @@ export async function POST(req: NextRequest) {
 
   await db.insert(gtfsFeeds).values({
     id:       feedId,
-    userId:   session.user.id,
+    userId,
     cityName: cityName.trim(),
     status:   "processing",
   });

@@ -2,28 +2,40 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { gtfsFeeds } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { del, list } from "@vercel/blob";
 
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { id: feedId } = await params;
 
-  // Verify ownership
   const rows = await db
-    .select({ id: gtfsFeeds.id })
+    .select({ id: gtfsFeeds.id, userId: gtfsFeeds.userId })
     .from(gtfsFeeds)
-    .where(and(eq(gtfsFeeds.id, feedId), eq(gtfsFeeds.userId, session.user.id)))
+    .where(eq(gtfsFeeds.id, feedId))
     .limit(1);
-  if (rows.length === 0) {
+  const feed = rows[0];
+  if (!feed) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Anonymous feeds (null userId) are deletable by anyone holding the
+  // unguessable feed UUID — sign-in is currently optional. Feeds that were
+  // uploaded under an account still require that account's session.
+  if (feed.userId) {
+    let sessionUserId: string | null = null;
+    try {
+      const session = await auth();
+      sessionUserId = session?.user?.id ?? null;
+    } catch { /* anonymous */ }
+    if (sessionUserId !== feed.userId) {
+      return NextResponse.json(
+        { error: "This feed belongs to a signed-in account" },
+        { status: 403 },
+      );
+    }
   }
 
   try {

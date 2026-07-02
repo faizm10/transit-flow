@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { myFeedsUrl } from "@/lib/localFeeds";
 
 export type FeedMode = "go" | "city" | "both";
 
@@ -42,7 +43,7 @@ export function useFeed() {
   const refreshFeeds = useCallback(async () => {
     setFeedsLoading(true);
     try {
-      const res = await fetch("/api/gtfs/feeds");
+      const res = await fetch(myFeedsUrl());
       if (res.ok) {
         const data = await res.json() as { feeds: FeedMeta[] };
         setFeeds(data.feeds);
