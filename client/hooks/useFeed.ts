@@ -9,6 +9,7 @@ export interface FeedMeta {
   status: string;
   routeCount: number | null;
   stopCount: number | null;
+  errorMessage: string | null;
   createdAt: string;
 }
 
@@ -36,6 +37,7 @@ export function useFeed() {
   const [feedMode, setFeedMode]         = useLocalStorage<FeedMode>("tf_feed_mode", "go");
   const [feeds, setFeeds]               = useState<FeedMeta[]>([]);
   const [feedsLoading, setFeedsLoading] = useState(false);
+  const [feedsLoaded, setFeedsLoaded]   = useState(false);
 
   const refreshFeeds = useCallback(async () => {
     setFeedsLoading(true);
@@ -44,6 +46,7 @@ export function useFeed() {
       if (res.ok) {
         const data = await res.json() as { feeds: FeedMeta[] };
         setFeeds(data.feeds);
+        setFeedsLoaded(true);
       }
     } catch { /* ignore */ } finally {
       setFeedsLoading(false);
@@ -73,6 +76,7 @@ export function useFeed() {
     feeds,
     readyFeeds,
     feedsLoading,
+    feedsLoaded,
     refreshFeeds,
     getCityGeoJsonUrl,
   };

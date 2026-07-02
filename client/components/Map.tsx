@@ -78,6 +78,22 @@ function applyLayerFilter(map: mapboxgl.Map, layerIds: string[], filter: LayerFi
   }
 }
 
+/** Bounding box of all LineString features (city feed route lines). */
+function boundsOfLineFeatures(gj: GeoJSON.FeatureCollection): mapboxgl.LngLatBounds | null {
+  let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+  for (const f of gj.features) {
+    if (f.geometry.type !== "LineString") continue;
+    for (const [lon, lat] of f.geometry.coordinates as [number, number][]) {
+      if (lon < minLon) minLon = lon;
+      if (lat < minLat) minLat = lat;
+      if (lon > maxLon) maxLon = lon;
+      if (lat > maxLat) maxLat = lat;
+    }
+  }
+  if (!Number.isFinite(minLon) || !Number.isFinite(maxLat)) return null;
+  return new mapboxgl.LngLatBounds([minLon, minLat], [maxLon, maxLat]);
+}
+
 interface MapProps {
   onLoad?: (map: mapboxgl.Map) => void;
   /** Fires before the underlying Map instance is destroyed (Strict Mode remount, navigation). */
@@ -140,6 +156,10 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 
   // Pin mode state
   const pinListenerRef = useRef<((e: mapboxgl.MapMouseEvent) => void) | null>(null);
+
+  // Tracks which city feed GeoJSON is currently loaded so re-toggling feed
+  // modes doesn't refetch or re-zoom; a new URL (feed change) does both.
+  const cityFeedUrlRef = useRef<string | null>(null);
 
   // ── Imperative handle ──────────────────────────────────────────────────────
   useImperativeHandle(ref, () => ({
@@ -417,9 +437,28 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         }
       }
 
-      if (showCity && cityGeoJsonUrl) {
-        const src = map.getSource("city-routes") as mapboxgl.GeoJSONSource | undefined;
-        if (src) src.setData(cityGeoJsonUrl);
+      if (showCity && cityGeoJsonUrl && cityGeoJsonUrl !== cityFeedUrlRef.current) {
+        cityFeedUrlRef.current = cityGeoJsonUrl;
+        // Fetch ourselves (instead of src.setData(url)) so we can zoom to the
+        // city's extent — uploaded feeds are usually nowhere near the default
+        // GO Transit viewport, and without this the map looks empty.
+        fetch(cityGeoJsonUrl)
+          .then((r) => {
+            if (!r.ok) throw new Error(`city feed geojson fetch failed: ${r.status}`);
+            return r.json();
+          })
+          .then((gj: GeoJSON.FeatureCollection) => {
+            if (cityFeedUrlRef.current !== cityGeoJsonUrl) return; // superseded by newer feed
+            const src = map.getSource("city-routes") as mapboxgl.GeoJSONSource | undefined;
+            if (!src) return;
+            src.setData(gj);
+            const bounds = boundsOfLineFeatures(gj);
+            if (bounds) map.fitBounds(bounds, { padding: 60, duration: 1500, maxZoom: 12 });
+          })
+          .catch((err) => {
+            console.error("[Map] city feed load failed:", err);
+            cityFeedUrlRef.current = null; // allow retry on next mode toggle
+          });
       }
     },
   }));

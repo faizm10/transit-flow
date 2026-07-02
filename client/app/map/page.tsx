@@ -150,7 +150,7 @@ function MapPageContent() {
 
   const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
   const { stations: customStations, saveStation, deleteStation } = useStations();
-  const { activeFeedId, setActiveFeedId, feedMode, setFeedMode, readyFeeds, getCityGeoJsonUrl } = useFeed();
+  const { activeFeedId, setActiveFeedId, feedMode, setFeedMode, readyFeeds, feedsLoaded, getCityGeoJsonUrl } = useFeed();
 
   // Patch just the schedule field of a custom route
   const handleSaveSchedule = useCallback((routeId: string, schedule: CustomSchedule) => {
@@ -185,6 +185,47 @@ function MapPageContent() {
     [pathname, router, searchParams]
   );
 
+
+  // Apply ?feed=<id>&feedMode=<mode> once (links from the /gtfs upload page),
+  // then strip the params so refreshes don't re-apply them.
+  const feedParamAppliedRef = useRef(false);
+  useEffect(() => {
+    if (feedParamAppliedRef.current) return;
+    const feedParam = searchParams.get("feed");
+    const feedModeParam = searchParams.get("feedMode");
+    if (!feedParam && !feedModeParam) return;
+    feedParamAppliedRef.current = true;
+
+    if (feedParam) setActiveFeedId(feedParam);
+    if (feedModeParam === "go" || feedModeParam === "city" || feedModeParam === "both") {
+      setFeedMode(feedModeParam);
+    } else if (feedParam) {
+      setFeedMode("city");
+    }
+    patchSearch({ feed: null, feedMode: null });
+  }, [searchParams, setActiveFeedId, setFeedMode, patchSearch]);
+
+  // If the active city feed no longer exists (deleted, or another user's link),
+  // fall back to GO Transit instead of showing an empty map.
+  useEffect(() => {
+    if (!feedsLoaded || !activeFeedId) return;
+    if (!readyFeeds.some((f) => f.id === activeFeedId)) {
+      setActiveFeedId(null);
+      setFeedMode("go");
+      toast.error("That city feed isn't available anymore — showing GO Transit.");
+    }
+  }, [feedsLoaded, activeFeedId, readyFeeds, setActiveFeedId, setFeedMode]);
+
+  // Selecting a city feed while in GO-only mode would otherwise change nothing
+  // visible — switch to city view so the choice takes effect immediately.
+  const handleFeedChange = useCallback(
+    (feedId: string | null) => {
+      setActiveFeedId(feedId);
+      if (feedId && feedMode === "go") setFeedMode("city");
+      if (!feedId) setFeedMode("go");
+    },
+    [feedMode, setActiveFeedId, setFeedMode]
+  );
 
   // Import a shared community route when ?community_route=<id> is present
   useEffect(() => {
@@ -812,7 +853,7 @@ function MapPageContent() {
               readyFeeds={readyFeeds}
               activeFeedId={activeFeedId}
               feedMode={feedMode}
-              onFeedChange={setActiveFeedId}
+              onFeedChange={handleFeedChange}
               onModeChange={setFeedMode}
               navStyle
             />

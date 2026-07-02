@@ -2,23 +2,37 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { upload } from "@vercel/blob/client";
-import { Upload, CheckCircle, XCircle, Clock, Trash2, Map, Globe, LogIn } from "lucide-react";
+import { Upload, CheckCircle, XCircle, Clock, Trash2, Map, Globe, LogIn, AlertTriangle } from "lucide-react";
 import type { FeedMeta } from "@/hooks/useFeed";
 
 type UploadState =
   | { phase: "idle" }
-  | { phase: "uploading" }
-  | { phase: "processing"; feedId: string }
+  | { phase: "uploading"; progress: number }
+  | { phase: "processing"; feedId: string; startedAt: number }
   | { phase: "done"; feedId: string }
   | { phase: "error"; message: string };
 
 type UserInfo = { name?: string | null; email?: string | null; image?: string | null } | null;
+
+const MAX_ZIP_BYTES = 500 * 1024 * 1024; // 500 MB — keep in sync with /api/gtfs/upload-token
+const PROCESSING_TIMEOUT_MS = 10 * 60 * 1000; // stop polling after 10 minutes
+const STALE_PROCESSING_MS = 15 * 60 * 1000; // feeds stuck in "processing" longer than this are likely dead
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function isStaleProcessing(feed: FeedMeta): boolean {
+  return feed.status === "processing" && Date.now() - new Date(feed.createdAt).getTime() > STALE_PROCESSING_MS;
+}
 
 export default function GtfsClient({ user }: { user: UserInfo }) {
   const authenticated = !!user;
   const [state, setState] = useState<UploadState>({ phase: "idle" });
   const [feeds, setFeeds]   = useState<FeedMeta[]>([]);
   const [cityName, setCityName] = useState("");
+  const [fileName, setFileName] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -39,34 +53,71 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
       return;
     }
+    const { feedId, startedAt } = state;
     pollRef.current = setInterval(async () => {
+      if (Date.now() - startedAt > PROCESSING_TIMEOUT_MS) {
+        setState({
+          phase: "error",
+          message: "Processing is taking longer than expected. Your feed may still finish — check back on this page in a few minutes, or delete it and try again.",
+        });
+        return;
+      }
       const res = await fetch("/api/gtfs/feeds");
       if (!res.ok) return;
       const data = await res.json() as { feeds: FeedMeta[] };
       setFeeds(data.feeds);
-      const feed = data.feeds.find(f => f.id === (state as { feedId: string }).feedId);
+      const feed = data.feeds.find(f => f.id === feedId);
       if (feed?.status === "ready") {
         setState({ phase: "done", feedId: feed.id });
       } else if (feed?.status === "failed") {
-        setState({ phase: "error", message: "Processing failed. Please try again." });
+        setState({
+          phase: "error",
+          message: feed.errorMessage
+            ? `Processing failed: ${feed.errorMessage}`
+            : "Processing failed. Please make sure the ZIP is a standard GTFS feed and try again.",
+        });
       }
     }, 3000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [state, loadFeeds]);
+  }, [state]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const file = fileRef.current?.files?.[0];
     if (!file || !cityName.trim()) return;
 
-    setState({ phase: "uploading" });
+    // Validate up-front so users get an instant, friendly message instead of a
+    // failed network upload.
+    if (!file.name.toLowerCase().endsWith(".zip")) {
+      setState({ phase: "error", message: "Please choose a GTFS ZIP file (ending in .zip)." });
+      return;
+    }
+    if (file.size === 0) {
+      setState({ phase: "error", message: "That file is empty. Please choose a valid GTFS ZIP." });
+      return;
+    }
+    if (file.size > MAX_ZIP_BYTES) {
+      setState({
+        phase: "error",
+        message: `That file is ${formatBytes(file.size)} — the limit is 500 MB. Most agency GTFS feeds are well under this.`,
+      });
+      return;
+    }
+
+    setState({ phase: "uploading", progress: 0 });
 
     try {
       // Upload directly from browser to Vercel Blob (no API body-size limit)
       const blob = await upload(
         `feeds/raw/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`,
         file,
-        { access: "public", handleUploadUrl: "/api/gtfs/upload-token" }
+        {
+          access: "public",
+          handleUploadUrl: "/api/gtfs/upload-token",
+          onUploadProgress: ({ percentage }) => {
+            setState({ phase: "uploading", progress: percentage });
+          },
+        }
       );
 
       // Register the feed in DB and kick off processing
@@ -82,7 +133,8 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
         return;
       }
       const data = await res.json() as { feedId: string };
-      setState({ phase: "processing", feedId: data.feedId });
+      setState({ phase: "processing", feedId: data.feedId, startedAt: Date.now() });
+      await loadFeeds();
     } catch (err) {
       // Surface a readable message — e.g. if the upload token endpoint fails
       const msg = err instanceof Error ? err.message : String(err);
@@ -91,7 +143,7 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
   }
 
   async function handleDelete(feedId: string) {
-    if (!confirm("Delete this feed?")) return;
+    if (!confirm("Delete this feed? This removes it from the map too.")) return;
     await fetch(`/api/gtfs/feeds/${feedId}`, { method: "DELETE" });
     await loadFeeds();
   }
@@ -171,7 +223,8 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
               <input
                 ref={fileRef}
                 type="file"
-                accept=".zip"
+                accept=".zip,application/zip,application/x-zip-compressed"
+                onChange={e => setFileName(e.target.files?.[0]?.name ?? null)}
                 className="w-full text-sm text-white/70 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-blue-600 file:text-white file:text-xs file:cursor-pointer hover:file:bg-blue-500"
                 required
                 disabled={busy}
@@ -179,9 +232,9 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
             </div>
 
             {state.phase === "error" && (
-              <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-                <XCircle className="w-4 h-4 shrink-0" />
-                {state.message}
+              <div className="flex items-start gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{state.message}</span>
               </div>
             )}
 
@@ -190,21 +243,40 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
                 type="submit"
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
-                <Upload className="w-4 h-4" /> Upload & process
+                <Upload className="w-4 h-4" /> Upload &amp; process
               </button>
             ) : state.phase === "uploading" ? (
-              <div className="flex items-center gap-2 text-white/60 text-sm">
-                <Clock className="w-4 h-4 animate-spin" /> Uploading…
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2 text-white/60">
+                    <Clock className="w-4 h-4 animate-spin" />
+                    Uploading{fileName ? ` ${fileName}` : ""}…
+                  </span>
+                  <span className="text-white/50 tabular-nums">{Math.round(state.progress)}%</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                    style={{ width: `${state.progress}%` }}
+                  />
+                </div>
               </div>
             ) : state.phase === "processing" ? (
-              <div className="flex items-center gap-2 text-amber-400 text-sm">
-                <Clock className="w-4 h-4 animate-spin" />
-                Processing GTFS data — this may take a few minutes for large feeds…
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-amber-400 text-sm">
+                  <Clock className="w-4 h-4 animate-spin" />
+                  Upload complete — processing the feed into map-ready data…
+                </div>
+                <p className="text-xs text-white/40 pl-6">
+                  Small feeds take under a minute; big-city bus networks can take a few minutes. You can leave this page — the feed will appear in your list when ready.
+                </p>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-green-400 text-sm">
                 <CheckCircle className="w-4 h-4" /> Feed ready!{" "}
-                <a href="/map" className="underline underline-offset-2">Open on map →</a>
+                <a href={`/map?feed=${state.feedId}&feedMode=city`} className="underline underline-offset-2">
+                  Open on map →
+                </a>
               </div>
             )}
           </form>
@@ -221,8 +293,9 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
                     <p className="text-xs text-white/40 mt-0.5">
                       {feed.status === "ready" && feed.routeCount !== null
                         ? `${feed.routeCount} routes · ${feed.stopCount} stops`
+                        : isStaleProcessing(feed) ? "Processing seems stuck — delete this feed and re-upload."
                         : feed.status === "processing" ? "Processing…"
-                        : feed.status === "failed"     ? "Failed"
+                        : feed.status === "failed"     ? (feed.errorMessage ?? "Failed")
                         : feed.status}
                     </p>
                   </div>
@@ -235,9 +308,14 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
                         <Map className="w-3 h-3" /> Open
                       </a>
                     )}
-                    {feed.status === "processing" && (
+                    {feed.status === "processing" && !isStaleProcessing(feed) && (
                       <span className="text-xs text-amber-400/70 flex items-center gap-1">
                         <Clock className="w-3 h-3 animate-spin" /> Processing
+                      </span>
+                    )}
+                    {feed.status === "processing" && isStaleProcessing(feed) && (
+                      <span className="text-xs text-amber-400 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Stuck
                       </span>
                     )}
                     {feed.status === "failed" && (

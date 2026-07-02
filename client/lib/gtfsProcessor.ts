@@ -115,6 +115,24 @@ function decode(bytes: Uint8Array): string {
   return new TextDecoder("utf-8").decode(bytes);
 }
 
+/**
+ * Iterate lines of a huge CSV string without building an array of millions of
+ * line strings (stop_times.txt for a big city can be 500 MB+ decoded —
+ * `split()` would roughly double peak memory).
+ */
+function* iterateLines(text: string): Generator<string> {
+  let start = 0;
+  const n = text.length;
+  while (start < n) {
+    let end = text.indexOf("\n", start);
+    if (end === -1) end = n;
+    let line = text.slice(start, end);
+    if (line.endsWith("\r")) line = line.slice(0, -1);
+    yield line;
+    start = end + 1;
+  }
+}
+
 function pyDowToJs(pyWeekday: number): number {
   // Python weekday 0=Mon,6=Sun → JS getDay 0=Sun,6=Sat
   return (pyWeekday + 1) % 7;
@@ -267,24 +285,30 @@ export async function processGtfsFeed(
 
   // ── Unzip ────────────────────────────────────────────────────────────────
   log("Unzipping GTFS feed…");
-  const zipped = new Uint8Array(zipBuffer);
-  const rawFiles = unzipSync(zipped);
-
   // Normalize filenames: some feeds wrap files in a subfolder
   const files = new Map<string, Uint8Array>();
-  for (const [path, data] of Object.entries(rawFiles)) {
-    const name = path.includes("/") ? path.split("/").pop()! : path;
-    files.set(name, data);
+  {
+    let rawFiles: Record<string, Uint8Array> | null = unzipSync(new Uint8Array(zipBuffer));
+    for (const [path, data] of Object.entries(rawFiles)) {
+      const name = path.includes("/") ? path.split("/").pop()! : path;
+      files.set(name, data);
+    }
+    rawFiles = null; // release the container so consumed entries can be GC'd
   }
 
+  // Each file is read exactly once; drop the compressed bytes immediately so
+  // peak memory holds only one decoded copy of each file at a time.
   const require = (name: string) => {
     const data = files.get(name);
-    if (!data) throw new Error(`Missing required GTFS file: ${name}`);
+    if (!data) throw new Error(`This ZIP doesn't look like a GTFS feed — missing required file: ${name}`);
+    files.delete(name);
     return decode(data);
   };
   const optional = (name: string) => {
     const data = files.get(name);
-    return data ? decode(data) : "";
+    if (!data) return "";
+    files.delete(name);
+    return decode(data);
   };
 
   // ── Parse core GTFS files ────────────────────────────────────────────────
@@ -332,8 +356,10 @@ export async function processGtfsFeed(
   log(`  ${trips.size.toLocaleString()} trips`);
 
   log("Parsing calendar…");
-  const calendarRows = optional("calendar.txt") ? parseCSV(optional("calendar.txt")) : [];
-  const calendarDatesRows = optional("calendar_dates.txt") ? parseCSV(optional("calendar_dates.txt")) : [];
+  const calendarText = optional("calendar.txt");
+  const calendarDatesText = optional("calendar_dates.txt");
+  const calendarRows = calendarText ? parseCSV(calendarText) : [];
+  const calendarDatesRows = calendarDatesText ? parseCSV(calendarDatesText) : [];
   const repByDow = buildServiceDowMap(calendarRows, calendarDatesRows, new Date());
   const repServiceIds = new Set(repByDow.values());
   log(`  Representative DOWs: ${JSON.stringify(Object.fromEntries(repByDow))}`);
@@ -347,7 +373,7 @@ export async function processGtfsFeed(
   // for repService trips, then build variants from those.
 
   log("Parsing stop_times.txt (large file, may take a while)…");
-  const stopTimesText = require("stop_times.txt");
+  let stopTimesText: string | null = require("stop_times.txt");
 
   // We need sim trips and will determine rep trips during variant building
   // Collect: for rep-service trips → sim stop times
@@ -361,18 +387,22 @@ export async function processGtfsFeed(
     if (repServiceIds.has(trip.service_id)) simTripIds.add(trip.trip_id);
   }
 
-  // Parse stop_times (single pass)
-  const lines = stopTimesText.split(/\r?\n/);
-  const headers = splitCSVLine(lines[0].startsWith("﻿") ? lines[0].slice(1) : lines[0]);
-  const colTripId    = headers.indexOf("trip_id");
-  const colStopId    = headers.indexOf("stop_id");
-  const colSeq       = headers.indexOf("stop_sequence");
-  const colDep       = headers.indexOf("departure_time");
-  const colArr       = headers.indexOf("arrival_time");
-
+  // Parse stop_times (single streaming pass — no line array)
+  let colTripId = -1, colStopId = -1, colSeq = -1, colDep = -1, colArr = -1;
+  let sawHeader = false;
   let rowCount = 0;
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
+  for (const rawLine of iterateLines(stopTimesText)) {
+    if (!sawHeader) {
+      sawHeader = true;
+      const headers = splitCSVLine(rawLine.startsWith("﻿") ? rawLine.slice(1) : rawLine);
+      colTripId = headers.indexOf("trip_id");
+      colStopId = headers.indexOf("stop_id");
+      colSeq    = headers.indexOf("stop_sequence");
+      colDep    = headers.indexOf("departure_time");
+      colArr    = headers.indexOf("arrival_time");
+      continue;
+    }
+    const line = rawLine.trim();
     if (!line) continue;
     rowCount++;
     if (rowCount % 500_000 === 0) log(`  ${rowCount.toLocaleString()} stop_time rows…`);
@@ -401,6 +431,7 @@ export async function processGtfsFeed(
       }
     }
   }
+  stopTimesText = null; // release the decoded CSV before building derived outputs
   log(`  ${rowCount.toLocaleString()} rows processed`);
 
   // Sort stop sequences
@@ -521,16 +552,21 @@ export async function processGtfsFeed(
   );
   const shapePoints = new Map<string, Array<{ seq: number; lon: number; lat: number }>>();
 
-  const shapesText = optional("shapes.txt");
+  let shapesText: string | null = optional("shapes.txt");
   if (shapesText) {
-    const sLines = shapesText.split(/\r?\n/);
-    const sHdrs = splitCSVLine(sLines[0].startsWith("﻿") ? sLines[0].slice(1) : sLines[0]);
-    const cShapeId  = sHdrs.indexOf("shape_id");
-    const cLat      = sHdrs.indexOf("shape_pt_lat");
-    const cLon      = sHdrs.indexOf("shape_pt_lon");
-    const cSeq      = sHdrs.indexOf("shape_pt_sequence");
-    for (let i = 1; i < sLines.length; i++) {
-      const sl = sLines[i].trim();
+    let cShapeId = -1, cLat = -1, cLon = -1, cSeq = -1;
+    let sawShapeHeader = false;
+    for (const rawLine of iterateLines(shapesText)) {
+      if (!sawShapeHeader) {
+        sawShapeHeader = true;
+        const sHdrs = splitCSVLine(rawLine.startsWith("﻿") ? rawLine.slice(1) : rawLine);
+        cShapeId = sHdrs.indexOf("shape_id");
+        cLat     = sHdrs.indexOf("shape_pt_lat");
+        cLon     = sHdrs.indexOf("shape_pt_lon");
+        cSeq     = sHdrs.indexOf("shape_pt_sequence");
+        continue;
+      }
+      const sl = rawLine.trim();
       if (!sl) continue;
       const sv = splitCSVLine(sl);
       const shapeId = sv[cShapeId]?.trim() ?? "";
@@ -544,6 +580,7 @@ export async function processGtfsFeed(
     }
     for (const [, pts] of shapePoints) pts.sort((a, b) => a.seq - b.seq);
   }
+  shapesText = null;
 
   // ── variant_lines.geojson ────────────────────────────────────────────────
   log("Building variant_lines.geojson…");

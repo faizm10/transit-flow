@@ -16,9 +16,10 @@ export async function GET() {
         id:         gtfsFeeds.id,
         cityName:   gtfsFeeds.cityName,
         status:     gtfsFeeds.status,
-        routeCount: gtfsFeeds.routeCount,
-        stopCount:  gtfsFeeds.stopCount,
-        createdAt:  gtfsFeeds.createdAt,
+        routeCount:   gtfsFeeds.routeCount,
+        stopCount:    gtfsFeeds.stopCount,
+        errorMessage: gtfsFeeds.errorMessage,
+        createdAt:    gtfsFeeds.createdAt,
       })
       .from(gtfsFeeds)
       .where(eq(gtfsFeeds.userId, session.user.id))

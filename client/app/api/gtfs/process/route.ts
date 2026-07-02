@@ -55,16 +55,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ feedId, status: "ready", ...result });
   } catch (err) {
     console.error("[gtfs/process] error:", err);
+    // Store a short, user-readable message — this is surfaced on the /gtfs page.
+    const message = (err instanceof Error ? err.message : String(err)).slice(0, 300);
     if (feedId) {
       await db
         .update(gtfsFeeds)
         .set({
           status:       "failed",
-          errorMessage: String(err),
+          errorMessage: message,
         })
         .where(eq(gtfsFeeds.id, feedId))
         .catch(() => {});
     }
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
