@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { colorForRoute } from "@/lib/routeColors";
 import { colorForCityRoute } from "@/lib/feedColors";
 import { resolveFeedSource, readDerivedFile } from "@/lib/feedLoader";
+import { FeedCache } from "@/lib/feedCache";
 import { SimTrip, SimStop, SimulationData } from "@/lib/simulation";
 
 const MAX_OUTPUT_TRIPS = 2000;
@@ -25,8 +26,8 @@ interface AppData {
   tripsByDow:      Map<number, SimTripRaw[]>; // 0=Sun … 6=Sat
 }
 
-// ── Per-feed cache ────────────────────────────────────────────────────────────
-const appDataCache = new Map<string, AppData>();
+// ── Per-feed cache (TTL + LRU for city feeds; GO Transit pinned) ─────────────
+const appDataCache = new FeedCache<AppData>();
 
 async function loadData(feedId: string): Promise<AppData> {
   const cached = appDataCache.get(feedId);

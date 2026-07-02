@@ -8,6 +8,7 @@
 import { readFileSync, statSync } from "fs";
 import { join } from "path";
 import { resolveFeedSource, readDerivedFile } from "@/lib/feedLoader";
+import { FeedCache } from "@/lib/feedCache";
 
 const GO_DERIVED_DIR = join(process.cwd(), "public", "gotransit", "derived");
 
@@ -45,7 +46,7 @@ interface CacheEntry {
   mtimeMs: number; // only tracked for local feeds
 }
 
-const indexCache = new Map<string, CacheEntry>();
+const indexCache = new FeedCache<CacheEntry>();
 
 function goMtimeMs(): number {
   try {

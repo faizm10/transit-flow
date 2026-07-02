@@ -3,9 +3,10 @@ import { GTFSRoute, GTFSVariant, GTFSStop, EnrichedRoute, VariantsIndex, Variant
 import { colorForRoute, isRailRoute } from "@/lib/routeColors";
 import { colorForCityRoute } from "@/lib/feedColors";
 import { resolveFeedSource, readDerivedFile } from "@/lib/feedLoader";
+import { FeedCache } from "@/lib/feedCache";
 
-// Per-feed cache
-const routesCache = new Map<string, EnrichedRoute[]>();
+// Per-feed cache (TTL + LRU for city feeds; GO Transit pinned)
+const routesCache = new FeedCache<EnrichedRoute[]>();
 
 function orderCorridorEndpoints(firstStop: string, lastStop: string): { from: string; to: string } {
   const a = firstStop.trim();

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GTFSStop, VariantStops } from "@/lib/gtfs";
 import { resolveFeedSource, readDerivedFile } from "@/lib/feedLoader";
+import { FeedCache } from "@/lib/feedCache";
 
-// Per-feed cache
-const variantStopsCache = new Map<string, VariantStops>();
+// Per-feed cache (TTL + LRU for city feeds; GO Transit pinned)
+const variantStopsCache = new FeedCache<VariantStops>();
 
 async function loadVariantStops(feedId: string): Promise<VariantStops> {
   const cached = variantStopsCache.get(feedId);
