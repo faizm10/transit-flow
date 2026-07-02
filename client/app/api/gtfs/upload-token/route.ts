@@ -18,9 +18,10 @@ export async function POST(req: NextRequest): Promise<Response> {
         ],
         maximumSizeInBytes: 500 * 1024 * 1024,
       }),
-      onUploadCompleted: async ({ blob }) => {
-        console.log("[upload-token] upload completed:", blob.url);
-      },
+      // No onUploadCompleted: registering it makes Vercel Blob call back into
+      // this deployment before the browser upload resolves — which hangs the
+      // upload at ~99% on localhost and on protected preview deployments.
+      // Feed registration happens explicitly via /api/gtfs/register instead.
     });
 
     return NextResponse.json(jsonResponse);

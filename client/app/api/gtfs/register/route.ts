@@ -5,9 +5,13 @@ import { upsertUser } from "@/lib/upsertUser";
 import { db } from "@/lib/db";
 import { gtfsFeeds } from "@/lib/db/schema";
 import { gtfsProcessSecret } from "@/lib/gtfsProcessSecret";
+import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
-export const maxDuration = 60;
+// Must cover the awaited /api/gtfs/process call in after() below (also 300s) —
+// if this function is killed early, the in-flight processing request can be
+// cancelled with it, leaving the feed stuck in "processing".
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   // Fail loudly before accepting the feed if processing can't be triggered —
@@ -52,17 +56,38 @@ export async function POST(req: NextRequest) {
 
   after(async () => {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-      await fetch(`${baseUrl}/api/gtfs/process`, {
+      // Prefer the current deployment's own URL (VERCEL_URL) so preview
+      // deployments trigger their own /api/gtfs/process rather than another
+      // environment's (production may not even have this route yet).
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+      const res = await fetch(`${baseUrl}/api/gtfs/process`, {
         method:  "POST",
         headers: {
           "Content-Type": "application/json",
           "x-gtfs-secret": processSecret,
+          // Lets the self-call through Vercel deployment protection on
+          // previews, when the bypass secret is configured.
+          ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+            ? { "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET }
+            : {}),
         },
         body: JSON.stringify({ feedId, blobUrl }),
       });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`process trigger returned ${res.status}: ${text.slice(0, 200)}`);
+      }
     } catch (err) {
       console.error("[gtfs/register] after() trigger failed:", err);
+      // Don't leave the feed spinning in "processing" — mark it failed so the
+      // UI shows a real error instead of an endless spinner.
+      await db
+        .update(gtfsFeeds)
+        .set({ status: "failed", errorMessage: "Could not start processing. Please try again." })
+        .where(eq(gtfsFeeds.id, feedId))
+        .catch(() => {});
     }
   });
 

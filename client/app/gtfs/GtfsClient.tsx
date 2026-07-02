@@ -114,6 +114,9 @@ export default function GtfsClient({ user }: { user: UserInfo }) {
         {
           access: "public",
           handleUploadUrl: "/api/gtfs/upload-token",
+          // Split large ZIPs into parallel parts with per-part retries —
+          // a single giant PUT is where big uploads tend to die.
+          multipart: true,
           onUploadProgress: ({ percentage }) => {
             setState({ phase: "uploading", progress: percentage });
           },
