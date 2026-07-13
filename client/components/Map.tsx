@@ -19,6 +19,7 @@ const PINK_BUS_ROUTES = ["40", "41", "47", "48", "94"];
 const PURPLE_BUS_ROUTES = ["52", "56"];
 const GO_ROUTE_LAYER_IDS = ["go-routes-casing", "go-routes-line", "go-routes-hit"];
 const CUSTOM_ROUTE_LAYER_IDS = ["custom-routes-line-bus", "custom-routes-line-train", "custom-routes-line-train-inner", "custom-routes-hit"];
+const CITY_ROUTE_LAYER_IDS = ["city-routes-casing", "city-routes-line", "city-routes-hit"];
 const EMPTY_ROUTE_FILTER_VALUE = "__transit_flow_no_routes__";
 const OPENRAILWAYMAP_LAYER_ID = "openrailwaymap-overlay";
 
@@ -53,6 +54,12 @@ export interface MapHandle {
   stopPinMode: () => void;
   /** Update custom station markers on the map. */
   updateStations: (stations: CustomStation[]) => void;
+  /**
+   * Switch between GO-only, city-only, or combined feed display.
+   * Pass cityGeoJsonUrl when switching to "city" or "both" for the first time
+   * (or when the active city feed changes).
+   */
+  setFeedMode: (mode: "go" | "city" | "both", cityGeoJsonUrl?: string) => void;
 }
 
 function makeVisibilityFilter(propertyName: string, values: string[] | null): LayerFilter {
@@ -69,6 +76,22 @@ function applyLayerFilter(map: mapboxgl.Map, layerIds: string[], filter: LayerFi
       map.setFilter(layerId, filter);
     }
   }
+}
+
+/** Bounding box of all LineString features (city feed route lines). */
+function boundsOfLineFeatures(gj: GeoJSON.FeatureCollection): mapboxgl.LngLatBounds | null {
+  let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+  for (const f of gj.features) {
+    if (f.geometry.type !== "LineString") continue;
+    for (const [lon, lat] of f.geometry.coordinates as [number, number][]) {
+      if (lon < minLon) minLon = lon;
+      if (lat < minLat) minLat = lat;
+      if (lon > maxLon) maxLon = lon;
+      if (lat > maxLat) maxLat = lat;
+    }
+  }
+  if (!Number.isFinite(minLon) || !Number.isFinite(maxLat)) return null;
+  return new mapboxgl.LngLatBounds([minLon, minLat], [maxLon, maxLat]);
 }
 
 interface MapProps {
@@ -133,6 +156,10 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 
   // Pin mode state
   const pinListenerRef = useRef<((e: mapboxgl.MapMouseEvent) => void) | null>(null);
+
+  // Tracks which city feed GeoJSON is currently loaded so re-toggling feed
+  // modes doesn't refetch or re-zoom; a new URL (feed change) does both.
+  const cityFeedUrlRef = useRef<string | null>(null);
 
   // ── Imperative handle ──────────────────────────────────────────────────────
   useImperativeHandle(ref, () => ({
@@ -391,6 +418,49 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
         })),
       });
     },
+
+    setFeedMode: (mode, cityGeoJsonUrl) => {
+      const map = mapRef.current;
+      if (!map || !map.isStyleLoaded()) return;
+
+      const showGo   = mode === "go"   || mode === "both";
+      const showCity = mode === "city" || mode === "both";
+
+      for (const id of GO_ROUTE_LAYER_IDS) {
+        if (map.getLayer(id)) {
+          map.setLayoutProperty(id, "visibility", showGo ? "visible" : "none");
+        }
+      }
+      for (const id of CITY_ROUTE_LAYER_IDS) {
+        if (map.getLayer(id)) {
+          map.setLayoutProperty(id, "visibility", showCity ? "visible" : "none");
+        }
+      }
+
+      if (showCity && cityGeoJsonUrl && cityGeoJsonUrl !== cityFeedUrlRef.current) {
+        cityFeedUrlRef.current = cityGeoJsonUrl;
+        // Fetch ourselves (instead of src.setData(url)) so we can zoom to the
+        // city's extent — uploaded feeds are usually nowhere near the default
+        // GO Transit viewport, and without this the map looks empty.
+        fetch(cityGeoJsonUrl)
+          .then((r) => {
+            if (!r.ok) throw new Error(`city feed geojson fetch failed: ${r.status}`);
+            return r.json();
+          })
+          .then((gj: GeoJSON.FeatureCollection) => {
+            if (cityFeedUrlRef.current !== cityGeoJsonUrl) return; // superseded by newer feed
+            const src = map.getSource("city-routes") as mapboxgl.GeoJSONSource | undefined;
+            if (!src) return;
+            src.setData(gj);
+            const bounds = boundsOfLineFeatures(gj);
+            if (bounds) map.fitBounds(bounds, { padding: 60, duration: 1500, maxZoom: 12 });
+          })
+          .catch((err) => {
+            console.error("[Map] city feed load failed:", err);
+            cityFeedUrlRef.current = null; // allow retry on next mode toggle
+          });
+      }
+    },
   }));
 
   // ── Shared draw/edit cleanup ───────────────────────────────────────────────
@@ -539,6 +609,37 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           "line-color": "transparent",
           "line-width": 12,
         },
+      });
+
+      // ── City GTFS feed routes (uploaded city feeds) ───────────────────────
+      map.addSource("city-routes", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "city-routes-casing",
+        type: "line",
+        source: "city-routes",
+        layout: { "line-join": "round", "line-cap": "round", visibility: "none" },
+        paint: { "line-color": "#ffffff", "line-width": 5, "line-opacity": 0.6 },
+      });
+      map.addLayer({
+        id: "city-routes-line",
+        type: "line",
+        source: "city-routes",
+        layout: { "line-join": "round", "line-cap": "round", visibility: "none" },
+        paint: {
+          "line-color": ["coalesce", ["get", "route_color"], "#0066CC"],
+          "line-width": 2.5,
+          "line-opacity": 1,
+        },
+      });
+      map.addLayer({
+        id: "city-routes-hit",
+        type: "line",
+        source: "city-routes",
+        layout: { "line-cap": "round", "line-join": "round", visibility: "none" },
+        paint: { "line-color": "rgba(0,0,0,0)", "line-width": 12 },
       });
 
       // ── Rail network overlay (train design mode) ──────────────────────────

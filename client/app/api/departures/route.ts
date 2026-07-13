@@ -28,6 +28,7 @@ function normalizeTimes(values: unknown): string[] | null {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
+  const feedId = searchParams.get("feed") ?? "gotransit";
   const route = searchParams.get("route")?.trim();
   const dayParam = searchParams.get("day");
   const overridesParam = searchParams.get("overrides");
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
   })();
 
   try {
-    const { departures } = await getFullIndex();
+    const { departures } = await getFullIndex(feedId);
     const key = `${route}|${dayOfWeek}`;
     const allEntries = departures.get(key) ?? [];
 

@@ -1,23 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFileSync } from "fs";
-import { join } from "path";
 import { GTFSStop, VariantStops } from "@/lib/gtfs";
+import { resolveFeedSource, readDerivedFile } from "@/lib/feedLoader";
+import { FeedCache } from "@/lib/feedCache";
 
-const PUBLIC_DIR = join(process.cwd(), "public", "gotransit", "derived");
+// Per-feed cache (TTL + LRU for city feeds; GO Transit pinned)
+const variantStopsCache = new FeedCache<VariantStops>();
 
-let cachedVariantStops: VariantStops | null = null;
+async function loadVariantStops(feedId: string): Promise<VariantStops> {
+  const cached = variantStopsCache.get(feedId);
+  if (cached) return cached;
 
-function loadVariantStops(): VariantStops {
-  if (cachedVariantStops) return cachedVariantStops;
-  cachedVariantStops = JSON.parse(
-    readFileSync(join(PUBLIC_DIR, "variant_stops.json"), "utf-8")
-  ) as VariantStops;
-  return cachedVariantStops;
+  const source = await resolveFeedSource(feedId);
+  const json = await readDerivedFile(source, "variant_stops.json");
+  const data = JSON.parse(json) as VariantStops;
+  variantStopsCache.set(feedId, data);
+  return data;
 }
 
-// GET /api/variant-stops?variant_id=XX
-// Returns: { stops: GTFSStop[] }
+// GET /api/variant-stops?variant_id=XX&feed=gotransit
 export async function GET(req: NextRequest) {
+  const feedId = req.nextUrl.searchParams.get("feed") ?? "gotransit";
   const variantId = req.nextUrl.searchParams.get("variant_id")?.trim();
 
   if (!variantId) {
@@ -28,7 +30,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const all = loadVariantStops();
+    const all = await loadVariantStops(feedId);
     const stops: GTFSStop[] = all[variantId] ?? [];
     return NextResponse.json({ stops });
   } catch (err) {

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFileSync } from "fs";
-import { join } from "path";
-import { GTFSStop, VariantStops } from "@/lib/gtfs";
-
-const PUBLIC_DIR = join(process.cwd(), "public", "gotransit", "derived");
+import { VariantStops } from "@/lib/gtfs";
+import { resolveFeedSource, readDerivedFile } from "@/lib/feedLoader";
+import { FeedCache } from "@/lib/feedCache";
 
 interface StopSearchResult {
   stop_id: string;
@@ -12,15 +10,16 @@ interface StopSearchResult {
   lon: number;
 }
 
-// Flatten and deduplicate stops across all variants
-let cachedStops: StopSearchResult[] | null = null;
+// Per-feed cache (TTL + LRU for city feeds; GO Transit pinned)
+const stopsCache = new FeedCache<StopSearchResult[]>();
 
-function loadStops(): StopSearchResult[] {
-  if (cachedStops) return cachedStops;
+async function loadStops(feedId: string): Promise<StopSearchResult[]> {
+  const cached = stopsCache.get(feedId);
+  if (cached) return cached;
 
-  const variantStops: VariantStops = JSON.parse(
-    readFileSync(join(PUBLIC_DIR, "variant_stops.json"), "utf-8")
-  );
+  const source = await resolveFeedSource(feedId);
+  const json = await readDerivedFile(source, "variant_stops.json");
+  const variantStops: VariantStops = JSON.parse(json);
 
   const seen = new Set<string>();
   const stops: StopSearchResult[] = [];
@@ -39,17 +38,17 @@ function loadStops(): StopSearchResult[] {
     }
   }
 
-  // Sort alphabetically for consistent results
   stops.sort((a, b) => a.stop_name.localeCompare(b.stop_name));
-  cachedStops = stops;
+  stopsCache.set(feedId, stops);
   return stops;
 }
 
 export async function GET(req: NextRequest) {
+  const feedId = req.nextUrl.searchParams.get("feed") ?? "gotransit";
   const q = req.nextUrl.searchParams.get("q")?.toLowerCase().trim() ?? "";
 
   try {
-    const all = loadStops();
+    const all = await loadStops(feedId);
 
     if (!q) {
       return NextResponse.json({ stops: all.slice(0, 20) });
