@@ -53,6 +53,11 @@ export interface MapHandle {
   stopPinMode: () => void;
   /** Update custom station markers on the map. */
   updateStations: (stations: CustomStation[]) => void;
+  /** Replace the uploaded city-GTFS overlay (lines + stops GeoJSON). */
+  setCityFeedData: (
+    lines: GeoJSON.FeatureCollection,
+    stops: GeoJSON.FeatureCollection
+  ) => void;
 }
 
 function makeVisibilityFilter(propertyName: string, values: string[] | null): LayerFilter {
@@ -133,6 +138,12 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 
   // Pin mode state
   const pinListenerRef = useRef<((e: mapboxgl.MapMouseEvent) => void) | null>(null);
+
+  // City-feed overlay data set before the style finished loading (first paint race)
+  const pendingCityFeedDataRef = useRef<{
+    lines: GeoJSON.FeatureCollection;
+    stops: GeoJSON.FeatureCollection;
+  } | null>(null);
 
   // ── Imperative handle ──────────────────────────────────────────────────────
   useImperativeHandle(ref, () => ({
@@ -372,6 +383,18 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       map.getCanvas().style.cursor = "";
     },
 
+    setCityFeedData: (lines, stops) => {
+      const map = mapRef.current;
+      const linesSrc = map?.getSource("city-feed-lines") as mapboxgl.GeoJSONSource | undefined;
+      const stopsSrc = map?.getSource("city-feed-stops") as mapboxgl.GeoJSONSource | undefined;
+      if (!linesSrc || !stopsSrc) {
+        pendingCityFeedDataRef.current = { lines, stops };
+        return;
+      }
+      linesSrc.setData(lines);
+      stopsSrc.setData(stops);
+    },
+
     updateStations: (stations) => {
       const map = mapRef.current;
       if (!map) return;
@@ -477,6 +500,53 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           paint: { "raster-opacity": 0.62 },
         });
       }
+
+      // ── Uploaded city-GTFS overlays (beneath GO so GO stays prominent) ────
+      map.addSource("city-feed-lines", {
+        type: "geojson",
+        data: pendingCityFeedDataRef.current?.lines ?? { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "city-feed-lines-casing",
+        type: "line",
+        source: "city-feed-lines",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": ["case", ["<=", ["get", "routeType"], 2], 4, 3],
+          "line-opacity": 0.45,
+        },
+      });
+      map.addLayer({
+        id: "city-feed-lines-line",
+        type: "line",
+        source: "city-feed-lines",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": ["get", "color"],
+          // Rail-ish modes (tram/subway/rail) draw heavier than buses
+          "line-width": ["case", ["<=", ["get", "routeType"], 2], 2.5, 1.4],
+          "line-opacity": 0.85,
+        },
+      });
+      map.addSource("city-feed-stops", {
+        type: "geojson",
+        data: pendingCityFeedDataRef.current?.stops ?? { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "city-feed-stops-circle",
+        type: "circle",
+        source: "city-feed-stops",
+        minzoom: 10.5,
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 10.5, 1.4, 14, 4],
+          "circle-color": ["get", "color"],
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10.5, 0.4, 14, 1.2],
+          "circle-stroke-color": "#ffffff",
+          "circle-opacity": 0.85,
+        },
+      });
+      pendingCityFeedDataRef.current = null;
 
       // ── GO Transit routes layer ────────────────────────────────────────────
       map.addSource("go-routes", {

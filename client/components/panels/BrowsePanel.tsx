@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bus, ChevronDown, ChevronUp, Pencil, Search, Share2, Train, Trash2 } from "lucide-react";
+import { Building2, Bus, ChevronDown, ChevronUp, Loader2, Locate, Pencil, Plus, Search, Share2, Train, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
 import { type CustomRoute, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
+import type { CityFeedMeta } from "@/lib/cityGtfs";
+import type { CityFeedEntry } from "@/hooks/useCityFeeds";
 
 interface BrowsePanelProps {
   onRouteSelect: (shortName: string, variantIds: string[]) => void;
@@ -15,6 +17,13 @@ interface BrowsePanelProps {
   onRouteFilterChange: (filters: RouteFilters) => void;
   onDeleteCustomRoute: (routeId: string, routeName: string) => void;
   onShareCustomRoute: (routeId: string) => void;
+  cityFeeds: CityFeedEntry[];
+  visibleCityFeedIds: Set<string>;
+  loadingCityFeedIds: Set<string>;
+  onToggleCityFeed: (id: string, visible: boolean) => void;
+  onDeleteCityFeed: (id: string, name: string) => void;
+  onZoomCityFeed: (feed: CityFeedMeta) => void;
+  onAddCityFeed: () => void;
 }
 
 function matchesSearch(route: EnrichedRoute, lineName: string | undefined, q: string) {
@@ -52,6 +61,13 @@ export default function BrowsePanel({
   onRouteFilterChange,
   onDeleteCustomRoute,
   onShareCustomRoute,
+  cityFeeds,
+  visibleCityFeedIds,
+  loadingCityFeedIds,
+  onToggleCityFeed,
+  onDeleteCityFeed,
+  onZoomCityFeed,
+  onAddCityFeed,
 }: BrowsePanelProps) {
   const [routes, setRoutes] = useState<EnrichedRoute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,7 +170,7 @@ export default function BrowsePanel({
 
       <Tabs defaultValue="trains" className="flex flex-col">
         <div className="shrink-0 space-y-1 px-2 pb-1 pt-1">
-          <TabsList className="grid h-7 w-full grid-cols-3 gap-0 bg-slate-100 p-px">
+          <TabsList className="grid h-7 w-full grid-cols-4 gap-0 bg-slate-100 p-px">
             <TabsTrigger value="trains" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
               <Train className="h-3 w-3 shrink-0" aria-hidden />
               Train
@@ -166,6 +182,10 @@ export default function BrowsePanel({
             <TabsTrigger value="custom" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
               <Pencil className="h-3 w-3 shrink-0" aria-hidden />
               Custom
+            </TabsTrigger>
+            <TabsTrigger value="cities" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
+              <Building2 className="h-3 w-3 shrink-0" aria-hidden />
+              Cities
             </TabsTrigger>
           </TabsList>
           <div className="relative">
@@ -446,6 +466,92 @@ export default function BrowsePanel({
                         checked={visible}
                         label={`Show ${route.name || "custom route"} on map`}
                         onChange={(checked) => toggleCustomRoute(route.id, checked)}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="cities" className="mt-0 px-2 pb-2">
+          <button
+            type="button"
+            onClick={onAddCityFeed}
+            className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-[11px] font-medium text-slate-600 transition-colors hover:border-[#155ba0] hover:text-[#155ba0]"
+          >
+            <Plus className="h-3 w-3" aria-hidden />
+            Add a city&apos;s GTFS
+          </button>
+
+          {cityFeeds.length === 0 ? (
+            <div className="mt-2 rounded-lg border border-dashed border-slate-200 px-3 py-3 text-center text-[11px] leading-relaxed text-slate-500">
+              Upload another agency&apos;s GTFS zip to overlay its network on the map.
+              Saved feeds stay on your account.
+            </div>
+          ) : (
+            <div className={ROUTE_LIST_BOX}>
+              <ul className="divide-y divide-slate-100">
+                {cityFeeds.map((feed) => {
+                  const visible = visibleCityFeedIds.has(feed.id);
+                  const loading = loadingCityFeedIds.has(feed.id);
+                  return (
+                    <li
+                      key={feed.id}
+                      className={`flex min-h-9 items-center ${
+                        visible ? "" : "bg-slate-50/80 opacity-60"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 pr-1 text-left transition-colors hover:bg-slate-50"
+                        onClick={() => onZoomCityFeed(feed)}
+                        title="Zoom to this network"
+                      >
+                        <span
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white shadow-sm"
+                          style={{ backgroundColor: feed.color }}
+                        >
+                          {loading ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                          ) : (
+                            <Building2 className="h-3.5 w-3.5" aria-hidden />
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex min-w-0 items-baseline gap-1.5">
+                            <span className="truncate text-xs font-medium text-slate-900">
+                              {feed.name}
+                            </span>
+                            {!feed.saved && (
+                              <span className="shrink-0 rounded bg-amber-100 px-1 text-[9px] font-semibold uppercase text-amber-700">
+                                unsaved
+                              </span>
+                            )}
+                          </span>
+                          <span className="block truncate text-[10px] tabular-nums text-slate-400">
+                            {feed.stats.routes.toLocaleString()} routes ·{" "}
+                            {feed.stats.stops.toLocaleString()} stops ·{" "}
+                            {feed.stats.trips.toLocaleString()} trips
+                          </span>
+                        </span>
+                        <Locate className="h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDeleteCityFeed(feed.id, feed.name);
+                        }}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                        aria-label={`Delete ${feed.name}`}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                      <VisibilityCheckbox
+                        checked={visible}
+                        label={`Show ${feed.name} on map`}
+                        onChange={(checked) => onToggleCityFeed(feed.id, checked)}
                       />
                     </li>
                   );

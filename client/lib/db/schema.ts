@@ -62,8 +62,40 @@ export const comments = pgTable("community_comments", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ── City GTFS feeds ────────────────────────────────────────────────────────
+// User-uploaded GTFS feeds from other cities, reduced client-side to a
+// compact payload (stops + route patterns + timings), gzipped and stored in
+// ordered base64 chunks (each chunk uploads under Vercel's ~4.5MB body cap).
+export const cityFeeds = pgTable("city_feeds", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),              // user label, e.g. "TTC"
+  agency: text("agency"),                    // from agency.txt
+  color: text("color").notNull(),            // overlay accent color
+  stats: jsonb("stats").notNull(),           // CityFeedStats (counts, bbox, dates)
+  byteSize: integer("byte_size").notNull(),  // gzipped payload size
+  chunkCount: integer("chunk_count").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const cityFeedChunks = pgTable(
+  "city_feed_chunks",
+  {
+    feedId: uuid("feed_id")
+      .notNull()
+      .references(() => cityFeeds.id, { onDelete: "cascade" }),
+    idx: integer("idx").notNull(),
+    data: text("data").notNull(),            // base64 of one gzip slice
+  },
+  (table) => [primaryKey({ columns: [table.feedId, table.idx] })]
+);
+
 // ── Type exports ──────────────────────────────────────────────────────────
 export type User = typeof users.$inferSelect;
+export type CityFeed = typeof cityFeeds.$inferSelect;
+export type CityFeedChunk = typeof cityFeedChunks.$inferSelect;
 export type Post = typeof posts.$inferSelect;
 export type Like = typeof likes.$inferSelect;
 export type Comment = typeof comments.$inferSelect;

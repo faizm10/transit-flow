@@ -24,6 +24,9 @@ import RouteFilterControl from "@/components/overlays/RouteFilterControl";
 import { useRoutes } from "@/hooks/useRoutes";
 import { useStations } from "@/hooks/useStations";
 import { useSimulation } from "@/hooks/useSimulation";
+import { useCityFeeds } from "@/hooks/useCityFeeds";
+import AddCityFeedModal from "@/components/panels/AddCityFeedModal";
+import type { CityFeedMeta } from "@/lib/cityGtfs";
 import { networkRouteFilters } from "@/lib/mapEntry";
 import { type CustomRoute, type CustomSchedule, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
 import BugReportButton from "@/components/BugReportButton";
@@ -148,6 +151,58 @@ function MapPageContent() {
 
   const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
   const { stations: customStations, saveStation, deleteStation } = useStations();
+
+  // ── Uploaded city-GTFS overlays ──────────────────────────────────────────
+  const {
+    feeds: cityFeeds,
+    visibleIds: visibleCityFeedIds,
+    loadingIds: loadingCityFeedIds,
+    parseProgress: cityFeedParseProgress,
+    overlay: cityFeedsOverlay,
+    isAuthenticated: cityFeedsAuthed,
+    parseZip: parseCityFeedZip,
+    cancelParse: cancelCityFeedParse,
+    saveFeed: saveCityFeed,
+    addLocalFeed: addLocalCityFeed,
+    deleteFeed: deleteCityFeed,
+    toggleFeed: toggleCityFeed,
+  } = useCityFeeds();
+  const [cityFeedModalOpen, setCityFeedModalOpen] = useState(false);
+
+  const handleZoomCityFeed = useCallback((feed: CityFeedMeta) => {
+    const [w, s, e, n] = feed.stats.bbox;
+    if (![w, s, e, n].every(Number.isFinite)) return;
+    mapRef.current?.getMap()?.fitBounds([[w, s], [e, n]], { padding: 80, maxZoom: 12 });
+  }, []);
+
+  const handleToggleCityFeed = useCallback(
+    (id: string, visible: boolean) => {
+      toggleCityFeed(id, visible).catch((err: unknown) => {
+        toast.error(err instanceof Error ? err.message : "Could not load feed");
+      });
+    },
+    [toggleCityFeed]
+  );
+
+  const requestDeleteCityFeed = useCallback(
+    (id: string, name: string) => {
+      toast.warning(`Delete "${name}"?`, {
+        description: "This removes the saved city feed from your account.",
+        action: {
+          label: "Delete",
+          onClick: () => {
+            deleteCityFeed(id)
+              .then(() => toast.success("City feed deleted"))
+              .catch((err: unknown) =>
+                toast.error(err instanceof Error ? err.message : "Could not delete feed")
+              );
+          },
+        },
+        cancel: { label: "Cancel", onClick: () => undefined },
+      });
+    },
+    [deleteCityFeed]
+  );
 
   // Patch just the schedule field of a custom route
   const handleSaveSchedule = useCallback((routeId: string, schedule: CustomSchedule) => {
@@ -356,6 +411,12 @@ function MapPageContent() {
     if (!mapLoaded) return;
     mapRef.current?.updateStations(customStations);
   }, [customStations, mapLoaded]);
+
+  // ── Sync uploaded city-GTFS overlays to map ─────────────────────────────
+  useEffect(() => {
+    if (!mapLoaded) return;
+    mapRef.current?.setCityFeedData(cityFeedsOverlay.lines, cityFeedsOverlay.stops);
+  }, [cityFeedsOverlay, mapLoaded]);
 
   // ── Sync route visibility filters to map layers ─────────────────────────
   useEffect(() => {
@@ -841,6 +902,13 @@ function MapPageContent() {
                   const route = customRoutes.find((r) => r.id === id);
                   if (route) setShareTarget(route);
                 }}
+                cityFeeds={cityFeeds}
+                visibleCityFeedIds={visibleCityFeedIds}
+                loadingCityFeedIds={loadingCityFeedIds}
+                onToggleCityFeed={handleToggleCityFeed}
+                onDeleteCityFeed={requestDeleteCityFeed}
+                onZoomCityFeed={handleZoomCityFeed}
+                onAddCityFeed={() => setCityFeedModalOpen(true)}
               />
             )}
             {mode === "build" && (
@@ -1048,6 +1116,21 @@ function MapPageContent() {
 
       {/* Share to community modal */}
       <ShareModal route={shareTarget} onClose={() => setShareTarget(null)} />
+
+      <AddCityFeedModal
+        open={cityFeedModalOpen}
+        onClose={() => setCityFeedModalOpen(false)}
+        isAuthenticated={cityFeedsAuthed}
+        parseProgress={cityFeedParseProgress}
+        parseZip={parseCityFeedZip}
+        cancelParse={cancelCityFeedParse}
+        saveFeed={saveCityFeed}
+        addLocalFeed={addLocalCityFeed}
+        onAdded={(meta) => {
+          toast.success(`${meta.name} added to the map`);
+          handleZoomCityFeed(meta);
+        }}
+      />
 
       {/* Report a bug — floating bottom-right */}
       <BugReportButton variant="float" />
