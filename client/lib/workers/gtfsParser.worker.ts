@@ -418,89 +418,34 @@ async function parse(file: File): Promise<void> {
   };
 
   // ══ Pass 2: stop_times.txt + shapes.txt ═══════════════════════════════════
-  // Patterns keyed per route by the exact stop sequence.
-  const patternsByRoute = new Map<string, Map<string, PatternAcc>>();
-  let totalTrips = 0;
+  // No row-ordering assumptions: some agencies export stop_times/shapes
+  // sorted by sequence rather than grouped by id (interleaved rows), which
+  // would silently drop geometry. Rows accumulate into flat number arrays
+  // keyed by id — cheap even at millions of rows — and are assembled after
+  // the stream ends.
 
-  // Current-trip accumulator — stop_times.txt is grouped by trip_id in
-  // practice (spec orders by stop_sequence within trips). If a feed ever
-  // interleaves trips, fragments become separate patterns; harmless.
-  let curTripId = "";
-  let curStops: { seq: number; stopId: string }[] = [];
-  let curFirstDep: number | null = null;
-  let curFirstSeq = Infinity;
-
-  const finalizeTrip = () => {
-    if (!curTripId || curStops.length < 2) {
-      curStops = [];
-      curFirstDep = null;
-      curFirstSeq = Infinity;
-      return;
+  // Intern stop ids so per-trip storage is [seq, stopIdx, …] numbers only.
+  const stopIdxById = new Map<string, number>();
+  const stopIdByIdx: string[] = [];
+  const internStop = (id: string): number => {
+    let i = stopIdxById.get(id);
+    if (i === undefined) {
+      i = stopIdByIdx.length;
+      stopIdxById.set(id, i);
+      stopIdByIdx.push(id);
     }
-    const trip = trips.get(curTripId);
-    if (trip && trip.routeId) {
-      curStops.sort((a, b) => a.seq - b.seq);
-      const stopIds = curStops.map((s) => s.stopId);
-      const key = stopIds.join("\u0001");
-
-      let routePatterns = patternsByRoute.get(trip.routeId);
-      if (!routePatterns) {
-        routePatterns = new Map();
-        patternsByRoute.set(trip.routeId, routePatterns);
-      }
-      let acc = routePatterns.get(key);
-      if (!acc) {
-        acc = {
-          stopIds,
-          tripCount: 0,
-          weeklyTrips: 0,
-          firstDepSecs: Infinity,
-          lastDepSecs: -Infinity,
-          hourly: new Array(24).fill(0),
-          headsignCounts: new Map(),
-          shapeCounts: new Map(),
-        };
-        routePatterns.set(key, acc);
-      }
-      acc.tripCount++;
-      acc.weeklyTrips += daysPerWeek(trip.serviceId);
-      if (curFirstDep !== null) {
-        acc.firstDepSecs = Math.min(acc.firstDepSecs, curFirstDep);
-        acc.lastDepSecs = Math.max(acc.lastDepSecs, curFirstDep);
-        acc.hourly[Math.floor(curFirstDep / 3600) % 24]++;
-      }
-      if (trip.headsign) {
-        acc.headsignCounts.set(trip.headsign, (acc.headsignCounts.get(trip.headsign) ?? 0) + 1);
-      }
-      if (trip.shapeId) {
-        acc.shapeCounts.set(trip.shapeId, (acc.shapeCounts.get(trip.shapeId) ?? 0) + 1);
-      }
-      totalTrips++;
-    }
-    curStops = [];
-    curFirstDep = null;
-    curFirstSeq = Infinity;
+    return i;
   };
 
-  // Shapes: only ids referenced by trips; grouped-by-shape assumption with
-  // simplify-on-completion so raw points never pile up.
+  // trip_id → [seq, stopIdx, seq, stopIdx, …]
+  const tripStopRows = new Map<string, number[]>();
+  // trip_id → departure secs at the lowest stop_sequence seen so far
+  const tripFirstDep = new Map<string, { seq: number; secs: number }>();
+
+  // shape_id → [seq, lon, lat, …] (only shapes referenced by trips)
   const referencedShapes = new Set<string>();
   for (const t of trips.values()) if (t.shapeId) referencedShapes.add(t.shapeId);
-  const simplifiedShapes = new Map<string, [number, number][]>();
-  let curShapeId = "";
-  let curShapePts: { seq: number; lon: number; lat: number }[] = [];
-
-  const finalizeShape = () => {
-    if (curShapeId && curShapePts.length >= 2 && !simplifiedShapes.has(curShapeId)) {
-      curShapePts.sort((a, b) => a.seq - b.seq);
-      const pts = curShapePts.map((p) => [p.lon, p.lat] as [number, number]);
-      simplifiedShapes.set(
-        curShapeId,
-        simplifyShape(pts, SHAPE_TOLERANCE_DEG).map(([lon, lat]) => [round(lon), round(lat)])
-      );
-    }
-    curShapePts = [];
-  };
+  const shapeRows = new Map<string, number[]>();
 
   const pass2Sinks: Record<string, FileSink> = {
     "stop_times.txt": makeSink((h) => {
@@ -508,19 +453,20 @@ async function parse(file: File): Promise<void> {
         iSeq = col(h, "stop_sequence"), iDep = col(h, "departure_time"),
         iArr = col(h, "arrival_time");
       return (f) => {
-        const tripId = f[iTrip];
-        if (tripId !== curTripId) {
-          finalizeTrip();
-          curTripId = tripId;
-        }
+        const tripId = f[iTrip]?.trim();
         const stopId = f[iStop]?.trim();
         const seq = +f[iSeq];
-        if (!stopId || Number.isNaN(seq)) return;
-        curStops.push({ seq, stopId });
-        if (seq < curFirstSeq) {
-          curFirstSeq = seq;
+        if (!tripId || !stopId || Number.isNaN(seq)) return;
+        let rows = tripStopRows.get(tripId);
+        if (!rows) {
+          rows = [];
+          tripStopRows.set(tripId, rows);
+        }
+        rows.push(seq, internStop(stopId));
+        const cur = tripFirstDep.get(tripId);
+        if (!cur || seq < cur.seq) {
           const t = parseTimeSecs(f[iDep] || (iArr >= 0 ? f[iArr] : "") || "");
-          if (t !== null) curFirstDep = t;
+          if (t !== null) tripFirstDep.set(tripId, { seq, secs: t });
         }
       };
     }),
@@ -528,27 +474,100 @@ async function parse(file: File): Promise<void> {
       const iId = col(h, "shape_id"), iLat = col(h, "shape_pt_lat"),
         iLon = col(h, "shape_pt_lon"), iSeq = col(h, "shape_pt_sequence");
       return (f) => {
-        const id = f[iId];
-        if (id !== curShapeId) {
-          finalizeShape();
-          curShapeId = id;
-        }
-        if (!referencedShapes.has(id)) return;
+        const id = f[iId]?.trim();
+        if (!id || !referencedShapes.has(id)) return;
         const lat = +f[iLat], lon = +f[iLon], seq = +f[iSeq];
         if (Number.isNaN(lat) || Number.isNaN(lon)) return;
-        curShapePts.push({ seq: Number.isNaN(seq) ? curShapePts.length : seq, lon, lat });
+        let rows = shapeRows.get(id);
+        if (!rows) {
+          rows = [];
+          shapeRows.set(id, rows);
+        }
+        rows.push(Number.isNaN(seq) ? rows.length / 3 : seq, lon, lat);
       };
     }),
   };
 
   await streamZip(file, pass2Sinks, (pushed) =>
-    progress("Processing stop times & shapes", 0.15, 0.75, pushed / totalBytes)
+    progress("Processing stop times & shapes", 0.15, 0.65, pushed / totalBytes)
   );
-  finalizeTrip();
-  finalizeShape();
+
+  if (tripStopRows.size === 0) {
+    throw new Error("No stop times found — is this a valid GTFS zip? (missing stop_times.txt)");
+  }
+
+  // ── Simplify shapes (sorted by sequence, order-independent) ───────────────
+  progress("Simplifying route shapes", 0.8, 0.05, 0.3);
+  const simplifiedShapes = new Map<string, [number, number][]>();
+  for (const [shapeId, rows] of shapeRows) {
+    const n = rows.length / 3;
+    if (n < 2) continue;
+    const order = Array.from({ length: n }, (_, i) => i).sort(
+      (a, b) => rows[a * 3] - rows[b * 3]
+    );
+    const pts = order.map((i) => [rows[i * 3 + 1], rows[i * 3 + 2]] as [number, number]);
+    simplifiedShapes.set(
+      shapeId,
+      simplifyShape(pts, SHAPE_TOLERANCE_DEG).map(([lon, lat]) => [round(lon), round(lat)])
+    );
+  }
+  shapeRows.clear();
+
+  // ── Collapse trips into patterns ───────────────────────────────────────────
+  progress("Building route patterns", 0.85, 0.05, 0.3);
+  const patternsByRoute = new Map<string, Map<string, PatternAcc>>();
+  let totalTrips = 0;
+
+  for (const [tripId, rows] of tripStopRows) {
+    const trip = trips.get(tripId);
+    const n = rows.length / 2;
+    if (!trip || !trip.routeId || n < 2) continue;
+
+    const order = Array.from({ length: n }, (_, i) => i).sort(
+      (a, b) => rows[a * 2] - rows[b * 2]
+    );
+    const stopIds = order.map((i) => stopIdByIdx[rows[i * 2 + 1]]);
+    const key = stopIds.join("\u0001");
+
+    let routePatterns = patternsByRoute.get(trip.routeId);
+    if (!routePatterns) {
+      routePatterns = new Map();
+      patternsByRoute.set(trip.routeId, routePatterns);
+    }
+    let acc = routePatterns.get(key);
+    if (!acc) {
+      acc = {
+        stopIds,
+        tripCount: 0,
+        weeklyTrips: 0,
+        firstDepSecs: Infinity,
+        lastDepSecs: -Infinity,
+        hourly: new Array(24).fill(0),
+        headsignCounts: new Map(),
+        shapeCounts: new Map(),
+      };
+      routePatterns.set(key, acc);
+    }
+    acc.tripCount++;
+    acc.weeklyTrips += daysPerWeek(trip.serviceId);
+    const firstDep = tripFirstDep.get(tripId)?.secs;
+    if (firstDep !== undefined) {
+      acc.firstDepSecs = Math.min(acc.firstDepSecs, firstDep);
+      acc.lastDepSecs = Math.max(acc.lastDepSecs, firstDep);
+      acc.hourly[Math.floor(firstDep / 3600) % 24]++;
+    }
+    if (trip.headsign) {
+      acc.headsignCounts.set(trip.headsign, (acc.headsignCounts.get(trip.headsign) ?? 0) + 1);
+    }
+    if (trip.shapeId) {
+      acc.shapeCounts.set(trip.shapeId, (acc.shapeCounts.get(trip.shapeId) ?? 0) + 1);
+    }
+    totalTrips++;
+  }
+  tripStopRows.clear();
 
   if (totalTrips === 0) {
-    throw new Error("No stop times found — is this a valid GTFS zip? (missing stop_times.txt)");
+    throw new Error("No stop times matched trips.txt — is this a valid GTFS zip?");
   }
 
   // ══ Assemble compact payload ══════════════════════════════════════════════
