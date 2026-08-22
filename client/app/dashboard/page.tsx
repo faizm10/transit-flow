@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { FileText, Users, Heart, MessageSquare, ExternalLink, BarChart2 } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { isOwnerSession } from "@/lib/owner";
 import {
   getOverviewStats,
   getPostsOverTime,
@@ -24,14 +25,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const OWNER_GITHUB = "faizm10";
-const OWNER_EMAIL  = "faizmustansar10@gmail.com";
-
 export default async function DashboardPage() {
   const session = await auth();
-  const login = (session?.user as { login?: string } | undefined)?.login;
-  const email = session?.user?.email;
-  if (login !== OWNER_GITHUB && email !== OWNER_EMAIL) notFound();
+  if (!isOwnerSession(session)) notFound();
 
   const [overview, postsOverTime, usersOverTime, topPosts, breakdown, recentUsers] =
     await Promise.all([
@@ -63,6 +59,12 @@ export default async function DashboardPage() {
               Google Analytics
               <ExternalLink className="h-3 w-3 text-gray-300" />
             </a>
+            <Link
+              href="/admin/gtfs"
+              className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:text-gray-900"
+            >
+              GTFS pipeline
+            </Link>
             <Link
               href="/community"
               className="inline-flex items-center gap-1.5 rounded-lg bg-[#007A33] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#005f28]"
