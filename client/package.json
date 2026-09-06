@@ -11,7 +11,8 @@
     "start": "next start",
     "video:preview": "remotion studio remotion/index.ts --config remotion.config.ts",
     "video:render": "remotion render remotion/index.ts TransitFlowDemo public/demo.mp4 --codec=h264 --config remotion.config.ts",
-    "test:node": "esbuild tests/node/*.test.mts --bundle --platform=node --format=esm --outdir=.test-build --log-level=error && node .test-build/preflight.test.js"
+    "test:node": "esbuild tests/node/*.test.mts --bundle --platform=node --format=esm --outdir=.test-build --log-level=error && node .test-build/preflight.test.js",
+    "gtfs:minify": "node ../scripts/minify_geojson.mjs public/gotransit/derived/variant_lines.geojson public/gotransit/derived/variant_lines.min.geojson"
   },
   "dependencies": {
     "@auth/core": "^0.41.2",

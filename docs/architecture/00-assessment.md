@@ -368,18 +368,47 @@ bytes-of-archive-consumed (determinate); indexing and analysis are
 The rule for every phase: `main` keeps working. Nothing is deleted until its
 replacement serves the same screen.
 
-| Phase | Scope | Risk |
+| Phase | Scope | Status |
 | --- | --- | --- |
-| **1** | Audit (this document); gitignore `.env`; extract the owner gate | — |
-| **2** | Design system + app shell. New primitives, token pass, `(workspace)` route group. No behaviour change. | Low |
-| **3** | Dataset workspace UX against the **existing** GO data, so the IA is proven before the pipeline lands | Low |
-| **4** | Upload architecture: presigned multipart, resumable, checksum, cancel/retry; preflight ported from the prior branch | Medium |
-| **5** | Job model: `dataset`/`upload`/`ingestion_job`/`processing_event`, Postgres queue, polling API | Medium |
-| **6** | Worker pipeline: streaming zip → CSV → `COPY`, bounded memory, staging tables, batch boundaries | **High** |
-| **7** | Processing UI wired to real stages | Low |
-| **8** | Exploration redesign reading from Postgres with cursor pagination + virtualization | Medium |
-| **9** | Performance: kill the 57 MB GeoJSON download, drop the data plane out of git, split the 7.7k-line files | Medium |
-| **10** | Docs, observability, cleanup | Low |
+| **1** | Audit; gitignore `.env`; extract the owner gate | done |
+| **2** | Design system + app shell | done |
+| **3** | Data model — control plane + GTFS entities | done (resequenced ahead of the UI) |
+| **4** | Resumable direct-to-storage upload + preflight | done |
+| **5** | Job model and Postgres queue | done |
+| **6** | Worker pipeline | done |
+| **7** | Processing UI | done |
+| **8** | Exploration: routes, stops | done (trips/service still to come) |
+| **9** | Performance | partly — see below |
+| **10** | Docs, observability, cleanup | done for ingestion |
+
+### Phase 9 status
+
+Done:
+
+- **P1 fixed.** `/map` loaded a 59.3 MB GeoJSON before drawing a single line.
+  It now loads a 3.0 MB minified layer — same 587 features, same properties,
+  deviating at most 6.12 m across all 832,207 original points. Measured
+  locally at 466 ms → 36 ms; on a 10 Mbps mobile connection the original is
+  roughly 47 seconds. Regenerate with `npm run gtfs:minify`.
+- **Query performance** verified against the real feed in Postgres, which
+  caught a 3.9-second stops page and moved the offending aggregate into the
+  worker. See `01-ingestion.md` §8.
+
+Not done, and deliberately left for explicit approval or a later pass:
+
+- **P2 — the data plane is still in git.** 134 MB of derived JSON and 208 MB of
+  raw GTFS are tracked; `.git` is 832 MB. Removing them rewrites history, which
+  is not something to fold into a commit — it needs a decision and a
+  coordinated force-push. The new pipeline writes to object storage instead, so
+  nothing *new* goes into git.
+- **P3 — serverless functions still `JSON.parse` large files.**
+  `/api/simulation` and `lib/server/rail-routing.ts` read 57 MB and 59 MB from
+  disk. These belong to the preserved `/map` and are superseded once it reads
+  from the dataset tables.
+- **P7 — the five oversized frontend files.** 7,700 lines untouched, per §5.2.
+- `rail_display.geojson` (6.1 MB) does not compress usefully: it is 39,008
+  two-point OSM segments already at five decimal places. Merging contiguous
+  segments would help; it is 10× smaller than the problem that mattered.
 
 Each phase ends with `npm run lint`, `npm run build`, and the Playwright spec
 green, in its own logically scoped commit.
