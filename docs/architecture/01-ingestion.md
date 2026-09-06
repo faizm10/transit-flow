@@ -303,7 +303,39 @@ names or coordinates, which are the user's data.
 
 ---
 
-## 8. Scaling
+## 8. Query performance
+
+Measured against the real GO feed loaded into Postgres — 87 routes, 887 stops,
+186,901 trips, 3,161,342 stop times:
+
+| Query | Plan | Time |
+| --- | --- | --- |
+| Routes page (50 rows + trip counts) | index scan + index-only scan per row | **9.3 ms** |
+| Stops page (50 rows + route counts) | index scan | **0.04 ms** |
+| Stop search, `ILIKE '%union%'` | scan of 887 stops | **0.5 ms** |
+
+The stops page is the one that had to be redesigned. Counting distinct routes
+per stop as a correlated subquery made Postgres sequentially scan all 186,901
+trips **once per stop** — 3.9 s for a single page. Batching the counts for the
+page's 51 stop ids brought it to 382 ms, still with a seq scan.
+
+The same aggregate over the *whole* feed takes 211 ms, because it scans
+`stop_times` once. So it moved into the worker's `analyzing` stage and onto a
+`gtfs_stops.route_count` column (`drizzle/0002_stop_route_count.sql`), costing
+~3.4 s once per import and turning the page query into a pure index scan.
+
+That is the general shape: anything that would join `stop_times` on a page
+render belongs in `analyzing` instead.
+
+**Known scaling limit.** Stop search is a leading-wildcard `ILIKE`, which cannot
+use the name btree. It scans the dataset's stops — under a millisecond at 887,
+and fine into the tens of thousands. A feed with hundreds of thousands of stops
+would want a `pg_trgm` GIN index. Adding the extension before anything needs it
+would be speculation.
+
+---
+
+## 9. Scaling
 
 What exists today handles a 36 MB / 3.16M-row feed in under a minute at ~320 MB
 of memory, on one worker at concurrency 1.
@@ -327,7 +359,7 @@ Kubernetes, Redis, Spark, a tracing collector, autoscaling.
 
 ---
 
-## 9. Local development
+## 10. Local development
 
 ```bash
 # 1. One env file at the repo root; client/.env.development.local symlinks to it.
@@ -373,7 +405,7 @@ cd worker && GTFS_INTEGRATION_ARCHIVE=/tmp/go_feed.zip npm run test:integration
 
 ---
 
-## 10. Environment
+## 11. Environment
 
 | Variable | Used by | Notes |
 | --- | --- | --- |

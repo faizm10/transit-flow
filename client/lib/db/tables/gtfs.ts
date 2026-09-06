@@ -114,6 +114,14 @@ export const gtfsStops = pgTable(
     timezone: text("timezone"),
     wheelchairBoarding: smallint("wheelchair_boarding"),
     platformCode: text("platform_code"),
+    /**
+     * Distinct routes calling here, filled by the worker's `analyzing` stage.
+     *
+     * Derived, not from the feed. Computing it per request costs a join from
+     * stop_times to trips — 3.9s for one page on the real GO feed — while the
+     * same aggregate over the whole feed is 211ms, paid once per import.
+     */
+    routeCount: integer("route_count"),
   },
   (table) => [
     primaryKey({ columns: [table.datasetId, table.stopId] }),

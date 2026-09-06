@@ -11,6 +11,7 @@ import {
 } from "@/lib/datasets/server/queries";
 import { PageBody, PageHeader } from "@/components/workspace/PageHeader";
 import { ProcessingView } from "@/components/datasets/ProcessingView";
+import { DatasetTabs } from "@/components/datasets/DatasetTabs";
 import { ButtonLink } from "@/components/ui/button";
 import { Panel, PanelContent, PanelHeader, PanelTitle } from "@/components/ui/card";
 import { Status } from "@/components/ui/status";
@@ -101,6 +102,8 @@ export default async function DatasetPage({
   return (
     <PageBody wide>
       <Header dataset={dataset} />
+
+      <DatasetTabs datasetId={dataset.id} />
 
       {/* The three figures that lead the page. Borderless — hierarchy comes
           from type size, not from wrapping each number in its own card. */}
