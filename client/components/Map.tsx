@@ -549,9 +549,15 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       pendingCityFeedDataRef.current = null;
 
       // ── GO Transit routes layer ────────────────────────────────────────────
+      // The minified layer, not the full-precision one. variant_lines.geojson
+      // is 59 MB and was downloaded by every visitor before a single line
+      // appeared; this is 3.0 MB for the same 587 features with the same
+      // properties, deviating at most 6 m — below one screen pixel until deep
+      // zoom. Regenerate with scripts/minify_geojson.mjs. The full-precision
+      // file stays on disk for /api/simulation, which needs exact geometry.
       map.addSource("go-routes", {
         type: "geojson",
-        data: "/gotransit/derived/variant_lines.geojson",
+        data: "/gotransit/derived/variant_lines.min.geojson",
       });
 
       map.addLayer({

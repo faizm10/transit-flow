@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import Link from "next/link";
 import { FileText, Users, Heart, MessageSquare, ExternalLink, BarChart2 } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { requireOwnerPage } from "@/lib/authz";
 import {
   getOverviewStats,
   getPostsOverTime,
@@ -24,14 +23,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const OWNER_GITHUB = "faizm10";
-const OWNER_EMAIL  = "faizmustansar10@gmail.com";
-
 export default async function DashboardPage() {
-  const session = await auth();
-  const login = (session?.user as { login?: string } | undefined)?.login;
-  const email = session?.user?.email;
-  if (login !== OWNER_GITHUB && email !== OWNER_EMAIL) notFound();
+  await requireOwnerPage();
 
   const [overview, postsOverTime, usersOverTime, topPosts, breakdown, recentUsers] =
     await Promise.all([

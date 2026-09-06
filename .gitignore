@@ -3,3 +3,9 @@
 node_modules/
 __pycache__/
 *.pyc
+
+# Environment — the root .env holds live DATABASE_URL, AUTH_SECRET and OAuth
+# secrets, and is symlinked to client/.env.development.local. Never commit it.
+.env
+.env.*
+!.env.example

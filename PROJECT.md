@@ -1,5 +1,14 @@
 # TransitFlow — Project Summary
 
+> **Architecture note.** The dataset platform — GTFS ingestion, the worker, the
+> normalized schema, and the dataset workspace — is documented separately and
+> authoritatively in [`docs/architecture/`](docs/architecture/):
+> [00-assessment.md](docs/architecture/00-assessment.md) (why the redesign, what
+> was wrong, what was decided) and
+> [01-ingestion.md](docs/architecture/01-ingestion.md) (how a feed gets from a
+> file picker into queryable tables). The sections below describe the original
+> GO-Transit-only application, which still runs at `/map`.
+
 ## Overview
 
 TransitFlow is a browser-based GO Transit network design simulator. Users can explore real GO Transit routes on a live map, design their own custom bus or train routes, run time-of-day simulations with real GTFS trip data, and share their network designs with a public community feed.
@@ -74,7 +83,17 @@ Browser
 
 ## Data Pipeline
 
-Raw GTFS feeds live under `server/data/gotransit/`. Derived assets are pre-computed and written to `client/public/gotransit/derived/` via Python scripts:
+There are now two, for different purposes.
+
+**Dataset platform (current).** A user uploads a GTFS archive; it goes directly
+to object storage over a resumable multipart upload, and a containerized worker
+streams it into normalized Postgres tables. Nothing is committed to git and
+nothing is precomputed by hand. See
+[docs/architecture/01-ingestion.md](docs/architecture/01-ingestion.md).
+
+**Legacy GO feed (still backing `/map`).** Raw GTFS lives under
+`server/data/gotransit/`; derived assets are pre-computed into
+`client/public/gotransit/derived/` via Python scripts:
 
 ```bash
 python3 scripts/build_subroutes.py       # stop data per variant
@@ -88,7 +107,8 @@ Or from `client/`: `npm run gtfs:derive`
 
 ## Key Architectural Decisions
 
-- **All GTFS data is pre-computed at build time** — no heavy processing at request time. Simulation runs entirely client-side from pre-built JSON artifacts.
+- **The GO feed's data is pre-computed at build time** — no heavy processing at request time. Simulation runs entirely client-side from pre-built JSON artifacts. Imported *datasets* work the other way: normalized in Postgres and queried per request.
+- **The map loads a minified geometry layer.** `variant_lines.min.geojson` is 3.0 MB against the 59.3 MB full-precision file, same features, ≤6 m deviation. Regenerate with `npm run gtfs:minify`.
 - **Map state lives in a single page** (`/map/page.tsx`) — 2400+ lines managing Mapbox layers, draw mode, route builder, simulation, and GTFS overlays via custom events and `localStorage`.
 - **Community routes use optimistic UI** — deletes and posts update the feed immediately before the DB confirms.
 - **Service alerts are scraped server-side** with a 5-minute cache — no client requests to gotransit.com.
@@ -108,7 +128,11 @@ AUTH_GITHUB_ID / AUTH_GITHUB_SECRET
 AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET
 DATABASE_URL                      — Neon PostgreSQL connection string
 GITHUB_BUG_REPORT_TOKEN           — PAT for creating GitHub issues
+S3_*                              — object storage for GTFS ingestion
+OWNER_GITHUB_LOGINS / OWNER_EMAILS — privileged-surface allowlist
 ```
+
+See [`.env.example`](.env.example) for the full list and local setup.
 
 ---
 
@@ -122,7 +146,9 @@ transit-flow/
 │   ├── lib/                 — shared utilities, DB, auth, GTFS helpers
 │   ├── hooks/               — custom React hooks
 │   └── public/gotransit/    — pre-computed GTFS data
-├── server/data/gotransit/   — raw GTFS feeds
+├── worker/                  — containerized GTFS ingestion worker
+├── docs/architecture/       — assessment + ingestion architecture
+├── server/data/gotransit/   — raw GTFS feeds (legacy GO pipeline)
 ├── scripts/                 — Python + Node.js data pipeline scripts
 └── .github/workflows/       — CI + README stats automation
 ```

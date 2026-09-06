@@ -39,6 +39,21 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border-strong: var(--border-strong);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-subtle: var(--brand-subtle);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-info: var(--info);
+  --color-info-subtle: var(--info-subtle);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -73,6 +88,37 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
+
+  /* ── Platform surfaces ────────────────────────────────────────────────────
+     Three elevations only. The workspace chrome sits on --surface, content
+     panels on --surface-raised, and inset regions (code, table headers, empty
+     states) on --surface-sunken. Depth comes from these plus a 1px border —
+     not from shadows stacked on cards. */
+  --surface: oklch(0.985 0.001 264);
+  --surface-raised: oklch(1 0 0);
+  --surface-sunken: oklch(0.972 0.002 264);
+  /* Default --border is deliberately faint; --border-strong is for dividers
+     that must read as structural (sidebar edge, table header rule). */
+  --border-strong: oklch(0.878 0.004 264);
+
+  /* ── Brand ────────────────────────────────────────────────────────────────
+     GO Transit green, carried over from the marketing palette. Used for the
+     single accent per screen — selected nav, primary action, live progress. */
+  --brand: oklch(0.5 0.113 158);
+  --brand-foreground: oklch(0.99 0 0);
+  --brand-subtle: oklch(0.955 0.028 158);
+
+  /* ── Status ───────────────────────────────────────────────────────────────
+     One pair per state: a saturated colour for text/dot, a tint for the chip
+     background. Dataset and job states map onto these in ui/status.tsx. */
+  --success: oklch(0.52 0.12 155);
+  --success-subtle: oklch(0.955 0.03 155);
+  --warning: oklch(0.58 0.12 75);
+  --warning-subtle: oklch(0.96 0.04 85);
+  --danger: oklch(0.55 0.19 27);
+  --danger-subtle: oklch(0.96 0.03 27);
+  --info: oklch(0.53 0.13 255);
+  --info-subtle: oklch(0.96 0.025 255);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -141,6 +187,25 @@
   }
 }
 
+/* Indeterminate progress — used by ui/progress.tsx when value is null, i.e.
+   when the backend genuinely cannot report a percentage. */
+@keyframes progress-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="progress-indicator"][data-indeterminate] {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
+  }
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -173,6 +238,24 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  --surface: oklch(0.145 0 0);
+  --surface-raised: oklch(0.185 0 0);
+  --surface-sunken: oklch(0.125 0 0);
+  --border-strong: oklch(1 0 0 / 16%);
+
+  --brand: oklch(0.68 0.13 158);
+  --brand-foreground: oklch(0.145 0 0);
+  --brand-subtle: oklch(0.28 0.05 158);
+
+  --success: oklch(0.72 0.14 155);
+  --success-subtle: oklch(0.26 0.05 155);
+  --warning: oklch(0.76 0.13 80);
+  --warning-subtle: oklch(0.28 0.05 80);
+  --danger: oklch(0.7 0.17 25);
+  --danger-subtle: oklch(0.28 0.07 25);
+  --info: oklch(0.71 0.13 255);
+  --info-subtle: oklch(0.27 0.06 255);
 }
 
 /* ── Vehicle hover tooltip ─────────────────────────────────────────────────── */

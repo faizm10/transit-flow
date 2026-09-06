@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2023",
+      "DOM"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "types": [
+      "node"
+    ],
+    "paths": {
+      "@shared/*": [
+        "../client/lib/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "../client/lib/gtfs/spec.ts",
+    "../client/lib/gtfs/zipLayout.ts",
+    "../client/lib/datasets/stages.ts"
+  ]
+}
