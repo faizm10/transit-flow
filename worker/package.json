@@ -1,0 +1,23 @@
+{
+  "name": "transitflow-gtfs-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "esbuild src/*.test.ts src/**/*.test.ts --bundle --platform=node --format=esm --outdir=.test-build --log-level=error && node --test .test-build",
+    "test:integration": "tsx --test src/pipeline/run.integration.test.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1127.0",
+    "fflate": "^0.8.3",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.9",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.12",
+    "typescript": "^5.8.3"
+  }
+}
