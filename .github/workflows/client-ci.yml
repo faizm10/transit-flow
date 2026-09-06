@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - "client/**"
+      - "worker/**"
       - ".github/workflows/client-ci.yml"
   push:
     branches:
       - main
     paths:
       - "client/**"
+      - "worker/**"
       - ".github/workflows/client-ci.yml"
 
 jobs:
@@ -39,3 +41,43 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+
+  # The ingestion worker. Separate job because it needs a Postgres service and
+  # has nothing to do with the Next.js build.
+  worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      # The integration test creates and drops its own database.
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      PGPASSWORD: postgres
+      PGHOST: localhost
+      PGUSER: postgres
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      S3_BUCKET: test
+      S3_ENDPOINT: http://localhost:9000
+      S3_ACCESS_KEY_ID: test
+      S3_SECRET_ACCESS_KEY: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:integration

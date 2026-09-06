@@ -38,12 +38,21 @@ const TEST_DB = `transitflow_worker_test_${process.pid}`;
 const TEST_URL = ADMIN_URL.replace(/\/[^/]*$/, `/${TEST_DB}`);
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
-const MIGRATION = join(
-  REPO_ROOT,
-  "client",
-  "drizzle",
-  "0001_dataset_platform.sql"
-);
+const MIGRATIONS_DIR = join(REPO_ROOT, "client", "drizzle");
+
+/**
+ * Every migration, in filename order.
+ *
+ * Naming one file here is how this test broke once already: the worker started
+ * writing a column added by 0002 and the test database, built from 0001 alone,
+ * did not have it. Reading the directory means a new migration is covered
+ * automatically.
+ */
+function migrationFiles(): string[] {
+  return readdirSync(MIGRATIONS_DIR)
+    .filter((name) => /^\d+_.*\.sql$/.test(name))
+    .sort();
+}
 const REAL_FEED_DIR = join(REPO_ROOT, "server", "data", "gotransit");
 
 /**
@@ -171,7 +180,9 @@ before(async () => {
        github_login text, created_at timestamptz NOT NULL DEFAULT now()
      )`,
   ]);
-  psql(TEST_DB, ["-f", MIGRATION]);
+  for (const file of migrationFiles()) {
+    psql(TEST_DB, ["-f", join(MIGRATIONS_DIR, file)]);
+  }
 
   sql = postgres(TEST_URL, { max: 4, onnotice: () => {} });
 
@@ -371,6 +382,16 @@ test("imports a feed end to end", async (t) => {
     assert.ok(shapes[0].point_count >= 2);
     assert.ok(Array.isArray(shapes[0].points));
   }
+
+  // ── Derived per-stop route counts ────────────────────────────────────────
+  const counted = await sql<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM gtfs_stops
+     WHERE dataset_id = ${DATASET_ID} AND route_count IS NOT NULL
+  `;
+  assert.ok(
+    counted[0].n > 0,
+    'analyzing should fill gtfs_stops.route_count — the stops list reads it instead of joining stop_times per page'
+  );
 
   // ── Metrics written ──────────────────────────────────────────────────────
   const metrics = await sql<{ metrics: Record<string, number> }[]>`
