@@ -11,7 +11,7 @@ import {
 } from "@/lib/datasets/server/queries";
 import { PageBody, PageHeader } from "@/components/workspace/PageHeader";
 import { ProcessingView } from "@/components/datasets/ProcessingView";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { Panel, PanelContent, PanelHeader, PanelTitle } from "@/components/ui/card";
 import { Status } from "@/components/ui/status";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -58,7 +58,7 @@ export default async function DatasetPage({
           title="No feed uploaded yet"
           description="This dataset was created but no GTFS archive was uploaded. Start an import to fill it."
           action={
-            <Button render={<Link href="/datasets/new" />}>Import a feed</Button>
+            <ButtonLink href="/datasets/new">Import a feed</ButtonLink>
           }
         />
       </PageBody>

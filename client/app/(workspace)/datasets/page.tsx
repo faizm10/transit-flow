@@ -5,7 +5,7 @@ import { Database, Plus } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { listDatasets } from "@/lib/datasets/server/queries";
 import { PageBody, PageHeader } from "@/components/workspace/PageHeader";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Panel } from "@/components/ui/card";
 import { Status } from "@/components/ui/status";
@@ -47,7 +47,7 @@ export default async function DatasetsPage() {
           title="Sign in to manage datasets"
           description="Datasets are private to the account that imports them."
           action={
-            <Button render={<Link href="/auth/signin" />}>Sign in</Button>
+            <ButtonLink href="/auth/signin">Sign in</ButtonLink>
           }
         />
       </PageBody>
@@ -62,10 +62,10 @@ export default async function DatasetsPage() {
         title="Datasets"
         description="Every GTFS feed you have imported, and what is in it."
         actions={
-          <Button render={<Link href="/datasets/new" />}>
+          <ButtonLink href="/datasets/new">
             <Plus />
             New dataset
-          </Button>
+          </ButtonLink>
         }
       />
 
@@ -75,10 +75,10 @@ export default async function DatasetsPage() {
           title="No datasets yet"
           description="Import a GTFS archive to get started. Uploads go straight to storage, so feeds of any size are fine — you can close the tab while one processes."
           action={
-            <Button render={<Link href="/datasets/new" />}>
+            <ButtonLink href="/datasets/new">
               <Plus />
               New dataset
-            </Button>
+            </ButtonLink>
           }
         />
       ) : (

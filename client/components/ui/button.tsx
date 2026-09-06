@@ -1,3 +1,5 @@
+import * as React from "react"
+import Link from "next/link"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -55,4 +57,31 @@ function Button({
   )
 }
 
-export { Button, buttonVariants }
+/**
+ * A link that looks like a button.
+ *
+ * Deliberately a plain `<Link>` with the button's classes, not Base UI's Button
+ * with `render={<Link/>}`. That combination produces an `<a role="button">`,
+ * which tells assistive technology the element performs an action when it
+ * actually navigates — and costs the link affordances screen reader users rely
+ * on. A control that navigates should stay a link.
+ *
+ * Use this when the control goes somewhere. Use Button when it does something.
+ */
+function ButtonLink({
+  className,
+  variant = "default",
+  size = "default",
+  ...props
+}: React.ComponentProps<typeof Link> &
+  VariantProps<typeof buttonVariants>) {
+  return (
+    <Link
+      data-slot="button-link"
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, ButtonLink, buttonVariants }

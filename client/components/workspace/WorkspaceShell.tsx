@@ -1,28 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import {
-  Database,
-  Map as MapIcon,
-  Radio,
-  Users,
-  BarChart3,
-  UserCircle,
-} from "lucide-react";
+import { UserCircle } from "lucide-react";
 
-import { SidebarNav, type NavItem } from "@/components/workspace/SidebarNav";
+import { SidebarNav } from "@/components/workspace/SidebarNav";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-
-const PRIMARY_NAV: NavItem[] = [
-  { href: "/datasets", label: "Datasets", icon: Database, matchNested: true },
-  { href: "/map", label: "Map", icon: MapIcon },
-  { href: "/community", label: "Community", icon: Users, matchNested: true },
-  { href: "/service-updates", label: "Service updates", icon: Radio },
-];
-
-const OWNER_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Analytics", icon: BarChart3 },
-];
 
 export interface WorkspaceUser {
   name?: string | null;
@@ -50,8 +32,6 @@ export function WorkspaceShell({
   isOwner: boolean;
   children: React.ReactNode;
 }) {
-  const nav = isOwner ? [...PRIMARY_NAV, ...OWNER_NAV] : PRIMARY_NAV;
-
   return (
     <div className="flex min-h-screen flex-col bg-surface lg:flex-row">
       {/* ── Rail ──────────────────────────────────────────────────────────── */}
@@ -62,7 +42,7 @@ export function WorkspaceShell({
           "border-b lg:border-b-0"
         )}
       >
-        <div className="flex h-full flex-col gap-4 px-3 py-3 lg:py-4">
+        <div className="flex h-full flex-col gap-3 px-3 py-3 lg:gap-4 lg:py-4">
           <Link
             href="/"
             className="flex items-center gap-2 rounded-md px-2 py-1 transition-colors hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
@@ -77,7 +57,7 @@ export function WorkspaceShell({
           </Link>
 
           <div className="lg:flex-1">
-            <SidebarNav items={nav} />
+            <SidebarNav isOwner={isOwner} />
           </div>
 
           <div className="hidden lg:block">
