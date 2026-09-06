@@ -392,20 +392,49 @@ and left for explicit approval rather than folded into a commit.
 
 ---
 
-## 5. Open decisions for the owner
+## 5. Decisions (resolved)
 
-Three questions genuinely change the work and are not mine to answer:
+The three questions this audit raised were put to the owner and answered on
+2026-09-06. They are settled; the phases below build on them.
 
-1. **Where does the worker run?** Railway / Render / Fly / Cloud Run all run the
-   same container. This affects nothing in the code, but it does affect whether
-   Phase 6 ends in something deployed or something deployable.
-2. **How much GTFS goes into Neon?** One GO feed is ~5 M `stop_times` rows.
-   That is fine on a paid Neon plan and not fine on the free tier. The fallback
-   is to normalize routes/stops/trips/services into Postgres and keep
-   `stop_times` in columnar files in object storage — slower for ad-hoc queries,
-   far cheaper. Recommendation: full normalization, with dataset archival
-   (drop entity rows, keep artifacts) as the retention valve.
-3. **Is `/map` in scope for the redesign, or preserved as-is?** It is 7,700 lines
-   across five files and is the existing product. Recommendation: preserve its
-   behaviour, re-house it as the dataset's Map surface, and split the files in
-   Phase 9 rather than rewriting the simulator.
+### 5.1 GTFS entities → full normalization into Neon
+
+`agencies`, `routes`, `stops`, `trips`, `stop_times`, `shapes`, `services` all
+become `dataset_id`-scoped Postgres tables, written with `COPY`. This is what
+makes route/stop/trip/service-date/spatial queries answerable as *queries*, and
+it is what lets us delete the prebaked-JSON layer that causes P1, P2, P3 and P5.
+
+Consequences we accept:
+
+- Neon must be on a paid plan. One GO feed is ~5 M `stop_times` rows; the free
+  tier's 0.5 GB will not hold it.
+- **Dataset archival is the retention valve**, and therefore not optional: an
+  archived dataset drops its entity rows and keeps its object-storage artifacts,
+  so storage grows with *active* datasets rather than with all datasets ever
+  imported. This ships in Phase 5 with the job model, not as a later cleanup.
+
+### 5.2 `/map` → preserve behaviour, re-house, split later
+
+Explore / Design / Schedules / Simulate keep working as they do today. They are
+re-housed as the dataset workspace's Map surface and restyled onto the new
+design system; the five oversized files are split in Phase 9. The simulator and
+route designer are **not** rewritten this pass.
+
+### 5.3 Queue → Postgres `FOR UPDATE SKIP LOCKED`
+
+Redis is dropped. Neon already exists, and job state and queue state commit in
+the same transaction, so there is no Redis/Postgres split-brain to reconcile
+after a crash. The queue sits behind a narrow `Queue` interface
+(`claim` / `complete` / `fail` / `heartbeat`) so BullMQ can be reinstated if
+throughput ever justifies a second system — at concurrency 1 it does not.
+
+The prior branch's BullMQ code is superseded. Its genuinely valuable parts — the
+zip central-directory preflight, the chunked SHA-256, the presigned-upload
+storage module, the one-active-version partial unique index — are ported.
+
+### 5.4 Still mine to decide
+
+**Where the worker runs.** It is built as a single portable Docker container
+with no host-specific assumptions, so Railway, Render, Fly, Cloud Run and ECS
+all run it unchanged. Phase 6 ends with something deployable; picking the host
+is a deploy-time decision, not a code decision.
