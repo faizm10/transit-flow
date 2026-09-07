@@ -20,11 +20,11 @@
 
 | Metric | Last 7 days | Last 30 days | Last year |
 |--------|:-----------:|:------------:|:---------:|
-| Active users | **11** | **35** | **389** |
-| Page views | **87** | **188** | **4,539** |
-| Sessions | — | **50** | **594** |
+| Active users | **14** | **38** | **392** |
+| Page views | **122** | **223** | **4,574** |
+| Sessions | — | **58** | **602** |
 
-<sub>🤖 Auto-updated every hour &nbsp;·&nbsp; Mon, 07 Sep 2026 20:12:58 GMT</sub>
+<sub>🤖 Auto-updated every hour &nbsp;·&nbsp; Mon, 07 Sep 2026 23:04:39 GMT</sub>
 <!-- GA_STATS_END -->
 
 ---
