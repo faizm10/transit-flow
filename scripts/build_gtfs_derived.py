@@ -6,8 +6,11 @@ Generates four files in client/public/gotransit/derived/:
   - stops_lookup.json       stop_id → {lat, lon, name}
   - sim_trips_by_dow.json   trips by JS day-of-week (0=Sun) for the simulation API
   - departures_index.json   "ROUTE|dow" → [{time, headsign, directionId, fromStop}]
-                              Empty JS DOW buckets are filled from the nearest day that
-                              has service (same clock times); GTFS may omit that weekday.
+                              A bucket is empty when the route does not run that day —
+                              weekday-only routes stay empty at weekends. Buckets are
+                              copied from a neighbouring day only for weekdays the feed
+                              itself never describes, which is rare and is not the same
+                              thing as a route having no service.
   - trip_stop_times.json    representative_trip_id → [{stopId, stopName, lat, lon,
                               sequence, arrivalTime, departureTime}]
 
@@ -21,7 +24,7 @@ The output files are committed to the repo so Vercel can read them at runtime.
 from __future__ import annotations
 import csv
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date
 from pathlib import Path
 
@@ -86,9 +89,25 @@ def main() -> None:
         }
 
     # ── 3. Determine representative service IDs (one per JS day-of-week) ─────
+    #
+    # One date stands in for its whole weekday, so it has to be a *typical* one.
+    # Picking the date nearest to today looks reasonable and is not: run the
+    # build on Labour Day and every Monday in the feed inherits a statutory
+    # holiday's schedule. In the 2026-08-31 feed a normal Monday carries 1,790
+    # trips; Labour Day carries 1,281 and Thanksgiving 1,395.
+    #
+    # So choose by service level instead: the modal trip count for that weekday,
+    # which is what "a Monday" means, with proximity to today as the tie-break
+    # among equally typical dates. That also makes the output independent of the
+    # day the build happens to run.
+    print("Loading trips.txt for service levels …")
+    service_trip_counts: Counter[str] = Counter(
+        row.get("service_id", "").strip() for row in load_csv(GTFS_DIR / "trips.txt")
+    )
+
     print("Loading calendar_dates.txt …")
     today = date.today()
-    best: dict[int, tuple[int, str]] = {}   # js_dow → (days_from_today, service_id)
+    dates_by_dow: dict[int, list[tuple[str, date]]] = defaultdict(list)
 
     for row in load_csv(GTFS_DIR / "calendar_dates.txt"):
         sid = row.get("service_id", "").strip()
@@ -98,18 +117,27 @@ def main() -> None:
             d = date(int(sid[:4]), int(sid[4:6]), int(sid[6:8]))
         except ValueError:
             continue
-        delta = (d - today).days
-        js_dow = py_dow_to_js(d.weekday())
-        # Prefer closest future date; fall back to closest past date if no future exists
-        if delta >= 0:
-            if js_dow not in best or best[js_dow][0] < 0 or delta < best[js_dow][0]:
-                best[js_dow] = (delta, sid)
-        elif js_dow not in best or (best[js_dow][0] < 0 and delta > best[js_dow][0]):
-            best[js_dow] = (delta, sid)
+        dates_by_dow[py_dow_to_js(d.weekday())].append((sid, d))
 
-    rep_by_dow: dict[int, str] = {dow: v[1] for dow, v in best.items()}
+    rep_by_dow: dict[int, str] = {}
+    for js_dow, entries in dates_by_dow.items():
+        counts = [service_trip_counts[sid] for sid, _ in entries]
+        # Modal service level; ties in the mode go to the busier count, which is
+        # the ordinary timetable rather than a reduced one.
+        typical = Counter(counts).most_common()
+        top_freq = typical[0][1]
+        modal_count = max(c for c, freq in typical if freq == top_freq)
+        rep_by_dow[js_dow] = min(
+            (sid for sid, _ in entries if service_trip_counts[sid] == modal_count),
+            key=lambda sid: abs(
+                (date(int(sid[:4]), int(sid[4:6]), int(sid[6:8])) - today).days
+            ),
+        )
+
     rep_service_ids: set[str] = set(rep_by_dow.values())
-    print(f"  Representative service IDs: {rep_by_dow}")
+    for dow in sorted(rep_by_dow):
+        sid = rep_by_dow[dow]
+        print(f"  DOW {dow}: {sid} ({service_trip_counts[sid]:,} trips)")
 
     # ── 4. Representative trip IDs (for schedule API) ─────────────────────────
     print("Loading variants_index.json …")
@@ -287,9 +315,17 @@ def main() -> None:
                     return dd
         return None
 
+    # Only for weekdays the feed genuinely does not describe. An empty bucket on
+    # a weekday the feed *does* cover means the route does not run that day, and
+    # copying a neighbouring day would invent service: the Milton and Richmond
+    # Hill lines really do not run at weekends, and neither does route 43. Before
+    # this guard the index advertised a 06:35 Sunday departure on all three.
+    uncovered = [d for d in range(7) if d not in rep_by_dow]
+    if not uncovered:
+        print("  feed covers all 7 weekdays — nothing to backfill")
     filled = 0
     for sn in sorted(all_short_names):
-        for d in range(7):
+        for d in uncovered:
             k = f"{sn}|{d}"
             if departures_index.get(k):
                 continue
@@ -299,7 +335,8 @@ def main() -> None:
             dk = f"{sn}|{donor}"
             departures_index[k] = [dict(e) for e in departures_index[dk]]
             filled += 1
-    print(f"  backfilled {filled} empty buckets")
+    if uncovered:
+        print(f"  backfilled {filled} buckets for uncovered weekdays {uncovered}")
 
     # ── 9. Write output ───────────────────────────────────────────────────────
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
