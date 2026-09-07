@@ -36,24 +36,38 @@ export default function HeaderUserSection() {
   }
 
   if (user) {
+    // Signed-in visitors used to get an avatar and nothing else, so the one
+    // thing they came to do had no button anywhere in the header — the only
+    // way into the app was the "Simulation" nav link, which opened a single
+    // mode. Signed-out visitors already had this button; now both do.
     return (
-      <Link
-        href="/account"
-        className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
-      >
-        {user.image ? (
-          <Image
-            src={user.image}
-            alt={user.name ?? "Avatar"}
-            width={24}
-            height={24}
-            className="h-6 w-6 rounded-full object-cover"
-          />
-        ) : (
-          <UserCircle className="h-5 w-5 text-slate-500" />
-        )}
-        <span className="hidden sm:inline max-w-[120px] truncate">{user.name}</span>
-      </Link>
+      <div className="flex items-center gap-2">
+        <Link
+          href={MAP}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--landing-accent)] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-[color,background-color,box-shadow] hover:bg-[#006b2d] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
+        >
+          Open map
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </Link>
+        <Link
+          href="/account"
+          aria-label={`Account — ${user.name ?? "signed in"}`}
+          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
+        >
+          {user.image ? (
+            <Image
+              src={user.image}
+              alt=""
+              width={24}
+              height={24}
+              className="h-6 w-6 rounded-full object-cover"
+            />
+          ) : (
+            <UserCircle className="h-5 w-5 text-slate-500" />
+          )}
+          <span className="hidden sm:inline max-w-[120px] truncate">{user.name}</span>
+        </Link>
+      </div>
     );
   }
 

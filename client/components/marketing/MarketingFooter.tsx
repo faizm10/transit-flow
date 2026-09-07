@@ -17,6 +17,16 @@ export default function MarketingFooter() {
         <span className="text-sm font-semibold text-[var(--landing-fg)]">TransitFlow</span>
 
         <div className="flex items-center gap-4">
+          {/* Moved out of the primary nav: an external issue tracker belongs
+              with the other off-site links, not beside the page's own sections. */}
+          <a
+            href={`${GITHUB_URL}/issues`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-fg)]"
+          >
+            Roadmap
+          </a>
           <a
             href={GITHUB_URL}
             target="_blank"

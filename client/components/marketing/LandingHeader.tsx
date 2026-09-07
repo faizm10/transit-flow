@@ -4,13 +4,27 @@ import HeaderUserSection from "./HeaderUserSection";
 
 const MAP = "/map";
 
+/**
+ * Three links, not six.
+ *
+ * The old row flattened three different kinds of destination into one list:
+ * page anchors (Product, Use Cases, Data), a deep link into one app mode
+ * (Simulation), a separate page (Community) and an external issue tracker
+ * (Roadmap) — all styled identically, so none of them told you where you were
+ * about to end up.
+ *
+ * What is left is one anchor per section a reader would look for, plus the one
+ * page that is not this page. "Data" pointed at #capabilities, which the
+ * Product story already walks you through; Roadmap moved to the footer beside
+ * the GitHub link, where the other off-site links live; and Simulation is
+ * replaced by the primary action below — it was the only route into the app
+ * from here, dressed as a content link, and it promoted one of the four modes
+ * for no reason.
+ */
 const NAV = [
-  { label: "Product",   href: "#product"       },
-  { label: "Use Cases", href: "#use-cases"      },
-  { label: "Simulation",href: `${MAP}?mode=simulate` },
-  { label: "Data",      href: "#capabilities"   },
-  { label: "Community", href: "/community"      },
-  { label: "Roadmap",   href: "https://github.com/faizm10/transit-flow/issues" },
+  { label: "Product",   href: "#product"   },
+  { label: "Use Cases", href: "#use-cases" },
+  { label: "Community", href: "/community" },
 ];
 
 export default function LandingHeader() {
@@ -46,7 +60,8 @@ export default function LandingHeader() {
           })}
         </nav>
 
-        {/* Right side */}
+        {/* Right side — HeaderUserSection carries the primary action in both
+            the signed-in and signed-out states. */}
         <div className="flex shrink-0 items-center gap-3">
           <HeaderUserSection />
         </div>
