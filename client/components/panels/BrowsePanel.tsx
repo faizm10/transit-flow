@@ -179,9 +179,9 @@ export default function BrowsePanel({
               <Bus className="h-3 w-3 shrink-0" aria-hidden />
               Bus
             </TabsTrigger>
-            <TabsTrigger value="custom" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
+            <TabsTrigger value="mine" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
               <Pencil className="h-3 w-3 shrink-0" aria-hidden />
-              Custom
+              Mine
             </TabsTrigger>
             <TabsTrigger value="cities" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
               <Building2 className="h-3 w-3 shrink-0" aria-hidden />
@@ -404,7 +404,7 @@ export default function BrowsePanel({
           )}
         </TabsContent>
 
-        <TabsContent value="custom" className="mt-0 px-2 pb-2">
+        <TabsContent value="mine" className="mt-0 px-2 pb-2">
           {customRoutes.length === 0 ? (
             <div className="mt-2 rounded-lg border border-dashed border-slate-200 px-3 py-3 text-center text-[11px] leading-relaxed text-slate-500">
               Custom routes from <span className="font-medium text-slate-600">Design</span> appear here.

@@ -23,7 +23,7 @@ interface SimulationHUDProps {
   customRoutes: CustomRoute[];
   date: string;
   startHour: number;
-  placement?: "bottom-center" | "bottom-right";
+  placement?: "bottom-center" | "bottom-right" | "dock";
   onTogglePlay: () => void;
   onScrub: (t: number) => void;
   onCycleSpeed: () => void;
@@ -104,9 +104,16 @@ export default function SimulationHUD({
   const hasTrips = trips.length > 0;
   const selectedHasBus = selectedRoutes.some((route) => /^\d/.test(route))
     || customRoutes.some((route) => route.type === "bus" && selectedRoutes.includes(customRouteSelectionId(route.id)));
-  const baseShellClass = placement === "bottom-right"
-    ? "absolute bottom-4 left-4 right-4 z-30 sm:left-auto sm:right-4 sm:bottom-6"
-    : "absolute bottom-6 left-1/2 -translate-x-1/2 z-30";
+  // "dock" anchors to the same corner and top offset as the Explore and Design
+  // panels. Simulate used to open bottom-right while everything else opened
+  // top-left, so every mode switch cost a moment of hunting for the panel.
+  // The card keeps its own width — the setup form and the playback scrubber
+  // need more room than the 288px route dock — but it starts in the same place.
+  const baseShellClass = placement === "dock"
+    ? "absolute left-4 top-20 z-30 max-w-[calc(100vw-2rem)]"
+    : placement === "bottom-right"
+      ? "absolute bottom-4 left-4 right-4 z-30 sm:left-auto sm:right-4 sm:bottom-6"
+      : "absolute bottom-6 left-1/2 -translate-x-1/2 z-30";
   const cardWidthClass = placement === "bottom-right"
     ? "sm:w-[min(560px,calc(100vw-32px))]"
     : "";
