@@ -18,9 +18,9 @@ import RouteInfoCard from "@/components/overlays/RouteInfoCard";
 import ShareModal from "@/components/community/ShareModal";
 import VehicleInfoPopup from "@/components/overlays/VehicleInfoPopup";
 import DrawGuide from "@/components/overlays/DrawGuide";
+import ServiceStatusPill from "@/components/overlays/ServiceStatusPill";
 import OpenRailwayMapOverlayControls from "@/components/overlays/OpenRailwayMapOverlayControls";
 import { OPENRAILWAYMAP_OVERLAY_ENABLED } from "@/lib/features";
-import RouteFilterControl from "@/components/overlays/RouteFilterControl";
 import { useRoutes } from "@/hooks/useRoutes";
 import { useStations } from "@/hooks/useStations";
 import { useSimulation } from "@/hooks/useSimulation";
@@ -857,13 +857,7 @@ function MapPageContent() {
         </div>
       </div>
 
-      {!isDrawing && (
-        <RouteFilterControl
-          customRoutes={customRoutes}
-          routeFilters={routeFilters}
-          onRouteFilterChange={handleRouteFilterChange}
-        />
-      )}
+      {!isDrawing && <ServiceStatusPill />}
 
       {OPENRAILWAYMAP_OVERLAY_ENABLED && (
         <OpenRailwayMapOverlayControls
@@ -1025,7 +1019,7 @@ function MapPageContent() {
           customRoutes={customRoutes}
           date={sim.date}
           startHour={sim.startHour}
-          placement="bottom-right"
+          placement="dock"
           onTogglePlay={sim.togglePlay}
           onScrub={sim.setCurrentTime}
           onCycleSpeed={sim.cycleSpeed}

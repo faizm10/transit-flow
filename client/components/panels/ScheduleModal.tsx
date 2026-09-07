@@ -990,16 +990,17 @@ export default function ScheduleModal({
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-
+    // A docked sheet, not a modal. Schedules is read against the network it
+    // belongs to, so covering the map with a full-screen dialog threw away the
+    // context and made you find the route again in a second list. There is no
+    // backdrop and no aria-modal: the map behind stays visible and usable, and
+    // Escape still closes (see the keydown handler above).
+    <div className="pointer-events-none fixed inset-y-0 right-0 z-[200] flex items-stretch pb-4 pl-4 pr-4 pt-[72px]">
       <div
         ref={panelRef}
         role="dialog"
-        aria-modal="true"
         aria-label="Schedule editor"
-        className="relative z-10 flex w-full h-full max-w-7xl rounded-2xl bg-white shadow-2xl overflow-hidden"
-        style={{ maxHeight: "92vh" }}
+        className="pointer-events-auto relative z-10 flex h-full w-[min(880px,calc(100vw-2rem))] rounded-2xl bg-white shadow-2xl overflow-hidden"
       >
         {/* Close */}
         <button
