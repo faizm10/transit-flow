@@ -1,0 +1,68 @@
+# Local ingestion stack: object storage, and the worker that reads from it.
+#
+# Postgres is not here on purpose — the app uses Neon, and pointing local
+# development at a different database than production is how schema drift
+# starts. Set DATABASE_URL in ./.env to a Neon branch.
+#
+#   docker compose up minio minio-init worker
+#   cd client && npm run dev
+
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+    ports:
+      - "9000:9000"   # S3 API — what the browser's presigned PUTs hit
+      - "9001:9001"   # console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Creates the bucket and allows the browser to read the ETag header, without
+  # which a multipart upload cannot be completed.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      S3_BUCKET: ${S3_BUCKET:-transitflow-gtfs}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 $$S3_ACCESS_KEY_ID $$S3_SECRET_ACCESS_KEY &&
+        mc mb --ignore-existing local/$$S3_BUCKET &&
+        mc anonymous set none local/$$S3_BUCKET &&
+        echo 'bucket ready'
+      "
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+      # Inside compose the worker reaches MinIO by service name; the browser
+      # cannot resolve that, which is why S3_PUBLIC_ENDPOINT exists separately.
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET:-transitflow-gtfs}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+      S3_FORCE_PATH_STYLE: "true"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    restart: unless-stopped
+
+volumes:
+  minio-data:

@@ -1,20 +1,14 @@
 [
   {
-    "route_id": "04260626-BR",
-    "route_short_name": "BR",
-    "route_long_name": "Barrie",
-    "route_type": 2
-  },
-  {
     "route_id": "06260926-BR",
     "route_short_name": "BR",
     "route_long_name": "Barrie",
     "route_type": 2
   },
   {
-    "route_id": "04260626-GT",
-    "route_short_name": "KI",
-    "route_long_name": "Kitchener",
+    "route_id": "09261126-BR",
+    "route_short_name": "BR",
+    "route_long_name": "Barrie",
     "route_type": 2
   },
   {
@@ -24,9 +18,9 @@
     "route_type": 2
   },
   {
-    "route_id": "04260626-LE",
-    "route_short_name": "LE",
-    "route_long_name": "Lakeshore East",
+    "route_id": "09261126-GT",
+    "route_short_name": "KI",
+    "route_long_name": "Kitchener",
     "route_type": 2
   },
   {
@@ -36,9 +30,9 @@
     "route_type": 2
   },
   {
-    "route_id": "04260626-LW",
-    "route_short_name": "LW",
-    "route_long_name": "Lakeshore West",
+    "route_id": "09261126-LE",
+    "route_short_name": "LE",
+    "route_long_name": "Lakeshore East",
     "route_type": 2
   },
   {
@@ -48,9 +42,9 @@
     "route_type": 2
   },
   {
-    "route_id": "04260626-MI",
-    "route_short_name": "MI",
-    "route_long_name": "Milton",
+    "route_id": "09261126-LW",
+    "route_short_name": "LW",
+    "route_long_name": "Lakeshore West",
     "route_type": 2
   },
   {
@@ -60,9 +54,9 @@
     "route_type": 2
   },
   {
-    "route_id": "04260626-RH",
-    "route_short_name": "RH",
-    "route_long_name": "Richmond Hill",
+    "route_id": "09261126-MI",
+    "route_short_name": "MI",
+    "route_long_name": "Milton",
     "route_type": 2
   },
   {
@@ -72,9 +66,9 @@
     "route_type": 2
   },
   {
-    "route_id": "04260626-ST",
-    "route_short_name": "ST",
-    "route_long_name": "Stouffville",
+    "route_id": "09261126-RH",
+    "route_short_name": "RH",
+    "route_long_name": "Richmond Hill",
     "route_type": 2
   },
   {
@@ -84,10 +78,10 @@
     "route_type": 2
   },
   {
-    "route_id": "04260626-11",
-    "route_short_name": "11",
-    "route_long_name": "Brock University",
-    "route_type": 3
+    "route_id": "09261126-ST",
+    "route_short_name": "ST",
+    "route_long_name": "Stouffville",
+    "route_type": 2
   },
   {
     "route_id": "06260926-11",
@@ -96,9 +90,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-12",
-    "route_short_name": "12",
-    "route_long_name": "Niagara Falls / Burlington",
+    "route_id": "09261126-11",
+    "route_short_name": "11",
+    "route_long_name": "Brock University",
     "route_type": 3
   },
   {
@@ -108,9 +102,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-15",
-    "route_short_name": "15",
-    "route_long_name": "Brantford / Aldershot",
+    "route_id": "09261126-12",
+    "route_short_name": "12",
+    "route_long_name": "Niagara Falls / Burlington",
     "route_type": 3
   },
   {
@@ -120,9 +114,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-16",
-    "route_short_name": "16",
-    "route_long_name": "Hamilton / Toronto Express",
+    "route_id": "09261126-15",
+    "route_short_name": "15",
+    "route_long_name": "Brantford / Aldershot",
     "route_type": 3
   },
   {
@@ -132,9 +126,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-17",
-    "route_short_name": "17",
-    "route_long_name": "Waterloo / Hamilton",
+    "route_id": "09261126-16",
+    "route_short_name": "16",
+    "route_long_name": "Hamilton / Toronto Express",
     "route_type": 3
   },
   {
@@ -144,9 +138,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-18",
-    "route_short_name": "18",
-    "route_long_name": "Lakeshore West",
+    "route_id": "09261126-17",
+    "route_short_name": "17",
+    "route_long_name": "Waterloo / Hamilton",
     "route_type": 3
   },
   {
@@ -156,9 +150,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-19",
-    "route_short_name": "19",
-    "route_long_name": "Mississauga / North York",
+    "route_id": "09261126-18",
+    "route_short_name": "18",
+    "route_long_name": "Lakeshore West",
     "route_type": 3
   },
   {
@@ -168,9 +162,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-21",
-    "route_short_name": "21",
-    "route_long_name": "Milton",
+    "route_id": "09261126-19",
+    "route_short_name": "19",
+    "route_long_name": "Mississauga / North York",
     "route_type": 3
   },
   {
@@ -180,9 +174,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-22",
-    "route_short_name": "22",
-    "route_long_name": "Milton / Oakville",
+    "route_id": "09261126-21",
+    "route_short_name": "21",
+    "route_long_name": "Milton",
     "route_type": 3
   },
   {
@@ -192,9 +186,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-25",
-    "route_short_name": "25",
-    "route_long_name": "Waterloo / Mississauga",
+    "route_id": "09261126-22",
+    "route_short_name": "22",
+    "route_long_name": "Milton / Oakville",
     "route_type": 3
   },
   {
@@ -204,9 +198,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-27",
-    "route_short_name": "27",
-    "route_long_name": "Milton / North York",
+    "route_id": "09261126-25",
+    "route_short_name": "25",
+    "route_long_name": "Waterloo / Mississauga",
     "route_type": 3
   },
   {
@@ -216,9 +210,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-29",
-    "route_short_name": "29",
-    "route_long_name": "Guelph / Mississauga",
+    "route_id": "09261126-27",
+    "route_short_name": "27",
+    "route_long_name": "Milton / North York",
     "route_type": 3
   },
   {
@@ -228,9 +222,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-30",
-    "route_short_name": "30",
-    "route_long_name": "Kitchener / Bramalea",
+    "route_id": "09261126-29",
+    "route_short_name": "29",
+    "route_long_name": "Guelph / Mississauga",
     "route_type": 3
   },
   {
@@ -240,9 +234,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-31",
-    "route_short_name": "31",
-    "route_long_name": "Guelph / Toronto",
+    "route_id": "09261126-30",
+    "route_short_name": "30",
+    "route_long_name": "Kitchener / Bramalea",
     "route_type": 3
   },
   {
@@ -252,9 +246,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-32",
-    "route_short_name": "32",
-    "route_long_name": "Brampton Trinity Common / North York",
+    "route_id": "09261126-31",
+    "route_short_name": "31",
+    "route_long_name": "Guelph / Toronto",
     "route_type": 3
   },
   {
@@ -264,9 +258,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-33",
-    "route_short_name": "33",
-    "route_long_name": "Guelph / North York",
+    "route_id": "09261126-32",
+    "route_short_name": "32",
+    "route_long_name": "Brampton Trinity Common / North York",
     "route_type": 3
   },
   {
@@ -276,15 +270,15 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-35",
-    "route_short_name": "35",
-    "route_long_name": "Union Pearson Express",
+    "route_id": "09261126-33",
+    "route_short_name": "33",
+    "route_long_name": "Guelph / North York",
     "route_type": 3
   },
   {
-    "route_id": "04260626-36",
-    "route_short_name": "36",
-    "route_long_name": "Brampton / North York Express",
+    "route_id": "09261126-35",
+    "route_short_name": "35",
+    "route_long_name": "Union Pearson Express",
     "route_type": 3
   },
   {
@@ -294,9 +288,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-37",
-    "route_short_name": "37",
-    "route_long_name": "Orangeville / Brampton",
+    "route_id": "09261126-36",
+    "route_short_name": "36",
+    "route_long_name": "Brampton / North York Express",
     "route_type": 3
   },
   {
@@ -306,9 +300,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-38",
-    "route_short_name": "38",
-    "route_long_name": "Bolton / Malton",
+    "route_id": "09261126-37",
+    "route_short_name": "37",
+    "route_long_name": "Orangeville / Brampton",
     "route_type": 3
   },
   {
@@ -318,9 +312,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-40",
-    "route_short_name": "40",
-    "route_long_name": "Hamilton / Richmond Hill",
+    "route_id": "09261126-38",
+    "route_short_name": "38",
+    "route_long_name": "Bolton / Malton",
     "route_type": 3
   },
   {
@@ -330,9 +324,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-41",
-    "route_short_name": "41",
-    "route_long_name": "Hamilton / Pickering",
+    "route_id": "09261126-40",
+    "route_short_name": "40",
+    "route_long_name": "Hamilton / Richmond Hill",
     "route_type": 3
   },
   {
@@ -342,9 +336,15 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-47",
-    "route_short_name": "47",
-    "route_long_name": "Hamilton / Hwy 407 Terminal",
+    "route_id": "09261126-41",
+    "route_short_name": "41",
+    "route_long_name": "Hamilton / Pickering",
+    "route_type": 3
+  },
+  {
+    "route_id": "09261126-43",
+    "route_short_name": "43",
+    "route_long_name": "Mount Pleasant / McMaster",
     "route_type": 3
   },
   {
@@ -354,9 +354,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-48",
-    "route_short_name": "48",
-    "route_long_name": "Guelph / Hwy 407 Terminal",
+    "route_id": "09261126-47",
+    "route_short_name": "47",
+    "route_long_name": "Hamilton / Hwy 407 Terminal",
     "route_type": 3
   },
   {
@@ -366,9 +366,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-52",
-    "route_short_name": "52",
-    "route_long_name": "Oshawa / Hwy 407 Terminal",
+    "route_id": "09261126-48",
+    "route_short_name": "48",
+    "route_long_name": "Guelph / Hwy 407 Terminal",
     "route_type": 3
   },
   {
@@ -378,9 +378,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-56",
-    "route_short_name": "56",
-    "route_long_name": "Oshawa / Oakville",
+    "route_id": "09261126-52",
+    "route_short_name": "52",
+    "route_long_name": "Oshawa / Hwy 407 Terminal",
     "route_type": 3
   },
   {
@@ -390,9 +390,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-61",
-    "route_short_name": "61",
-    "route_long_name": "Richmond Hill",
+    "route_id": "09261126-56",
+    "route_short_name": "56",
+    "route_long_name": "Oshawa / Oakville",
     "route_type": 3
   },
   {
@@ -402,9 +402,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-65",
-    "route_short_name": "65",
-    "route_long_name": "Newmarket / Toronto",
+    "route_id": "09261126-61",
+    "route_short_name": "61",
+    "route_long_name": "Richmond Hill",
     "route_type": 3
   },
   {
@@ -414,9 +414,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-67",
-    "route_short_name": "67",
-    "route_long_name": "Keswick / North York",
+    "route_id": "09261126-65",
+    "route_short_name": "65",
+    "route_long_name": "Newmarket / Toronto",
     "route_type": 3
   },
   {
@@ -426,9 +426,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-68",
-    "route_short_name": "68",
-    "route_long_name": "Barrie / Newmarket",
+    "route_id": "09261126-67",
+    "route_short_name": "67",
+    "route_long_name": "Keswick / North York",
     "route_type": 3
   },
   {
@@ -438,9 +438,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-70",
-    "route_short_name": "70",
-    "route_long_name": "Uxbridge / Mount Joy",
+    "route_id": "09261126-68",
+    "route_short_name": "68",
+    "route_long_name": "Barrie / Newmarket",
     "route_type": 3
   },
   {
@@ -450,9 +450,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-71",
-    "route_short_name": "71",
-    "route_long_name": "Stouffville",
+    "route_id": "09261126-70",
+    "route_short_name": "70",
+    "route_long_name": "Uxbridge / Mount Joy",
     "route_type": 3
   },
   {
@@ -462,9 +462,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-88",
-    "route_short_name": "88",
-    "route_long_name": "Peterborough / Oshawa",
+    "route_id": "09261126-71",
+    "route_short_name": "71",
+    "route_long_name": "Stouffville",
     "route_type": 3
   },
   {
@@ -474,9 +474,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-90",
-    "route_short_name": "90",
-    "route_long_name": "Lakeshore East",
+    "route_id": "09261126-88",
+    "route_short_name": "88",
+    "route_long_name": "Peterborough / Oshawa",
     "route_type": 3
   },
   {
@@ -486,9 +486,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-92",
-    "route_short_name": "92",
-    "route_long_name": "Oshawa / Yorkdale",
+    "route_id": "09261126-90",
+    "route_short_name": "90",
+    "route_long_name": "Lakeshore East",
     "route_type": 3
   },
   {
@@ -498,9 +498,9 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-94",
-    "route_short_name": "94",
-    "route_long_name": "Pickering / Square One",
+    "route_id": "09261126-92",
+    "route_short_name": "92",
+    "route_long_name": "Oshawa / Yorkdale",
     "route_type": 3
   },
   {
@@ -510,13 +510,19 @@
     "route_type": 3
   },
   {
-    "route_id": "04260626-96",
+    "route_id": "09261126-94",
+    "route_short_name": "94",
+    "route_long_name": "Pickering / Square One",
+    "route_type": 3
+  },
+  {
+    "route_id": "06260926-96",
     "route_short_name": "96",
     "route_long_name": "Oshawa / Finch Express",
     "route_type": 3
   },
   {
-    "route_id": "06260926-96",
+    "route_id": "09261126-96",
     "route_short_name": "96",
     "route_long_name": "Oshawa / Finch Express",
     "route_type": 3
