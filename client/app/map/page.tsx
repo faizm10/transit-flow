@@ -18,6 +18,7 @@ import RouteInfoCard from "@/components/overlays/RouteInfoCard";
 import ShareModal from "@/components/community/ShareModal";
 import VehicleInfoPopup from "@/components/overlays/VehicleInfoPopup";
 import DrawGuide from "@/components/overlays/DrawGuide";
+import ServiceStatusPill from "@/components/overlays/ServiceStatusPill";
 import OpenRailwayMapOverlayControls from "@/components/overlays/OpenRailwayMapOverlayControls";
 import { OPENRAILWAYMAP_OVERLAY_ENABLED } from "@/lib/features";
 import { useRoutes } from "@/hooks/useRoutes";
@@ -855,6 +856,8 @@ function MapPageContent() {
           ))}
         </div>
       </div>
+
+      {!isDrawing && <ServiceStatusPill />}
 
       {OPENRAILWAYMAP_OVERLAY_ENABLED && (
         <OpenRailwayMapOverlayControls
