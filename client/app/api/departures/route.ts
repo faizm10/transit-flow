@@ -123,10 +123,14 @@ export async function GET(request: NextRequest) {
       })
       .sort((a, b) => a.directionId - b.directionId);
 
-    // Full week in the UI when this route has any schedule rows (empty buckets are
-    // backfilled in build_gtfs_derived.py from the nearest day with GTFS service).
-    const availableDays =
-      directions.length > 0 ? [0, 1, 2, 3, 4, 5, 6] : [];
+    // The days this route actually runs, read from the index rather than assumed.
+    // This used to return all seven whenever the route had any schedule at all,
+    // which was only ever true because build_gtfs_derived.py backfilled empty
+    // buckets from a neighbouring day. Weekday-only routes — the Milton and
+    // Richmond Hill lines, route 43 — were given phantom weekend service.
+    const availableDays = [0, 1, 2, 3, 4, 5, 6].filter(
+      (d) => (departures.get(`${route}|${d}`) ?? []).length > 0,
+    );
 
     return NextResponse.json({ route, day: dayOfWeek, directions, availableDays });
   } catch (err) {
