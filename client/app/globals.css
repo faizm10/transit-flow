@@ -144,6 +144,8 @@
   --landing-band: #f1f8f3;
   --landing-amber: #8a5a00;
   --landing-red: #a5271c;
+  --landing-inverse: #13241b;      /* neutral inverted chip (selected nav, toggles) */
+  --landing-inverse-fg: #ffffff;
   --landing-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
   /* Legacy aliases still referenced by a few pages */
   --landing-mixed-bg: #f1f8f3;
@@ -282,6 +284,11 @@
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
+.dark .tf-map-panel {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 16px 38px -14px rgba(0, 0, 0, 0.62);
+}
 /* uppercase monospace label used across map chrome */
 .tf-map-label {
   font-family: var(--landing-mono);
@@ -413,6 +420,8 @@
   --landing-band: #111a15;
   --landing-amber: #d9a441;
   --landing-red: #e0685c;
+  --landing-inverse: #f1f6f2;
+  --landing-inverse-fg: #0c1310;
   --landing-mixed-bg: #121c17;
   --landing-mixed-fg: #f1f6f2;
   --landing-mixed-muted: rgba(241, 246, 242, 0.6);
@@ -617,6 +626,62 @@
   background: #007a33;
   box-shadow: 0 1px 4px rgb(15 23 42 / 0.2);
   cursor: pointer;
+}
+
+/* ── Dark mode: Mapbox controls + popups + HUD slider ───────────────────────
+   Mapbox renders its own DOM (zoom buttons, attribution) with baked-in light
+   styles, and the popup CSS above hard-codes white. Re-skin under `.dark`. */
+.dark .mapboxgl-ctrl-group {
+  background: var(--landing-elevated);
+  border: 1px solid var(--landing-border-2);
+}
+.dark .mapboxgl-ctrl-group button + button {
+  border-top-color: var(--landing-border);
+}
+.dark .mapboxgl-ctrl-group button .mapboxgl-ctrl-icon {
+  filter: invert(1) hue-rotate(180deg) brightness(1.1);
+}
+.dark .mapboxgl-ctrl-group button:not(:disabled):hover {
+  background: var(--landing-wash);
+}
+.dark .mapboxgl-ctrl-attrib {
+  background: color-mix(in oklab, var(--landing-bg) 78%, transparent) !important;
+}
+.dark .mapboxgl-ctrl-attrib a {
+  color: var(--landing-muted);
+}
+.dark .mapboxgl-ctrl-attrib-button {
+  filter: invert(1) brightness(1.1);
+}
+
+.dark .vehicle-hover-popup .mapboxgl-popup-content,
+.dark .alert-line-popup .mapboxgl-popup-content {
+  background: var(--landing-elevated);
+  border-color: var(--landing-border-2);
+}
+.dark .vehicle-hover-popup .mapboxgl-popup-tip,
+.dark .alert-line-popup .mapboxgl-popup-tip {
+  border-top-color: var(--landing-elevated) !important;
+}
+.dark .vhp-dest,
+.dark .vhp-next-name,
+.dark .vhp-eta {
+  color: var(--landing-ink);
+}
+.dark .vhp-meta,
+.dark .vhp-timing,
+.dark .vhp-row {
+  color: var(--landing-muted);
+}
+
+.dark .sim-hud-slider::-webkit-slider-runnable-track,
+.dark .sim-hud-slider::-moz-range-track {
+  background: var(--landing-border-2);
+}
+.dark .sim-hud-slider::-webkit-slider-thumb,
+.dark .sim-hud-slider::-moz-range-thumb {
+  background: var(--landing-accent);
+  border-color: var(--landing-elevated);
 }
 
 @layer base {

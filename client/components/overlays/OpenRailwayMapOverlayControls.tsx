@@ -34,14 +34,14 @@ export default function OpenRailwayMapOverlayControls({
         onClick={() => setRailMapVisible((visible) => !visible)}
         className={`pointer-events-auto flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold shadow-md backdrop-blur-xl transition-colors ${
           railMapVisible
-            ? "border-emerald-200 bg-emerald-50/95 text-[#007A33]"
-            : "border-slate-200 bg-white/95 text-slate-600 hover:bg-slate-50"
+            ? "border-[var(--landing-border-2)] bg-[var(--landing-wash)]/95 text-[var(--landing-accent)]"
+            : "border-[var(--landing-border-2)] bg-[var(--landing-elevated)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
         }`}
       >
         <Train className="h-3.5 w-3.5" />
         Rail map
       </button>
-      <div className="max-w-56 rounded-lg border border-slate-200 bg-white/90 px-2.5 py-1.5 text-[10px] leading-snug text-slate-500 shadow-sm backdrop-blur-md">
+      <div className="max-w-56 rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-1.5 text-[10px] leading-snug text-[var(--landing-muted)] shadow-sm backdrop-blur-md">
         Rail routing data © OpenStreetMap contributors, ODbL
       </div>
     </div>

@@ -22,7 +22,7 @@ export default function DrawGuide({ onFinish, onCancel, mode = "route" }: DrawGu
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
       <div className="pointer-events-auto flex flex-col items-center gap-3">
         {/* Main instruction banner — ink fill signals "drawing mode is live" */}
-        <div className="flex items-center gap-3 bg-[var(--landing-ink)] px-5 py-3.5 text-white shadow-[0_1px_2px_rgba(19,36,27,0.06),0_14px_34px_-14px_rgba(19,36,27,0.35)]">
+        <div className="flex items-center gap-3 bg-[var(--landing-inverse)] px-5 py-3.5 text-[var(--landing-inverse-fg)] shadow-[0_1px_2px_rgba(19,36,27,0.06),0_14px_34px_-14px_rgba(19,36,27,0.35)]">
           <MousePointer2 className="h-4 w-4 flex-shrink-0 text-[color-mix(in_oklab,var(--landing-accent)_70%,white)]" />
           <span className="font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.08em]">
             {mode === "rail"

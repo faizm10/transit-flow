@@ -1000,12 +1000,12 @@ export default function ScheduleModal({
         ref={panelRef}
         role="dialog"
         aria-label="Schedule editor"
-        className="pointer-events-auto relative z-10 flex h-full w-[min(880px,calc(100vw-2rem))] rounded-2xl bg-white shadow-2xl overflow-hidden"
+        className="pointer-events-auto relative z-10 flex h-full w-[min(880px,calc(100vw-2rem))] rounded-2xl bg-[var(--landing-elevated)] shadow-2xl overflow-hidden"
       >
         {/* Close */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-20 w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          className="absolute top-3 right-3 z-20 w-8 h-8 rounded-xl flex items-center justify-center text-[var(--landing-faint)] hover:text-[var(--landing-ink)] hover:bg-[var(--landing-wash)] transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -1101,11 +1101,11 @@ export default function ScheduleModal({
                       />
                     </>
                   ) : (
-                    <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
+                    <div className="flex-1 flex items-center justify-center text-sm text-[var(--landing-faint)]">
                       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading stop times…
                     </div>
                   )}
-                  <div className="px-4 py-2 border-t border-slate-100 bg-slate-50/50 flex items-center gap-2 text-[10px] text-slate-400">
+                  <div className="px-4 py-2 border-t border-[var(--landing-border)] bg-[var(--landing-wash)] flex items-center gap-2 text-[10px] text-[var(--landing-faint)]">
                     <Lock className="w-3 h-3" />
                     GO Transit · editable via local overrides · based on GTFS scheduled times
                   </div>
@@ -1138,7 +1138,7 @@ export default function ScheduleModal({
                   />
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
+                <div className="flex-1 flex items-center justify-center text-sm text-[var(--landing-faint)]">
                   {editor?.rows.length === 0
                     ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading stops…</>
                     : <p className="text-center max-w-xs">This route has no stops yet. Add stops in the Design panel first.</p>
@@ -1169,21 +1169,21 @@ function RouteSidebar({
   onSelectRoute: (sel: SelectedRoute) => void;
 }) {
   return (
-    <div className="w-64 flex-shrink-0 border-r border-slate-100 flex flex-col bg-slate-50/50">
+    <div className="w-64 flex-shrink-0 border-r border-[var(--landing-border)] flex flex-col bg-[var(--landing-wash)]">
       <div className="px-3 pt-3 pb-2">
-        <h2 className="text-sm font-semibold text-slate-900 tracking-tight">Schedules</h2>
-        <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">Pick a route for times & departures</p>
+        <h2 className="text-sm font-semibold text-[var(--landing-ink)] tracking-tight">Schedules</h2>
+        <p className="text-[11px] text-[var(--landing-faint)] mt-0.5 leading-snug">Pick a route for times & departures</p>
       </div>
 
       <div className="px-2.5 pb-2">
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 shadow-sm">
-          <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+        <div className="flex items-center gap-2 bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] rounded-lg px-2.5 py-1.5 shadow-sm">
+          <Search className="w-3.5 h-3.5 text-[var(--landing-faint)] flex-shrink-0" />
           <input
             type="text"
             placeholder="Search routes…"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="flex-1 text-xs bg-transparent outline-none text-slate-700 placeholder:text-slate-400"
+            className="flex-1 text-xs bg-transparent outline-none text-[var(--landing-ink)] placeholder:text-[var(--landing-faint)]"
           />
         </div>
       </div>
@@ -1194,7 +1194,7 @@ function RouteSidebar({
             key={tab}
             onClick={() => onFilterChange(tab)}
             className={`flex-1 rounded-md py-0.5 text-[10px] font-semibold transition-colors capitalize ${
-              filter === tab ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100"
+              filter === tab ? "bg-[var(--landing-accent)] text-white" : "text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
             }`}
           >
             {tab === "mine" ? "Mine" : tab === "all" ? "All" : tab === "trains" ? "Train" : "Bus"}
@@ -1204,7 +1204,7 @@ function RouteSidebar({
 
       <div className="flex-1 overflow-y-auto px-1.5 pb-3">
         {loadingGO && (
-          <div className="flex items-center gap-2 px-2 py-4 text-xs text-slate-400">
+          <div className="flex items-center gap-2 px-2 py-4 text-xs text-[var(--landing-faint)]">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading routes…
           </div>
         )}
@@ -1212,7 +1212,7 @@ function RouteSidebar({
         {filteredGO.length > 0 && (
           <>
             {filter === "all" && (
-              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider px-2 pt-2 pb-0.5">GO Transit</p>
+              <p className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wider px-2 pt-2 pb-0.5">GO Transit</p>
             )}
             {filteredGO.map((route) => {
               const lineInfo = GO_RAIL_LINES[route.short_name];
@@ -1238,7 +1238,7 @@ function RouteSidebar({
         {filteredCustom.length > 0 && (
           <>
             {filter === "all" && (
-              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider px-2 pt-2 pb-0.5">My routes</p>
+              <p className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wider px-2 pt-2 pb-0.5">My routes</p>
             )}
             {filteredCustom.map((route) => {
               const isSel = selected?.kind === "custom" && selected.route.id === route.id;
@@ -1258,7 +1258,7 @@ function RouteSidebar({
         )}
 
         {!loadingGO && filteredGO.length === 0 && filteredCustom.length === 0 && (
-          <p className="text-xs text-slate-400 px-2 pt-4">No routes found.</p>
+          <p className="text-xs text-[var(--landing-faint)] px-2 pt-4">No routes found.</p>
         )}
       </div>
     </div>
@@ -1277,7 +1277,7 @@ function RouteListItem({
     <button
       onClick={onClick}
       className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors ${
-        isSelected ? "bg-slate-900 text-white" : "hover:bg-white hover:shadow-sm text-slate-700"
+        isSelected ? "bg-[var(--landing-accent)] text-white" : "hover:bg-[var(--landing-wash)] text-[var(--landing-ink)]"
       }`}
     >
       <div
@@ -1291,9 +1291,9 @@ function RouteListItem({
             : <Bus className="w-4 h-4" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-[11px] font-semibold truncate leading-tight ${isSelected ? "text-white" : "text-slate-800"}`}>{label}</p>
+        <p className={`text-[11px] font-semibold truncate leading-tight ${isSelected ? "text-white" : "text-[var(--landing-ink)]"}`}>{label}</p>
         {sublabel && (
-          <p className={`text-[9px] truncate mt-0.5 leading-tight ${isSelected ? "text-white/55" : "text-slate-400"}`}>{sublabel}</p>
+          <p className={`text-[9px] truncate mt-0.5 leading-tight ${isSelected ? "text-white/55" : "text-[var(--landing-faint)]"}`}>{sublabel}</p>
         )}
       </div>
     </button>
@@ -1305,12 +1305,12 @@ function RouteListItem({
 function EmptyState() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-8">
-      <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
-        <Clock className="w-5 h-5 text-slate-400" />
+      <div className="w-12 h-12 rounded-2xl bg-[var(--landing-wash)] flex items-center justify-center">
+        <Clock className="w-5 h-5 text-[var(--landing-faint)]" />
       </div>
       <div>
-        <p className="text-sm font-semibold text-slate-700">Select a route</p>
-        <p className="text-xs text-slate-400 mt-1 max-w-xs">
+        <p className="text-sm font-semibold text-[var(--landing-ink)]">Select a route</p>
+        <p className="text-xs text-[var(--landing-faint)] mt-1 max-w-xs">
           Choose a GO Transit or custom route from the sidebar to view its schedule.
         </p>
       </div>
@@ -1333,7 +1333,7 @@ function GoEditorHeader({
   const name = lineInfo?.name ?? selected.route.long_name;
 
   return (
-    <div className="px-4 pt-3 pb-0 border-b border-slate-100">
+    <div className="px-4 pt-3 pb-0 border-b border-[var(--landing-border)]">
       <div className="flex items-start justify-between gap-3 pb-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div
@@ -1343,9 +1343,9 @@ function GoEditorHeader({
             {selected.route.short_name}
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-slate-900 truncate leading-tight">{name}</h3>
+            <h3 className="text-sm font-semibold text-[var(--landing-ink)] truncate leading-tight">{name}</h3>
             {selected.route.from_stop && (
-              <p className="text-[11px] text-slate-400 mt-0.5 truncate leading-snug">
+              <p className="text-[11px] text-[var(--landing-faint)] mt-0.5 truncate leading-snug">
                 {selected.route.from_stop} → {selected.route.to_stop}
               </p>
             )}
@@ -1357,7 +1357,7 @@ function GoEditorHeader({
           <select
             value={selected.variantId}
             onChange={(e) => onVariantChange(e.target.value)}
-            className="text-[11px] rounded-lg border border-slate-200 bg-white pl-2.5 pr-6 py-1 text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-slate-200 max-w-[200px] truncate"
+            className="text-[11px] rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] pl-2.5 pr-6 py-1 text-[var(--landing-ink)] appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--landing-border-2)] max-w-[200px] truncate"
           >
             {[...selected.route.variants]
               .sort((a, b) => (b.weekly_trip_count ?? 0) - (a.weekly_trip_count ?? 0))
@@ -1367,7 +1367,7 @@ function GoEditorHeader({
                 </option>
               ))}
           </select>
-          <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <ChevronDown className="w-3 h-3 text-[var(--landing-faint)] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
       </div>
 
@@ -1398,8 +1398,8 @@ function ViewTab({ active, icon, label, onClick }: {
       onClick={onClick}
       className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold border-b-2 transition-colors ${
         active
-          ? "border-slate-900 text-slate-900"
-          : "border-transparent text-slate-400 hover:text-slate-600"
+          ? "border-[var(--landing-accent)] text-[var(--landing-ink)]"
+          : "border-transparent text-[var(--landing-faint)] hover:text-[var(--landing-ink)]"
       }`}
     >
       {icon}
@@ -1412,7 +1412,7 @@ function ViewTab({ active, icon, label, onClick }: {
 
 function CustomEditorHeader({ route }: { route: CustomRoute }) {
   return (
-    <div className="px-4 pt-3 pb-3 border-b border-slate-100 flex items-center gap-2.5">
+    <div className="px-4 pt-3 pb-3 border-b border-[var(--landing-border)] flex items-center gap-2.5">
       <div
         className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center text-white font-bold text-xs"
         style={{ backgroundColor: route.color }}
@@ -1420,8 +1420,8 @@ function CustomEditorHeader({ route }: { route: CustomRoute }) {
         {route.type === "train" ? "TR" : "BU"}
       </div>
       <div className="min-w-0">
-        <h3 className="text-sm font-semibold text-slate-900 truncate leading-tight">{route.name || "Custom route"}</h3>
-        <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{route.stops.length} stops · edit departures below</p>
+        <h3 className="text-sm font-semibold text-[var(--landing-ink)] truncate leading-tight">{route.name || "Custom route"}</h3>
+        <p className="text-[11px] text-[var(--landing-faint)] mt-0.5 leading-snug">{route.stops.length} stops · edit departures below</p>
       </div>
     </div>
   );
@@ -1462,12 +1462,12 @@ function DepartureSelector({
           : null);
 
   return (
-    <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2">
+    <div className="px-4 py-2 border-b border-[var(--landing-border)] bg-[var(--landing-wash)] flex flex-col gap-2">
       {(directions.length > 1 || hasMultipleDestinations) && (
         <div className="flex flex-col gap-2">
           {directions.length > 1 && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+              <span className="text-[10px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">
                 Direction
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -1481,8 +1481,8 @@ function DepartureSelector({
                       onClick={() => onSelectDirection(dir.directionId)}
                       className={`max-w-[min(100%,14rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                         selectedDirection === dir.directionId
-                          ? "bg-slate-900 text-white"
-                          : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+                          ? "bg-[var(--landing-accent)] text-white"
+                          : "bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] text-[var(--landing-ink)] hover:bg-[var(--landing-wash)]"
                       }`}
                     >
                       {label}
@@ -1494,7 +1494,7 @@ function DepartureSelector({
           )}
           {hasMultipleDestinations && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+              <span className="text-[10px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">
                 Trip ends at
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -1504,8 +1504,8 @@ function DepartureSelector({
                   onClick={() => onDestinationChange(null)}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                     selectedDestination === null
-                      ? "bg-emerald-700 text-white"
-                      : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                      ? "bg-[var(--landing-accent)] text-white"
+                      : "bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
                   }`}
                 >
                   All
@@ -1527,8 +1527,8 @@ function DepartureSelector({
                       }
                       className={`max-w-[min(100%,12rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                         selectedDestination === dest.headsign
-                          ? "bg-emerald-700 text-white"
-                          : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                          ? "bg-[var(--landing-accent)] text-white"
+                          : "bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
                       }`}
                     >
                       {label}
@@ -1546,15 +1546,15 @@ function DepartureSelector({
 
       {/* Departure time + route summary */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+        <Clock className="w-3 h-3 text-[var(--landing-faint)] shrink-0" />
+        <label className="text-[10px] font-semibold text-[var(--landing-muted)] uppercase tracking-wide whitespace-nowrap">
           First stop time
         </label>
         <div className="relative">
           <select
             value={selectedDeparture ?? ""}
             onChange={(e) => onSelectDeparture(e.target.value)}
-            className="text-[11px] rounded-lg border border-slate-200 bg-white pl-2.5 pr-6 py-1 text-slate-800 font-mono appearance-none focus:outline-none focus:ring-2 focus:ring-slate-200 min-w-[100px]"
+            className="text-[11px] rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] pl-2.5 pr-6 py-1 text-[var(--landing-ink)] font-mono appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--landing-border-2)] min-w-[100px]"
           >
             {departures.length === 0 && <option value="">No departures</option>}
             {departures.map((dep) => (
@@ -1564,24 +1564,24 @@ function DepartureSelector({
               </option>
             ))}
           </select>
-          <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <ChevronDown className="w-3 h-3 text-[var(--landing-faint)] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
 
         {originStop && summaryDestination && (
           <div
-            className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1 max-w-full min-w-0"
+            className="flex items-center gap-1 bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] rounded-lg px-2 py-1 max-w-full min-w-0"
             title={
               selectedDestination != null
                 ? `${originStop} → ${selectedDestination}`
                 : `${originStop} · all branches`
             }
           >
-            <MapPin className="w-2.5 h-2.5 text-slate-400 shrink-0" />
-            <span className="text-[11px] text-slate-600 font-medium shrink-0">{originStop}</span>
-            <span className="text-[11px] text-slate-300 shrink-0" aria-hidden>
+            <MapPin className="w-2.5 h-2.5 text-[var(--landing-faint)] shrink-0" />
+            <span className="text-[11px] text-[var(--landing-muted)] font-medium shrink-0">{originStop}</span>
+            <span className="text-[11px] text-[var(--landing-faint)] shrink-0" aria-hidden>
               ·
             </span>
-            <span className="text-[11px] text-slate-500 truncate min-w-0">{summaryDestination}</span>
+            <span className="text-[11px] text-[var(--landing-muted)] truncate min-w-0">{summaryDestination}</span>
           </div>
         )}
       </div>
@@ -1642,7 +1642,7 @@ function DeparturesView({
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Day selector */}
-      <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-1 flex-wrap">
+      <div className="px-4 py-2 border-b border-[var(--landing-border)] flex items-center gap-1 flex-wrap">
         {DAY_LABELS.map((label, d) => {
           const done = deptState.status === "done";
           const loading = deptState.status === "loading";
@@ -1657,7 +1657,7 @@ function DeparturesView({
               onClick={() => onDayChange(d)}
               disabled={loading || (done && !selectable)}
               className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                deptDay === d ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                deptDay === d ? "bg-[var(--landing-accent)] text-white" : "bg-[var(--landing-wash)] text-[var(--landing-muted)] hover:bg-[var(--landing-border-2)]"
               }`}
             >
               {label}
@@ -1668,10 +1668,10 @@ function DeparturesView({
 
       {/* Direction + destination filters — labeled rows, short labels, full text in title="" */}
       {deptState.status === "done" && (deptState.directions.length > 1 || hasMultipleDestinations) && (
-        <div className="px-4 py-2 border-b border-slate-100 flex flex-col gap-2">
+        <div className="px-4 py-2 border-b border-[var(--landing-border)] flex flex-col gap-2">
           {deptState.directions.length > 1 && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+              <span className="text-[10px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">
                 Direction
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -1692,8 +1692,8 @@ function DeparturesView({
                       onClick={() => onDirectionChange(dir.directionId)}
                       className={`max-w-[min(100%,14rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                         deptDirection === dir.directionId
-                          ? "bg-slate-900 text-white"
-                          : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+                          ? "bg-[var(--landing-accent)] text-white"
+                          : "bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] text-[var(--landing-ink)] hover:bg-[var(--landing-wash)]"
                       }`}
                     >
                       {label}
@@ -1706,7 +1706,7 @@ function DeparturesView({
 
           {hasMultipleDestinations && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+              <span className="text-[10px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">
                 Trip ends at
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -1716,8 +1716,8 @@ function DeparturesView({
                   onClick={() => onDestinationChange(null)}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                     selectedDestination === null
-                      ? "bg-emerald-700 text-white"
-                      : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                      ? "bg-[var(--landing-accent)] text-white"
+                      : "bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
                   }`}
                 >
                   All
@@ -1739,8 +1739,8 @@ function DeparturesView({
                       }
                       className={`max-w-[min(100%,12rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                         selectedDestination === dest.headsign
-                          ? "bg-emerald-700 text-white"
-                          : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                          ? "bg-[var(--landing-accent)] text-white"
+                          : "bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
                       }`}
                     >
                       {label}
@@ -1757,14 +1757,14 @@ function DeparturesView({
       )}
 
       {/* Edit toolbar (local overrides) */}
-      <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2 flex-wrap">
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
-          <Clock className="w-3 h-3 text-slate-400" />
+      <div className="px-4 py-2 border-b border-[var(--landing-border)] bg-[var(--landing-wash)] flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 text-[11px] text-[var(--landing-muted)]">
+          <Clock className="w-3 h-3 text-[var(--landing-faint)]" />
           <span className="font-semibold">Departures</span>
           {activeHeadsign && (
-            <span className="text-slate-400">
+            <span className="text-[var(--landing-faint)]">
               ·{" "}
-              <span className="font-medium text-slate-600" title={activeHeadsign}>
+              <span className="font-medium text-[var(--landing-muted)]" title={activeHeadsign}>
                 {simplifyTripHeadsign(activeHeadsign, route.short_name)}
               </span>
             </span>
@@ -1776,7 +1776,7 @@ function DeparturesView({
               <button
                 type="button"
                 onClick={onDiscardEdits}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+                className="rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-1 text-[11px] font-semibold text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
               >
                 Discard
               </button>
@@ -1784,7 +1784,7 @@ function DeparturesView({
                 type="button"
                 onClick={onSaveEdits}
                 disabled={!canSave}
-                className="rounded-lg bg-[#007A33] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="rounded-lg bg-[var(--landing-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Save
               </button>
@@ -1794,7 +1794,7 @@ function DeparturesView({
             type="button"
             onClick={onToggleEdit}
             className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-              editing ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              editing ? "bg-[var(--landing-accent)] text-white" : "border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
             }`}
           >
             {editing ? "Editing" : "Edit"}
@@ -1803,38 +1803,38 @@ function DeparturesView({
       </div>
 
       {editing && (
-        <div className="px-4 py-2 border-b border-slate-100 bg-white">
+        <div className="px-4 py-2 border-b border-[var(--landing-border)] bg-[var(--landing-elevated)]">
           <div className="flex items-center gap-2 flex-wrap">
-            <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+            <label className="text-[10px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">
               Add time
             </label>
             <input
               type="time"
               value={newTime}
               onChange={(e) => onNewTimeChange(e.target.value)}
-              className="text-[11px] font-mono rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33]"
+              className="text-[11px] font-mono rounded-md border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2 py-1 text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)]"
             />
             <button
               type="button"
               onClick={() => onAddTime(newTime)}
               disabled={!newTime}
-              className="rounded-md bg-[#007A33] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-md bg-[var(--landing-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Add
             </button>
-            <span className="ml-auto text-[9px] text-slate-400">
+            <span className="ml-auto text-[9px] text-[var(--landing-faint)]">
               Stored locally · applies immediately
             </span>
           </div>
 
           <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
             {draftTimes.length === 0 ? (
-              <div className="col-span-full text-[11px] text-slate-400 italic">
+              <div className="col-span-full text-[11px] text-[var(--landing-faint)] italic">
                 No departures. Add a time above.
               </div>
             ) : (
               draftTimes.map((t) => (
-                <div key={t} className="flex items-center gap-1.5 rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5">
+                <div key={t} className="flex items-center gap-1.5 rounded-lg border border-[var(--landing-border)] bg-[var(--landing-wash)] px-2 py-1.5">
                   <input
                     type="time"
                     value={t}
@@ -1842,12 +1842,12 @@ function DeparturesView({
                       const next = draftTimes.map((x) => (x === t ? e.target.value : x));
                       onDraftTimesChange(normalizeTimes(next));
                     }}
-                    className="text-[11px] font-mono rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33] w-[100px]"
+                    className="text-[11px] font-mono rounded-md border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 py-0.5 text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)] w-[100px]"
                   />
                   <button
                     type="button"
                     onClick={() => onDraftTimesChange(draftTimes.filter((x) => x !== t))}
-                    className="ml-auto text-slate-300 hover:text-red-500 transition-colors"
+                    className="ml-auto text-[var(--landing-faint)] hover:text-[var(--landing-red)] transition-colors"
                     title="Remove"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -1863,11 +1863,11 @@ function DeparturesView({
       <div className="flex-1 overflow-y-auto">
         {deptState.status === "loading" && (
           <div className="flex flex-col items-center justify-center py-12 gap-2">
-            <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+            <Loader2 className="w-5 h-5 animate-spin text-[var(--landing-faint)]" />
             <div className="text-center">
-              <p className="text-[13px] font-medium text-slate-600">Loading schedule…</p>
+              <p className="text-[13px] font-medium text-[var(--landing-muted)]">Loading schedule…</p>
               {deptState.isFirstLoad && (
-                <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs">
+                <p className="text-[11px] text-[var(--landing-faint)] mt-0.5 max-w-xs">
                   Building the schedule index for the first time — this takes about 5–10 seconds.
                 </p>
               )}
@@ -1876,21 +1876,21 @@ function DeparturesView({
         )}
 
         {deptState.status === "error" && (
-          <div className="flex items-center gap-2 px-4 py-6 text-[13px] text-amber-600">
+          <div className="flex items-center gap-2 px-4 py-6 text-[13px] text-[var(--landing-amber)]">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             {deptState.error ?? "Could not load schedule data."}
           </div>
         )}
 
         {deptState.status === "done" && visibleDepartures.length === 0 && (
-          <div className="px-4 py-6 text-[13px] text-slate-400 text-center">
+          <div className="px-4 py-6 text-[13px] text-[var(--landing-faint)] text-center">
             No departures found for {route.short_name} on {DAY_FULL[deptDay]}s.
           </div>
         )}
 
         {deptState.status === "done" && visibleDepartures.length > 0 && (
           <div className="px-4 py-2">
-            <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
+            <p className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide mb-2">
               {visibleDepartures.length} departure{visibleDepartures.length !== 1 ? "s" : ""} · {DAY_FULL[deptDay]}
               {selectedDestination
                 ? ` · ${simplifyTripHeadsign(selectedDestination, route.short_name)}`
@@ -1934,19 +1934,19 @@ function DepartureCard({
 }) {
   return (
     <div
-      className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5 text-center"
+      className="rounded-lg border border-[var(--landing-border)] bg-[var(--landing-wash)] px-2 py-1.5 text-center"
       title={destinationTitle}
     >
-      <p className="text-xs font-semibold text-slate-800 tabular-nums font-mono leading-none">
+      <p className="text-xs font-semibold text-[var(--landing-ink)] tabular-nums font-mono leading-none">
         {toDisplayTime(time)}
       </p>
       {originStop && (
-        <p className="text-[9px] text-slate-400 mt-1 truncate leading-tight">
+        <p className="text-[9px] text-[var(--landing-faint)] mt-1 truncate leading-tight">
           from {originStop}
         </p>
       )}
       {destination && (
-        <p className="text-[9px] text-emerald-600 font-medium mt-0.5 truncate leading-tight">
+        <p className="text-[9px] text-[var(--landing-accent)] font-medium mt-0.5 truncate leading-tight">
           {destination}
         </p>
       )}
@@ -1967,13 +1967,13 @@ function StopTimesTable({
   return (
     <div className="flex-1 overflow-y-auto">
       <table className="w-full text-[13px] border-collapse">
-        <thead className="sticky top-0 bg-white border-b border-slate-100 z-10">
+        <thead className="sticky top-0 bg-[var(--landing-elevated)] border-b border-[var(--landing-border)] z-10">
           <tr>
-            <th className="text-left text-[9px] font-semibold text-slate-400 uppercase tracking-wide px-4 py-2 w-10">#</th>
-            <th className="text-left text-[9px] font-semibold text-slate-400 uppercase tracking-wide px-2 py-2">Stop name</th>
-            <th className="text-left text-[9px] font-semibold text-slate-400 uppercase tracking-wide px-2 py-2 w-32">
+            <th className="text-left text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide px-4 py-2 w-10">#</th>
+            <th className="text-left text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide px-2 py-2">Stop name</th>
+            <th className="text-left text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide px-2 py-2 w-32">
               Departure
-              {isReadOnly && <Lock className="w-2.5 h-2.5 inline ml-1 text-slate-300" />}
+              {isReadOnly && <Lock className="w-2.5 h-2.5 inline ml-1 text-[var(--landing-faint)]" />}
             </th>
           </tr>
         </thead>
@@ -2002,17 +2002,17 @@ function StopRowItem({
   onTimeEdit: (index: number, hhmm: string) => void;
 }) {
   return (
-    <tr className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
-      <td className="px-4 py-2 text-[11px] font-medium text-slate-400 tabular-nums">{index + 1}</td>
+    <tr className="border-b border-[var(--landing-border)] hover:bg-[var(--landing-wash)]/60 transition-colors">
+      <td className="px-4 py-2 text-[11px] font-medium text-[var(--landing-faint)] tabular-nums">{index + 1}</td>
       <td className="px-2 py-2">
         <div className="flex items-center gap-1.5">
-          <div className={`w-2 h-2 rounded-full border-2 flex-shrink-0 ${index === 0 ? "border-slate-700 bg-white" : "border-slate-300 bg-white"}`} />
-          <span className="text-[13px] text-slate-800 leading-snug">{row.name}</span>
+          <div className={`w-2 h-2 rounded-full border-2 flex-shrink-0 ${index === 0 ? "border-[var(--landing-ink)] bg-[var(--landing-elevated)]" : "border-[var(--landing-border-2)] bg-[var(--landing-elevated)]"}`} />
+          <span className="text-[13px] text-[var(--landing-ink)] leading-snug">{row.name}</span>
         </div>
       </td>
       <td className="px-2 py-2">
         {isReadOnly ? (
-          <span className={`text-[13px] tabular-nums font-mono ${directionsLoading ? "text-slate-300 animate-pulse" : "text-slate-600"}`}>
+          <span className={`text-[13px] tabular-nums font-mono ${directionsLoading ? "text-[var(--landing-faint)] animate-pulse" : "text-[var(--landing-muted)]"}`}>
             {row.timeHHMM ? toDisplayTime(row.timeHHMM) : "—"}
           </span>
         ) : (
@@ -2020,8 +2020,8 @@ function StopRowItem({
             type="time"
             value={row.timeHHMM ?? ""}
             onChange={(e) => onTimeEdit(index, e.target.value)}
-            className={`text-[13px] font-mono tabular-nums rounded-md border px-1.5 py-0.5 w-[7.25rem] outline-none transition-colors focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33] ${
-              directionsLoading ? "border-slate-100 text-slate-300 animate-pulse" : "border-slate-200 text-slate-800"
+            className={`text-[13px] font-mono tabular-nums rounded-md border px-1.5 py-0.5 w-[7.25rem] outline-none transition-colors focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)] ${
+              directionsLoading ? "border-[var(--landing-border)] text-[var(--landing-faint)] animate-pulse" : "border-[var(--landing-border-2)] text-[var(--landing-ink)]"
             }`}
           />
         )}
@@ -2044,17 +2044,17 @@ function GoStopTimesEditBar({
   onDiscard: () => void;
 }) {
   return (
-    <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-      <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
-        <TableProperties className="w-3 h-3 text-slate-400" />
+    <div className="px-4 py-2 border-b border-[var(--landing-border)] bg-[var(--landing-wash)] flex items-center gap-2">
+      <div className="flex items-center gap-1.5 text-[11px] text-[var(--landing-muted)]">
+        <TableProperties className="w-3 h-3 text-[var(--landing-faint)]" />
         <span className="font-semibold">Stop times</span>
         {editing && (
-          <span className="text-[9px] font-semibold text-amber-600 bg-amber-50 border border-amber-100 rounded px-1 py-0.5">
+          <span className="text-[9px] font-semibold text-[var(--landing-amber)] bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] border border-[color-mix(in_oklab,var(--landing-amber)_22%,transparent)] rounded px-1 py-0.5">
             Editing
           </span>
         )}
         {editing && isDirty && (
-          <span className="text-[9px] font-semibold text-amber-600">
+          <span className="text-[9px] font-semibold text-[var(--landing-amber)]">
             Unsaved changes
           </span>
         )}
@@ -2065,7 +2065,7 @@ function GoStopTimesEditBar({
             <button
               type="button"
               onClick={onDiscard}
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+              className="rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-1 text-[11px] font-semibold text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
             >
               Discard
             </button>
@@ -2073,7 +2073,7 @@ function GoStopTimesEditBar({
               type="button"
               onClick={onSave}
               disabled={!isDirty}
-              className="rounded-lg bg-[#007A33] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-lg bg-[var(--landing-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Save
             </button>
@@ -2083,7 +2083,7 @@ function GoStopTimesEditBar({
           type="button"
           onClick={onToggle}
           className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-            editing ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            editing ? "bg-[var(--landing-accent)] text-white" : "border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
           }`}
         >
           {editing ? "Editing" : "Edit"}
@@ -2143,18 +2143,18 @@ function CustomDepartureSelector({
   };
 
   return (
-    <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2">
+    <div className="px-4 py-2 border-b border-[var(--landing-border)] bg-[var(--landing-wash)] flex flex-col gap-2">
       {showLegacySeeds && activeDays.length > 1 && (
         <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mr-0.5">Day</span>
+          <span className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide mr-0.5">Day</span>
           {activeDays.map((d) => (
             <button
               key={d}
               onClick={() => onDayChange(d)}
               className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-colors ${
                 deptDay === d
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  ? "bg-[var(--landing-accent)] text-white"
+                  : "bg-[var(--landing-wash)] text-[var(--landing-muted)] hover:bg-[var(--landing-border-2)]"
               }`}
             >
               {DAY_LABELS[d]}
@@ -2165,31 +2165,31 @@ function CustomDepartureSelector({
 
       <div className="flex items-center gap-2 flex-wrap">
         {firstStopName && (
-          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-md px-2 py-1">
-            <MapPin className="w-2.5 h-2.5 text-slate-400 flex-shrink-0" />
-            <span className="text-[11px] text-slate-600 font-medium">{firstStopName}</span>
+          <div className="flex items-center gap-1 bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] rounded-md px-2 py-1">
+            <MapPin className="w-2.5 h-2.5 text-[var(--landing-faint)] flex-shrink-0" />
+            <span className="text-[11px] text-[var(--landing-muted)] font-medium">{firstStopName}</span>
             {lastStopName && lastStopName !== firstStopName && (
               <>
-                <ArrowRight className="w-2.5 h-2.5 text-slate-300 flex-shrink-0" />
-                <span className="text-[11px] text-slate-500 truncate max-w-[140px]">{lastStopName}</span>
+                <ArrowRight className="w-2.5 h-2.5 text-[var(--landing-faint)] flex-shrink-0" />
+                <span className="text-[11px] text-[var(--landing-muted)] truncate max-w-[140px]">{lastStopName}</span>
               </>
             )}
           </div>
         )}
 
         <div className="flex items-center gap-1.5 ml-auto flex-wrap">
-          <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">Add timing</label>
+          <label className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">Add timing</label>
           <input
             type="time"
             value={newDeparture}
             onChange={(e) => setNewDeparture(e.target.value)}
-            className="text-[11px] font-mono rounded-md border border-slate-200 bg-white px-1.5 py-1 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33]"
+            className="text-[11px] font-mono rounded-md border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 py-1 text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)]"
           />
           <button
             type="button"
             onClick={handleAdd}
             disabled={!newDeparture}
-            className="flex items-center gap-0.5 rounded-md bg-[#007A33] px-2 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-0.5 rounded-md bg-[var(--landing-accent)] px-2 py-1 text-[11px] font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Plus className="w-3 h-3" /> Add
           </button>
@@ -2197,9 +2197,9 @@ function CustomDepartureSelector({
       </div>
 
       {isFromFreqExpansion && (
-        <div className="flex items-center gap-1.5 rounded-md bg-blue-50 border border-blue-100 px-2 py-1.5">
-          <span className="text-[9px] font-semibold text-blue-600 uppercase tracking-wide">Auto-generated</span>
-          <span className="text-[10px] text-blue-500 leading-snug">
+        <div className="flex items-center gap-1.5 rounded-md bg-[var(--landing-wash)] border border-[var(--landing-border)] px-2 py-1.5">
+          <span className="text-[9px] font-semibold text-[var(--landing-accent)] uppercase tracking-wide">Auto-generated</span>
+          <span className="text-[10px] text-[var(--landing-accent)] leading-snug">
             Timings from your frequency setting — select any trip, adjust stop times, then Save.
           </span>
         </div>
@@ -2217,8 +2217,8 @@ function CustomDepartureSelector({
                 onClick={() => onSelectTrip(trip.id)}
                 className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors whitespace-nowrap ${
                   isSelected
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                    ? "border-[var(--landing-accent)] bg-[var(--landing-accent)] text-white"
+                    : "border-[var(--landing-border-2)] bg-[var(--landing-elevated)] text-[var(--landing-muted)] hover:border-[var(--landing-border-2)]"
                 }`}
               >
                 <Clock className="w-3 h-3" />
@@ -2227,7 +2227,7 @@ function CustomDepartureSelector({
             );
           })
         ) : (
-          <p className="text-[11px] text-slate-400 italic">
+          <p className="text-[11px] text-[var(--landing-faint)] italic">
             No custom timings yet. Add one to start scheduling this route.
           </p>
         )}
@@ -2235,7 +2235,7 @@ function CustomDepartureSelector({
 
       {showLegacySeeds && (
         <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">
+          <span className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">
             Use existing
           </span>
           {legacyDepartures.slice(0, 14).map((time) => (
@@ -2243,35 +2243,35 @@ function CustomDepartureSelector({
               type="button"
               key={time}
               onClick={() => onAddDeparture(time)}
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-mono text-slate-600 hover:border-slate-300"
+              className="rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-1 text-[11px] font-mono text-[var(--landing-muted)] hover:border-[var(--landing-border-2)]"
             >
               {toDisplayTime(time)}
             </button>
           ))}
           {legacyDepartures.length > 14 && (
-            <span className="text-[10px] text-slate-400">+{legacyDepartures.length - 14} more</span>
+            <span className="text-[10px] text-[var(--landing-faint)]">+{legacyDepartures.length - 14} more</span>
           )}
         </div>
       )}
 
-      <div className="flex items-center gap-2 flex-wrap border-t border-slate-100 pt-2">
-        <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">Selected timing</label>
+      <div className="flex items-center gap-2 flex-wrap border-t border-[var(--landing-border)] pt-2">
+        <label className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">Selected timing</label>
         <input
           type="time"
           value={selectedTrip ? secToHHMM(selectedTrip.departureSec) : ""}
           onChange={(e) => onUpdateDeparture(e.target.value)}
           disabled={!selectedTrip}
-          className="text-[11px] font-mono rounded-md border border-slate-200 bg-white px-1.5 py-1 text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/20 focus:border-[#007A33] disabled:bg-slate-50 disabled:text-slate-300"
+          className="text-[11px] font-mono rounded-md border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 py-1 text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)] disabled:bg-[var(--landing-wash)] disabled:text-[var(--landing-faint)]"
         />
         <button
           type="button"
           onClick={() => selectedTrip && onDeleteDeparture(selectedTrip.id)}
           disabled={!selectedTrip}
-          className="flex items-center gap-0.5 rounded-md border border-red-100 bg-white px-2 py-1 text-[11px] font-semibold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-0.5 rounded-md border border-[color-mix(in_oklab,var(--landing-red)_24%,transparent)] bg-[var(--landing-elevated)] px-2 py-1 text-[11px] font-semibold text-[var(--landing-red)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Trash2 className="w-3 h-3" /> Delete
         </button>
-        <p className="text-[9px] text-slate-400 ml-auto max-w-[11rem] leading-snug">
+        <p className="text-[9px] text-[var(--landing-faint)] ml-auto max-w-[11rem] leading-snug">
           Stop edits apply only to the selected timing
         </p>
       </div>
@@ -2289,15 +2289,15 @@ function EditorFooter({
   if (selected.kind === "go") return null;
   const hasTimetable = (selected as { kind: "custom"; route: CustomRoute }).route.schedule?.type === "timetable";
   return (
-    <div className="px-4 py-2 border-t border-slate-100 flex items-center justify-between gap-2">
-      <div className="text-[11px] text-slate-400 flex items-center gap-2 flex-wrap min-w-0">
+    <div className="px-4 py-2 border-t border-[var(--landing-border)] flex items-center justify-between gap-2">
+      <div className="text-[11px] text-[var(--landing-faint)] flex items-center gap-2 flex-wrap min-w-0">
         {editor?.isDirty && (
-          <span className="text-amber-600 font-medium flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block shrink-0" /> Unsaved changes
+          <span className="text-[var(--landing-amber)] font-medium flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)]0 inline-block shrink-0" /> Unsaved changes
           </span>
         )}
         {!editor?.isDirty && hasTimetable && (
-          <span className="text-emerald-600 flex items-center gap-1">
+          <span className="text-[var(--landing-accent)] flex items-center gap-1">
             <CheckCircle className="w-3 h-3 shrink-0" /> Timetable saved
           </span>
         )}
@@ -2307,7 +2307,7 @@ function EditorFooter({
           </span>
         )}
         {editor?.directionsStatus === "done" && (
-          <span className="flex items-center gap-1 text-emerald-600">
+          <span className="flex items-center gap-1 text-[var(--landing-accent)]">
             <CheckCircle className="w-3 h-3 shrink-0" /> Travel times ready · editing cascades forward
           </span>
         )}
@@ -2315,7 +2315,7 @@ function EditorFooter({
       <button
         onClick={onSave}
         disabled={!editor?.isDirty || editor?.isSaving}
-        className="flex items-center gap-1 shrink-0 rounded-lg bg-[#007A33] px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[#005f28] disabled:opacity-40 disabled:cursor-not-allowed"
+        className="flex items-center gap-1 shrink-0 rounded-lg bg-[var(--landing-accent)] px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {editor?.isSaving ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving…</> : "Save schedule"}
       </button>

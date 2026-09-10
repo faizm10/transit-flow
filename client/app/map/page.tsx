@@ -891,6 +891,13 @@ function MapPageContent() {
           onVehicleHover={handleVehicleHover}
           isTrainDesignMode={isTrainDesignMode}
         />
+        {/* Dark-mode map tint — multiplies over the light Mapbox basemap so it
+            recedes behind the dark chrome. Sits above the canvas, below every
+            panel (those are later siblings / higher z). */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 hidden bg-[#0b1712] mix-blend-multiply dark:block"
+        />
       </div>
 
       {/* ── Top nav bar ─────────────────────────────────────────────────── */}
@@ -913,7 +920,7 @@ function MapPageContent() {
               onClick={() => handleModeToggle(m)}
               className={`tf-map-label flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
                 mode === m
-                  ? "bg-[var(--landing-ink)] text-white"
+                  ? "bg-[var(--landing-inverse)] text-[var(--landing-inverse-fg)]"
                   : "text-[var(--landing-muted)] hover:bg-[var(--landing-wash)] hover:text-[var(--landing-ink)]"
               }`}
             >

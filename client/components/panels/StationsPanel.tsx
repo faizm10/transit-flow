@@ -184,7 +184,7 @@ export default function StationsPanel({
                       title={TYPE_LABELS[t]}
                       className={`flex-1 flex items-center justify-center gap-1 rounded-lg border py-1.5 text-[11px] font-medium transition-colors ${
                         newType === t
-                          ? "bg-[var(--landing-ink)] text-white border-[var(--landing-ink)]"
+                          ? "bg-[var(--landing-inverse)] text-[var(--landing-inverse-fg)] border-[var(--landing-inverse)]"
                           : "bg-[var(--landing-bg)] text-[var(--landing-muted)] border-[var(--landing-border-2)] hover:border-[var(--landing-ink)]"
                       }`}
                     >
@@ -267,7 +267,7 @@ export default function StationsPanel({
                             onClick={() => setEditType(t)}
                             className={`flex-1 flex items-center justify-center rounded-lg border py-1.5 text-[10px] font-medium transition-colors ${
                               editType === t
-                                ? "bg-[var(--landing-ink)] text-white border-[var(--landing-ink)]"
+                                ? "bg-[var(--landing-inverse)] text-[var(--landing-inverse-fg)] border-[var(--landing-inverse)]"
                                 : "bg-[var(--landing-bg)] text-[var(--landing-muted)] border-[var(--landing-border-2)] hover:border-[var(--landing-ink)]"
                             }`}
                           >
