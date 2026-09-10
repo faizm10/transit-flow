@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Train, Bus, Pencil, ArrowRight, ArrowLeft, Check,
   Plus, X, GripVertical, MapPin, Clock, Repeat, Move,
@@ -213,6 +214,16 @@ function clockLabel(totalSec: number): string {
   return `${h12}:${String(m).padStart(2, "0")}${suffix}`;
 }
 
+function hhmmToSec(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return (h ?? 0) * 3600 + (m ?? 0) * 60;
+}
+
+function secToHHMM(sec: number): string {
+  const m = Math.round(sec / 60);
+  return `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(((m % 60) + 60) % 60).padStart(2, "0")}`;
+}
+
 /** Weekday service windows with their headway, honouring the peak toggle. */
 function weekdaySegments(p: {
   serviceStart: string;
@@ -264,8 +275,6 @@ function stopOffsetsSec(stops: CustomStop[], totalDurationSec: number): number[]
   return offsets;
 }
 
-const TIMETABLE_ROW_CAP = 16;
-
 interface DirectionConfig {
   start: string;
   end: string;
@@ -293,124 +302,321 @@ function weekdayDepartures(cfg: DirectionConfig): { sec: number; isPeak: boolean
   return out.filter((d, i) => i === 0 || d.sec !== out[i - 1].sec);
 }
 
-/**
- * A real timetable grid: stops across the top, one row per departure, cells are
- * the time that trip reaches each stop. Toggle outbound / return; the return
- * view reverses the stop order and uses the return config. Times past the first
- * stop are estimated from stop spacing.
- */
+interface TripRow {
+  time: string;       // HH:MM at the first stop
+  isPeak: boolean;
+}
+
+/** Departure list for a direction: manual overrides if present, else generated. */
+function tripRowsFor(cfg: DirectionConfig, manual: string[] | null): TripRow[] {
+  if (manual) {
+    const peakByMin = new Map(weekdayDepartures(cfg).map((d) => [Math.round(d.sec / 60), d.isPeak]));
+    return [...manual]
+      .sort()
+      .map((time) => ({ time, isPeak: peakByMin.get(Math.round(hhmmToSec(time) / 60)) ?? false }));
+  }
+  return weekdayDepartures(cfg).map((d) => ({ time: secToHHMM(d.sec), isPeak: d.isPeak }));
+}
+
+/** Timetable grid for one direction. Stops across the top, one row per trip. */
+function TimetableGrid({
+  orderedStops,
+  rows,
+  offsets,
+  timed,
+  editable,
+  onEditTime,
+  onRemove,
+}: {
+  orderedStops: CustomStop[];
+  rows: TripRow[];
+  offsets: number[];
+  timed: boolean;
+  editable?: boolean;
+  onEditTime?: (index: number, value: string) => void;
+  onRemove?: (index: number) => void;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="border-collapse text-[11px]">
+        <thead>
+          <tr>
+            <th className="sticky left-0 z-10 bg-[var(--landing-elevated)] py-1 pr-2 text-left font-medium text-[var(--landing-faint)]">
+              {orderedStops[0]?.name ?? "Departs"}
+            </th>
+            {orderedStops.slice(1).map((s) => (
+              <th
+                key={s.id}
+                className="max-w-[120px] truncate px-2 py-1 text-left font-medium text-[var(--landing-muted)]"
+                title={s.name}
+              >
+                {s.name}
+              </th>
+            ))}
+            {editable && <th className="w-6" />}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => {
+            const sec = hhmmToSec(row.time);
+            return (
+              <tr key={i} className="border-t border-[var(--landing-border)]">
+                <td
+                  className={`sticky left-0 z-10 bg-[var(--landing-elevated)] py-1 pr-2 font-mono tabular-nums ${
+                    row.isPeak ? "text-[var(--landing-accent)]" : "text-[var(--landing-ink)]"
+                  }`}
+                >
+                  {editable ? (
+                    <input
+                      type="time"
+                      value={row.time}
+                      onChange={(e) => onEditTime?.(i, e.target.value)}
+                      className="w-[92px] rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-bg)] px-1 py-0.5 text-[11px] text-[var(--landing-ink)] outline-none focus:ring-1 focus:ring-[var(--landing-accent)]/40"
+                    />
+                  ) : (
+                    clockLabel(sec)
+                  )}
+                </td>
+                {orderedStops.slice(1).map((s, j) => (
+                  <td
+                    key={s.id}
+                    className="whitespace-nowrap px-2 py-1 font-mono tabular-nums text-[var(--landing-muted)]"
+                  >
+                    {timed ? clockLabel(sec + offsets[j + 1]) : "·"}
+                  </td>
+                ))}
+                {editable && (
+                  <td className="px-1">
+                    <button
+                      type="button"
+                      onClick={() => onRemove?.(i)}
+                      className="text-[var(--landing-faint)] hover:text-[var(--landing-red)]"
+                      title="Remove trip"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Compact inline timetable: first few trips, opens the full editor. */
 function TimetablePreview({
   stops,
   durationSec,
   outbound,
   ret,
   twoWay,
+  manualOutbound,
+  manualReturn,
+  onOpen,
 }: {
   stops: CustomStop[];
   durationSec: number | null;
   outbound: DirectionConfig;
   ret: DirectionConfig;
   twoWay: boolean;
+  manualOutbound: string[] | null;
+  manualReturn: string[] | null;
+  onOpen: () => void;
 }) {
-  const [view, setView] = useState<"outbound" | "return">("outbound");
-  const dir = view === "return" && twoWay ? "return" : "outbound";
-  const cfg = dir === "return" ? ret : outbound;
-
-  const outboundDeps = weekdayDepartures(outbound);
-  const returnDeps = twoWay ? weekdayDepartures(ret) : [];
-  const deps = dir === "return" ? returnDeps : outboundDeps;
-  const totalPerDay = outboundDeps.length + returnDeps.length;
-
-  const orderedStops = dir === "return" ? [...stops].reverse() : stops;
-  const offsets = stopOffsetsSec(orderedStops, durationSec ?? 0);
+  const outRows = tripRowsFor(outbound, manualOutbound);
+  const retRows = twoWay ? tripRowsFor(ret, manualReturn) : [];
+  const total = outRows.length + retRows.length;
+  const offsets = stopOffsetsSec(stops, durationSec ?? 0);
   const timed = durationSec != null && stops.length >= 2;
-  const rows = deps.slice(0, TIMETABLE_ROW_CAP);
+  const edited = manualOutbound !== null || manualReturn !== null;
 
   return (
     <div className="rounded-none border border-[var(--landing-border)] p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-xs font-medium text-[var(--landing-muted)]">Weekday timetable</p>
-        {twoWay ? (
-          <div className="flex overflow-hidden rounded-none border border-[var(--landing-border-2)] text-[10px]">
-            {(["outbound", "return"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setView(v)}
-                className={`px-2 py-0.5 font-medium capitalize transition-colors ${
-                  view === v
-                    ? "bg-[var(--landing-accent)] text-white"
-                    : "text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[10px] text-[var(--landing-faint)]">one-way</p>
-        )}
-      </div>
-
-      {deps.length === 0 ? (
-        <p className="text-xs text-[var(--landing-red)]">
-          End time must be after the start time.
+        <p className="text-xs font-medium text-[var(--landing-muted)]">
+          Weekday timetable {edited && <span className="text-[var(--landing-accent)]">· edited</span>}
         </p>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="text-xs font-medium text-[var(--landing-accent)] hover:underline"
+        >
+          View &amp; edit →
+        </button>
+      </div>
+      {outRows.length === 0 ? (
+        <p className="text-xs text-[var(--landing-red)]">End time must be after the start time.</p>
       ) : (
         <>
-          <div className="-mx-3 overflow-x-auto px-3">
-            <table className="border-collapse text-[11px]">
-              <thead>
-                <tr>
-                  <th className="sticky left-0 z-10 bg-[var(--landing-elevated)] py-1 pr-2 text-left font-medium text-[var(--landing-faint)]">
-                    Trip
-                  </th>
-                  {orderedStops.map((s) => (
-                    <th
-                      key={s.id}
-                      className="max-w-[96px] truncate px-2 py-1 text-left font-medium text-[var(--landing-muted)]"
-                      title={s.name}
-                    >
-                      {s.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((d, i) => (
-                  <tr key={i} className="border-t border-[var(--landing-border)]">
-                    <td
-                      className={`sticky left-0 z-10 bg-[var(--landing-elevated)] py-1 pr-2 font-mono ${
-                        d.isPeak ? "text-[var(--landing-accent)]" : "text-[var(--landing-faint)]"
-                      }`}
-                    >
-                      {i + 1}
-                    </td>
-                    {orderedStops.map((s, j) => (
-                      <td
-                        key={s.id}
-                        className="whitespace-nowrap px-2 py-1 font-mono tabular-nums text-[var(--landing-ink)]"
-                      >
-                        {timed ? clockLabel(d.sec + offsets[j]) : j === 0 ? clockLabel(d.sec) : "·"}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="-mx-3 px-3">
+            <TimetableGrid
+              orderedStops={stops}
+              rows={outRows.slice(0, 5)}
+              offsets={offsets}
+              timed={timed}
+            />
           </div>
-
           <p className="mt-2 text-xs text-[var(--landing-faint)]">
-            {deps.length > rows.length && `Showing first ${rows.length} of ${deps.length}. `}
-            {!timed && "Times past the first stop appear once the route is drawn. "}
-            ≈ {totalPerDay} trips each weekday
-            {cfg.peakEnabled
-              ? ` · this way every ${cfg.peakInterval} min peak, ${cfg.offPeakInterval} min off-peak`
-              : ` · this way every ${cfg.offPeakInterval} min`}
+            {outRows.length > 5 && `+${outRows.length - 5} more · `}≈ {total} trips each weekday
           </p>
         </>
       )}
     </div>
+  );
+}
+
+/** Full-screen timetable editor: outbound / return tabs, editable times. */
+function ScheduleTimetableModal({
+  open,
+  onClose,
+  stops,
+  durationSec,
+  twoWay,
+  outbound,
+  ret,
+  manualOutbound,
+  manualReturn,
+  setManualOutbound,
+  setManualReturn,
+}: {
+  open: boolean;
+  onClose: () => void;
+  stops: CustomStop[];
+  durationSec: number | null;
+  twoWay: boolean;
+  outbound: DirectionConfig;
+  ret: DirectionConfig;
+  manualOutbound: string[] | null;
+  manualReturn: string[] | null;
+  setManualOutbound: (v: string[] | null) => void;
+  setManualReturn: (v: string[] | null) => void;
+}) {
+  const [tab, setTab] = useState<"outbound" | "return">("outbound");
+
+  if (!open) return null;
+
+  const dir = tab === "return" && twoWay ? "return" : "outbound";
+  const cfg = dir === "return" ? ret : outbound;
+  const manual = dir === "return" ? manualReturn : manualOutbound;
+  const setManual = dir === "return" ? setManualReturn : setManualOutbound;
+  const rows = tripRowsFor(cfg, manual);
+  const orderedStops = dir === "return" ? [...stops].reverse() : stops;
+  const offsets = stopOffsetsSec(orderedStops, durationSec ?? 0);
+  const timed = durationSec != null && stops.length >= 2;
+
+  const current = () => rows.map((r) => r.time);
+  const editTime = (i: number, value: string) => {
+    const next = current();
+    next[i] = value;
+    setManual(next);
+  };
+  const removeRow = (i: number) => setManual(current().filter((_, j) => j !== i));
+  const addRow = () => {
+    const list = current();
+    setManual([...list, list[list.length - 1] ?? "12:00"]);
+  };
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-[var(--landing-border)] px-4 py-3">
+          <div>
+            <p className="font-[family-name:var(--font-hanken)] text-sm font-medium text-[var(--landing-ink)]">
+              Weekday timetable
+            </p>
+            <p className="text-xs text-[var(--landing-faint)]">
+              Edit any departure time, or add and remove trips
+            </p>
+          </div>
+          <button onClick={onClose} className="text-[var(--landing-faint)] hover:text-[var(--landing-ink)]">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 border-b border-[var(--landing-border)] px-4 py-2">
+          {twoWay ? (
+            <div className="flex overflow-hidden rounded-none border border-[var(--landing-border-2)] text-xs">
+              {(["outbound", "return"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setTab(v)}
+                  className={`px-3 py-1 font-medium capitalize transition-colors ${
+                    tab === v
+                      ? "bg-[var(--landing-accent)] text-white"
+                      : "text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-[var(--landing-faint)]">One-way route</span>
+          )}
+          <div className="flex items-center gap-2">
+            {manual !== null && (
+              <button
+                type="button"
+                onClick={() => setManual(null)}
+                className="text-xs font-medium text-[var(--landing-muted)] hover:text-[var(--landing-ink)]"
+              >
+                Reset to frequency
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={addRow}
+              className="flex items-center gap-1 rounded-none border border-[var(--landing-border-2)] px-2 py-1 text-xs font-medium text-[var(--landing-ink)] hover:bg-[var(--landing-wash)]"
+            >
+              <Plus className="h-3 w-3" /> Add trip
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto p-4">
+          {rows.length === 0 ? (
+            <p className="text-sm text-[var(--landing-muted)]">
+              No trips yet. Add one, or set a frequency in the schedule step.
+            </p>
+          ) : (
+            <TimetableGrid
+              orderedStops={orderedStops}
+              rows={rows}
+              offsets={offsets}
+              timed={timed}
+              editable
+              onEditTime={editTime}
+              onRemove={removeRow}
+            />
+          )}
+          {!timed && (
+            <p className="mt-3 text-xs text-[var(--landing-faint)]">
+              Times at later stops are estimated from stop spacing and appear once the route is drawn.
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-[var(--landing-border)] px-4 py-3">
+          <span className="text-xs text-[var(--landing-faint)]">
+            {rows.length} {dir} trip{rows.length === 1 ? "" : "s"}
+          </span>
+          <Button className="rounded-none bg-[var(--landing-accent)] text-white hover:opacity-90" onClick={onClose}>
+            Done
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -685,6 +891,16 @@ export default function BuilderWizard({
   const [returnInterval, setReturnInterval] = useState(returnSaved?.offPeak ?? freqInit);
   const [returnPeakEnabled, setReturnPeakEnabled] = useState((returnSaved?.peak ?? null) !== null);
   const [returnPeakInterval, setReturnPeakInterval] = useState(returnSaved?.peak ?? DEFAULT_PEAK_INTERVAL);
+
+  // Manual per-trip departure overrides from the timetable editor (HH:MM).
+  // null = follow the frequency/peak settings; array = explicit times.
+  const [manualOutbound, setManualOutbound] = useState<string[] | null>(
+    savedSchedule?.type === "fixed" ? (savedSchedule.fixedDepartures ?? null) : null
+  );
+  const [manualReturn, setManualReturn] = useState<string[] | null>(
+    savedSchedule?.type === "fixed" ? (savedSchedule.returnDepartures ?? null) : null
+  );
+  const [showTimetable, setShowTimetable] = useState(false);
 
   function copyOutboundToReturn() {
     setReturnStart(serviceStart);
@@ -1154,20 +1370,39 @@ export default function BuilderWizard({
         direction: returnEnabled ? "two-way" : "one-way",
       };
     }
-    const outbound = buildDirectionBands({
+    const outboundCfg: DirectionConfig = {
       start: serviceStart,
       end: serviceEnd,
       offPeakInterval: frequencyInterval,
       peakEnabled,
       peakInterval,
-    });
-    const ret = buildDirectionBands({
+    };
+    const returnCfg: DirectionConfig = {
       start: returnStart,
       end: returnEnd,
       offPeakInterval: returnInterval,
       peakEnabled: returnPeakEnabled,
       peakInterval: returnPeakInterval,
-    });
+    };
+
+    // Manual per-trip edits from the timetable editor → explicit fixed schedule.
+    if (manualOutbound?.length || manualReturn?.length) {
+      const outList = manualOutbound?.length
+        ? [...manualOutbound].sort()
+        : weekdayDepartures(outboundCfg).map((d) => secToHHMM(d.sec));
+      const retList = manualReturn?.length
+        ? [...manualReturn].sort()
+        : weekdayDepartures(returnCfg).map((d) => secToHHMM(d.sec));
+      return {
+        type: "fixed",
+        fixedDepartures: outList,
+        ...(twoWay ? { returnDepartures: retList } : {}),
+        direction: twoWay ? "two-way" : "one-way",
+      };
+    }
+
+    const outbound = buildDirectionBands(outboundCfg);
+    const ret = buildDirectionBands(returnCfg);
 
     return {
       type: "banded",
@@ -1218,6 +1453,31 @@ export default function BuilderWizard({
   // ── Step renderer ────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
+      <ScheduleTimetableModal
+        open={showTimetable && scheduleType === "frequency"}
+        onClose={() => setShowTimetable(false)}
+        stops={stops}
+        durationSec={routeDurationSecs}
+        twoWay={twoWay}
+        outbound={{
+          start: serviceStart,
+          end: serviceEnd,
+          offPeakInterval: frequencyInterval,
+          peakEnabled,
+          peakInterval,
+        }}
+        ret={{
+          start: returnStart,
+          end: returnEnd,
+          offPeakInterval: returnInterval,
+          peakEnabled: returnPeakEnabled,
+          peakInterval: returnPeakInterval,
+        }}
+        manualOutbound={manualOutbound}
+        manualReturn={manualReturn}
+        setManualOutbound={setManualOutbound}
+        setManualReturn={setManualReturn}
+      />
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-[var(--landing-border)] flex items-center justify-between gap-2">
         <div className="min-w-0">
@@ -2068,6 +2328,9 @@ export default function BuilderWizard({
                   stops={stops}
                   durationSec={routeDurationSecs}
                   twoWay={twoWay}
+                  manualOutbound={manualOutbound}
+                  manualReturn={manualReturn}
+                  onOpen={() => setShowTimetable(true)}
                   outbound={{
                     start: serviceStart,
                     end: serviceEnd,
