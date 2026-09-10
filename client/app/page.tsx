@@ -31,7 +31,7 @@ import {
   type CellVal,
 } from "@/constants";
 import MarketingShell from "@/components/marketing/MarketingShell";
-import LandingHeader from "@/components/marketing/LandingHeader";
+import MarketingHeader from "@/components/marketing/MarketingHeader";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
 import {
   FadeUp,
@@ -111,7 +111,7 @@ export default function LandingPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <LandingHeader />
+      <MarketingHeader />
 
       {/* ── 1. HERO ────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden border-b border-[var(--landing-border)] bg-white px-5 pb-0 pt-24 text-center lg:px-8 lg:pt-32">
