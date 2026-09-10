@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { corridorImageUrl } from "@/lib/blogMaps";
+import { CornerButton, Eyebrow, SpecMeta } from "@/components/marketing/spec";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://transit-flow-two.vercel.app";
@@ -44,22 +45,23 @@ const corridorNiagara = {
   toLabel: "Niagara Falls GO",
 };
 
-const img407 = corridorImageUrl(corridor407, { accent: "0b7a3d" });
-const imgNiagara = corridorImageUrl(corridorNiagara, { accent: "8b0a31" });
+const img407 = corridorImageUrl(corridor407, { accent: "0e7d40" });
+const imgNiagara = corridorImageUrl(corridorNiagara, { accent: "0e7d40" });
 
-// ── Small pieces ──────────────────────────────────────────────────────────────
+// ── Pieces ────────────────────────────────────────────────────────────────────
 
-function StatRow({ items }: { items: [string, string][] }) {
+function StatGrid({ items }: { items: [string, string][] }) {
   return (
-    <dl className="my-6 grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-5 sm:grid-cols-3">
-      {items.map(([k, v]) => (
-        <div key={k}>
-          <dt className="text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--landing-muted)]">
+    <dl className="my-7 grid grid-cols-1 border border-[var(--landing-border)] sm:grid-cols-3">
+      {items.map(([k, v], i) => (
+        <div
+          key={k}
+          className={`p-4 ${i > 0 ? "border-t border-[var(--landing-border)] sm:border-l sm:border-t-0" : ""}`}
+        >
+          <dt className="font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.06em] text-[var(--landing-faint)]">
             {k}
           </dt>
-          <dd className="mt-1 text-[15px] font-medium tabular-nums text-[var(--landing-ink)]">
-            {v}
-          </dd>
+          <dd className="mt-1.5 tabular-nums text-[var(--landing-ink)]">{v}</dd>
         </div>
       ))}
     </dl>
@@ -76,8 +78,8 @@ function Figure({
   caption: string;
 }) {
   return (
-    <figure className="my-7">
-      <div className="overflow-hidden rounded-xl border border-[var(--landing-border)] bg-[var(--landing-band)]">
+    <figure className="my-8">
+      <div className="border border-[var(--landing-border)] bg-[var(--landing-band)]">
         {src ? (
           <Image
             src={src}
@@ -88,50 +90,47 @@ function Figure({
             unoptimized
           />
         ) : (
-          <div className="flex aspect-[2/1] items-center justify-center text-sm text-[var(--landing-muted)]">
+          <div className="flex aspect-2/1 items-center justify-center text-sm text-[var(--landing-faint)]">
             map preview unavailable
           </div>
         )}
       </div>
-      <figcaption className="mt-2 text-[13.5px] leading-relaxed text-[var(--landing-muted)]">
-        {caption}
+      <figcaption className="mt-2 font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.05em] text-[var(--landing-faint)]">
+        <span className="text-[var(--landing-accent)]">/</span> {caption}
       </figcaption>
     </figure>
   );
 }
 
+const h2 =
+  "mt-16 font-[family-name:var(--font-hanken)] text-[1.75rem] font-medium leading-tight tracking-[-0.02em] text-[var(--landing-ink)]";
+const h3 =
+  "mt-10 font-[family-name:var(--font-hanken)] text-[1.3rem] font-medium tracking-[-0.015em] text-[var(--landing-ink)]";
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function GapFinderPost() {
   return (
-    <article className="mx-auto max-w-[48rem] px-6 pb-32 pt-14 lg:px-8">
+    <article className="mx-auto max-w-[46rem] flex-1 px-5 pb-32 pt-14 lg:px-8">
       <Link
         href="/blog"
-        className="text-[14px] text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-fg)]"
+        className="font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.1em] text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-ink)]"
       >
         ← Blog
       </Link>
 
-      <header className="mb-10 mt-8 border-b border-[var(--landing-border)] pb-10">
-        <div className="flex flex-wrap items-center gap-3 text-[13px] text-[var(--landing-muted)]">
-          <span className="font-medium uppercase tracking-[0.12em] text-[var(--landing-accent)]">
-            Product
-          </span>
-          <span aria-hidden>·</span>
-          <span>September 2026</span>
-          <span aria-hidden>·</span>
-          <span>6 min read</span>
-        </div>
-        <h1 className="mt-4 text-[2.5rem] font-semibold leading-[1.05] tracking-[-0.022em] text-[var(--landing-ink)] sm:text-[3rem]">
+      <header className="mb-12 mt-8 flex flex-col gap-4 border-b border-[var(--landing-border)] pb-10">
+        <SpecMeta items={["10.09.26", "Faiz Mustansar", "Product", "6 min"]} />
+        <h1 className="font-[family-name:var(--font-hanken)] text-[2.6rem] font-normal leading-[1.05] tracking-[-0.028em] text-[var(--landing-ink)] sm:text-[3.1rem]">
           Where should the next route go?
         </h1>
-        <p className="mt-5 text-[19px] leading-[1.6] text-[var(--landing-muted)]">
+        <p className="text-[1.15rem] leading-[1.55] text-[var(--landing-muted)]">
           TransitFlow has always let you draw a route anywhere. Now it can tell
           you where a route is worth drawing.
         </p>
       </header>
 
-      <div className="space-y-6 text-[17px] leading-[1.78] text-[var(--landing-fg)]/90 [&_a]:font-medium [&_a]:text-[var(--landing-accent)] [&_a:hover]:underline [&_strong]:font-semibold [&_strong]:text-[var(--landing-ink)]">
+      <div className="flex flex-col gap-6 text-[1.0625rem] leading-[1.72] text-[var(--landing-fg)] [&_a]:font-medium [&_a]:text-[var(--landing-accent)] [&_a:hover]:underline [&_strong]:font-semibold [&_strong]:text-[var(--landing-ink)]">
         <p>
           Right now the map is a blank cheque. You can extend the Kitchener line
           to Cambridge, spin up a Brampton circulator, or connect two suburbs
@@ -148,9 +147,10 @@ export default function GapFinderPost() {
           builder.
         </p>
 
-        <h2 className="!mt-14 text-[1.7rem] font-semibold tracking-[-0.018em] text-[var(--landing-ink)]">
-          How it works
-        </h2>
+        <div className="mt-6">
+          <Eyebrow>01 / How it works</Eyebrow>
+        </div>
+        <h2 className={h2}>Timetable in, shortest paths out</h2>
         <p>
           Every GO station and terminal is a node. Every scheduled trip between
           two stops on a typical weekday becomes an edge, weighted by how long
@@ -169,17 +169,14 @@ export default function GapFinderPost() {
         </p>
         <p>
           It&apos;s arithmetic over the schedule data TransitFlow already ships.
-          No model, no inference. The <Link href="/blog">methodology</Link> is
-          open, and the numbers below come straight out of it.
+          No model, no inference.
         </p>
 
-        <h2 className="!mt-14 text-[1.7rem] font-semibold tracking-[-0.018em] text-[var(--landing-ink)]">
-          Two corridors it surfaces
-        </h2>
+        <div className="mt-6">
+          <Eyebrow>02 / Two corridors it surfaces</Eyebrow>
+        </div>
 
-        <h3 className="!mt-9 text-[1.3rem] font-semibold text-[var(--landing-ink)]">
-          Oakville and Clarkson to the 407
-        </h3>
+        <h3 className={h3}>Oakville and Clarkson to the 407</h3>
         <p>
           The Lakeshore West line runs a fast, frequent service into downtown
           Toronto. It has almost nothing going the other way. To reach the{" "}
@@ -192,18 +189,16 @@ export default function GapFinderPost() {
           </a>{" "}
           corridor — the east–west busway that links Brampton, Vaughan and
           Markham — a rider from Oakville or Clarkson today goes inbound to a
-          hub, transfers, and doubles back north. The tool flags the pair
-          because the fastest path it can find is several times longer than the
-          drive.
+          hub, transfers, and doubles back north.
         </p>
 
         <Figure
           src={img407}
           alt="Map of a proposed express bus from Oakville and Clarkson GO stations north via Hurontario Street to the Hwy 407 Bus Terminal."
-          caption="A candidate alignment: Oakville and Clarkson GO, up Hurontario to the 407 Transitway, ending at the Hwy 407 Bus Terminal."
+          caption="Candidate alignment · Oakville · Clarkson → Hurontario → Hwy 407 Bus Terminal"
         />
 
-        <StatRow
+        <StatGrid
           items={[
             ["Straight line", "~31 km"],
             ["Best transit today", "3 transfers"],
@@ -227,9 +222,7 @@ export default function GapFinderPost() {
           keeps identifying as a gap.
         </p>
 
-        <h3 className="!mt-12 text-[1.3rem] font-semibold text-[var(--landing-ink)]">
-          Waterloo to Niagara — the weekend case
-        </h3>
+        <h3 className={h3}>Waterloo to Niagara — the weekend case</h3>
         <p>
           Kitchener–Waterloo, Hamilton and Niagara are three of the busiest
           leisure-travel markets in the region: two university towns and a
@@ -241,10 +234,10 @@ export default function GapFinderPost() {
         <Figure
           src={imgNiagara}
           alt="Map of a proposed weekend regional bus from the University of Waterloo through McMaster University and Hamilton GO Centre to Niagara Falls GO."
-          caption="A weekend regional line: University of Waterloo → McMaster University → Hamilton GO Centre → Niagara Falls GO."
+          caption="Weekend regional line · Waterloo → McMaster → Hamilton → Niagara Falls"
         />
 
-        <StatRow
+        <StatGrid
           items={[
             ["Straight line", "~126 km"],
             ["Best transit today", "3+ transfers · 3½–4 h"],
@@ -255,40 +248,49 @@ export default function GapFinderPost() {
         <p>
           This example also shows the tool&apos;s current blind spot. Gap Finder
           only looks at a weekday timetable, so it can&apos;t see that the demand
-          here is a Saturday pattern, not a Tuesday one. A route serving
-          students and visitors between the three campuses and the falls would
-          barely register on the current score — and it&apos;s one of the
-          clearest opportunities on the map. Weekend and time-of-day analysis is
-          the next thing on the list.
+          here is a Saturday pattern, not a Tuesday one. A route serving students
+          and visitors between the three campuses and the falls would barely
+          register on the current score — and it&apos;s one of the clearest
+          opportunities on the map. Weekend and time-of-day analysis is the next
+          thing on the list.
         </p>
 
-        <h2 className="!mt-14 text-[1.7rem] font-semibold tracking-[-0.018em] text-[var(--landing-ink)]">
-          What the panel shows this week
-        </h2>
+        <div className="mt-6">
+          <Eyebrow>03 / The list right now</Eyebrow>
+        </div>
+        <h2 className={h2}>What the panel shows this week</h2>
         <p>
           The live ranking mixes a few hand-picked regional corridors (starred)
-          with the auto-discovered ones. Near the top right now:
+          with the auto-discovered ones. Near the top:
         </p>
-        <ul className="my-4 divide-y divide-[var(--landing-border)] rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)]">
+        <ul className="my-4 border border-[var(--landing-border)]">
           {[
-            ["★ Cambridge ↔ Bramalea GO", "no reasonable transit path today"],
-            ["★ Kitchener–Waterloo ↔ Niagara Falls", "3 h 27 min · 4 transfers · ~1 h 41 min if direct"],
-            ["★ Guelph ↔ Niagara Falls", "2 h 23 min · 3 transfers · ~1 h 26 min if direct"],
-            ["★ Guelph ↔ Highway 407", "1 h 12 min · 2 transfers · ~51 min if direct"],
-            ["Aldershot ↔ Meadowvale", "1 h 41 min · 2 transfers · ~26 min if direct"],
-            ["Cooksville ↔ Georgetown", "1 h 19 min · 3 transfers · ~20 min if direct"],
-          ].map(([name, note]) => (
-            <li key={name} className="flex flex-col gap-0.5 px-5 py-3.5 sm:flex-row sm:items-baseline sm:justify-between">
-              <span className="text-[15px] font-medium text-[var(--landing-ink)]">{name}</span>
-              <span className="text-[13.5px] tabular-nums text-[var(--landing-muted)]">{note}</span>
+            ["★ Cambridge ↔ Bramalea GO", "no route today"],
+            ["★ Kitchener–Waterloo ↔ Niagara Falls", "3 h 27 · 4 transfers · ~1 h 41 direct"],
+            ["★ Guelph ↔ Niagara Falls", "2 h 23 · 3 transfers · ~1 h 26 direct"],
+            ["★ Guelph ↔ Highway 407", "1 h 12 · 2 transfers · ~51 min direct"],
+            ["Aldershot ↔ Meadowvale", "1 h 41 · 2 transfers · ~26 min direct"],
+            ["Cooksville ↔ Georgetown", "1 h 19 · 3 transfers · ~20 min direct"],
+          ].map(([name, note], i) => (
+            <li
+              key={name}
+              className={`flex flex-col gap-0.5 px-4 py-3 sm:flex-row sm:items-baseline sm:justify-between ${
+                i > 0 ? "border-t border-[var(--landing-border)]" : ""
+              }`}
+            >
+              <span className="font-medium text-[var(--landing-ink)]">{name}</span>
+              <span className="font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.04em] tabular-nums text-[var(--landing-faint)]">
+                {note}
+              </span>
             </li>
           ))}
         </ul>
 
-        <h2 className="!mt-14 text-[1.7rem] font-semibold tracking-[-0.018em] text-[var(--landing-ink)]">
-          What&apos;s next
-        </h2>
-        <div className="my-4 space-y-5">
+        <div className="mt-6">
+          <Eyebrow>04 / Roadmap</Eyebrow>
+        </div>
+        <h2 className={h2}>What&apos;s next</h2>
+        <div className="my-4 flex flex-col gap-5">
           {[
             {
               label: "Now",
@@ -302,25 +304,22 @@ export default function GapFinderPost() {
               label: "Later",
               body: "Real travel-demand data in place of the current proxy, real road times in place of a straight line, and an assistant that drafts a first route for you to adjust.",
             },
-          ].map((stage) => (
-            <div
-              key={stage.label}
-              className="flex gap-4 border-l-2 border-[var(--landing-accent)] pl-4"
-            >
-              <span className="w-12 shrink-0 pt-0.5 text-[13px] font-semibold uppercase tracking-[0.06em] text-[var(--landing-accent)]">
-                {stage.label}
+          ].map((s) => (
+            <div key={s.label} className="flex gap-4 border-l border-[var(--landing-accent)] pl-4">
+              <span className="w-11 shrink-0 pt-0.5 font-[family-name:var(--landing-mono)] text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-[var(--landing-accent)]">
+                {s.label}
               </span>
-              <p className="text-[15.5px] leading-relaxed text-[var(--landing-fg)]/85">
-                {stage.body}
+              <p className="text-[0.9375rem] leading-relaxed text-[var(--landing-fg)]">
+                {s.body}
               </p>
             </div>
           ))}
         </div>
 
-        <h2 className="!mt-14 text-[1.7rem] font-semibold tracking-[-0.018em] text-[var(--landing-ink)]">
-          Caveats
-        </h2>
-        <p className="text-[15.5px] leading-relaxed text-[var(--landing-muted)]">
+        <div className="mt-6">
+          <Eyebrow>05 / Caveats</Eyebrow>
+        </div>
+        <p className="text-[0.9375rem] leading-relaxed text-[var(--landing-muted)]">
           The numbers are estimates from a first-pass model. It uses one weekday
           timetable, a straight-line stand-in for driving time, and trip counts
           as a rough proxy for demand — so it under-counts markets that no
@@ -332,60 +331,59 @@ export default function GapFinderPost() {
       </div>
 
       <div className="mt-12 flex flex-wrap items-center gap-4 border-t border-[var(--landing-border)] pt-8">
-        <Link
-          href="/map"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--landing-accent)] px-4 py-2.5 text-[15px] font-semibold text-white transition-opacity hover:opacity-90"
-        >
+        <CornerButton href="/map" solid>
           Open the Gap Finder →
-        </Link>
-        <span className="text-[14px] text-[var(--landing-muted)]">
+        </CornerButton>
+        <span className="text-[0.9375rem] text-[var(--landing-muted)]">
           It&apos;s the panel in the top-left of the map.
         </span>
       </div>
 
-      <div className="mt-10 text-[13.5px] leading-relaxed text-[var(--landing-muted)] [&_a]:font-medium [&_a]:text-[var(--landing-accent)] [&_a:hover]:underline">
-        <p className="font-medium uppercase tracking-[0.08em]">References</p>
-        <ul className="mt-2 space-y-1">
-            <li>
-              Metrolinx —{" "}
-              <a
-                href="https://www.metrolinx.com/en/projects-and-programs/407-transitway"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                407 Transitway
-              </a>{" "}
-              and{" "}
-              <a
-                href="https://www.metrolinx.com/en/projects-and-programs/go-expansion"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GO Expansion
-              </a>
-            </li>
-            <li>
-              GO Transit —{" "}
-              <a
-                href="https://www.gotransit.com/en/trip-planning/schedules"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                system schedules
-              </a>{" "}
-              (the source of the timetable data)
-            </li>
-            <li>
-              Statistics Canada —{" "}
-              <a
-                href="https://www150.statcan.gc.ca/n1/en/subjects/labour/commuting_to_work"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                commuting flows
-              </a>{" "}
-              (the planned demand input)
-            </li>
+      <div className="mt-10 font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase leading-relaxed tracking-[0.05em] text-[var(--landing-faint)]">
+        <p>
+          <span className="text-[var(--landing-accent)]">/</span> References
+        </p>
+        <ul className="mt-2 flex flex-col gap-1 normal-case tracking-normal [&_a]:text-[var(--landing-accent)] [&_a:hover]:underline">
+          <li>
+            Metrolinx —{" "}
+            <a
+              href="https://www.metrolinx.com/en/projects-and-programs/407-transitway"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              407 Transitway
+            </a>{" "}
+            and{" "}
+            <a
+              href="https://www.metrolinx.com/en/projects-and-programs/go-expansion"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GO Expansion
+            </a>
+          </li>
+          <li>
+            GO Transit —{" "}
+            <a
+              href="https://www.gotransit.com/en/trip-planning/schedules"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              system schedules
+            </a>{" "}
+            (the timetable data)
+          </li>
+          <li>
+            Statistics Canada —{" "}
+            <a
+              href="https://www150.statcan.gc.ca/n1/en/subjects/labour/commuting_to_work"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              commuting flows
+            </a>{" "}
+            (the planned demand input)
+          </li>
         </ul>
       </div>
     </article>

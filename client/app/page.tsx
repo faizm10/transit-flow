@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import Image from "next/image";
 
 const SITE_URL =
@@ -18,7 +17,8 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
-import { ArrowRight, Check, Minus, X } from "lucide-react";
+
+import { Check, Minus, X } from "lucide-react";
 import {
   MAP,
   METRICS,
@@ -33,37 +33,36 @@ import {
 import MarketingShell from "@/components/marketing/MarketingShell";
 import MarketingHeader from "@/components/marketing/MarketingHeader";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
-import {
-  FadeUp,
-  ScrollFade,
-  StaggerGrid,
-  StaggerItem,
-  FloatBox,
-  MetricStrip,
-  MetricItem,
-} from "@/components/marketing/LandingAnimations";
+import { Eyebrow, SpecMeta, CornerButton } from "@/components/marketing/spec";
+import { FadeUp } from "@/components/marketing/LandingAnimations";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Cell({ val }: { val: CellVal }) {
   if (val === "yes")
     return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007A33]/10">
-        <Check className="h-3.5 w-3.5 text-[#007A33]" />
-      </span>
+      <Check
+        className="mx-auto h-4 w-4 text-[var(--landing-accent)]"
+        aria-label="yes"
+      />
     );
   if (val === "partial")
     return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100">
-        <Minus className="h-3.5 w-3.5 text-gray-400" />
-      </span>
+      <Minus
+        className="mx-auto h-4 w-4 text-[var(--landing-faint)]"
+        aria-label="partial"
+      />
     );
   return (
-    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100">
-      <X className="h-3.5 w-3.5 text-gray-300" />
-    </span>
+    <X
+      className="mx-auto h-4 w-4 text-[var(--landing-border-2)]"
+      aria-label="no"
+    />
   );
 }
+
+const sectionHeading =
+  "font-[family-name:var(--font-hanken)] text-[2rem] font-normal leading-[1.1] tracking-[-0.025em] text-[var(--landing-ink)] sm:text-[2.5rem]";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -114,284 +113,258 @@ export default function LandingPage() {
       <MarketingHeader />
 
       {/* ── 1. HERO ────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden border-b border-[var(--landing-border)] bg-white px-5 pb-0 pt-24 text-center lg:px-8 lg:pt-32">
-        {/* Radial glow */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(0,122,51,0.07),transparent)]"
-        />
-
-        <div className="relative mx-auto max-w-3xl">
-          {/* Badge */}
-          <FadeUp delay={0}>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[var(--landing-border)] bg-white px-3.5 py-1.5 shadow-sm">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-              <span className="text-xs font-medium text-[var(--landing-muted)]">
-                Live GTFS data · GO Transit network
-              </span>
-            </div>
+      <section className="border-b border-[var(--landing-border)] px-5 pb-16 pt-20 lg:px-8 lg:pb-20 lg:pt-28">
+        <div className="mx-auto max-w-3xl">
+          <FadeUp>
+            <Eyebrow>Live GTFS · GO Transit</Eyebrow>
           </FadeUp>
 
-          {/* Headline */}
           <FadeUp delay={0.08}>
-            <h1 className="text-5xl font-extrabold tracking-[-0.03em] text-[var(--landing-fg)] sm:text-6xl lg:text-7xl lg:leading-[1.02]">
-              Plan better transit networks{" "}
+            <h1 className="mt-5 font-[family-name:var(--font-hanken)] text-[2.75rem] font-normal leading-[1.03] tracking-[-0.03em] text-[var(--landing-ink)] sm:text-[3.75rem]">
+              Design the GO network{" "}
               <span className="text-[var(--landing-accent)]">
-                with live GTFS intelligence.
+                you wish you had.
               </span>
             </h1>
           </FadeUp>
 
-          {/* Subheadline */}
           <FadeUp delay={0.16}>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[var(--landing-muted)] sm:text-xl">
-              Explore GO Transit routes, compare schedules, sketch service changes,
-              and simulate network flow — all in one browser-based workspace.
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--landing-muted)]">
+              Explore GO Transit routes, compare schedules, sketch service
+              changes, and simulate network flow — all in one browser-based
+              workspace.
             </p>
           </FadeUp>
 
-          {/* CTAs */}
           <FadeUp delay={0.24}>
-            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                href={MAP}
-                className="inline-flex items-center gap-2 rounded-xl bg-[var(--landing-accent)] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#006b2d] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2"
-              >
-                Open TransitFlow
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
-              <Link
-                href="/community"
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--landing-border)] bg-white px-6 py-3.5 text-sm font-semibold text-[var(--landing-fg)] transition-all hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2"
-              >
-                View community routes
-              </Link>
+            <div className="mt-9 flex flex-wrap items-center gap-3">
+              <CornerButton href={MAP} solid>
+                Open the map →
+              </CornerButton>
+              <CornerButton href="/blog">Read the blog</CornerButton>
             </div>
           </FadeUp>
         </div>
 
-        {/* Browser mockup — entrance + float */}
-        <FloatBox className="relative mx-auto mt-16 max-w-5xl">
-          <div className="overflow-hidden rounded-t-2xl border border-b-0 border-gray-200 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14),0_0_0_1px_rgba(0,0,0,0.04)]">
-            {/* Chrome bar */}
-            <div className="flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3">
-              <div className="flex gap-1.5">
-                <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-                <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
-                <div className="h-3 w-3 rounded-full bg-[#28c840]" />
-              </div>
-              <div className="mx-auto max-w-xs flex-1 rounded-md border border-gray-200 bg-white px-3 py-1 text-center text-xs text-gray-400">
-                transit-flow-two.vercel.app/map
-              </div>
-              <div className="w-16" aria-hidden />
-            </div>
-            {/* Screenshot */}
-            <div className="bg-[#0a1628]">
-              <Image
-                src="/landing-page.png"
-                alt="TransitFlow map showing GO Transit routes"
-                width={1280}
-                height={720}
-                className="w-full"
-                priority
-              />
-            </div>
-          </div>
-        </FloatBox>
+        {/* Screenshot in a hairline frame */}
+        <FadeUp delay={0.34} className="mx-auto mt-16 max-w-5xl">
+          <figure className="border border-[var(--landing-border)]">
+            <figcaption className="flex items-center gap-3 border-b border-[var(--landing-border)] bg-[var(--landing-band)] px-4 py-2 font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.06em] text-[var(--landing-faint)]">
+              <span className="text-[var(--landing-accent)]">/</span>{" "}
+              transit-flow-two.vercel.app/map
+            </figcaption>
+            <Image
+              src="/landing-page.png"
+              alt="TransitFlow map showing GO Transit routes"
+              width={1280}
+              height={720}
+              className="w-full"
+              priority
+            />
+          </figure>
+        </FadeUp>
       </section>
 
       {/* ── 2. METRIC STRIP ────────────────────────────────────────────────── */}
-      <section className="border-b border-[var(--landing-border)] bg-gray-50">
+      <section className="border-b border-[var(--landing-border)] bg-[var(--landing-band)]">
         <div className="mx-auto max-w-6xl px-5 lg:px-8">
-          <MetricStrip>
-            <dl className="flex flex-wrap items-stretch divide-x divide-[var(--landing-border)]">
-              {METRICS.map(({ value, label }) => (
-                <MetricItem
-                  key={label}
-                  className="flex flex-1 flex-col items-center justify-center gap-0.5 px-6 py-6 min-w-[140px]"
-                >
-                  <dt className="text-[11px] font-medium uppercase tracking-widest text-[var(--landing-muted)]">
-                    {label}
-                  </dt>
-                  <dd className="text-2xl font-bold tabular-nums text-[var(--landing-fg)]">
-                    {value}
-                  </dd>
-                </MetricItem>
-              ))}
-            </dl>
-          </MetricStrip>
+          <dl className="grid grid-cols-2 divide-x divide-y divide-[var(--landing-border)] sm:grid-cols-3 lg:grid-cols-5 lg:divide-y-0">
+            {METRICS.map(({ value, label }) => (
+              <div
+                key={label}
+                className="flex flex-col gap-1 px-5 py-6"
+              >
+                <dt className="font-[family-name:var(--landing-mono)] text-[0.625rem] uppercase tracking-[0.1em] text-[var(--landing-faint)]">
+                  {label}
+                </dt>
+                <dd className="font-[family-name:var(--font-hanken)] text-2xl font-normal tabular-nums text-[var(--landing-ink)]">
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </section>
 
-      {/* ── 3. PRODUCT SHOWCASE ────────────────────────────────────────────── */}
-      <section id="product" className="scroll-mt-14 border-b border-[var(--landing-border)] bg-white py-24 lg:py-32">
+      {/* ── 3. PRODUCT ─────────────────────────────────────────────────────── */}
+      <section
+        id="product"
+        className="scroll-mt-14 border-b border-[var(--landing-border)] py-20 lg:py-28"
+      >
         <div className="mx-auto max-w-6xl px-5 lg:px-8">
-          <ScrollFade className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
-              Product
-            </p>
-            <h2 className="mt-3 text-4xl font-bold tracking-[-0.02em] text-[var(--landing-fg)] sm:text-5xl">
+          <div className="max-w-2xl">
+            <Eyebrow>01 / Product</Eyebrow>
+            <h2 className={`mt-4 ${sectionHeading}`}>
               One workspace for the entire planning lifecycle.
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-[var(--landing-muted)] sm:text-lg">
-              Explore real GO Transit data, design new routes, analyze schedules, and simulate network flow — without switching tools.
+            <p className="mt-4 text-base leading-relaxed text-[var(--landing-muted)]">
+              Explore real GO Transit data, design new routes, analyze
+              schedules, and simulate network flow — without switching tools.
             </p>
-          </ScrollFade>
+          </div>
 
-          <StaggerGrid className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-14 grid border-t border-l border-[var(--landing-border)] sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map(({ icon: Icon, title, body }) => (
-              <StaggerItem key={title}>
-                <div className="group rounded-2xl border border-[var(--landing-border)] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
-                  <span className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--landing-border)] bg-gray-50">
-                    <Icon className="h-5 w-5 text-[var(--landing-accent)]" aria-hidden />
-                  </span>
-                  <h3 className="text-sm font-semibold text-[var(--landing-fg)]">{title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-[var(--landing-muted)]">{body}</p>
-                </div>
-              </StaggerItem>
+              <div
+                key={title}
+                className="border-b border-r border-[var(--landing-border)] p-6"
+              >
+                <Icon
+                  className="h-5 w-5 text-[var(--landing-accent)]"
+                  aria-hidden
+                />
+                <h3 className="mt-4 font-[family-name:var(--font-hanken)] text-base font-medium text-[var(--landing-ink)]">
+                  {title}
+                </h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-[var(--landing-muted)]">
+                  {body}
+                </p>
+              </div>
             ))}
-          </StaggerGrid>
+          </div>
         </div>
       </section>
 
       {/* ── 4. HOW IT WORKS ────────────────────────────────────────────────── */}
-      <section className="border-b border-[var(--landing-border)] bg-gray-50 py-24 lg:py-32">
+      <section className="border-b border-[var(--landing-border)] bg-[var(--landing-band)] py-20 lg:py-28">
         <div className="mx-auto max-w-6xl px-5 lg:px-8">
-          <ScrollFade className="mb-16">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
-              How it works
-            </p>
-            <h2 className="mt-3 max-w-xl text-4xl font-bold tracking-[-0.02em] text-[var(--landing-fg)] sm:text-5xl">
+          <div className="mb-14 max-w-xl">
+            <Eyebrow>02 / How it works</Eyebrow>
+            <h2 className={`mt-4 ${sectionHeading}`}>
               From first open to full simulation.
             </h2>
-          </ScrollFade>
+          </div>
 
-          <StaggerGrid className="grid gap-8 lg:grid-cols-4 lg:gap-0">
-            {STEPS.map(({ n, title, body }, i) => (
-              <StaggerItem key={n}>
-                <div className="relative flex flex-col gap-4 lg:pr-10">
-                  {/* Connector line (desktop only) */}
-                  {i < STEPS.length - 1 && (
-                    <div
-                      aria-hidden
-                      className="absolute left-10 top-5 hidden h-px bg-[var(--landing-border)] lg:block"
-                      style={{ width: "calc(100% - 40px)" }}
-                    />
-                  )}
-                  <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--landing-border)] bg-white text-xs font-bold text-[var(--landing-muted)] shadow-sm">
-                    {n}
-                  </span>
-                  <div>
-                    <h3 className="text-base font-semibold text-[var(--landing-fg)]">{title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-[var(--landing-muted)]">{body}</p>
-                  </div>
-                </div>
-              </StaggerItem>
+          <div className="grid gap-px border border-[var(--landing-border)] bg-[var(--landing-border)] lg:grid-cols-4">
+            {STEPS.map(({ n, title, body }) => (
+              <div
+                key={n}
+                className="flex flex-col gap-3 bg-[var(--landing-bg)] p-6"
+              >
+                <span className="font-[family-name:var(--landing-mono)] text-[0.6875rem] font-medium tracking-[0.1em] text-[var(--landing-accent)]">
+                  {n}
+                </span>
+                <h3 className="font-[family-name:var(--font-hanken)] text-base font-medium text-[var(--landing-ink)]">
+                  {title}
+                </h3>
+                <p className="text-sm leading-relaxed text-[var(--landing-muted)]">
+                  {body}
+                </p>
+              </div>
             ))}
-          </StaggerGrid>
+          </div>
         </div>
       </section>
 
       {/* ── 5. CAPABILITIES ────────────────────────────────────────────────── */}
-      <section id="capabilities" className="scroll-mt-14 border-b border-[var(--landing-border)] bg-white py-24 lg:py-32">
+      <section
+        id="capabilities"
+        className="scroll-mt-14 border-b border-[var(--landing-border)] py-20 lg:py-28"
+      >
         <div className="mx-auto max-w-6xl px-5 lg:px-8">
-          <ScrollFade className="mb-16 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
-                Core capabilities
-              </p>
-              <h2 className="mt-3 max-w-lg text-4xl font-bold tracking-[-0.02em] text-[var(--landing-fg)] sm:text-5xl">
+          <div className="mb-14 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-lg">
+              <Eyebrow>03 / Core capabilities</Eyebrow>
+              <h2 className={`mt-4 ${sectionHeading}`}>
                 Everything a planner needs. Nothing they don&apos;t.
               </h2>
             </div>
-            <Link
-              href={MAP}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[var(--landing-accent)] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#006b2d]"
-            >
-              Explore the workspace
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-          </ScrollFade>
+            <CornerButton href={MAP}>Explore the workspace →</CornerButton>
+          </div>
 
-          <StaggerGrid className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid border-t border-l border-[var(--landing-border)] sm:grid-cols-2 lg:grid-cols-3">
             {CAPABILITIES.map(({ icon: Icon, title, body }) => (
-              <StaggerItem key={title}>
-                <div className="h-full rounded-2xl border border-[var(--landing-border)] p-6 transition-all hover:border-gray-300 hover:shadow-[0_4px_24px_rgba(0,0,0,0.06)]">
-                  <span className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#007A33]/8 text-[var(--landing-accent)]">
-                    <Icon className="h-5 w-5" aria-hidden />
-                  </span>
-                  <h3 className="text-sm font-semibold text-[var(--landing-fg)]">{title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--landing-muted)]">{body}</p>
-                </div>
-              </StaggerItem>
+              <div
+                key={title}
+                className="border-b border-r border-[var(--landing-border)] p-6"
+              >
+                <Icon
+                  className="h-5 w-5 text-[var(--landing-accent)]"
+                  aria-hidden
+                />
+                <h3 className="mt-4 font-[family-name:var(--font-hanken)] text-base font-medium text-[var(--landing-ink)]">
+                  {title}
+                </h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-[var(--landing-muted)]">
+                  {body}
+                </p>
+              </div>
             ))}
-          </StaggerGrid>
+          </div>
         </div>
       </section>
 
       {/* ── 6. USE CASES ───────────────────────────────────────────────────── */}
-      <section id="use-cases" className="scroll-mt-14 border-b border-[var(--landing-border)] bg-gray-50 py-24 lg:py-32">
+      <section
+        id="use-cases"
+        className="scroll-mt-14 border-b border-[var(--landing-border)] bg-[var(--landing-band)] py-20 lg:py-28"
+      >
         <div className="mx-auto max-w-6xl px-5 lg:px-8">
-          <ScrollFade className="mb-16">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
-              Use cases
-            </p>
-            <h2 className="mt-3 max-w-xl text-4xl font-bold tracking-[-0.02em] text-[var(--landing-fg)] sm:text-5xl">
+          <div className="mb-14 max-w-xl">
+            <Eyebrow>04 / Use cases</Eyebrow>
+            <h2 className={`mt-4 ${sectionHeading}`}>
               Built for people who think in networks.
             </h2>
-          </ScrollFade>
+          </div>
 
-          <StaggerGrid className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-px border border-[var(--landing-border)] bg-[var(--landing-border)] sm:grid-cols-2">
             {USE_CASES.map(({ icon: Icon, tag, title, body }) => (
-              <StaggerItem key={tag}>
-                <div className="flex h-full flex-col gap-5 rounded-2xl border border-[var(--landing-border)] bg-white p-7 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all hover:shadow-[0_8px_32px_rgba(0,0,0,0.07)]">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#007A33]/8 text-[var(--landing-accent)]">
-                      <Icon className="h-[18px] w-[18px]" aria-hidden />
-                    </span>
-                    <span className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
-                      {tag}
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold leading-snug text-[var(--landing-fg)]">{title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-[var(--landing-muted)]">{body}</p>
-                  </div>
+              <div
+                key={tag}
+                className="flex flex-col gap-4 bg-[var(--landing-bg)] p-7"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Icon
+                    className="h-[18px] w-[18px] text-[var(--landing-accent)]"
+                    aria-hidden
+                  />
+                  <span className="font-[family-name:var(--landing-mono)] text-[0.625rem] uppercase tracking-[0.1em] text-[var(--landing-faint)]">
+                    {tag}
+                  </span>
                 </div>
-              </StaggerItem>
+                <div>
+                  <h3 className="font-[family-name:var(--font-hanken)] text-lg font-medium leading-snug text-[var(--landing-ink)]">
+                    {title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--landing-muted)]">
+                    {body}
+                  </p>
+                </div>
+              </div>
             ))}
-          </StaggerGrid>
+          </div>
         </div>
       </section>
 
       {/* ── 7. COMPARISON ──────────────────────────────────────────────────── */}
-      <section className="border-b border-[var(--landing-border)] bg-white py-24 lg:py-32">
+      <section className="border-b border-[var(--landing-border)] py-20 lg:py-28">
         <div className="mx-auto max-w-6xl px-5 lg:px-8">
-          <ScrollFade className="mb-12 text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
-              Why TransitFlow
-            </p>
-            <h2 className="mt-3 text-4xl font-bold tracking-[-0.02em] text-[var(--landing-fg)] sm:text-5xl">
+          <div className="mb-10 max-w-xl">
+            <Eyebrow>05 / Why TransitFlow</Eyebrow>
+            <h2 className={`mt-4 ${sectionHeading}`}>
               Built for exploration, not static maps.
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-[var(--landing-muted)]">
-              Most transit tooling is built for consumption, not planning. TransitFlow is the workspace the others don&apos;t offer.
+            <p className="mt-4 text-base leading-relaxed text-[var(--landing-muted)]">
+              Most transit tooling is built for consumption, not planning.
+              TransitFlow is the workspace the others don&apos;t offer.
             </p>
-          </ScrollFade>
+          </div>
 
-          <ScrollFade delay={0.1}>
-            <div className="overflow-hidden rounded-2xl border border-[var(--landing-border)] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-              <table className="w-full text-left text-sm">
+          <div>
+            <div className="overflow-x-auto border border-[var(--landing-border)]">
+              <table className="w-full min-w-[640px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-[var(--landing-border)] bg-gray-50">
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-widest text-[var(--landing-muted)]">
+                  <tr className="border-b border-[var(--landing-border)] bg-[var(--landing-band)]">
+                    <th className="px-5 py-3.5 font-[family-name:var(--landing-mono)] text-[0.625rem] font-medium uppercase tracking-[0.1em] text-[var(--landing-faint)]">
                       Feature
                     </th>
                     {Object.keys(COMPARISON_DATA).map((tool, i) => (
                       <th
                         key={tool}
-                        className={`px-6 py-4 text-center text-xs font-semibold uppercase tracking-widest ${
-                          i === 0 ? "text-[var(--landing-accent)]" : "text-[var(--landing-muted)]"
+                        className={`px-5 py-3.5 text-center font-[family-name:var(--landing-mono)] text-[0.625rem] font-medium uppercase tracking-[0.1em] ${
+                          i === 0
+                            ? "text-[var(--landing-accent)]"
+                            : "text-[var(--landing-faint)]"
                         }`}
                       >
                         {tool}
@@ -401,12 +374,16 @@ export default function LandingPage() {
                 </thead>
                 <tbody className="divide-y divide-[var(--landing-border)]">
                   {COMPARISON_FEATURES.map((feature, fi) => (
-                    <tr key={feature} className="bg-white transition-colors hover:bg-gray-50/60">
-                      <td className="px-6 py-4 font-medium text-[var(--landing-fg)]">{feature}</td>
+                    <tr key={feature}>
+                      <td className="px-5 py-3.5 font-medium text-[var(--landing-ink)]">
+                        {feature}
+                      </td>
                       {Object.entries(COMPARISON_DATA).map(([tool, vals], ti) => (
                         <td
                           key={tool}
-                          className={`px-6 py-4 text-center ${ti === 0 ? "bg-[#007A33]/[0.03]" : ""}`}
+                          className={`px-5 py-3.5 text-center ${
+                            ti === 0 ? "bg-[var(--landing-wash)]/50" : ""
+                          }`}
                         >
                           <Cell val={vals[fi]} />
                         </td>
@@ -416,37 +393,37 @@ export default function LandingPage() {
                 </tbody>
               </table>
             </div>
-          </ScrollFade>
+          </div>
         </div>
       </section>
 
       {/* ── 8. FINAL CTA ───────────────────────────────────────────────────── */}
-      <section className="bg-[var(--landing-fg)] px-5 py-24 lg:py-32">
-        <ScrollFade className="mx-auto max-w-3xl text-center">
-          <h2 className="text-4xl font-bold tracking-[-0.02em] text-white sm:text-5xl lg:text-6xl">
+      <section className="bg-[var(--landing-band)] px-5 py-20 lg:py-28">
+        <div className="mx-auto max-w-2xl">
+          <Eyebrow>Get started</Eyebrow>
+          <h2 className={`mt-4 ${sectionHeading}`}>
             Start exploring the future of transit planning.
           </h2>
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white/60">
-            The full GO Transit network — live GTFS, a drawing canvas, schedule analysis, and a simulation engine — free in your browser.
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-[var(--landing-muted)]">
+            The full GO Transit network — live GTFS, a drawing canvas, schedule
+            analysis, and a simulation engine — free in your browser.
           </p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              href={MAP}
-              className="inline-flex items-center gap-2 rounded-xl bg-[var(--landing-accent)] px-7 py-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#006b2d] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-fg)]"
-            >
-              Open TransitFlow
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-            <Link
+          <div className="mt-9 flex flex-wrap items-center gap-3">
+            <CornerButton href={MAP} solid>
+              Open the map →
+            </CornerButton>
+            <CornerButton
               href="https://github.com/faizm10/transit-flow"
               target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-7 py-4 text-sm font-semibold text-white transition-all hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-fg)]"
             >
               View on GitHub
-            </Link>
+            </CornerButton>
           </div>
-        </ScrollFade>
+          <SpecMeta
+            className="mt-8 block"
+            items={["Open source", "No account required", "MIT licensed"]}
+          />
+        </div>
       </section>
 
       <MarketingFooter />

@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight, Users } from "lucide-react";
 import MarketingShell from "@/components/marketing/MarketingShell";
 import MarketingHeader from "@/components/marketing/MarketingHeader";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
+import { Eyebrow, CornerButton } from "@/components/marketing/spec";
 import CommunityFeed from "@/components/community/CommunityFeed";
 import type { PostSummary } from "@/components/community/PostCard";
 import { db, posts, users } from "@/lib/db";
@@ -97,31 +96,23 @@ export default async function CommunityPage() {
     <MarketingShell>
       <MarketingHeader />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-12 lg:px-8 lg:py-16">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-24 pt-14 lg:px-8">
         {/* Header */}
-        <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="mb-2 flex items-center gap-2">
-              <Users className="h-5 w-5 text-[var(--landing-accent)]" aria-hidden />
-              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--landing-accent)]">
-                Community
-              </p>
-            </div>
-            <h1 className="text-3xl font-semibold tracking-tight text-[var(--landing-fg)] sm:text-4xl">
+        <div className="mb-12 flex flex-col gap-5 border-b border-[var(--landing-border)] pb-10 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-4">
+            <Eyebrow>Community</Eyebrow>
+            <h1 className="font-[family-name:var(--font-hanken)] text-[2.5rem] font-normal leading-[1.05] tracking-[-0.025em] text-[var(--landing-ink)]">
               Shared networks
             </h1>
-            <p className="mt-2 text-base text-[var(--landing-muted)]">
-              Browse custom GO Transit designs from the community. Click any card to explore the route.
+            <p className="max-w-lg text-[var(--landing-muted)]">
+              Browse custom GO Transit designs from the community. Click any card
+              to explore the route.
             </p>
           </div>
 
-          <Link
-            href="/map"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--landing-accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#006b2d]"
-          >
-            Design a route
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
+          <CornerButton href="/map" solid>
+            Design a route →
+          </CornerButton>
         </div>
 
         <CommunityFeed

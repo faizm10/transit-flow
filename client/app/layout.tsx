@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Hanken_Grotesk } from "next/font/google";
 import { Toaster } from "sonner";
 import { SessionProvider } from "next-auth/react";
 import { GoogleAnalytics } from "@next/third-parties/google";
@@ -13,6 +13,13 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Marketing pages ("Spec Sheet" design). The map keeps Geist.
+const hankenGrotesk = Hanken_Grotesk({
+  variable: "--font-hanken",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 const SITE_URL =
@@ -91,7 +98,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${hankenGrotesk.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <SessionProvider>
