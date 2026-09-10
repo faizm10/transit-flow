@@ -80,20 +80,20 @@ export default function DesignPanel({
       onValueChange={(value) => onActiveTabChange(value as DesignTab)}
       className="flex h-full min-h-0 flex-col gap-0"
     >
-      <div className="border-b border-slate-100 px-3 pb-2 pt-3">
+      <div className="border-b border-[var(--landing-border)] px-3 pb-2 pt-3">
         {stationsOpen ? (
           <div className="flex flex-col gap-2">
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 w-fit gap-1 px-2 text-xs text-slate-600"
+              className="h-8 w-fit gap-1 px-2 text-xs text-[var(--landing-muted)]"
               onClick={() => onActiveTabChange("new")}
             >
               <ChevronLeft className="h-3.5 w-3.5" />
               Back to create route
             </Button>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[var(--landing-muted)]">
               Saved stops you can reuse when building routes.
             </p>
           </div>
@@ -113,7 +113,7 @@ export default function DesignPanel({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-9 shrink-0 gap-1 px-2 text-xs text-slate-600 hover:text-slate-900"
+                  className="h-9 shrink-0 gap-1 px-2 text-xs text-[var(--landing-muted)] hover:text-[var(--landing-ink)]"
                   onClick={() => onActiveTabChange("stations")}
                 >
                   <MapPin className="h-3.5 w-3.5" />
@@ -127,8 +127,8 @@ export default function DesignPanel({
 
       <TabsContent value="existing" className="mt-0 min-h-0 flex-1 overflow-y-auto">
         {activeTab === "existing" && extendTabLoading && (
-          <div className="flex min-h-[12rem] flex-col items-center justify-center gap-2 p-8 text-center text-sm text-slate-500">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+          <div className="flex min-h-[12rem] flex-col items-center justify-center gap-2 p-8 text-center text-sm text-[var(--landing-muted)]">
+            <Loader2 className="h-8 w-8 animate-spin text-[var(--landing-faint)]" />
             <span>Loading GO line…</span>
           </div>
         )}

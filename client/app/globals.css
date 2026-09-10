@@ -272,6 +272,24 @@
   .tf-spotlight > *:hover { transform: none; }
 }
 
+/* ── Map chrome — Spec Sheet floating surfaces over the Mapbox canvas ─────── */
+.tf-map-panel {
+  background: color-mix(in oklab, var(--landing-bg) 96%, transparent);
+  border: 1px solid var(--landing-border-2);
+  box-shadow:
+    0 1px 2px rgba(19, 36, 27, 0.06),
+    0 14px 34px -14px rgba(19, 36, 27, 0.2);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+/* uppercase monospace label used across map chrome */
+.tf-map-label {
+  font-family: var(--landing-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 /* Dotted canvas (product / features bands) */
 .marketing-dot-bg {
   background-color: var(--landing-bg);

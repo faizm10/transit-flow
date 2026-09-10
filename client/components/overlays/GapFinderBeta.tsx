@@ -6,12 +6,12 @@ import { Sparkles, Star, X, ArrowRight, ChevronDown } from "lucide-react";
 import type { MapHandle } from "@/components/Map";
 import { fetchNetworkGaps, type NetworkGap } from "@/lib/networkGaps";
 
-const CORRIDOR_COLOR = "#f59e0b"; // amber
+const CORRIDOR_COLOR = "#f59e0b"; // amber — the on-map corridor highlight
 
 const DEMAND_STYLE: Record<NetworkGap["demandLabel"], string> = {
-  high: "bg-amber-100 text-amber-800",
-  moderate: "bg-slate-100 text-slate-600",
-  light: "bg-slate-100 text-slate-500",
+  high: "bg-[color-mix(in_oklab,var(--landing-amber)_16%,transparent)] text-[var(--landing-amber)]",
+  moderate: "bg-[var(--landing-wash)] text-[var(--landing-muted)]",
+  light: "bg-[var(--landing-wash)] text-[var(--landing-faint)]",
 };
 
 function mins(m: number): string {
@@ -127,11 +127,11 @@ export default function GapFinderBeta({
     return (
       <button
         onClick={openPanel}
-        className="pointer-events-auto absolute left-4 top-4 z-30 flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-xs font-semibold text-slate-700 shadow-lg backdrop-blur-xl transition-colors hover:bg-white"
+        className="tf-map-panel tf-map-label pointer-events-auto absolute left-4 top-4 z-30 flex items-center gap-2 px-3 py-2 text-[var(--landing-ink)] transition-colors hover:bg-[var(--landing-wash)]"
       >
-        <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+        <Sparkles className="h-3.5 w-3.5 text-[var(--landing-amber)]" />
         Gap Finder
-        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-amber-800">
+        <span className="border border-[var(--landing-border-2)] px-1 py-0.5 text-[9px] tracking-[0.1em] text-[var(--landing-faint)]">
           BETA
         </span>
       </button>
@@ -139,35 +139,41 @@ export default function GapFinderBeta({
   }
 
   return (
-    <div className="pointer-events-auto absolute bottom-4 left-4 top-20 z-30 flex w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/97 shadow-xl backdrop-blur-xl">
+    <div className="tf-map-panel pointer-events-auto absolute bottom-4 left-4 top-20 z-30 flex w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden">
       {/* header */}
-      <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-        <Sparkles className="h-4 w-4 shrink-0 text-amber-500" />
+      <div className="flex items-center gap-2 border-b border-[var(--landing-border)] px-4 py-3">
+        <Sparkles className="h-4 w-4 shrink-0 text-[var(--landing-amber)]" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900">Gap Finder</p>
-          <p className="text-[11px] text-slate-400">Corridors GO serves worst, ranked</p>
+          <p className="font-[family-name:var(--font-hanken)] text-sm font-medium text-[var(--landing-ink)]">
+            Gap Finder
+          </p>
+          <p className="text-[11px] text-[var(--landing-faint)]">
+            Corridors GO serves worst, ranked
+          </p>
         </div>
-        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800">
+        <span className="border border-[var(--landing-border-2)] px-1 py-0.5 text-[10px] tracking-[0.1em] text-[var(--landing-faint)]">
           BETA
         </span>
         <button
           onClick={closePanel}
           aria-label="Close Gap Finder"
-          className="-mr-1 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          className="-mr-1 p-1 text-[var(--landing-faint)] transition-colors hover:bg-[var(--landing-wash)] hover:text-[var(--landing-ink)]"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
       {/* list */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
         {error && (
-          <p className="px-3 py-6 text-center text-sm text-slate-400">
+          <p className="px-3 py-6 text-center text-sm text-[var(--landing-faint)]">
             Couldn&apos;t load the corridor list.
           </p>
         )}
         {!error && !gaps && (
-          <p className="px-3 py-6 text-center text-sm text-slate-400">Loading…</p>
+          <p className="px-3 py-6 text-center text-sm text-[var(--landing-faint)]">
+            Loading…
+          </p>
         )}
         {gaps?.map((gap, i) => {
           const isSel = gap.id === selectedId;
@@ -175,49 +181,49 @@ export default function GapFinderBeta({
             <div key={gap.id}>
               <button
                 onClick={() => selectGap(gap)}
-                className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                  isSel ? "bg-amber-50" : "hover:bg-slate-50"
+                className={`flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors ${
+                  isSel ? "bg-[var(--landing-wash)]" : "hover:bg-[var(--landing-wash)]"
                 }`}
               >
-                <span className="mt-0.5 w-4 shrink-0 text-center text-[11px] font-semibold tabular-nums text-slate-300">
+                <span className="mt-0.5 w-4 shrink-0 text-center font-[family-name:var(--landing-mono)] text-[11px] tabular-nums text-[var(--landing-faint)]">
                   {i + 1}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
                     {gap.priority && (
                       <Star
-                        className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400"
+                        className="h-3 w-3 shrink-0 fill-[var(--landing-amber)] text-[var(--landing-amber)]"
                         aria-label="Priority corridor"
                       />
                     )}
-                    <span className="truncate text-[13px] font-semibold text-slate-900">
+                    <span className="truncate text-[13px] font-semibold text-[var(--landing-ink)]">
                       {gap.headline}
                     </span>
                     <span
-                      className={`shrink-0 rounded-full px-1.5 text-[10px] font-medium ${DEMAND_STYLE[gap.demandLabel]}`}
+                      className={`shrink-0 px-1.5 text-[10px] font-medium ${DEMAND_STYLE[gap.demandLabel]}`}
                     >
                       {gap.demandLabel}
                     </span>
                   </span>
-                  <span className="mt-0.5 block text-[11.5px] leading-snug text-slate-500">
+                  <span className="mt-0.5 block text-[11.5px] leading-snug text-[var(--landing-muted)]">
                     {compactStat(gap)}
                   </span>
                 </span>
                 <ChevronDown
-                  className={`mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-300 transition-transform ${
+                  className={`mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--landing-faint)] transition-transform ${
                     isSel ? "rotate-180" : ""
                   }`}
                 />
               </button>
 
               {isSel && (
-                <div className="mb-1 ml-9 mr-3 flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
-                  <span className="text-[11px] text-slate-500">
+                <div className="mb-1 ml-9 mr-3 flex items-center justify-between gap-2 bg-[var(--landing-wash)] px-3 py-2">
+                  <span className="text-[11px] text-[var(--landing-muted)]">
                     Drawn on the map
                   </span>
                   <button
                     onClick={() => handleDesign(gap)}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#155ba0] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#124f8c]"
+                    className="inline-flex shrink-0 items-center gap-1 bg-[var(--landing-accent)] px-2.5 py-1 font-[family-name:var(--landing-mono)] text-[10px] uppercase tracking-[0.06em] font-semibold text-white transition-opacity hover:opacity-90"
                   >
                     Design this route
                     <ArrowRight className="h-3 w-3" />
@@ -229,13 +235,13 @@ export default function GapFinderBeta({
         })}
       </div>
 
-      <div className="border-t border-slate-100 px-4 py-2 text-[10.5px] leading-snug text-slate-400">
+      <div className="border-t border-[var(--landing-border)] px-4 py-2 text-[10.5px] leading-snug text-[var(--landing-faint)]">
         Phase&nbsp;1 estimate — fastest scheduled path vs a straight line. Not yet
         time-of-day aware.{" "}
         <Link
           href="/blog/gap-finder"
           target="_blank"
-          className="font-medium text-[#007A33] underline-offset-2 hover:underline"
+          className="font-medium text-[var(--landing-accent)] underline-offset-2 hover:underline"
         >
           How it works →
         </Link>
