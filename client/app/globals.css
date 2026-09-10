@@ -272,36 +272,44 @@
 }
 .vhp-inner {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 11px;
+  align-items: flex-start;
+  gap: 9px;
+  box-sizing: border-box;
+  max-width: 288px;
+  padding: 9px 12px;
   font-family: system-ui, -apple-system, sans-serif;
-  white-space: nowrap;
 }
 .vhp-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   color: #fff;
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 800;
   letter-spacing: 0.02em;
   flex-shrink: 0;
 }
-.vhp-body {
+.vhp-head {
   display: flex;
+  flex: 1;
+  min-width: 0;
   flex-direction: column;
   gap: 3px;
-  min-width: 0;
 }
 .vhp-dest {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #0f172a;
-  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vhp-meta {
+  font-size: 10.5px;
+  color: #64748b;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -309,10 +317,14 @@
 .vhp-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  min-width: 0;
   font-size: 11px;
-  color: #64748b;
+  color: #475569;
   white-space: nowrap;
+}
+.vhp-next {
+  margin-top: 1px;
 }
 .vhp-next-dot {
   width: 6px;
@@ -321,11 +333,16 @@
   background: #22c55e;
   flex-shrink: 0;
 }
+.vhp-next-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .vhp-eta {
   margin-left: auto;
-  padding-left: 8px;
+  padding-left: 10px;
   font-weight: 600;
   color: #0f172a;
+  flex-shrink: 0;
 }
 .vhp-timing {
   font-variant-numeric: tabular-nums;

@@ -1127,6 +1127,7 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           closeOnClick: false,
           offset: 14,
           anchor: "bottom",
+          maxWidth: "300px",
           className: "vehicle-hover-popup",
         });
       }
@@ -1142,25 +1143,23 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       const showLine = Boolean(lineName && lineName !== dest);
       const metaBits = [showLine ? lineName : "", serviceDate].filter(Boolean).join(" · ");
       const nextLine = nextStop
-        ? `<div class="vhp-row vhp-next"><span class="vhp-next-dot"></span>Next ${nextStop}<span class="vhp-eta">${minToNext}</span></div>`
+        ? `<div class="vhp-row vhp-next"><span class="vhp-next-dot"></span><span class="vhp-next-name">Next ${nextStop}</span><span class="vhp-eta">${minToNext}</span></div>`
         : "";
       const timingLine = startTime && endTime
-        ? `<div class="vhp-row vhp-timing">${startTime} → ${endTime}</div>`
+        ? `<div class="vhp-row vhp-timing">${startTime} &rarr; ${endTime}</div>`
         : "";
 
       vehiclePopupRef.current
         .setLngLat(coords)
         .setHTML(
           `<div class="vhp-inner">` +
-            `<div class="vhp-top">` +
-              `<span class="vhp-badge" style="background:${escapeHtml(props.color || "#64748b")}">${routeName}</span>` +
-              `<div class="vhp-head">` +
-                `<div class="vhp-dest">${dest}</div>` +
-                (metaBits ? `<div class="vhp-meta">${metaBits}</div>` : "") +
-              `</div>` +
+            `<span class="vhp-badge" style="background:${escapeHtml(props.color || "#64748b")}">${routeName}</span>` +
+            `<div class="vhp-head">` +
+              `<div class="vhp-dest">${dest}</div>` +
+              (metaBits ? `<div class="vhp-meta">${metaBits}</div>` : "") +
+              nextLine +
+              timingLine +
             `</div>` +
-            nextLine +
-            timingLine +
           `</div>`
         )
         .addTo(map);
