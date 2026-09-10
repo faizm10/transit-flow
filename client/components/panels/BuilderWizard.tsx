@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CustomRoute, CustomStop, CustomSchedule, CustomStation } from "@/lib/gtfs";
+import { CustomRoute, CustomStop, CustomSchedule, CustomStation, ServiceBand } from "@/lib/gtfs";
 import { CUSTOM_ROUTE_COLORS } from "@/lib/routeColors";
 import { estimateTrainTravelSecsForPathLengthMeters } from "@/lib/trainRouteEstimate";
 import { v4 as uuidv4 } from "uuid";
@@ -76,6 +76,177 @@ const FREQUENCY_PRESETS = [
   { label: "Every 30 min", interval: 30 },
   { label: "Every hour", interval: 60 },
 ];
+
+/**
+ * Rush-hour windows. Fixed so the schedule step stays simple — the user only
+ * toggles peak on/off and picks how often buses run during it. Morning rush is
+ * the inbound commute; afternoon rush is the trip home.
+ */
+const MORNING_PEAK = { startHour: 6, endHour: 9 };
+const AFTERNOON_PEAK = { startHour: 16, endHour: 20 };
+const PEAK_LABEL = "6–9 AM and 4–8 PM";
+const DEFAULT_PEAK_INTERVAL = 10;
+
+function hmToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
+
+function minutesToHM(mins: number): { h: number; m: number } {
+  return { h: Math.floor(mins / 60), m: mins % 60 };
+}
+
+/**
+ * Split the service window into off-peak and rush-hour bands. Rush hours run at
+ * `peakInterval`, everything else at `offPeakInterval`. Peak windows are clamped
+ * to the service window, so a route that only runs 7 AM–7 PM still works.
+ */
+function buildPeakWeekdayBands(opts: {
+  serviceStart: string;
+  serviceEnd: string;
+  peakInterval: number;
+  offPeakInterval: number;
+}): ServiceBand[] {
+  const svcStart = hmToMinutes(opts.serviceStart);
+  const svcEnd = hmToMinutes(opts.serviceEnd);
+  if (svcEnd <= svcStart) return [];
+
+  const clamp = (n: number) => Math.max(svcStart, Math.min(n, svcEnd));
+  const peaks = [
+    { start: clamp(MORNING_PEAK.startHour * 60), end: clamp(MORNING_PEAK.endHour * 60), label: "Morning peak" },
+    { start: clamp(AFTERNOON_PEAK.startHour * 60), end: clamp(AFTERNOON_PEAK.endHour * 60), label: "Afternoon peak" },
+  ]
+    .filter((p) => p.end > p.start)
+    .sort((a, b) => a.start - b.start);
+
+  const bands: ServiceBand[] = [];
+  const push = (start: number, end: number, label: string, headway: number) => {
+    if (end <= start) return;
+    const s = minutesToHM(start);
+    const e = minutesToHM(end);
+    bands.push({
+      id: uuidv4(),
+      label,
+      startHour: s.h,
+      startMin: s.m,
+      endHour: e.h,
+      endMin: e.m,
+      headwayMins: headway,
+    });
+  };
+
+  let cursor = svcStart;
+  for (const p of peaks) {
+    if (p.start > cursor) push(cursor, p.start, "Off-peak", opts.offPeakInterval);
+    push(Math.max(p.start, cursor), p.end, p.label, opts.peakInterval);
+    cursor = Math.max(cursor, p.end);
+  }
+  if (cursor < svcEnd) push(cursor, svcEnd, "Off-peak", opts.offPeakInterval);
+  return bands;
+}
+
+/** Peak headway from a saved banded schedule, or null if it has no peak bands. */
+function readPeakIntervalFromSchedule(s: CustomSchedule | undefined): number | null {
+  if (!s || s.type !== "banded") return null;
+  const peakBands = (s.weekday?.bands ?? []).filter((b) => /peak/i.test(b.label));
+  if (peakBands.length === 0) return null;
+  return Math.min(...peakBands.map((b) => b.headwayMins));
+}
+
+/** "6a", "12p", "11p" — compact hour label for the preview axis. */
+function hourLabel(totalMin: number): string {
+  const h = Math.floor(totalMin / 60) % 24;
+  const suffix = h < 12 ? "a" : "p";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}${suffix}`;
+}
+
+/**
+ * A one-day service strip: each band is a bar whose height reflects how often
+ * buses run (shorter headway = taller). Peak bars use the accent colour.
+ */
+function SchedulePreview({
+  serviceStart,
+  serviceEnd,
+  offPeakInterval,
+  peakEnabled,
+  peakInterval,
+}: {
+  serviceStart: string;
+  serviceEnd: string;
+  offPeakInterval: number;
+  peakEnabled: boolean;
+  peakInterval: number;
+}) {
+  const startMin = hmToMinutes(serviceStart);
+  const endMin = hmToMinutes(serviceEnd);
+  if (endMin <= startMin) {
+    return (
+      <p className="text-xs text-[var(--landing-red)]">
+        End time must be after the start time.
+      </p>
+    );
+  }
+  const span = endMin - startMin;
+
+  const rawBands = peakEnabled
+    ? buildPeakWeekdayBands({ serviceStart, serviceEnd, peakInterval, offPeakInterval })
+    : [];
+  const segments = (rawBands.length
+    ? rawBands.map((b) => ({
+        startMin: b.startHour * 60 + b.startMin,
+        endMin: b.endHour * 60 + b.endMin,
+        headway: b.headwayMins,
+        isPeak: /peak/i.test(b.label) && !/off-peak/i.test(b.label),
+      }))
+    : [{ startMin, endMin, headway: offPeakInterval, isPeak: false }]
+  ).filter((s) => s.endMin > s.startMin);
+
+  const tripsOneWay = segments.reduce(
+    (n, s) => n + Math.max(1, Math.floor((s.endMin - s.startMin) / Math.max(1, s.headway))),
+    0
+  );
+  const barHeight = (headway: number) => {
+    const t = Math.max(0, Math.min(1, (60 - headway) / 55));
+    return Math.round(28 + t * 32); // 28–60px
+  };
+
+  const axisTicks = [startMin, startMin + span / 2, endMin].map(Math.round);
+
+  return (
+    <div className="rounded-none border border-[var(--landing-border)] p-3">
+      <p className="text-xs font-medium text-[var(--landing-muted)] mb-2">Weekday preview</p>
+      <div className="flex items-end gap-px h-[60px]">
+        {segments.map((s, i) => (
+          <div
+            key={i}
+            title={`${hourLabel(s.startMin)}–${hourLabel(s.endMin)} · every ${s.headway} min`}
+            style={{
+              width: `${((s.endMin - s.startMin) / span) * 100}%`,
+              height: `${barHeight(s.headway)}px`,
+            }}
+            className={
+              s.isPeak
+                ? "bg-[var(--landing-accent)]"
+                : "bg-[color-mix(in_oklab,var(--landing-accent)_28%,transparent)]"
+            }
+          />
+        ))}
+      </div>
+      <div className="mt-1 flex justify-between text-[10px] text-[var(--landing-faint)]">
+        {axisTicks.map((t, i) => (
+          <span key={i}>{hourLabel(t)}</span>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-[var(--landing-muted)]">
+        ≈ {tripsOneWay * 2} trips each weekday
+        <span className="text-[var(--landing-faint)]">
+          {" "}· {peakEnabled ? `every ${peakInterval} min peak, ${offPeakInterval} min off-peak` : `every ${offPeakInterval} min`}
+        </span>
+      </p>
+    </div>
+  );
+}
 
 function distanceM(a: [number, number], b: [number, number]): number {
   const radius = 6371000;
@@ -302,15 +473,36 @@ export default function BuilderWizard({
   const [scheduleType, setScheduleType] = useState<"frequency" | "fixed">(
     existingScheduleType === "fixed" ? "fixed" : "frequency"
   );
+  // A saved "banded" schedule (peak hours) is edited here in frequency mode.
+  const existingBands = existingRoute?.schedule?.type === "banded"
+    ? existingRoute.schedule.weekday?.bands ?? []
+    : [];
+  const existingOffPeakBands = existingBands.filter((b) => !/peak/i.test(b.label));
+  const existingPeakInterval = readPeakIntervalFromSchedule(existingRoute?.schedule);
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  const bandedServiceStart = existingBands.length
+    ? `${pad2(existingBands[0].startHour)}:${pad2(existingBands[0].startMin)}`
+    : undefined;
+  const bandedServiceEnd = existingBands.length
+    ? `${pad2(existingBands[existingBands.length - 1].endHour)}:${pad2(existingBands[existingBands.length - 1].endMin)}`
+    : undefined;
+
   const [frequencyInterval, setFrequencyInterval] = useState(
-    existingRoute?.schedule?.frequency?.weekday?.interval ?? 15
+    existingRoute?.schedule?.frequency?.weekday?.interval
+      ?? (existingOffPeakBands.length
+        ? Math.max(...existingOffPeakBands.map((b) => b.headwayMins))
+        : 15)
   );
   const [serviceStart, setServiceStart] = useState(
-    existingRoute?.schedule?.frequency?.weekday?.start ?? "06:00"
+    existingRoute?.schedule?.frequency?.weekday?.start ?? bandedServiceStart ?? "06:00"
   );
   const [serviceEnd, setServiceEnd] = useState(
-    existingRoute?.schedule?.frequency?.weekday?.end ?? "23:00"
+    existingRoute?.schedule?.frequency?.weekday?.end ?? bandedServiceEnd ?? "23:00"
   );
+
+  // ── Peak-hours (produces a "banded" schedule on save) ────────────────────
+  const [peakEnabled, setPeakEnabled] = useState(existingPeakInterval !== null);
+  const [peakInterval, setPeakInterval] = useState(existingPeakInterval ?? DEFAULT_PEAK_INTERVAL);
   const [fixedDepartures, setFixedDepartures] = useState<string[]>(
     existingRoute?.schedule?.fixedDepartures ?? []
   );
@@ -793,6 +985,36 @@ export default function BuilderWizard({
         direction: returnEnabled ? "two-way" : "one-way",
       };
     }
+    if (peakEnabled) {
+      const weekdayBands = buildPeakWeekdayBands({
+        serviceStart,
+        serviceEnd,
+        peakInterval,
+        offPeakInterval: frequencyInterval,
+      });
+      const { h: wsH, m: wsM } = minutesToHM(hmToMinutes(serviceStart));
+      const { h: weH, m: weM } = minutesToHM(hmToMinutes(serviceEnd));
+      const weekendBand = (): ServiceBand => ({
+        id: uuidv4(),
+        label: "All day",
+        startHour: wsH,
+        startMin: wsM,
+        endHour: weH,
+        endMin: weM,
+        headwayMins: frequencyInterval * 2,
+      });
+      return {
+        type: "banded",
+        weekday: { active: true, bands: weekdayBands },
+        saturday: { active: true, bands: [weekendBand()] },
+        sunday: { active: true, bands: [weekendBand()] },
+        ...(returnFreqEnabled
+          ? { returnFrequency: { start: returnServiceStart, end: returnServiceEnd } }
+          : {}),
+        direction: "two-way",
+      };
+    }
+
     return {
       type: "frequency",
       frequency: {
@@ -1584,34 +1806,11 @@ export default function BuilderWizard({
 
             {scheduleType === "frequency" && (
               <div className="flex flex-col gap-4">
-                {/* Service window */}
+                {/* Off-peak service: how often + operating hours */}
                 <div>
-                  <Label className="text-sm font-medium text-[var(--landing-ink)] mb-2 block">Service hours</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs text-[var(--landing-faint)]">Start</span>
-                      <Input
-                        type="time"
-                        value={serviceStart}
-                        onChange={(e) => setServiceStart(e.target.value)}
-                        className="rounded-none h-9"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs text-[var(--landing-faint)]">End</span>
-                      <Input
-                        type="time"
-                        value={serviceEnd}
-                        onChange={(e) => setServiceEnd(e.target.value)}
-                        className="rounded-none h-9"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Frequency */}
-                <div>
-                  <Label className="text-sm font-medium text-[var(--landing-ink)] mb-2 block">Frequency</Label>
+                  <Label className="text-sm font-medium text-[var(--landing-ink)] mb-2 block">
+                    {peakEnabled ? "Off-peak" : "Frequency"}
+                  </Label>
                   <div className="grid grid-cols-2 gap-2">
                     {FREQUENCY_PRESETS.map(({ label, interval }) => (
                       <button
@@ -1638,14 +1837,83 @@ export default function BuilderWizard({
                         const v = Math.max(1, Math.min(240, Number(e.target.value)));
                         setFrequencyInterval(v);
                       }}
-                      className="rounded-none h-9 w-24"
+                      className="rounded-none h-9 w-20"
                     />
-                    <span className="text-sm text-[var(--landing-muted)]">min custom interval</span>
+                    <span className="text-sm text-[var(--landing-muted)]">min between trips</span>
+                  </div>
+                  {/* Operating hours */}
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-sm text-[var(--landing-muted)]">from</span>
+                    <Input
+                      type="time"
+                      value={serviceStart}
+                      onChange={(e) => setServiceStart(e.target.value)}
+                      className="rounded-none h-9 w-32"
+                    />
+                    <span className="text-sm text-[var(--landing-muted)]">to</span>
+                    <Input
+                      type="time"
+                      value={serviceEnd}
+                      onChange={(e) => setServiceEnd(e.target.value)}
+                      className="rounded-none h-9 w-32"
+                    />
                   </div>
                   <p className="text-xs text-[var(--landing-faint)] mt-2">
                     Weekends run every {frequencyInterval * 2} min
                   </p>
                 </div>
+
+                {/* Peak hours */}
+                <div className="rounded-none border border-[var(--landing-border)] p-3">
+                  <button
+                    type="button"
+                    onClick={() => setPeakEnabled((v) => !v)}
+                    className={`flex w-full items-center justify-between text-sm font-medium transition-colors ${
+                      peakEnabled ? "text-[var(--landing-accent)]" : "text-[var(--landing-muted)]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Run more often at rush hour
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-none font-medium ${
+                      peakEnabled ? "bg-[var(--landing-wash)] text-[var(--landing-accent)]" : "bg-[var(--landing-wash)] text-[var(--landing-faint)]"
+                    }`}>
+                      {peakEnabled ? "On" : "Off"}
+                    </span>
+                  </button>
+
+                  {!peakEnabled ? (
+                    <p className="text-xs text-[var(--landing-faint)] mt-2">
+                      Adds extra trips {PEAK_LABEL}.
+                    </p>
+                  ) : (
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="text-sm text-[var(--landing-muted)]">Every</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={240}
+                        value={peakInterval}
+                        onChange={(e) => {
+                          const v = Math.max(1, Math.min(240, Number(e.target.value)));
+                          setPeakInterval(v);
+                        }}
+                        className="rounded-none h-9 w-20"
+                      />
+                      <span className="text-sm text-[var(--landing-muted)]">min, {PEAK_LABEL}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Schedule preview */}
+                <SchedulePreview
+                  serviceStart={serviceStart}
+                  serviceEnd={serviceEnd}
+                  offPeakInterval={frequencyInterval}
+                  peakEnabled={peakEnabled}
+                  peakInterval={peakInterval}
+                />
 
                 {/* Return direction */}
                 <div className="rounded-none border border-[var(--landing-border)] p-3">
@@ -1875,9 +2143,11 @@ export default function BuilderWizard({
                 <div className="flex justify-between text-[var(--landing-muted)]">
                   <span className="text-[var(--landing-faint)]">Schedule</span>
                   <span className="font-medium">
-                    {scheduleType === "frequency"
-                      ? `Every ${frequencyInterval} min`
-                      : `${fixedDepartures.length} departures`}
+                    {scheduleType === "fixed"
+                      ? `${fixedDepartures.length} departures`
+                      : peakEnabled
+                        ? `Every ${peakInterval} min peak / ${frequencyInterval} min off-peak`
+                        : `Every ${frequencyInterval} min`}
                   </span>
                 </div>
                 <div className="flex justify-between text-[var(--landing-muted)]">
