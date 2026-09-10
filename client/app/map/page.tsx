@@ -891,12 +891,12 @@ function MapPageContent() {
           onVehicleHover={handleVehicleHover}
           isTrainDesignMode={isTrainDesignMode}
         />
-        {/* Dark-mode map tint — multiplies over the light Mapbox basemap so it
-            recedes behind the dark chrome. Sits above the canvas, below every
-            panel (those are later siblings / higher z). */}
+        {/* Dark-mode map tint — a light dim so the light Mapbox basemap reads
+            as muted in dark mode without hiding routes or labels. Sits above
+            the canvas, below every panel. Opacity is the knob to tune. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 hidden bg-[#0b1712] mix-blend-multiply dark:block"
+          className="pointer-events-none absolute inset-0 hidden bg-[#0a1512]/35 dark:block"
         />
       </div>
 
