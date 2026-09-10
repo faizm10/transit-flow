@@ -1,13 +1,134 @@
 {
-  "generatedAt": "2026-09-10T06:57:58Z",
+  "generatedAt": "2026-09-10T07:56:55Z",
   "method": "Phase 1 frequency-approximation. Suggests bus routes only, so both endpoints must already host a GO bus. Radial trips through downtown are excluded. Best itinerary = shortest path over the one-seat-ride graph with a 12-min flat transfer penalty (max 3 legs). Free-flow = straight line / 75 km/h. Demand = weekly trips serving the weaker endpoint. Per-departure-time routing, real road times, and StatsCan commute flows are the planned upgrades.",
-  "count": 20,
+  "count": 24,
   "gaps": [
     {
-      "id": "aldershot__meadowvale",
+      "id": "cambridge-bramalea-go",
+      "headline": "Cambridge \u2194 Bramalea GO",
+      "note": "No reasonable transit path today \u00b7 ~48 min if direct",
+      "mode": "bus",
+      "priority": true,
+      "straightLineKm": 60.5,
+      "freeFlowMin": 48,
+      "current": {
+        "minutes": 136,
+        "transfers": 3,
+        "direct": false,
+        "reachable": false
+      },
+      "demand": 0.7,
+      "demandLabel": "high",
+      "score": 2.319,
+      "from": {
+        "code": "02150",
+        "name": "Cambridge Smart Centre",
+        "lat": 43.4117165,
+        "lon": -80.3236008
+      },
+      "to": {
+        "code": "BE",
+        "name": "Bramalea GO",
+        "lat": 43.7022591,
+        "lon": -79.6887512
+      }
+    },
+    {
+      "id": "kitchener-waterloo-niagara-falls",
+      "headline": "Kitchener\u2013Waterloo \u2194 Niagara Falls",
+      "note": "3 h 27 min by transit \u00b7 4 transfers \u00b7 ~1 h 41 min if direct",
+      "mode": "bus",
+      "priority": true,
+      "straightLineKm": 126.3,
+      "freeFlowMin": 101,
+      "current": {
+        "minutes": 207,
+        "transfers": 4,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.7,
+      "demandLabel": "high",
+      "score": 2.225,
+      "from": {
+        "code": "02800",
+        "name": "University of Waterloo",
+        "lat": 43.474444,
+        "lon": -80.540546
+      },
+      "to": {
+        "code": "NI",
+        "name": "Niagara Falls GO",
+        "lat": 43.108882,
+        "lon": -79.063319
+      }
+    },
+    {
+      "id": "guelph-niagara-falls",
+      "headline": "Guelph \u2194 Niagara Falls",
+      "note": "2 h 23 min by transit \u00b7 3 transfers \u00b7 ~1 h 26 min if direct",
+      "mode": "bus",
+      "priority": true,
+      "straightLineKm": 107.3,
+      "freeFlowMin": 86,
+      "current": {
+        "minutes": 143,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.7,
+      "demandLabel": "high",
+      "score": 2.163,
+      "from": {
+        "code": "GL",
+        "name": "Guelph Central GO",
+        "lat": 43.544353,
+        "lon": -80.246917
+      },
+      "to": {
+        "code": "NI",
+        "name": "Niagara Falls GO",
+        "lat": 43.108882,
+        "lon": -79.063319
+      }
+    },
+    {
+      "id": "guelph-highway-407",
+      "headline": "Guelph \u2194 Highway 407",
+      "note": "1 h 12 min by transit \u00b7 2 transfers \u00b7 ~51 min if direct",
+      "mode": "bus",
+      "priority": true,
+      "straightLineKm": 63.9,
+      "freeFlowMin": 51,
+      "current": {
+        "minutes": 72,
+        "transfers": 2,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.7,
+      "demandLabel": "high",
+      "score": 2.033,
+      "from": {
+        "code": "GL",
+        "name": "Guelph Central GO",
+        "lat": 43.544353,
+        "lon": -80.246917
+      },
+      "to": {
+        "code": "02674",
+        "name": "Hwy 407 Bus Terminal",
+        "lat": 43.7830713234851,
+        "lon": -79.5244458372792
+      }
+    },
+    {
+      "id": "aldershot-meadowvale",
       "headline": "Aldershot \u2194 Meadowvale",
       "note": "1 h 41 min by transit \u00b7 2 transfers \u00b7 ~26 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 32.6,
       "freeFlowMin": 26,
       "current": {
@@ -33,10 +154,11 @@
       }
     },
     {
-      "id": "aurora__cornell",
+      "id": "aurora-cornell",
       "headline": "Aurora \u2194 Cornell",
       "note": "1 h 41 min by transit \u00b7 3 transfers \u00b7 ~18 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 22.6,
       "freeFlowMin": 18,
       "current": {
@@ -62,10 +184,41 @@
       }
     },
     {
-      "id": "mount-pleasant__oakville",
+      "id": "aurora-hwy-407",
+      "headline": "Aurora \u2194 Hwy 407",
+      "note": "1 h 48 min by transit \u00b7 3 transfers \u00b7 ~20 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 24.8,
+      "freeFlowMin": 20,
+      "current": {
+        "minutes": 108,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.33,
+      "demandLabel": "moderate",
+      "score": 1.156,
+      "from": {
+        "code": "00081",
+        "name": "Aurora GO Bus",
+        "lat": 44.000758,
+        "lon": -79.459725
+      },
+      "to": {
+        "code": "02673",
+        "name": "Hwy 407 Bus Terminal",
+        "lat": 43.7830713234851,
+        "lon": -79.5244458372792
+      }
+    },
+    {
+      "id": "mount-pleasant-oakville",
       "headline": "Mount Pleasant \u2194 Oakville",
       "note": "1 h 17 min by transit \u00b7 2 transfers \u00b7 ~21 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 26.9,
       "freeFlowMin": 21,
       "current": {
@@ -91,10 +244,41 @@
       }
     },
     {
-      "id": "guelph-central__milton",
+      "id": "hwy-407-port-credit",
+      "headline": "Hwy 407 \u2194 Port Credit",
+      "note": "1 h 24 min by transit \u00b7 3 transfers \u00b7 ~21 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 25.7,
+      "freeFlowMin": 21,
+      "current": {
+        "minutes": 84,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.39,
+      "demandLabel": "moderate",
+      "score": 1.143,
+      "from": {
+        "code": "02673",
+        "name": "Hwy 407 Bus Terminal",
+        "lat": 43.7830713234851,
+        "lon": -79.5244458372792
+      },
+      "to": {
+        "code": "02775",
+        "name": "Port Credit GO Bus",
+        "lat": 43.555999,
+        "lon": -79.586881
+      }
+    },
+    {
+      "id": "guelph-central-milton",
       "headline": "Guelph Central \u2194 Milton",
       "note": "1 h 36 min by transit \u00b7 3 transfers \u00b7 ~25 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 30.7,
       "freeFlowMin": 25,
       "current": {
@@ -120,10 +304,11 @@
       }
     },
     {
-      "id": "appleby__streetsville",
+      "id": "appleby-streetsville",
       "headline": "Appleby \u2194 Streetsville",
       "note": "1 h 35 min by transit \u00b7 3 transfers \u00b7 ~18 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 22.2,
       "freeFlowMin": 18,
       "current": {
@@ -149,10 +334,11 @@
       }
     },
     {
-      "id": "aldershot__milton",
+      "id": "aldershot-milton",
       "headline": "Aldershot \u2194 Milton",
       "note": "1 h 16 min by transit \u00b7 2 transfers \u00b7 ~19 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 23.4,
       "freeFlowMin": 19,
       "current": {
@@ -178,10 +364,11 @@
       }
     },
     {
-      "id": "mount-joy__whitby",
+      "id": "mount-joy-whitby",
       "headline": "Mount Joy \u2194 Whitby",
       "note": "1 h 38 min by transit \u00b7 3 transfers \u00b7 ~21 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 26.3,
       "freeFlowMin": 21,
       "current": {
@@ -207,10 +394,11 @@
       }
     },
     {
-      "id": "cooksville__georgetown",
+      "id": "cooksville-georgetown",
       "headline": "Cooksville \u2194 Georgetown",
       "note": "1 h 19 min by transit \u00b7 3 transfers \u00b7 ~20 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 25.1,
       "freeFlowMin": 20,
       "current": {
@@ -236,10 +424,11 @@
       }
     },
     {
-      "id": "cornell__maple",
+      "id": "cornell-maple",
       "headline": "Cornell \u2194 Maple",
       "note": "1 h 32 min by transit \u00b7 3 transfers \u00b7 ~18 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 22.1,
       "freeFlowMin": 18,
       "current": {
@@ -265,10 +454,11 @@
       }
     },
     {
-      "id": "ajax__old-elm",
+      "id": "ajax-old-elm",
       "headline": "Ajax \u2194 Old Elm",
       "note": "1 h 52 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 22.3,
       "freeFlowMin": 18,
       "current": {
@@ -294,10 +484,11 @@
       }
     },
     {
-      "id": "confederation__streetsville",
+      "id": "confederation-streetsville",
       "headline": "Confederation \u2194 Streetsville",
       "note": "2 h 03 min by transit \u00b7 3 transfers \u00b7 ~30 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 37.3,
       "freeFlowMin": 30,
       "current": {
@@ -323,10 +514,11 @@
       }
     },
     {
-      "id": "milton__port-credit",
+      "id": "milton-port-credit",
       "headline": "Milton \u2194 Port Credit",
       "note": "1 h 05 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 22.9,
       "freeFlowMin": 18,
       "current": {
@@ -352,10 +544,11 @@
       }
     },
     {
-      "id": "malton__milton",
+      "id": "malton-milton",
       "headline": "Malton \u2194 Milton",
       "note": "1 h 07 min by transit \u00b7 3 transfers \u00b7 ~22 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 27.3,
       "freeFlowMin": 22,
       "current": {
@@ -381,10 +574,11 @@
       }
     },
     {
-      "id": "bradford__old-elm",
+      "id": "bradford-old-elm",
       "headline": "Bradford \u2194 Old Elm",
       "note": "2 h 19 min by transit \u00b7 2 transfers \u00b7 ~23 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 29.0,
       "freeFlowMin": 23,
       "current": {
@@ -410,10 +604,11 @@
       }
     },
     {
-      "id": "bronte__georgetown",
+      "id": "bronte-georgetown",
       "headline": "Bronte \u2194 Georgetown",
       "note": "1 h 41 min by transit \u00b7 2 transfers \u00b7 ~25 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 30.9,
       "freeFlowMin": 25,
       "current": {
@@ -439,10 +634,11 @@
       }
     },
     {
-      "id": "bradford__gormley",
+      "id": "bradford-gormley",
       "headline": "Bradford \u2194 Gormley",
       "note": "2 h 12 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 23.1,
       "freeFlowMin": 18,
       "current": {
@@ -468,10 +664,11 @@
       }
     },
     {
-      "id": "kitchener__milton",
+      "id": "kitchener-milton",
       "headline": "Kitchener \u2194 Milton",
       "note": "1 h 56 min by transit \u00b7 3 transfers \u00b7 ~41 min if direct",
       "mode": "bus",
+      "priority": false,
       "straightLineKm": 51.1,
       "freeFlowMin": 41,
       "current": {
@@ -497,79 +694,22 @@
       }
     },
     {
-      "id": "maple__old-elm",
-      "headline": "Maple \u2194 Old Elm",
-      "note": "1 h 45 min by transit \u00b7 2 transfers \u00b7 ~21 min if direct",
+      "id": "bradford-hwy-407",
+      "headline": "Bradford \u2194 Hwy 407",
+      "note": "2 h 13 min by transit \u00b7 3 transfers \u00b7 ~30 min if direct",
       "mode": "bus",
-      "straightLineKm": 26.1,
-      "freeFlowMin": 21,
-      "current": {
-        "minutes": 105,
-        "transfers": 2,
-        "direct": false,
-        "reachable": true
-      },
-      "demand": 0.26,
-      "demandLabel": "light",
-      "score": 0.981,
-      "from": {
-        "code": "02157",
-        "name": "Maple GO Bus",
-        "lat": 43.859481,
-        "lon": -79.506984
-      },
-      "to": {
-        "code": "02830",
-        "name": "Old Elm GO Bus",
-        "lat": 43.990395,
-        "lon": -79.237098
-      }
-    },
-    {
-      "id": "bramalea__bronte",
-      "headline": "Bramalea \u2194 Bronte",
-      "note": "1 h 10 min by transit \u00b7 2 transfers \u00b7 ~25 min if direct",
-      "mode": "bus",
-      "straightLineKm": 31.9,
-      "freeFlowMin": 25,
-      "current": {
-        "minutes": 70,
-        "transfers": 2,
-        "direct": false,
-        "reachable": true
-      },
-      "demand": 0.41,
-      "demandLabel": "moderate",
-      "score": 0.977,
-      "from": {
-        "code": "00225",
-        "name": "Bramalea Bus Terminal",
-        "lat": 43.7022591,
-        "lon": -79.6887512
-      },
-      "to": {
-        "code": "00264",
-        "name": "Bronte GO Bus",
-        "lat": 43.416774,
-        "lon": -79.722294
-      }
-    },
-    {
-      "id": "bradford__cornell",
-      "headline": "Bradford \u2194 Cornell",
-      "note": "2 h 06 min by transit \u00b7 3 transfers \u00b7 ~30 min if direct",
-      "mode": "bus",
-      "straightLineKm": 36.9,
+      "priority": false,
+      "straightLineKm": 37.2,
       "freeFlowMin": 30,
       "current": {
-        "minutes": 126,
+        "minutes": 133,
         "transfers": 3,
         "direct": false,
         "reachable": true
       },
       "demand": 0.25,
       "demandLabel": "light",
-      "score": 0.969,
+      "score": 0.984,
       "from": {
         "code": "02160",
         "name": "Bradford GO Bus",
@@ -577,10 +717,10 @@
         "lon": -79.555394
       },
       "to": {
-        "code": "02815",
-        "name": "Cornell Bus Terminal",
-        "lat": 43.879761,
-        "lon": -79.232535
+        "code": "02673",
+        "name": "Hwy 407 Bus Terminal",
+        "lat": 43.7830713234851,
+        "lon": -79.5244458372792
       }
     }
   ]

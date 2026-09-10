@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import Link from "next/link";
-import { Sparkles, X, ArrowRight, ChevronDown } from "lucide-react";
+import { Sparkles, Star, X, ArrowRight, ChevronDown } from "lucide-react";
 import type { MapHandle } from "@/components/Map";
 import { fetchNetworkGaps, type NetworkGap } from "@/lib/networkGaps";
 
@@ -19,9 +19,10 @@ function mins(m: number): string {
 }
 
 function compactStat(gap: NetworkGap): string {
+  const direct = `~${mins(gap.freeFlowMin)} if direct`;
+  if (!gap.current.reachable) return `no route today · ${direct}`;
   const t = gap.current.transfers;
-  const now = gap.current.reachable ? `${mins(gap.current.minutes)} now` : "no path now";
-  return `${now} · ~${mins(gap.freeFlowMin)} if direct · ${t} transfer${t !== 1 ? "s" : ""}`;
+  return `${mins(gap.current.minutes)} now · ${direct} · ${t} transfer${t !== 1 ? "s" : ""}`;
 }
 
 interface GapFinderBetaProps {
@@ -183,6 +184,12 @@ export default function GapFinderBeta({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
+                    {gap.priority && (
+                      <Star
+                        className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400"
+                        aria-label="Priority corridor"
+                      />
+                    )}
                     <span className="truncate text-[13px] font-semibold text-slate-900">
                       {gap.headline}
                     </span>

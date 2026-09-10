@@ -266,16 +266,17 @@ export default function GapFinderPost() {
           What the panel shows this week
         </h2>
         <p>
-          The live ranking is bus-only, cross-regional, and demand-weighted.
-          A few of the corridors near the top:
+          The live ranking mixes a few hand-picked regional corridors (starred)
+          with the auto-discovered ones. Near the top right now:
         </p>
         <ul className="my-4 divide-y divide-[var(--landing-border)] rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)]">
           {[
+            ["★ Cambridge ↔ Bramalea GO", "no reasonable transit path today"],
+            ["★ Kitchener–Waterloo ↔ Niagara Falls", "3 h 27 min · 4 transfers · ~1 h 41 min if direct"],
+            ["★ Guelph ↔ Niagara Falls", "2 h 23 min · 3 transfers · ~1 h 26 min if direct"],
+            ["★ Guelph ↔ Highway 407", "1 h 12 min · 2 transfers · ~51 min if direct"],
             ["Aldershot ↔ Meadowvale", "1 h 41 min · 2 transfers · ~26 min if direct"],
-            ["Guelph Central ↔ Milton", "1 h 36 min · 3 transfers · ~25 min if direct"],
             ["Cooksville ↔ Georgetown", "1 h 19 min · 3 transfers · ~20 min if direct"],
-            ["Bradford ↔ Gormley", "2 h 12 min · 2 transfers · ~18 min if direct"],
-            ["Kitchener ↔ Milton", "1 h 56 min · 3 transfers · ~41 min if direct"],
           ].map(([name, note]) => (
             <li key={name} className="flex flex-col gap-0.5 px-5 py-3.5 sm:flex-row sm:items-baseline sm:justify-between">
               <span className="text-[15px] font-medium text-[var(--landing-ink)]">{name}</span>

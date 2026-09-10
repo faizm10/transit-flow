@@ -42,7 +42,7 @@ TRANSFER_PENALTY_MIN = 12.0
 MAX_LEGS = 3
 FREE_FLOW_KMH = 75.0
 MIN_KM = 22.0             # regional corridors, not neighbourhood hops
-MAX_KM = 90.0
+MAX_KM = 135.0           # up to inter-city (Waterloo, Niagara, Cambridge)
 MIN_RATIO = 2.4          # transit must be > 2.4x worse than free-flow
 MIN_DEMAND = 0.18
 KEEP = 20
@@ -62,9 +62,44 @@ NOISE = re.compile(r"(Parking Lot|Park & Ride|Transitway|@|Layby|Platform)", re.
 # Interchange hubs, not destinations — a suburb-to-subway trip is already what
 # GO's express buses are for, so these are poor corridor endpoints.
 HUB_ENDPOINTS = {
-    "Finch", "York Mills", "Yorkdale", "Scarborough Centre", "Hwy 407",
-    "Renforth", "Highway 407", "Union Station",
+    "Finch", "York Mills", "Yorkdale", "Scarborough Centre",
+    "Renforth", "Union Station",
 }
+
+# Hand-picked regional corridors that matter but sit outside the auto-discovery
+# window (too long, or an endpoint with almost no GO service). Routed through
+# the `via` anchors; `access_min` covers the leg from a non-rail endpoint.
+PRIORITY_CORRIDORS = [
+    dict(
+        headline="Kitchener–Waterloo ↔ Niagara Falls",
+        a=("02800", "University of Waterloo"),
+        b=("NI", "Niagara Falls GO"),
+        via=("Kitchener", "Niagara Falls"),
+        access_min=22,
+    ),
+    dict(
+        headline="Guelph ↔ Highway 407",
+        a=("GL", "Guelph Central GO"),
+        b=("02674", "Hwy 407 Bus Terminal"),
+        via=("Guelph Central", "Hwy 407"),
+        access_min=0,
+    ),
+    dict(
+        headline="Guelph ↔ Niagara Falls",
+        a=("GL", "Guelph Central GO"),
+        b=("NI", "Niagara Falls GO"),
+        via=("Guelph Central", "Niagara Falls"),
+        access_min=0,
+    ),
+    dict(
+        headline="Cambridge ↔ Bramalea GO",
+        a=("02150", "Cambridge Smart Centre"),
+        b=("BE", "Bramalea GO"),
+        via=None,
+        access_min=None,
+    ),
+]
+PRIORITY_SCORE_BOOST = 1.0
 
 
 def load(name: str):
@@ -255,31 +290,78 @@ def main() -> None:
                 + 0.06 * min(transfers, MAX_LEGS)
                 + 1.3 * dem
             )
+            a_code = sorted(codes_for_anchor[A])[0]
+            b_code = sorted(codes_for_anchor[B])[0]
             candidates.append(
                 dict(
-                    A=A, B=B, km=km, free_flow=free_flow, minutes=minutes,
+                    headline=f"{A} ↔ {B}",
+                    a_code=a_code, a_name=stops[a_code]["name"], alat=alat, alon=alon,
+                    b_code=b_code, b_name=stops[b_code]["name"], blat=blat, blon=blon,
+                    km=km, free_flow=free_flow, minutes=minutes,
                     transfers=transfers, reachable=reachable, demand=dem, score=score,
                     mid=((alat + blat) / 2, (alon + blon) / 2),
                     bearing=bearing_deg(alat, alon, blat, blon),
+                    priority=False,
                 )
             )
 
+    # ── Priority corridors (hand-picked, bypass the discovery filters) ────
+    for pc in PRIORITY_CORRIDORS:
+        (ac, an), (bc, bn) = pc["a"], pc["b"]
+        alat, alon = stops[ac]["lat"], stops[ac]["lon"]
+        blat, blon = stops[bc]["lat"], stops[bc]["lon"]
+        km = haversine_km(alat, alon, blat, blon)
+        free_flow = km / FREE_FLOW_KMH * 60.0
+        res = None
+        if pc["via"]:
+            res = itineraries.get(pc["via"][0], {}).get(pc["via"][1])
+        if res is None:
+            minutes, transfers, reachable = free_flow * 2.8, MAX_LEGS, False
+        else:
+            access = pc["access_min"] or 0
+            minutes = res[0] + access
+            transfers = res[1] + (1 if access else 0)
+            reachable = True
+        ratio = minutes / max(free_flow, 1.0)
+        dem = 0.7  # named regional markets — treat demand as high
+        score = (
+            0.3 * math.log(max(ratio, 1.01))
+            + 0.08 * min(transfers, MAX_LEGS)
+            + 1.1 * dem
+            + PRIORITY_SCORE_BOOST
+        )
+        candidates.append(
+            dict(
+                headline=pc["headline"],
+                a_code=ac, a_name=an, alat=alat, alon=alon,
+                b_code=bc, b_name=bn, blat=blat, blon=blon,
+                km=km, free_flow=free_flow, minutes=minutes,
+                transfers=transfers, reachable=reachable, demand=dem, score=score,
+                mid=((alat + blat) / 2, (alon + blon) / 2),
+                bearing=bearing_deg(alat, alon, blat, blon),
+                priority=True,
+            )
+        )
+
     candidates.sort(key=lambda c: c["score"], reverse=True)
+
+    def is_duplicate(c, k) -> bool:
+        if haversine_km(*c["mid"], *k["mid"]) >= DEDUP_KM:
+            return False
+        db = abs(c["bearing"] - k["bearing"]) % 360
+        db = min(db, 360 - db)
+        return db < DEDUP_BEARING_DEG or abs(db - 180) < DEDUP_BEARING_DEG
 
     kept = []
     for c in candidates:
-        dup = False
-        for k in kept:
-            if haversine_km(*c["mid"], *k["mid"]) < DEDUP_KM:
-                db = abs(c["bearing"] - k["bearing"]) % 360
-                db = min(db, 360 - db)
-                if db < DEDUP_BEARING_DEG or abs(db - 180) < DEDUP_BEARING_DEG:
-                    dup = True
-                    break
-        if not dup:
+        if c["priority"]:
             kept.append(c)
-        if len(kept) >= KEEP:
-            break
+            continue
+        if any(is_duplicate(c, k) for k in kept):
+            continue
+        if sum(1 for k in kept if not k["priority"]) >= KEEP:
+            continue
+        kept.append(c)
 
     def fmt(m: float) -> str:
         m = round(m)
@@ -290,11 +372,6 @@ def main() -> None:
 
     gaps = []
     for c in kept:
-        A, B = c["A"], c["B"]
-        a_code = sorted(codes_for_anchor[A])[0]
-        b_code = sorted(codes_for_anchor[B])[0]
-        alat, alon = anchor_pos[A]
-        blat, blon = anchor_pos[B]
         note = (
             f"{fmt(c['minutes'])} by transit · "
             f"{c['transfers']} transfer{'s' if c['transfers'] != 1 else ''} · "
@@ -304,10 +381,11 @@ def main() -> None:
         )
         gaps.append(
             dict(
-                id=f"{slugify(A)}__{slugify(B)}",
-                headline=f"{A} ↔ {B}",
+                id=slugify(c["headline"]),
+                headline=c["headline"],
                 note=note,
                 mode="bus",
+                priority=c["priority"],
                 straightLineKm=round(c["km"], 1),
                 freeFlowMin=round(c["free_flow"]),
                 current=dict(
@@ -320,8 +398,8 @@ def main() -> None:
                 demandLabel=demand_label(c["demand"]),
                 score=round(c["score"], 3),
                 **{
-                    "from": dict(code=a_code, name=stops[a_code]["name"], lat=alat, lon=alon),
-                    "to": dict(code=b_code, name=stops[b_code]["name"], lat=blat, lon=blon),
+                    "from": dict(code=c["a_code"], name=c["a_name"], lat=c["alat"], lon=c["alon"]),
+                    "to": dict(code=c["b_code"], name=c["b_name"], lat=c["blat"], lon=c["blon"]),
                 },
             )
         )

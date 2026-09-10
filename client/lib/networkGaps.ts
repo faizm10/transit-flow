@@ -16,6 +16,8 @@ export interface NetworkGap {
   note: string;
   /** The route type this corridor is a candidate for. Phase 1 is bus-only. */
   mode: "bus" | "train";
+  /** Hand-picked regional corridor, ranked above the auto-discovered ones. */
+  priority: boolean;
   straightLineKm: number;
   freeFlowMin: number;
   current: {
