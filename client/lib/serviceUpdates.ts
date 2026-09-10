@@ -220,48 +220,81 @@ function parseFromHtml(html: string, fetchedAt: string): ServiceUpdatesResult {
 
 import { getServiceAlerts } from "@/lib/metrolinx";
 
+/**
+ * Metrolinx alert bodies arrive with no space after sentence breaks
+ * ("needs.Train service") and a paragraph of "On the GO alerts" marketing
+ * boilerplate stapled to nearly every message. Strip both so the card reads
+ * as one clean paragraph.
+ */
+function cleanBody(text: string): string {
+  return text
+    .replace(/\s+/g, " ")
+    .replace(/([.!?])(?=[A-Z])/g, "$1 ")
+    .replace(
+      /\s*Subscribe to On the GO alerts[^]*?Sign up for On The GO alerts here\.?/gi,
+      ""
+    )
+    .replace(/\s*Sign up for On The GO alerts here\.?/gi, "")
+    .replace(/\s*(Please )?[Ss]ee below for (the )?current train status:?\s*$/i, "")
+    .trim();
+}
+
 function parseFromMetrolinxApi(
   data: Awaited<ReturnType<typeof getServiceAlerts>>,
   fetchedAt: string
 ): ServiceUpdatesResult | null {
-  const rawAlerts = data.Messages ?? data.Alerts ?? data.ServiceAlerts;
+  const rawAlerts = data.Messages?.Message;
   if (!rawAlerts || rawAlerts.length === 0) return null;
 
-  const alerts: ServiceAlert[] = rawAlerts.map((raw, i) => {
-    const title = raw.Title ?? "Service Alert";
-    const body = raw.Description ?? "";
+  const RAIL_CODES = ["BR", "KI", "LE", "LW", "MI", "RH", "ST", "UP"];
 
-    // Extract affected routes from Lines field or text
-    let routes: string[] = [];
-    if (raw.Lines && raw.Lines.length > 0) {
-      routes = raw.Lines.map((l) => l.Code?.toUpperCase().trim()).filter(
-        (c): c is string => !!c && ["BR", "KI", "LE", "LW", "MI", "RH", "ST", "UP"].includes(c)
-      );
-    }
-    if (routes.length === 0 && raw.Line) {
-      routes = extractRoutes([raw.Line]);
-    }
+  const alerts: ServiceAlert[] = rawAlerts.map((raw, i) => {
+    const title = raw.SubjectEnglish?.trim() || "Service Alert";
+    const body = cleanBody(raw.BodyEnglish ?? "");
+
+    // `Lines[].Code` is a GO rail short code, a bus route number, or a network
+    // code ("GT"). Keep only the rail codes the line filter understands; fall
+    // back to scanning the text so rail alerts tagged only by bus route still
+    // surface under the right line.
+    let routes = (raw.Lines ?? [])
+      .map((l) => l.Code?.toUpperCase().trim())
+      .filter((c): c is string => !!c && RAIL_CODES.includes(c));
     if (routes.length === 0) {
       routes = extractRoutesFromText(`${title} ${body}`);
     }
+    routes = [...new Set(routes)];
 
-    const type: AlertType = raw.Type
-      ? (/cancel|suspend/i.test(raw.Type) ? "cancellation"
-        : /delay|disruption/i.test(raw.Type) ? "delay"
-        : /info|notice|advisory/i.test(raw.Type) ? "information"
-        : classifyType(title, body))
-      : classifyType(title, body);
+    // The API's own taxonomy is coarse: Category is "Amenity" /
+    // "Service Disruption" / "UP Express Station Messages" and SubCategory is
+    // "Train Delay" / "Elevator-Escalator Disruption" / "Temporary Bus Stop
+    // Location" / … — so "disruption" alone can't mean "delay" (an out-of-
+    // service elevator isn't one). Key off the specific labels, then the text.
+    const cat = raw.Category?.toLowerCase() ?? "";
+    const sub = raw.SubCategory?.toLowerCase() ?? "";
+    const text = `${title} ${body}`.toLowerCase();
+    const type: AlertType =
+      /cancel|suspend|no service/.test(`${sub} ${text}`) ? "cancellation"
+      : sub.includes("delay") || /\bdelay(s|ed)?\b/.test(text) ? "delay"
+      : cat === "amenity" ||
+          cat.includes("station message") ||
+          sub.includes("elevator") ||
+          sub.includes("escalator") ||
+          sub.includes("bus stop") ||
+          sub.includes("stop location")
+        ? "information"
+        : classifyType(title, body);
 
     const postedAt = (() => {
-      if (raw.StartDate) {
-        const d = new Date(raw.StartDate);
+      if (raw.PostedDateTime) {
+        // "YYYY-MM-DD HH:MM:SS" (America/Toronto local, no offset).
+        const d = new Date(raw.PostedDateTime.replace(" ", "T"));
         if (!isNaN(d.getTime())) return d.toISOString();
       }
       return fetchedAt;
     })();
 
     return {
-      id: raw.ID ?? `alert-${i}`,
+      id: raw.Code || `alert-${i}`,
       title,
       body,
       routes,
