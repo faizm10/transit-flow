@@ -1,12 +1,11 @@
 "use client";
 
-import { Pencil, Train, MapPin, Loader2, ChevronLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Pencil, Train, MapPin, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BuilderWizard from "@/components/panels/BuilderWizard";
 import ExtendRouteWizard from "@/components/panels/ExtendRouteWizard";
 import StationsPanel from "@/components/panels/StationsPanel";
-import { type CustomRoute, type CustomStation, type EnrichedRoute } from "@/lib/gtfs";
+import { type CustomRoute, type CustomStation, type CustomStop, type EnrichedRoute } from "@/lib/gtfs";
 
 export type DesignTab = "existing" | "new" | "stations";
 
@@ -38,6 +37,12 @@ interface DesignPanelProps {
   extendWizardKey?: string;
   /** Extend tab: block wizard until GO line deep link resolves */
   extendTabLoading?: boolean;
+  /** Create tab: pre-fill the stop list (e.g. a Gap Finder corridor's endpoints). */
+  newSeedStops?: CustomStop[];
+  /** Create tab: remount the wizard when a new seed arrives. */
+  newWizardKey?: string;
+  /** Create tab: lock the route type and skip the type-picker step. */
+  newLockRouteType?: "bus" | "train";
 }
 
 export default function DesignPanel({
@@ -61,9 +66,13 @@ export default function DesignPanel({
   extendInitialRoute,
   extendWizardKey,
   extendTabLoading,
+  newSeedStops,
+  newWizardKey,
+  newLockRouteType,
 }: DesignPanelProps) {
   const extendKey = extendWizardKey ?? extendInitialRoute?.route_id ?? "pick";
   const stationsOpen = activeTab === "stations";
+  const hasStations = Boolean(onSaveStation && onDeleteStation);
 
   return (
     <Tabs
@@ -71,55 +80,37 @@ export default function DesignPanel({
       onValueChange={(value) => onActiveTabChange(value as DesignTab)}
       className="flex h-full min-h-0 flex-col gap-0"
     >
-      <div className="border-b border-slate-100 px-3 pb-2 pt-3">
-        {stationsOpen ? (
-          <div className="flex flex-col gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 w-fit gap-1 px-2 text-xs text-slate-600"
-              onClick={() => onActiveTabChange("new")}
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-              Back to create route
-            </Button>
-            <p className="text-xs text-slate-500">
+      <div className="border-b border-[var(--landing-border)] px-3 pb-2 pt-3">
+        <div className="flex flex-col gap-2">
+          <TabsList
+            className={`grid h-9 min-w-0 rounded-none [&_[data-slot=tabs-trigger]]:rounded-none [&_[data-slot=tabs-trigger]]:font-[family-name:var(--landing-mono)] [&_[data-slot=tabs-trigger]]:text-[10px] [&_[data-slot=tabs-trigger]]:uppercase [&_[data-slot=tabs-trigger]]:tracking-[0.06em] ${
+              hasStations ? "grid-cols-3" : "grid-cols-2"
+            }`}
+          >
+            <TabsTrigger value="existing" className="text-xs gap-1">
+              <Train className="h-3.5 w-3.5 shrink-0" /> Extend
+            </TabsTrigger>
+            <TabsTrigger value="new" className="text-xs gap-1">
+              <Pencil className="h-3.5 w-3.5 shrink-0" /> Create
+            </TabsTrigger>
+            {hasStations && (
+              <TabsTrigger value="stations" className="text-xs gap-1">
+                <MapPin className="h-3.5 w-3.5 shrink-0" /> Stations
+              </TabsTrigger>
+            )}
+          </TabsList>
+          {stationsOpen && (
+            <p className="text-xs text-[var(--landing-muted)]">
               Saved stops you can reuse when building routes.
             </p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-start justify-between gap-2">
-              <TabsList className="grid h-9 min-w-0 flex-1 grid-cols-2">
-                <TabsTrigger value="existing" className="text-xs gap-1">
-                  <Train className="h-3.5 w-3.5 shrink-0" /> Extend
-                </TabsTrigger>
-                <TabsTrigger value="new" className="text-xs gap-1">
-                  <Pencil className="h-3.5 w-3.5 shrink-0" /> Create
-                </TabsTrigger>
-              </TabsList>
-              {onSaveStation && onDeleteStation && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 shrink-0 gap-1 px-2 text-xs text-slate-600 hover:text-slate-900"
-                  onClick={() => onActiveTabChange("stations")}
-                >
-                  <MapPin className="h-3.5 w-3.5" />
-                  Stations
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <TabsContent value="existing" className="mt-0 min-h-0 flex-1 overflow-y-auto">
         {activeTab === "existing" && extendTabLoading && (
-          <div className="flex min-h-[12rem] flex-col items-center justify-center gap-2 p-8 text-center text-sm text-slate-500">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+          <div className="flex min-h-[12rem] flex-col items-center justify-center gap-2 p-8 text-center text-sm text-[var(--landing-muted)]">
+            <Loader2 className="h-8 w-8 animate-spin text-[var(--landing-faint)]" />
             <span>Loading GO line…</span>
           </div>
         )}
@@ -151,6 +142,9 @@ export default function DesignPanel({
       <TabsContent value="new" className="mt-0 min-h-0 flex-1 overflow-y-auto">
         {activeTab === "new" && (
           <BuilderWizard
+            key={newWizardKey}
+            seedStops={newSeedStops}
+            lockRouteType={newLockRouteType}
             onSave={onSaveRoute}
             onDrawRequest={onDrawRequest}
             onEditRequest={onEditRequest}

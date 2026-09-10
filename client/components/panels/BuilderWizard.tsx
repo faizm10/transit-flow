@@ -36,6 +36,10 @@ interface BuilderWizardProps {
   existingRoute?: CustomRoute;
   /** Fires whenever the user switches between bus and train mode. */
   onTrainModeChange?: (isTrain: boolean) => void;
+  /** Pre-fill the stop list (e.g. the two endpoints of a Gap Finder corridor). Used only for a fresh route. */
+  seedStops?: CustomStop[];
+  /** Lock the route type and skip the "what are you building?" step (Gap Finder is bus-only). Fresh route only. */
+  lockRouteType?: "bus" | "train";
   /** Custom stations available as searchable stops. */
   customStations?: CustomStation[];
   /** Map pin mode: user clicks the map to choose coordinates (same as Stations panel). */
@@ -51,18 +55,18 @@ const ROUTE_TYPE_OPTIONS = [
   {
     type: "bus" as const,
     icon: Bus,
-    label: "New bus route",
-    description: "Follows real roads between stops",
-    color: "border-blue-200 bg-blue-50",
-    iconColor: "text-blue-600",
+    label: "Bus route",
+    description: "Snaps to the road network",
+    color: "border-[var(--landing-border-2)] bg-[var(--landing-wash)]",
+    iconColor: "text-[var(--landing-accent)]",
   },
   {
     type: "train" as const,
     icon: Train,
-    label: "New train line",
-    description: "Draw the line you want; saved shape is used as-is for the map and simulation",
-    color: "border-emerald-200 bg-emerald-50",
-    iconColor: "text-emerald-600",
+    label: "Train line",
+    description: "Draw the exact line yourself",
+    color: "border-[var(--landing-border-2)] bg-[var(--landing-wash)]",
+    iconColor: "text-[var(--landing-accent)]",
   },
 ];
 
@@ -89,6 +93,133 @@ function geometryDistanceKm(coords: [number, number][]): number | null {
   let metres = 0;
   for (let i = 1; i < coords.length; i++) metres += distanceM(coords[i - 1], coords[i]);
   return Math.round(metres / 100) / 10;
+}
+
+/** Insertion index for a new stop that adds the least total detour. */
+function bestInsertIndex(stops: CustomStop[], s: CustomStop): number {
+  if (stops.length < 2) return stops.length;
+  const at = (p: CustomStop): [number, number] => [p.lon, p.lat];
+  const here = at(s);
+  let best = stops.length;
+  let bestCost = Infinity;
+  for (let k = 0; k <= stops.length; k++) {
+    let cost: number;
+    if (k === 0) cost = distanceM(here, at(stops[0]));
+    else if (k === stops.length) cost = distanceM(at(stops[stops.length - 1]), here);
+    else {
+      cost =
+        distanceM(at(stops[k - 1]), here) +
+        distanceM(here, at(stops[k])) -
+        distanceM(at(stops[k - 1]), at(stops[k]));
+    }
+    if (cost < bestCost) {
+      bestCost = cost;
+      best = k;
+    }
+  }
+  return best;
+}
+
+/**
+ * Draggable stop list. Uses native HTML5 drag, so a plain click never starts a
+ * reorder — you have to press and move. Reordering while hovering; commits on
+ * drop.
+ */
+function StopList({
+  stops,
+  color,
+  noun,
+  disabled,
+  onReorder,
+  onRemove,
+}: {
+  stops: CustomStop[];
+  color: string;
+  noun: "stops" | "stations";
+  disabled?: boolean;
+  onReorder: (from: number, to: number) => void;
+  onRemove: (id: string) => void;
+}) {
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+
+  const clearDrag = () => {
+    dragIndexRef.current = null;
+    setDragIndex(null);
+    setOverIndex(null);
+  };
+
+  if (stops.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <p className="text-xs font-medium text-[var(--landing-muted)] mb-0.5">
+        {stops.length} {noun}
+        {stops.length > 2 && (
+          <span className="ml-1.5 font-normal text-[var(--landing-faint)]">· drag to reorder</span>
+        )}
+      </p>
+      {stops.map((s, i) => (
+        <div
+          key={s.id}
+          draggable={!disabled}
+          onDragStart={(e) => {
+            if ((e.target as HTMLElement).closest("button")) {
+              e.preventDefault();
+              return;
+            }
+            dragIndexRef.current = i;
+            setDragIndex(i);
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", s.id); // Firefox needs a payload
+          }}
+          onDragEnter={() => {
+            const from = dragIndexRef.current;
+            if (from !== null && from !== i) setOverIndex(i);
+          }}
+          onDragOver={(e) => {
+            if (dragIndexRef.current !== null) e.preventDefault();
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const from = dragIndexRef.current;
+            if (from !== null && from !== i) onReorder(from, i);
+            clearDrag();
+          }}
+          onDragEnd={clearDrag}
+          className={`flex items-center gap-2 rounded-none px-2 py-2 transition-colors ${
+            dragIndex === i
+              ? "opacity-40"
+              : overIndex === i
+                ? "bg-[var(--landing-wash)] ring-1 ring-[var(--landing-accent)]/30"
+                : "hover:bg-[var(--landing-wash)]"
+          }`}
+        >
+          <GripVertical
+            className={`h-4 w-4 shrink-0 text-[var(--landing-faint)] ${
+              disabled ? "" : "cursor-grab active:cursor-grabbing"
+            }`}
+          />
+          <div
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-none text-[10px] font-semibold text-white"
+            style={{ backgroundColor: color }}
+          >
+            {i + 1}
+          </div>
+          <span className="flex-1 truncate text-sm text-[var(--landing-ink)]">{s.name}</span>
+          <button
+            type="button"
+            onClick={() => onRemove(s.id)}
+            disabled={disabled}
+            className="text-[var(--landing-faint)] transition-colors hover:text-[var(--landing-red)] disabled:opacity-40"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /** Mapbox Directions allows up to 25 coordinates; match our stop-routing stride. */
@@ -141,20 +272,28 @@ export default function BuilderWizard({
   drawGeometry,
   existingRoute,
   onTrainModeChange,
+  seedStops,
+  lockRouteType,
   customStations = [],
   onStartPinMode,
   onStopPinMode,
   onSaveStation,
   onOpenSavedStations,
 }: BuilderWizardProps) {
-  const [step, setStep] = useState<Step>(existingRoute ? "review" : "type");
+  /** Fresh route with a locked type (from Gap Finder) — skip the type-picker step. */
+  const typeLocked = !existingRoute && !!lockRouteType;
+  const [step, setStep] = useState<Step>(
+    existingRoute ? "review" : typeLocked ? "stops" : "type"
+  );
   const [routeType, setRouteType] = useState<"bus" | "train">(
-    existingRoute?.type ?? "bus"
+    existingRoute?.type ?? lockRouteType ?? "bus"
   );
   const [name, setName] = useState(existingRoute?.name ?? "");
   const [description, setDescription] = useState(existingRoute?.description ?? "");
   const [color, setColor] = useState(existingRoute?.color ?? CUSTOM_ROUTE_COLORS[0]);
-  const [stops, setStops] = useState<CustomStop[]>(existingRoute?.stops ?? []);
+  const [stops, setStops] = useState<CustomStop[]>(
+    existingRoute?.stops ?? seedStops ?? []
+  );
   const [stopQuery, setStopQuery] = useState("");
   const [stopResults, setStopResults] = useState<CustomStop[]>([]);
   const [searching, setSearching] = useState(false);
@@ -614,7 +753,12 @@ export default function BuilderWizard({
   }, [stops.length, customStations]);
 
   function addStop(s: CustomStop) {
-    setStops((prev) => [...prev, { ...s, sequence: prev.length + 1 }]);
+    setStops((prev) => {
+      const k = bestInsertIndex(prev, s);
+      const next = [...prev];
+      next.splice(k, 0, { ...s, sequence: k + 1 });
+      return next.map((x, i) => ({ ...x, sequence: i + 1 }));
+    });
     setStopQuery("");
     setStopResults([]);
     lastFetchKeyRef.current = "";
@@ -625,6 +769,17 @@ export default function BuilderWizard({
     setStops((prev) =>
       prev.filter((s) => s.id !== id).map((s, i) => ({ ...s, sequence: i + 1 }))
     );
+    lastFetchKeyRef.current = "";
+    lastBusStopDirectionsKeyRef.current = "";
+  }
+
+  function reorderStops(from: number, to: number) {
+    setStops((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next.map((s, i) => ({ ...s, sequence: i + 1 }));
+    });
     lastFetchKeyRef.current = "";
     lastBusStopDirectionsKeyRef.current = "";
   }
@@ -673,20 +828,23 @@ export default function BuilderWizard({
     onCancel();
   }
 
-  const steps: Step[] = routeType === "train"
+  const allSteps: Step[] = routeType === "train"
     ? ["type", "draw", "stops", "schedule", "review"]
     : ["type", "stops", "schedule", "review"];
+  const steps: Step[] = typeLocked
+    ? allSteps.filter((s) => s !== "type")
+    : allSteps;
   const stepIndex = steps.indexOf(step);
 
   // ── Step renderer ────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between gap-2">
+      <div className="px-4 pt-4 pb-3 border-b border-[var(--landing-border)] flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="font-semibold text-slate-900 text-base">Design a route</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Step {stepIndex + 1} of {steps.length}
+          <h2 className="font-[family-name:var(--font-hanken)] font-medium text-[var(--landing-ink)] text-base">Design a route</h2>
+          <p className="text-xs text-[var(--landing-faint)] mt-0.5">
+            <span className="font-[family-name:var(--landing-mono)] uppercase tracking-[0.08em]">Step {stepIndex + 1} / {steps.length}</span>
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -694,21 +852,21 @@ export default function BuilderWizard({
             <button
               type="button"
               onClick={onOpenSavedStations}
-              className="text-xs font-medium text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline"
+              className="text-xs font-medium text-[var(--landing-muted)] underline-offset-2 hover:text-[var(--landing-ink)] hover:underline"
             >
               Saved stations
             </button>
           )}
-          <button onClick={handleCancel} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <button onClick={handleCancel} className="text-[var(--landing-faint)] hover:text-[var(--landing-ink)] transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="h-1 bg-slate-100">
+      <div className="h-1 bg-[var(--landing-wash)]">
         <div
-          className="h-full bg-[#007A33] transition-all duration-300"
+          className="h-full bg-[var(--landing-accent)] transition-all duration-300"
           style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }}
         />
       </div>
@@ -719,14 +877,14 @@ export default function BuilderWizard({
         {/* ── Step 1: Route type ──────────────────────────────────────────── */}
         {step === "type" && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm font-medium text-slate-700 mb-1">What are you building?</p>
+            <p className="font-[family-name:var(--landing-mono)] text-[0.6875rem] font-medium uppercase tracking-[0.1em] text-[var(--landing-faint)] mb-1">Route type</p>
             {ROUTE_TYPE_OPTIONS.map(({ type, icon: Icon, label, description: desc, color: c, iconColor }) => (
               <button
                 key={type}
-                className={`w-full flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all ${
+                className={`w-full flex items-center gap-3 rounded-none border p-4 text-left transition-all ${
                   routeType === type
                     ? `${c} border-current`
-                    : "border-slate-100 bg-white hover:border-slate-200"
+                    : "border-[var(--landing-border)] bg-[var(--landing-elevated)] hover:border-[var(--landing-border-2)]"
                 }`}
                 onClick={() => {
                   setRouteType(type);
@@ -738,14 +896,14 @@ export default function BuilderWizard({
                   }
                 }}
               >
-                <div className={`w-10 h-10 rounded-xl ${c} flex items-center justify-center`}>
+                <div className={`w-10 h-10 rounded-none ${c} flex items-center justify-center`}>
                   <Icon className={`w-5 h-5 ${iconColor}`} />
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-900">{label}</p>
-                  <p className="text-sm text-slate-500">{desc}</p>
+                  <p className="font-[family-name:var(--font-hanken)] font-medium text-[var(--landing-ink)]">{label}</p>
+                  <p className="text-[13px] text-[var(--landing-muted)] mt-0.5">{desc}</p>
                 </div>
-                <ArrowRight className="ml-auto w-4 h-4 text-slate-300" />
+                <ArrowRight className="ml-auto w-4 h-4 text-[var(--landing-faint)]" />
               </button>
             ))}
           </div>
@@ -754,33 +912,32 @@ export default function BuilderWizard({
         {/* ── Step 2 (train only): draw path ─────────────────────── */}
         {step === "draw" && (
           <div className="flex flex-col gap-4">
-            <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3.5 flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Train className="w-4 h-4 text-emerald-700" />
+            <div className="rounded-none border border-[var(--landing-border)] bg-[var(--landing-wash)] px-4 py-3.5 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-none bg-[var(--landing-wash)] flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Train className="w-4 h-4 text-[var(--landing-accent)]" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-900">Draw your line</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Click the map to place points. Double-click or press Enter to finish—the green preview follows your line
-                  exactly.
+                <p className="font-[family-name:var(--font-hanken)] text-sm font-medium text-[var(--landing-ink)]">Draw your line</p>
+                <p className="text-xs text-[var(--landing-muted)] mt-0.5">
+                  Click to place points. Double-click or Enter to finish.
                 </p>
               </div>
             </div>
 
             {!routeGeometry && (
               <button
-                className="flex items-center gap-2 text-sm text-[#007A33] font-medium py-3 px-4 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                className="flex items-center gap-2 text-sm text-[var(--landing-accent)] font-medium py-3 px-4 rounded-none border border-dashed border-[var(--landing-border-2)] bg-[var(--landing-wash)] hover:bg-[var(--landing-wash)] transition-colors"
                 onClick={onDrawRequest}
               >
                 <Pencil className="w-4 h-4" />
                 Draw on map
-                <span className="ml-auto text-xs text-emerald-600 opacity-70">click to place points</span>
+                
               </button>
             )}
 
             {routeGeometry && (
               <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2.5">
+                <div className="flex items-center gap-2 text-xs text-[var(--landing-accent)] bg-[var(--landing-wash)] rounded-none px-3 py-2.5">
                   <Check className="w-3.5 h-3.5 flex-shrink-0" />
                   {routeDurationSecs
                     ? `Your line · ~${Math.round(routeDurationSecs / 60)} min${routeDistanceKm ? ` · ${routeDistanceKm} km` : ""}`
@@ -788,18 +945,18 @@ export default function BuilderWizard({
                 </div>
 
                 {routeWarnings.length > 0 && (
-                  <div className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                  <div className="text-xs text-[var(--landing-amber)] bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] border border-[color-mix(in_oklab,var(--landing-amber)_22%,transparent)] rounded-none px-3 py-2.5">
                     {routeWarnings[0]}
                   </div>
                 )}
 
                 {isEditing ? (
-                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
-                    <Move className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-                    <span className="text-xs text-amber-700 font-medium flex-1">Drag points to adjust the line</span>
+                  <div className="flex items-center gap-2 bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] border border-[color-mix(in_oklab,var(--landing-amber)_28%,transparent)] rounded-none px-3 py-2.5">
+                    <Move className="w-3.5 h-3.5 text-[var(--landing-amber)] flex-shrink-0" />
+                    <span className="text-xs text-[var(--landing-amber)] font-medium flex-1">Drag points to adjust the line</span>
                     <button
                       onClick={handleEditDone}
-                      className="text-xs font-semibold text-[#007A33] hover:underline whitespace-nowrap"
+                      className="text-xs font-semibold text-[var(--landing-accent)] hover:underline whitespace-nowrap"
                     >
                       Done ✓
                     </button>
@@ -808,14 +965,14 @@ export default function BuilderWizard({
                   <div className="flex flex-col gap-2">
                     <div className="flex gap-2">
                       <button
-                        className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-2 px-3 rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] hover:bg-[var(--landing-wash)] transition-colors"
                         onClick={handleEditRequest}
                       >
-                        <Move className="w-3.5 h-3.5 text-slate-400" />
+                        <Move className="w-3.5 h-3.5 text-[var(--landing-faint)]" />
                         Edit shape
                       </button>
                       <button
-                        className="flex items-center justify-center gap-1.5 text-sm text-slate-500 py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                        className="flex items-center justify-center gap-1.5 text-sm text-[var(--landing-muted)] py-2 px-3 rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] hover:bg-[var(--landing-wash)] transition-colors"
                         onClick={() => { setRouteGeometry(null); setSnapRailError(null); onDrawRequest(); }}
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -825,22 +982,22 @@ export default function BuilderWizard({
 
                     {/* ── Snap to rail ─────────────────────────────────────── */}
                     <button
-                      className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50 hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-none border border-dashed border-[color-mix(in_oklab,var(--landing-accent)_45%,transparent)] bg-[var(--landing-wash)] hover:bg-[var(--landing-wash)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={isSnappingToRail}
                       onClick={() => routeGeometry && snapGeometryToRail(routeGeometry)}
                     >
                       {isSnappingToRail ? (
-                        <Loader2 className="w-3.5 h-3.5 text-emerald-700 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 text-[var(--landing-accent)] animate-spin" />
                       ) : (
-                        <Train className="w-3.5 h-3.5 text-emerald-700" />
+                        <Train className="w-3.5 h-3.5 text-[var(--landing-accent)]" />
                       )}
-                      <span className="text-emerald-800">
+                      <span className="text-[var(--landing-accent)]">
                         {isSnappingToRail ? "Snapping to rail…" : "Snap to existing rail track"}
                       </span>
                     </button>
 
                     {snapRailError && (
-                      <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                      <p className="text-xs text-[var(--landing-red)] bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] border border-[color-mix(in_oklab,var(--landing-red)_24%,transparent)] rounded-none px-3 py-2">
                         {snapRailError}
                       </p>
                     )}
@@ -850,8 +1007,8 @@ export default function BuilderWizard({
             )}
 
             {/* ── Station picker (draw step) ──────────────────────────────── */}
-            <div className="border-t border-slate-100 pt-4 flex flex-col gap-2">
-              <p className="text-xs font-medium text-slate-500">Add stations along your line</p>
+            <div className="border-t border-[var(--landing-border)] pt-4 flex flex-col gap-2">
+              <p className="text-xs font-medium text-[var(--landing-muted)]">Add stations along your line</p>
 
               {!pendingTrainStation && (
                 <div className="flex gap-2">
@@ -860,21 +1017,21 @@ export default function BuilderWizard({
                       placeholder="Search GO stations…"
                       value={stopQuery}
                       onChange={(e) => { setStopQuery(e.target.value); searchStops(e.target.value); }}
-                      className="rounded-xl h-9 text-sm pr-7"
+                      className="rounded-none h-9 text-sm pr-7"
                       disabled={placingTrainStation}
                     />
                     {searching && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-[var(--landing-border-2)] border-t-transparent rounded-none animate-spin" />
                     )}
                   </div>
                   {onStartPinMode && (
                     <button
                       onClick={placingTrainStation ? cancelPlaceTrainStationOnMap : startPlaceTrainStationOnMap}
                       title={placingTrainStation ? "Cancel" : "Place new station on map"}
-                      className={`flex-shrink-0 flex items-center gap-1 rounded-xl px-3 text-xs font-medium border transition-colors ${
+                      className={`flex-shrink-0 flex items-center gap-1 rounded-none px-3 text-xs font-medium border transition-colors ${
                         placingTrainStation
-                          ? "bg-amber-50 border-amber-200 text-amber-700"
-                          : "bg-white border-slate-200 text-slate-600 hover:border-slate-400"
+                          ? "bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] border-[color-mix(in_oklab,var(--landing-amber)_28%,transparent)] text-[var(--landing-amber)]"
+                          : "bg-[var(--landing-elevated)] border-[var(--landing-border-2)] text-[var(--landing-muted)] hover:border-[var(--landing-ink)]"
                       }`}
                     >
                       <MapPin className="w-3.5 h-3.5" />
@@ -885,14 +1042,14 @@ export default function BuilderWizard({
               )}
 
               {placingTrainStation && !pendingTrainStation && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
+                <div className="rounded-none border border-[color-mix(in_oklab,var(--landing-amber)_28%,transparent)] bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] px-3 py-2.5 text-xs text-[var(--landing-amber)]">
                   <p className="font-medium">Click anywhere on the map to place the station</p>
                 </div>
               )}
 
               {pendingTrainStation && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex flex-col gap-2">
-                  <p className="text-xs font-semibold text-[#007A33] flex items-center gap-1.5">
+                <div className="rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-wash)] p-3 flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-[var(--landing-accent)] flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
                     {pendingTrainStation.lat.toFixed(4)}, {pendingTrainStation.lon.toFixed(4)}
                   </p>
@@ -903,35 +1060,35 @@ export default function BuilderWizard({
                     value={pendingTrainStationName}
                     onChange={(e) => setPendingTrainStationName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") confirmPendingTrainStation(); }}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/30"
+                    className="w-full rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-2 text-sm text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
                   />
-                  <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
-                    <input type="checkbox" checked={saveTrainStationToLibrary} onChange={(e) => setSaveTrainStationToLibrary(e.target.checked)} className="rounded" />
+                  <label className="flex items-center gap-2 text-xs text-[var(--landing-muted)] cursor-pointer">
+                    <input type="checkbox" checked={saveTrainStationToLibrary} onChange={(e) => setSaveTrainStationToLibrary(e.target.checked)} className="rounded-none" />
                     Save to station library
                   </label>
                   <div className="flex gap-2">
-                    <button onClick={cancelPlaceTrainStationOnMap} className="flex-1 rounded-lg border border-slate-200 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-                    <button onClick={confirmPendingTrainStation} className="flex-1 rounded-lg bg-[#007A33] py-1.5 text-xs font-medium text-white hover:bg-[#005f28]">Add to route</button>
+                    <button onClick={cancelPlaceTrainStationOnMap} className="flex-1 rounded-none border border-[var(--landing-border-2)] py-1.5 text-xs font-medium text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]">Cancel</button>
+                    <button onClick={confirmPendingTrainStation} className="flex-1 rounded-none bg-[var(--landing-accent)] py-1.5 text-xs font-medium text-white hover:opacity-90">Add to route</button>
                   </div>
                 </div>
               )}
 
               {stopResults.length > 0 && !pendingTrainStation && (
-                <div className="rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden">
+                <div className="rounded-none border border-[var(--landing-border)] bg-[var(--landing-elevated)] overflow-hidden">
                   {stopResults.map((s) => {
                     const isCustom = s.id.startsWith("station:");
                     return (
                       <button
                         key={s.id}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-slate-50 text-left border-b border-slate-50 last:border-0"
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--landing-wash)] text-left border-b border-[var(--landing-border)] last:border-0"
                         onClick={() => addStop(s)}
                       >
                         {isCustom
-                          ? <Train className="w-4 h-4 text-[#007A33] flex-shrink-0" />
-                          : <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />}
+                          ? <Train className="w-4 h-4 text-[var(--landing-accent)] flex-shrink-0" />
+                          : <MapPin className="w-4 h-4 text-[var(--landing-faint)] flex-shrink-0" />}
                         <span className="flex-1 truncate">{s.name}</span>
-                        {isCustom && <span className="text-[10px] text-[#007A33] bg-emerald-50 rounded px-1.5 py-0.5 font-medium">saved</span>}
-                        <Plus className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                        {isCustom && <span className="text-[10px] text-[var(--landing-accent)] bg-[var(--landing-wash)] rounded-none px-1.5 py-0.5 font-medium">saved</span>}
+                        <Plus className="w-4 h-4 text-[var(--landing-faint)] flex-shrink-0" />
                       </button>
                     );
                   })}
@@ -940,19 +1097,19 @@ export default function BuilderWizard({
 
               {stops.length > 0 && (
                 <div className="flex flex-col gap-1 pt-1">
-                  <p className="text-xs text-slate-400">{stops.length} station{stops.length !== 1 ? "s" : ""} added</p>
+                  <p className="text-xs text-[var(--landing-faint)]">{stops.length} station{stops.length !== 1 ? "s" : ""} added</p>
                   {stops.map((s, i) => (
-                    <div key={s.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white border border-slate-100">
-                      <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0" style={{ backgroundColor: color }}>{i + 1}</div>
-                      <span className="text-xs text-slate-700 flex-1 truncate">{s.name}</span>
-                      <button onClick={() => removeStop(s.id)} className="text-slate-300 hover:text-red-400 transition-colors"><X className="w-3 h-3" /></button>
+                    <div key={s.id} className="flex items-center gap-2 px-2 py-1.5 rounded-none bg-[var(--landing-elevated)] border border-[var(--landing-border)]">
+                      <div className="w-4 h-4 rounded-none flex items-center justify-center text-white text-[9px] font-semibold flex-shrink-0" style={{ backgroundColor: color }}>{i + 1}</div>
+                      <span className="text-xs text-[var(--landing-ink)] flex-1 truncate">{s.name}</span>
+                      <button onClick={() => removeStop(s.id)} className="text-[var(--landing-faint)] hover:text-[var(--landing-red)] transition-colors"><X className="w-3 h-3" /></button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            <p className="text-xs text-slate-400 text-center">
+            <p className="text-xs text-[var(--landing-faint)] text-center">
               Travel time is estimated from line length (not real-world timetables). Use Edit to reshape anytime.
             </p>
           </div>
@@ -961,21 +1118,21 @@ export default function BuilderWizard({
         {/* ── Stops (includes name & style) ─────────────────────────────── */}
         {step === "stops" && (
           <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-4 rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+            <div className="flex flex-col gap-4 rounded-none border border-[var(--landing-border)] bg-[var(--landing-wash)] p-3">
               <div>
-                <Label className="text-sm font-medium text-slate-700 mb-1.5 block">
+                <Label className="text-sm font-medium text-[var(--landing-ink)] mb-1.5 block">
                   What should we call it?
                 </Label>
                 <Input
                   placeholder={routeType === "train" ? "e.g. East Bayfront Rail" : "e.g. Airport Express"}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="rounded-xl h-11"
+                  className="rounded-none h-11"
                 />
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-slate-700 mb-1.5 block">
+                <Label className="text-sm font-medium text-[var(--landing-ink)] mb-1.5 block">
                   Pick a colour
                 </Label>
                 <div className="flex gap-2 flex-wrap">
@@ -983,8 +1140,8 @@ export default function BuilderWizard({
                     <button
                       key={c}
                       type="button"
-                      className={`w-8 h-8 rounded-full transition-transform ${
-                        color === c ? "scale-125 ring-2 ring-offset-2 ring-slate-400" : "hover:scale-110"
+                      className={`w-8 h-8 rounded-none transition-transform ${
+                        color === c ? "scale-125 ring-2 ring-offset-2 ring-[var(--landing-ink)]" : "hover:scale-110"
                       }`}
                       style={{ backgroundColor: c }}
                       onClick={() => setColor(c)}
@@ -994,14 +1151,14 @@ export default function BuilderWizard({
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-slate-700 mb-1.5 block">
-                  Short description <span className="text-slate-400 font-normal">(optional)</span>
+                <Label className="text-sm font-medium text-[var(--landing-ink)] mb-1.5 block">
+                  Short description <span className="text-[var(--landing-faint)] font-normal">(optional)</span>
                 </Label>
                 <Input
                   placeholder="e.g. Connects downtown to the waterfront"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="rounded-xl h-11"
+                  className="rounded-none h-11"
                 />
               </div>
             </div>
@@ -1009,8 +1166,8 @@ export default function BuilderWizard({
             {/* ── Bus: search stops + auto-route ──────────────────────────── */}
             {routeType === "bus" && (
               <>
-                <p className="text-sm text-slate-500">
-                  Add stops and we&apos;ll calculate the road route automatically.
+                <p className="text-sm text-[var(--landing-muted)]">
+                  Add stops; the road route is drawn for you.
                 </p>
 
                 {/* Stop search + map placement */}
@@ -1018,17 +1175,17 @@ export default function BuilderWizard({
                   <div className="flex gap-2 items-stretch">
                     <div className="relative flex-1 min-w-0">
                       <Input
-                        placeholder="Search for a stop or station…"
+                        placeholder="Search stops…"
                         value={stopQuery}
                         onChange={(e) => {
                           setStopQuery(e.target.value);
                           searchStops(e.target.value);
                         }}
-                        className="rounded-xl h-10 pr-8"
+                        className="rounded-none h-10 pr-8"
                         disabled={isEditing || !!pendingBusStop || placingBusStop}
                       />
                       {searching && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-[var(--landing-border-2)] border-t-transparent rounded-none animate-spin" />
                       )}
                     </div>
                     {onStartPinMode && (
@@ -1036,7 +1193,7 @@ export default function BuilderWizard({
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-10 shrink-0 rounded-xl gap-1.5 px-3 border-slate-200"
+                        className="h-10 shrink-0 rounded-none gap-1.5 px-3 border-[var(--landing-border-2)]"
                         onClick={startPlaceBusStopOnMap}
                         disabled={isEditing || !!pendingBusStop || placingBusStop}
                         title="Place a new stop on the map"
@@ -1048,13 +1205,13 @@ export default function BuilderWizard({
                   </div>
 
                   {placingBusStop && (
-                    <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2 text-xs text-amber-950">
+                    <div className="flex items-center justify-between gap-2 rounded-none border border-[color-mix(in_oklab,var(--landing-amber)_28%,transparent)] bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)]/90 px-3 py-2 text-xs text-[var(--landing-amber)]">
                       <span>Click the map to place this stop.</span>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs text-amber-900 hover:bg-amber-100"
+                        className="h-7 text-xs text-[var(--landing-amber)] hover:bg-[color-mix(in_oklab,var(--landing-amber)_16%,transparent)]"
                         onClick={cancelPlaceBusStopOnMap}
                       >
                         Cancel
@@ -1063,22 +1220,22 @@ export default function BuilderWizard({
                   )}
 
                   {pendingBusStop && (
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 flex flex-col gap-2">
-                      <p className="text-xs font-medium text-emerald-900">
+                    <div className="rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-wash)]/80 p-3 flex flex-col gap-2">
+                      <p className="text-xs font-medium text-[var(--landing-ink)]">
                         New stop · {pendingBusStop.lat.toFixed(5)}, {pendingBusStop.lon.toFixed(5)}
                       </p>
                       <Input
                         placeholder="Stop name"
                         value={pendingBusStopName}
                         onChange={(e) => setPendingBusStopName(e.target.value)}
-                        className="rounded-lg h-9 bg-white"
+                        className="rounded-none h-9 bg-[var(--landing-elevated)]"
                         autoFocus
                       />
                       {onSaveStation && (
-                        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+                        <label className="flex items-center gap-2 text-xs text-[var(--landing-muted)] cursor-pointer select-none">
                           <input
                             type="checkbox"
-                            className="rounded border-slate-300"
+                            className="rounded-none border-[var(--landing-border-2)]"
                             checked={savePlacedStopToLibrary}
                             onChange={(e) => setSavePlacedStopToLibrary(e.target.checked)}
                           />
@@ -1089,7 +1246,7 @@ export default function BuilderWizard({
                         <Button
                           type="button"
                           size="sm"
-                          className="rounded-lg h-8 bg-[#007A33] hover:bg-[#006629] text-white"
+                          className="rounded-none h-8 bg-[var(--landing-accent)] hover:opacity-90 text-white"
                           onClick={confirmPendingBusStop}
                         >
                           Add to route
@@ -1098,7 +1255,7 @@ export default function BuilderWizard({
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="rounded-lg h-8"
+                          className="rounded-none h-8"
                           onClick={cancelPlaceBusStopOnMap}
                         >
                           Discard
@@ -1110,16 +1267,16 @@ export default function BuilderWizard({
 
                 {/* Search results */}
                 {stopResults.length > 0 && (
-                  <div className="rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden">
+                  <div className="rounded-none border border-[var(--landing-border)] bg-[var(--landing-elevated)] overflow-hidden">
                     {stopResults.map((s) => (
                       <button
                         key={s.id}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-slate-50 text-left border-b border-slate-50 last:border-0"
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--landing-wash)] text-left border-b border-[var(--landing-border)] last:border-0"
                         onClick={() => addStop(s)}
                       >
-                        <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        <MapPin className="w-4 h-4 text-[var(--landing-faint)] flex-shrink-0" />
                         {s.name}
-                        <Plus className="ml-auto w-4 h-4 text-slate-300" />
+                        <Plus className="ml-auto w-4 h-4 text-[var(--landing-faint)]" />
                       </button>
                     ))}
                   </div>
@@ -1127,7 +1284,7 @@ export default function BuilderWizard({
 
                 {/* Stop list */}
                 {stops.length === 0 ? (
-                  <div className="flex flex-col items-center py-8 text-slate-400">
+                  <div className="flex flex-col items-center py-8 text-[var(--landing-faint)]">
                     <MapPin className="w-8 h-8 mb-2 opacity-40" />
                     <p className="text-sm font-medium">No stops added yet</p>
                     <p className="text-xs mt-1 text-center max-w-[220px]">
@@ -1135,49 +1292,32 @@ export default function BuilderWizard({
                     </p>
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-1">
-                    <p className="text-xs font-medium text-slate-500 mb-0.5">{stops.length} stops</p>
-                    {stops.map((s, i) => (
-                      <div
-                        key={s.id}
-                        className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-slate-50"
-                      >
-                        <GripVertical className="w-4 h-4 text-slate-300 cursor-grab" />
-                        <div
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-                          style={{ backgroundColor: color }}
-                        >
-                          {i + 1}
-                        </div>
-                        <span className="text-sm text-slate-700 flex-1 truncate">{s.name}</span>
-                        <button
-                          onClick={() => removeStop(s.id)}
-                          className="text-slate-300 hover:text-red-400 transition-colors"
-                          disabled={isEditing}
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                  <StopList
+                    stops={stops}
+                    color={color}
+                    noun="stops"
+                    disabled={isEditing}
+                    onReorder={reorderStops}
+                    onRemove={removeStop}
+                  />
                 )}
 
                 {/* Route status + adjust button */}
                 {stops.length >= 2 && (
                   <div className="flex flex-col gap-2 pt-1">
                     {fetchingRoute ? (
-                      <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2.5">
+                      <div className="flex items-center gap-2 text-xs text-[var(--landing-muted)] bg-[var(--landing-wash)] rounded-none px-3 py-2.5">
                         <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
                         Calculating route along roads…
                       </div>
                     ) : routeError ? (
-                      <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2.5">
+                      <div className="flex items-center gap-2 text-xs text-[var(--landing-red)] bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] rounded-none px-3 py-2.5">
                         <X className="w-3.5 h-3.5 flex-shrink-0" />
                         {routeError}
                       </div>
                     ) : routeGeometry ? (
                       <>
-                        <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2.5">
+                        <div className="flex items-center gap-2 text-xs text-[var(--landing-accent)] bg-[var(--landing-wash)] rounded-none px-3 py-2.5">
                           <Navigation className="w-3.5 h-3.5 flex-shrink-0" />
                           Route calculated
                           {routeDistanceKm ? ` · ${routeDistanceKm} km` : ""}
@@ -1185,26 +1325,26 @@ export default function BuilderWizard({
 
                         {isEditing ? (
                           /* Active editing banner */
-                          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
-                            <Move className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-                            <span className="text-xs text-amber-700 font-medium flex-1">
+                          <div className="flex items-center gap-2 bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] border border-[color-mix(in_oklab,var(--landing-amber)_28%,transparent)] rounded-none px-3 py-2.5">
+                            <Move className="w-3.5 h-3.5 text-[var(--landing-amber)] flex-shrink-0" />
+                            <span className="text-xs text-[var(--landing-amber)] font-medium flex-1">
                               Drag points to adjust the route
                             </span>
                             <button
                               onClick={handleEditDone}
-                              className="text-xs font-semibold text-[#007A33] hover:underline whitespace-nowrap"
+                              className="text-xs font-semibold text-[var(--landing-accent)] hover:underline whitespace-nowrap"
                             >
                               Done ✓
                             </button>
                           </div>
                         ) : (
                           <button
-                            className="flex items-center gap-2 text-sm text-slate-700 font-medium py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                            className="flex items-center gap-2 text-sm text-[var(--landing-ink)] font-medium py-2 px-3 rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] hover:bg-[var(--landing-wash)] transition-colors"
                             onClick={handleEditRequest}
                           >
-                            <Move className="w-4 h-4 text-slate-400" />
+                            <Move className="w-4 h-4 text-[var(--landing-faint)]" />
                             Adjust route on map
-                            <span className="ml-auto text-xs text-slate-400">few control points</span>
+                            <span className="ml-auto text-xs text-[var(--landing-faint)]">few control points</span>
                           </button>
                         )}
                       </>
@@ -1217,7 +1357,7 @@ export default function BuilderWizard({
             {/* ── Train: draw + edit shape ─────────────────────────────────── */}
             {routeType === "train" && (
               <>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-[var(--landing-muted)]">
                   Search GO Transit stations or your saved stations to add them to the route. No station nearby? Place a new one directly on the map.
                 </p>
 
@@ -1232,11 +1372,11 @@ export default function BuilderWizard({
                           setStopQuery(e.target.value);
                           searchStops(e.target.value);
                         }}
-                        className="rounded-xl h-10 pr-8"
+                        className="rounded-none h-10 pr-8"
                         disabled={isEditing || placingTrainStation}
                       />
                       {searching && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-[var(--landing-border-2)] border-t-transparent rounded-none animate-spin" />
                       )}
                     </div>
                     {onStartPinMode && (
@@ -1244,10 +1384,10 @@ export default function BuilderWizard({
                         onClick={placingTrainStation ? cancelPlaceTrainStationOnMap : startPlaceTrainStationOnMap}
                         disabled={isEditing}
                         title={placingTrainStation ? "Cancel placement" : "Place new station on map"}
-                        className={`flex-shrink-0 flex items-center gap-1.5 rounded-xl px-3 text-xs font-medium border transition-colors ${
+                        className={`flex-shrink-0 flex items-center gap-1.5 rounded-none px-3 text-xs font-medium border transition-colors ${
                           placingTrainStation
-                            ? "bg-amber-50 border-amber-200 text-amber-700"
-                            : "bg-white border-slate-200 text-slate-600 hover:border-slate-400 hover:text-slate-800"
+                            ? "bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] border-[color-mix(in_oklab,var(--landing-amber)_28%,transparent)] text-[var(--landing-amber)]"
+                            : "bg-[var(--landing-elevated)] border-[var(--landing-border-2)] text-[var(--landing-muted)] hover:border-[var(--landing-ink)] hover:text-[var(--landing-ink)]"
                         }`}
                       >
                         <MapPin className="w-3.5 h-3.5" />
@@ -1259,16 +1399,16 @@ export default function BuilderWizard({
 
                 {/* Pin instruction banner */}
                 {placingTrainStation && !pendingTrainStation && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
+                  <div className="rounded-none border border-[color-mix(in_oklab,var(--landing-amber)_28%,transparent)] bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] px-3 py-2.5 text-xs text-[var(--landing-amber)]">
                     <p className="font-medium">Click anywhere on the map to place the station</p>
-                    <p className="text-amber-600 mt-0.5">You can name it and save it to your station library</p>
+                    <p className="text-[var(--landing-amber)] mt-0.5">You can name it and save it to your station library</p>
                   </div>
                 )}
 
                 {/* Pending train station form */}
                 {pendingTrainStation && (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex flex-col gap-2.5">
-                    <p className="text-xs font-semibold text-[#007A33] flex items-center gap-1.5">
+                  <div className="rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-wash)] p-3 flex flex-col gap-2.5">
+                    <p className="text-xs font-semibold text-[var(--landing-accent)] flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
                       {pendingTrainStation.lat.toFixed(4)}, {pendingTrainStation.lon.toFixed(4)}
                     </p>
@@ -1279,27 +1419,27 @@ export default function BuilderWizard({
                       value={pendingTrainStationName}
                       onChange={(e) => setPendingTrainStationName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") confirmPendingTrainStation(); }}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/30"
+                      className="w-full rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-2 text-sm text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
                     />
-                    <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                    <label className="flex items-center gap-2 text-xs text-[var(--landing-muted)] cursor-pointer">
                       <input
                         type="checkbox"
                         checked={saveTrainStationToLibrary}
                         onChange={(e) => setSaveTrainStationToLibrary(e.target.checked)}
-                        className="rounded"
+                        className="rounded-none"
                       />
                       Save to my station library for reuse
                     </label>
                     <div className="flex gap-2 pt-0.5">
                       <button
                         onClick={cancelPlaceTrainStationOnMap}
-                        className="flex-1 rounded-lg border border-slate-200 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        className="flex-1 rounded-none border border-[var(--landing-border-2)] py-1.5 text-xs font-medium text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={confirmPendingTrainStation}
-                        className="flex-1 rounded-lg bg-[#007A33] py-1.5 text-xs font-medium text-white hover:bg-[#005f28]"
+                        className="flex-1 rounded-none bg-[var(--landing-accent)] py-1.5 text-xs font-medium text-white hover:opacity-90"
                       >
                         Add to route
                       </button>
@@ -1309,24 +1449,24 @@ export default function BuilderWizard({
 
                 {/* Search results — custom stations first, then GO stops */}
                 {stopResults.length > 0 && !pendingTrainStation && (
-                  <div className="rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden">
+                  <div className="rounded-none border border-[var(--landing-border)] bg-[var(--landing-elevated)] overflow-hidden">
                     {stopResults.map((s) => {
                       const isCustom = s.id.startsWith("station:");
                       return (
                         <button
                           key={s.id}
-                          className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-slate-50 text-left border-b border-slate-50 last:border-0"
+                          className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--landing-wash)] text-left border-b border-[var(--landing-border)] last:border-0"
                           onClick={() => addStop(s)}
                         >
                           {isCustom
-                            ? <Train className="w-4 h-4 text-[#007A33] flex-shrink-0" />
-                            : <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                            ? <Train className="w-4 h-4 text-[var(--landing-accent)] flex-shrink-0" />
+                            : <MapPin className="w-4 h-4 text-[var(--landing-faint)] flex-shrink-0" />
                           }
                           <span className="flex-1 truncate">{s.name}</span>
                           {isCustom && (
-                            <span className="text-[10px] text-[#007A33] bg-emerald-50 rounded px-1.5 py-0.5 font-medium">saved</span>
+                            <span className="text-[10px] text-[var(--landing-accent)] bg-[var(--landing-wash)] rounded-none px-1.5 py-0.5 font-medium">saved</span>
                           )}
-                          <Plus className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                          <Plus className="w-4 h-4 text-[var(--landing-faint)] flex-shrink-0" />
                         </button>
                       );
                     })}
@@ -1334,36 +1474,25 @@ export default function BuilderWizard({
                 )}
 
                 {stops.length > 0 && (
-                  <div className="flex flex-col gap-1">
-                    <p className="text-xs font-medium text-slate-500 mb-0.5">{stops.length} stations</p>
-                    {stops.map((s, i) => (
-                      <div key={s.id} className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-slate-50">
-                        <GripVertical className="w-4 h-4 text-slate-300 cursor-grab" />
-                        <div
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-                          style={{ backgroundColor: color }}
-                        >
-                          {i + 1}
-                        </div>
-                        <span className="text-sm text-slate-700 flex-1 truncate">{s.name}</span>
-                        <button onClick={() => removeStop(s.id)} className="text-slate-300 hover:text-red-400 transition-colors">
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                  <StopList
+                    stops={stops}
+                    color={color}
+                    noun="stations"
+                    onReorder={reorderStops}
+                    onRemove={removeStop}
+                  />
                 )}
 
                 <div className="flex flex-col gap-2 pt-1">
                   {routeError && (
-                    <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                    <div className="flex items-center gap-2 text-xs text-[var(--landing-amber)] bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] border border-[color-mix(in_oklab,var(--landing-amber)_22%,transparent)] rounded-none px-3 py-2.5">
                       <X className="w-3.5 h-3.5 flex-shrink-0" />
                       {routeError}
                     </div>
                   )}
 
                   {routeWarnings.length > 0 && (
-                    <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                    <div className="flex items-center gap-2 text-xs text-[var(--landing-amber)] bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] border border-[color-mix(in_oklab,var(--landing-amber)_22%,transparent)] rounded-none px-3 py-2.5">
                       <Navigation className="w-3.5 h-3.5 flex-shrink-0" />
                       {routeWarnings[0]}
                     </div>
@@ -1371,15 +1500,15 @@ export default function BuilderWizard({
 
                   {isEditing ? (
                     /* Active editing banner */
-                    <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
-                      <Move className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                    <div className="flex items-center gap-2 bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] border border-[color-mix(in_oklab,var(--landing-amber)_28%,transparent)] rounded-none px-3 py-2.5">
+                      <Move className="w-3.5 h-3.5 text-[var(--landing-amber)] flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-amber-700 font-medium">Drag points to adjust the line</p>
-                        <p className="text-[10px] text-amber-600">Tap + on the line if you need an extra point</p>
+                        <p className="text-xs text-[var(--landing-amber)] font-medium">Drag points to adjust the line</p>
+                        <p className="text-[10px] text-[var(--landing-amber)]">Tap + on the line if you need an extra point</p>
                       </div>
                       <button
                         onClick={handleEditDone}
-                        className="text-xs font-semibold text-[#007A33] hover:underline whitespace-nowrap"
+                        className="text-xs font-semibold text-[var(--landing-accent)] hover:underline whitespace-nowrap"
                       >
                         Done ✓
                       </button>
@@ -1387,7 +1516,7 @@ export default function BuilderWizard({
                   ) : routeGeometry ? (
                     /* Has drawn geometry — show status + edit/redraw buttons */
                     <>
-                      <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2.5">
+                      <div className="flex items-center gap-2 text-xs text-[var(--landing-accent)] bg-[var(--landing-wash)] rounded-none px-3 py-2.5">
                         <Check className="w-3.5 h-3.5 flex-shrink-0" />
                         {routeDurationSecs
                           ? `Your line · ~${Math.round(routeDurationSecs / 60)} min${routeDistanceKm ? ` · ${routeDistanceKm} km` : ""}`
@@ -1395,14 +1524,14 @@ export default function BuilderWizard({
                       </div>
                       <div className="flex gap-2">
                         <button
-                          className="flex-1 flex items-center justify-center gap-2 text-sm text-slate-700 font-medium py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                          className="flex-1 flex items-center justify-center gap-2 text-sm text-[var(--landing-ink)] font-medium py-2 px-3 rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] hover:bg-[var(--landing-wash)] transition-colors"
                           onClick={handleEditRequest}
                         >
-                          <Move className="w-4 h-4 text-slate-400" />
+                          <Move className="w-4 h-4 text-[var(--landing-faint)]" />
                           Edit shape
                         </button>
                         <button
-                          className="flex items-center justify-center gap-2 text-sm text-slate-500 py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                          className="flex items-center justify-center gap-2 text-sm text-[var(--landing-muted)] py-2 px-3 rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] hover:bg-[var(--landing-wash)] transition-colors"
                           onClick={() => { setRouteGeometry(null); onDrawRequest(); }}
                           title="Redraw from scratch"
                         >
@@ -1414,12 +1543,12 @@ export default function BuilderWizard({
                   ) : (
                     /* No geometry yet */
                     <button
-                      className="flex items-center gap-2 text-sm text-[#007A33] font-medium py-2.5 px-3 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                      className="flex items-center gap-2 text-sm text-[var(--landing-accent)] font-medium py-2.5 px-3 rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-wash)] hover:bg-[var(--landing-wash)] transition-colors"
                       onClick={onDrawRequest}
                     >
                       <Pencil className="w-4 h-4" />
                       Draw route on map
-                      <span className="ml-auto text-xs text-emerald-600 opacity-70">click to place points</span>
+                      
                     </button>
                   )}
                 </div>
@@ -1431,17 +1560,17 @@ export default function BuilderWizard({
         {/* ── Step 4: Schedule ────────────────────────────────────────────── */}
         {step === "schedule" && (
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-slate-500">How often should this route run?</p>
+            <p className="text-sm text-[var(--landing-muted)]">How often should this route run?</p>
 
             <div className="grid grid-cols-2 gap-2">
               {(["frequency", "fixed"] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setScheduleType(t)}
-                  className={`flex items-center gap-2 rounded-xl border p-3 text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 rounded-none border p-3 text-sm font-medium transition-all ${
                     scheduleType === t
-                      ? "border-[#007A33] bg-emerald-50 text-[#007A33]"
-                      : "border-slate-100 text-slate-600 hover:border-slate-200"
+                      ? "border-[var(--landing-accent)] bg-[var(--landing-wash)] text-[var(--landing-accent)]"
+                      : "border-[var(--landing-border)] text-[var(--landing-muted)] hover:border-[var(--landing-border-2)]"
                   }`}
                 >
                   {t === "frequency" ? (
@@ -1457,24 +1586,24 @@ export default function BuilderWizard({
               <div className="flex flex-col gap-4">
                 {/* Service window */}
                 <div>
-                  <Label className="text-sm font-medium text-slate-700 mb-2 block">Service hours</Label>
+                  <Label className="text-sm font-medium text-[var(--landing-ink)] mb-2 block">Service hours</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs text-slate-400">Start</span>
+                      <span className="text-xs text-[var(--landing-faint)]">Start</span>
                       <Input
                         type="time"
                         value={serviceStart}
                         onChange={(e) => setServiceStart(e.target.value)}
-                        className="rounded-xl h-9"
+                        className="rounded-none h-9"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs text-slate-400">End</span>
+                      <span className="text-xs text-[var(--landing-faint)]">End</span>
                       <Input
                         type="time"
                         value={serviceEnd}
                         onChange={(e) => setServiceEnd(e.target.value)}
-                        className="rounded-xl h-9"
+                        className="rounded-none h-9"
                       />
                     </div>
                   </div>
@@ -1482,16 +1611,16 @@ export default function BuilderWizard({
 
                 {/* Frequency */}
                 <div>
-                  <Label className="text-sm font-medium text-slate-700 mb-2 block">Frequency</Label>
+                  <Label className="text-sm font-medium text-[var(--landing-ink)] mb-2 block">Frequency</Label>
                   <div className="grid grid-cols-2 gap-2">
                     {FREQUENCY_PRESETS.map(({ label, interval }) => (
                       <button
                         key={interval}
                         onClick={() => setFrequencyInterval(interval)}
-                        className={`rounded-xl border p-3 text-sm font-medium transition-all ${
+                        className={`rounded-none border p-3 text-sm font-medium transition-all ${
                           frequencyInterval === interval
-                            ? "border-[#007A33] bg-emerald-50 text-[#007A33]"
-                            : "border-slate-100 hover:border-slate-200 text-slate-700"
+                            ? "border-[var(--landing-accent)] bg-[var(--landing-wash)] text-[var(--landing-accent)]"
+                            : "border-[var(--landing-border)] hover:border-[var(--landing-border-2)] text-[var(--landing-ink)]"
                         }`}
                       >
                         {label}
@@ -1509,30 +1638,30 @@ export default function BuilderWizard({
                         const v = Math.max(1, Math.min(240, Number(e.target.value)));
                         setFrequencyInterval(v);
                       }}
-                      className="rounded-xl h-9 w-24"
+                      className="rounded-none h-9 w-24"
                     />
-                    <span className="text-sm text-slate-500">min custom interval</span>
+                    <span className="text-sm text-[var(--landing-muted)]">min custom interval</span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-2">
+                  <p className="text-xs text-[var(--landing-faint)] mt-2">
                     Weekends run every {frequencyInterval * 2} min
                   </p>
                 </div>
 
                 {/* Return direction */}
-                <div className="rounded-xl border border-slate-100 p-3">
+                <div className="rounded-none border border-[var(--landing-border)] p-3">
                   <button
                     type="button"
                     onClick={() => setReturnFreqEnabled((v) => !v)}
                     className={`flex w-full items-center justify-between text-sm font-medium transition-colors ${
-                      returnFreqEnabled ? "text-[#007A33]" : "text-slate-600"
+                      returnFreqEnabled ? "text-[var(--landing-accent)]" : "text-[var(--landing-muted)]"
                     }`}
                   >
                     <span className="flex items-center gap-2">
                       <Repeat className="w-4 h-4" />
                       Return direction
                     </span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      returnFreqEnabled ? "bg-emerald-100 text-[#007A33]" : "bg-slate-100 text-slate-400"
+                    <span className={`text-xs px-2 py-0.5 rounded-none font-medium ${
+                      returnFreqEnabled ? "bg-[var(--landing-wash)] text-[var(--landing-accent)]" : "bg-[var(--landing-wash)] text-[var(--landing-faint)]"
                     }`}>
                       {returnFreqEnabled ? "On" : "Off"}
                     </span>
@@ -1546,34 +1675,34 @@ export default function BuilderWizard({
                           setReturnServiceStart(serviceStart);
                           setReturnServiceEnd(serviceEnd);
                         }}
-                        className="self-start text-xs text-[#007A33] underline underline-offset-2 hover:text-[#005f28]"
+                        className="self-start text-xs text-[var(--landing-accent)] underline underline-offset-2 hover:text-[var(--landing-accent)]"
                       >
                         Copy from outbound
                       </button>
                       <div>
-                        <Label className="text-xs text-slate-500 mb-1.5 block">Return service hours</Label>
+                        <Label className="text-xs text-[var(--landing-muted)] mb-1.5 block">Return service hours</Label>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="flex flex-col gap-1">
-                            <span className="text-xs text-slate-400">Start</span>
+                            <span className="text-xs text-[var(--landing-faint)]">Start</span>
                             <Input
                               type="time"
                               value={returnServiceStart}
                               onChange={(e) => setReturnServiceStart(e.target.value)}
-                              className="rounded-xl h-9"
+                              className="rounded-none h-9"
                             />
                           </div>
                           <div className="flex flex-col gap-1">
-                            <span className="text-xs text-slate-400">End</span>
+                            <span className="text-xs text-[var(--landing-faint)]">End</span>
                             <Input
                               type="time"
                               value={returnServiceEnd}
                               onChange={(e) => setReturnServiceEnd(e.target.value)}
-                              className="rounded-xl h-9"
+                              className="rounded-none h-9"
                             />
                           </div>
                         </div>
                       </div>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-[var(--landing-faint)]">
                         Same frequency ({frequencyInterval} min) in the return direction
                       </p>
                     </div>
@@ -1586,7 +1715,7 @@ export default function BuilderWizard({
               <div className="flex flex-col gap-4">
                 {/* Outbound times */}
                 <div>
-                  <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                  <Label className="text-sm font-medium text-[var(--landing-ink)] mb-2 block">
                     Outbound departures
                   </Label>
                   <div className="flex gap-2">
@@ -1594,11 +1723,11 @@ export default function BuilderWizard({
                       type="time"
                       value={newDeparture}
                       onChange={(e) => setNewDeparture(e.target.value)}
-                      className="rounded-xl h-9 flex-1"
+                      className="rounded-none h-9 flex-1"
                     />
                     <Button
                       size="sm"
-                      className="rounded-xl bg-[#007A33] text-white"
+                      className="rounded-none bg-[var(--landing-accent)] text-white"
                       onClick={() => {
                         if (newDeparture && !fixedDepartures.includes(newDeparture)) {
                           setFixedDepartures((prev) => [...prev, newDeparture].sort());
@@ -1616,7 +1745,7 @@ export default function BuilderWizard({
                           {t}
                           <button
                             onClick={() => setFixedDepartures((p) => p.filter((d) => d !== t))}
-                            className="ml-0.5 hover:text-red-500"
+                            className="ml-0.5 hover:text-[var(--landing-red)]"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -1627,7 +1756,7 @@ export default function BuilderWizard({
                 </div>
 
                 {/* Return direction toggle */}
-                <div className="rounded-xl border border-slate-100 p-3">
+                <div className="rounded-none border border-[var(--landing-border)] p-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -1638,15 +1767,15 @@ export default function BuilderWizard({
                       }
                     }}
                     className={`flex w-full items-center justify-between text-sm font-medium transition-colors ${
-                      returnEnabled ? "text-[#007A33]" : "text-slate-600"
+                      returnEnabled ? "text-[var(--landing-accent)]" : "text-[var(--landing-muted)]"
                     }`}
                   >
                     <span className="flex items-center gap-2">
                       <Repeat className="w-4 h-4" />
                       Return direction times
                     </span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      returnEnabled ? "bg-emerald-100 text-[#007A33]" : "bg-slate-100 text-slate-400"
+                    <span className={`text-xs px-2 py-0.5 rounded-none font-medium ${
+                      returnEnabled ? "bg-[var(--landing-wash)] text-[var(--landing-accent)]" : "bg-[var(--landing-wash)] text-[var(--landing-faint)]"
                     }`}>
                       {returnEnabled ? "On" : "Off"}
                     </span>
@@ -1658,7 +1787,7 @@ export default function BuilderWizard({
                         <button
                           type="button"
                           onClick={() => setReturnDepartures([...fixedDepartures])}
-                          className="self-start text-xs text-[#007A33] underline underline-offset-2 hover:text-[#005f28]"
+                          className="self-start text-xs text-[var(--landing-accent)] underline underline-offset-2 hover:text-[var(--landing-accent)]"
                         >
                           Copy from outbound
                         </button>
@@ -1668,11 +1797,11 @@ export default function BuilderWizard({
                           type="time"
                           value={newReturnDeparture}
                           onChange={(e) => setNewReturnDeparture(e.target.value)}
-                          className="rounded-xl h-9 flex-1"
+                          className="rounded-none h-9 flex-1"
                         />
                         <Button
                           size="sm"
-                          className="rounded-xl bg-[#007A33] text-white"
+                          className="rounded-none bg-[var(--landing-accent)] text-white"
                           onClick={() => {
                             if (newReturnDeparture && !returnDepartures.includes(newReturnDeparture)) {
                               setReturnDepartures((prev) => [...prev, newReturnDeparture].sort());
@@ -1690,7 +1819,7 @@ export default function BuilderWizard({
                               {t}
                               <button
                                 onClick={() => setReturnDepartures((p) => p.filter((d) => d !== t))}
-                                className="ml-0.5 hover:text-red-500"
+                                className="ml-0.5 hover:text-[var(--landing-red)]"
                               >
                                 <X className="w-3 h-3" />
                               </button>
@@ -1709,50 +1838,50 @@ export default function BuilderWizard({
         {/* ── Step 5: Review ──────────────────────────────────────────────── */}
         {step === "review" && (
           <div className="flex flex-col gap-4">
-            <div className="rounded-xl border border-slate-100 overflow-hidden">
+            <div className="rounded-none border border-[var(--landing-border)] overflow-hidden">
               <div
                 className="flex items-center gap-3 px-4 py-3"
                 style={{ backgroundColor: color + "20" }}
               >
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
+                  className="w-10 h-10 rounded-none flex items-center justify-center text-white"
                   style={{ backgroundColor: color }}
                 >
                   {routeType === "train" ? <Train className="w-5 h-5" /> : <Bus className="w-5 h-5" />}
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-900">{name || "Unnamed route"}</p>
-                  {description && <p className="text-xs text-slate-500">{description}</p>}
+                  <p className="font-semibold text-[var(--landing-ink)]">{name || "Unnamed route"}</p>
+                  {description && <p className="text-xs text-[var(--landing-muted)]">{description}</p>}
                 </div>
               </div>
 
               <div className="px-4 py-3 flex flex-col gap-2 text-sm">
-                <div className="flex justify-between text-slate-600">
-                  <span className="text-slate-400">Stops</span>
+                <div className="flex justify-between text-[var(--landing-muted)]">
+                  <span className="text-[var(--landing-faint)]">Stops</span>
                   <span className="font-medium">{stops.length}</span>
                 </div>
                 {routeDistanceKm && (
-                  <div className="flex justify-between text-slate-600">
-                    <span className="text-slate-400">Distance</span>
+                  <div className="flex justify-between text-[var(--landing-muted)]">
+                    <span className="text-[var(--landing-faint)]">Distance</span>
                     <span className="font-medium">{routeDistanceKm} km</span>
                   </div>
                 )}
                 {routeDurationSecs && (
-                  <div className="flex justify-between text-slate-600">
-                    <span className="text-slate-400">Travel time</span>
+                  <div className="flex justify-between text-[var(--landing-muted)]">
+                    <span className="text-[var(--landing-faint)]">Travel time</span>
                     <span className="font-medium">~{Math.round(routeDurationSecs / 60)} min</span>
                   </div>
                 )}
-                <div className="flex justify-between text-slate-600">
-                  <span className="text-slate-400">Schedule</span>
+                <div className="flex justify-between text-[var(--landing-muted)]">
+                  <span className="text-[var(--landing-faint)]">Schedule</span>
                   <span className="font-medium">
                     {scheduleType === "frequency"
                       ? `Every ${frequencyInterval} min`
                       : `${fixedDepartures.length} departures`}
                   </span>
                 </div>
-                <div className="flex justify-between text-slate-600">
-                  <span className="text-slate-400">Route geometry</span>
+                <div className="flex justify-between text-[var(--landing-muted)]">
+                  <span className="text-[var(--landing-faint)]">Route geometry</span>
                   <span className="font-medium">
                     {routeGeometry
                       ? `${routeGeometry.length} pts`
@@ -1763,7 +1892,7 @@ export default function BuilderWizard({
                 </div>
                 {routeType === "train" && (
                   <button
-                    className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+                    className="mt-1 flex items-center gap-1.5 text-xs text-[var(--landing-muted)] hover:text-[var(--landing-ink)] transition-colors"
                     onClick={() => { setRouteGeometry(null); setStep("draw"); onDrawRequest(); }}
                   >
                     <RotateCcw className="w-3 h-3" />
@@ -1775,20 +1904,20 @@ export default function BuilderWizard({
 
             {stops.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-slate-500 mb-1.5">Stop sequence</p>
+                <p className="text-xs font-medium text-[var(--landing-muted)] mb-1.5">Stop sequence</p>
                 <div className="flex flex-col">
                   {stops.map((s, i) => (
                     <div key={s.id} className="flex items-center gap-2 py-1">
                       <div className="flex flex-col items-center">
                         <div
-                          className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
+                          className="w-4 h-4 rounded-none border border-white"
                           style={{ backgroundColor: color }}
                         />
                         {i < stops.length - 1 && (
-                          <div className="w-0.5 h-4 bg-slate-200" />
+                          <div className="w-0.5 h-4 bg-[var(--landing-border-2)]" />
                         )}
                       </div>
-                      <span className="text-sm text-slate-700">{s.name}</span>
+                      <span className="text-sm text-[var(--landing-ink)]">{s.name}</span>
                     </div>
                   ))}
                 </div>
@@ -1799,11 +1928,11 @@ export default function BuilderWizard({
       </div>
 
       {/* ── Footer navigation ─────────────────────────────────────────────── */}
-      <div className="px-4 pb-4 pt-3 border-t border-slate-100 flex gap-2">
-        {step !== "type" && (
+      <div className="px-4 pb-4 pt-3 border-t border-[var(--landing-border)] flex gap-2">
+        {stepIndex > 0 && (
           <Button
             variant="outline"
-            className="rounded-xl flex-1"
+            className="rounded-none flex-1"
             onClick={() => {
               if (isEditing) handleEditDone();
               const i = steps.indexOf(step);
@@ -1816,7 +1945,7 @@ export default function BuilderWizard({
 
         {step !== "review" ? (
           <Button
-            className="rounded-xl flex-1 bg-[#007A33] hover:bg-[#005f28] text-white"
+            className="rounded-none flex-1 bg-[var(--landing-accent)] hover:opacity-90 text-white"
             disabled={
               (step === "draw" && !routeGeometry)
               || (step === "stops" && stops.length < 2)
@@ -1835,7 +1964,7 @@ export default function BuilderWizard({
           </Button>
         ) : (
           <Button
-            className="rounded-xl flex-1 bg-[#007A33] hover:bg-[#005f28] text-white"
+            className="rounded-none flex-1 bg-[var(--landing-accent)] hover:opacity-90 text-white"
             onClick={handleSave}
           >
             <Check className="w-4 h-4 mr-1" /> Save route

@@ -1,0 +1,727 @@
+{
+  "generatedAt": "2026-09-10T07:56:55Z",
+  "method": "Phase 1 frequency-approximation. Suggests bus routes only, so both endpoints must already host a GO bus. Radial trips through downtown are excluded. Best itinerary = shortest path over the one-seat-ride graph with a 12-min flat transfer penalty (max 3 legs). Free-flow = straight line / 75 km/h. Demand = weekly trips serving the weaker endpoint. Per-departure-time routing, real road times, and StatsCan commute flows are the planned upgrades.",
+  "count": 24,
+  "gaps": [
+    {
+      "id": "cambridge-bramalea-go",
+      "headline": "Cambridge \u2194 Bramalea GO",
+      "note": "No reasonable transit path today \u00b7 ~48 min if direct",
+      "mode": "bus",
+      "priority": true,
+      "straightLineKm": 60.5,
+      "freeFlowMin": 48,
+      "current": {
+        "minutes": 136,
+        "transfers": 3,
+        "direct": false,
+        "reachable": false
+      },
+      "demand": 0.7,
+      "demandLabel": "high",
+      "score": 2.319,
+      "from": {
+        "code": "02150",
+        "name": "Cambridge Smart Centre",
+        "lat": 43.4117165,
+        "lon": -80.3236008
+      },
+      "to": {
+        "code": "BE",
+        "name": "Bramalea GO",
+        "lat": 43.7022591,
+        "lon": -79.6887512
+      }
+    },
+    {
+      "id": "kitchener-waterloo-niagara-falls",
+      "headline": "Kitchener\u2013Waterloo \u2194 Niagara Falls",
+      "note": "3 h 27 min by transit \u00b7 4 transfers \u00b7 ~1 h 41 min if direct",
+      "mode": "bus",
+      "priority": true,
+      "straightLineKm": 126.3,
+      "freeFlowMin": 101,
+      "current": {
+        "minutes": 207,
+        "transfers": 4,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.7,
+      "demandLabel": "high",
+      "score": 2.225,
+      "from": {
+        "code": "02800",
+        "name": "University of Waterloo",
+        "lat": 43.474444,
+        "lon": -80.540546
+      },
+      "to": {
+        "code": "NI",
+        "name": "Niagara Falls GO",
+        "lat": 43.108882,
+        "lon": -79.063319
+      }
+    },
+    {
+      "id": "guelph-niagara-falls",
+      "headline": "Guelph \u2194 Niagara Falls",
+      "note": "2 h 23 min by transit \u00b7 3 transfers \u00b7 ~1 h 26 min if direct",
+      "mode": "bus",
+      "priority": true,
+      "straightLineKm": 107.3,
+      "freeFlowMin": 86,
+      "current": {
+        "minutes": 143,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.7,
+      "demandLabel": "high",
+      "score": 2.163,
+      "from": {
+        "code": "GL",
+        "name": "Guelph Central GO",
+        "lat": 43.544353,
+        "lon": -80.246917
+      },
+      "to": {
+        "code": "NI",
+        "name": "Niagara Falls GO",
+        "lat": 43.108882,
+        "lon": -79.063319
+      }
+    },
+    {
+      "id": "guelph-highway-407",
+      "headline": "Guelph \u2194 Highway 407",
+      "note": "1 h 12 min by transit \u00b7 2 transfers \u00b7 ~51 min if direct",
+      "mode": "bus",
+      "priority": true,
+      "straightLineKm": 63.9,
+      "freeFlowMin": 51,
+      "current": {
+        "minutes": 72,
+        "transfers": 2,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.7,
+      "demandLabel": "high",
+      "score": 2.033,
+      "from": {
+        "code": "GL",
+        "name": "Guelph Central GO",
+        "lat": 43.544353,
+        "lon": -80.246917
+      },
+      "to": {
+        "code": "02674",
+        "name": "Hwy 407 Bus Terminal",
+        "lat": 43.7830713234851,
+        "lon": -79.5244458372792
+      }
+    },
+    {
+      "id": "aldershot-meadowvale",
+      "headline": "Aldershot \u2194 Meadowvale",
+      "note": "1 h 41 min by transit \u00b7 2 transfers \u00b7 ~26 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 32.6,
+      "freeFlowMin": 26,
+      "current": {
+        "minutes": 101,
+        "transfers": 2,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.54,
+      "demandLabel": "moderate",
+      "score": 1.258,
+      "from": {
+        "code": "00180",
+        "name": "Aldershot GO Bus",
+        "lat": 43.313385,
+        "lon": -79.855659
+      },
+      "to": {
+        "code": "00129",
+        "name": "Meadowvale GO Bus",
+        "lat": 43.597566,
+        "lon": -79.754328
+      }
+    },
+    {
+      "id": "aurora-cornell",
+      "headline": "Aurora \u2194 Cornell",
+      "note": "1 h 41 min by transit \u00b7 3 transfers \u00b7 ~18 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 22.6,
+      "freeFlowMin": 18,
+      "current": {
+        "minutes": 101,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.33,
+      "demandLabel": "moderate",
+      "score": 1.164,
+      "from": {
+        "code": "00081",
+        "name": "Aurora GO Bus",
+        "lat": 44.000758,
+        "lon": -79.459725
+      },
+      "to": {
+        "code": "02815",
+        "name": "Cornell Bus Terminal",
+        "lat": 43.879761,
+        "lon": -79.232535
+      }
+    },
+    {
+      "id": "aurora-hwy-407",
+      "headline": "Aurora \u2194 Hwy 407",
+      "note": "1 h 48 min by transit \u00b7 3 transfers \u00b7 ~20 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 24.8,
+      "freeFlowMin": 20,
+      "current": {
+        "minutes": 108,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.33,
+      "demandLabel": "moderate",
+      "score": 1.156,
+      "from": {
+        "code": "00081",
+        "name": "Aurora GO Bus",
+        "lat": 44.000758,
+        "lon": -79.459725
+      },
+      "to": {
+        "code": "02673",
+        "name": "Hwy 407 Bus Terminal",
+        "lat": 43.7830713234851,
+        "lon": -79.5244458372792
+      }
+    },
+    {
+      "id": "mount-pleasant-oakville",
+      "headline": "Mount Pleasant \u2194 Oakville",
+      "note": "1 h 17 min by transit \u00b7 2 transfers \u00b7 ~21 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 26.9,
+      "freeFlowMin": 21,
+      "current": {
+        "minutes": 77,
+        "transfers": 2,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.48,
+      "demandLabel": "moderate",
+      "score": 1.147,
+      "from": {
+        "code": "00296",
+        "name": "Mount Pleasant GO Bus",
+        "lat": 43.6749763,
+        "lon": -79.8221817
+      },
+      "to": {
+        "code": "00137",
+        "name": "Oakville GO Bus",
+        "lat": 43.455594,
+        "lon": -79.682242
+      }
+    },
+    {
+      "id": "hwy-407-port-credit",
+      "headline": "Hwy 407 \u2194 Port Credit",
+      "note": "1 h 24 min by transit \u00b7 3 transfers \u00b7 ~21 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 25.7,
+      "freeFlowMin": 21,
+      "current": {
+        "minutes": 84,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.39,
+      "demandLabel": "moderate",
+      "score": 1.143,
+      "from": {
+        "code": "02673",
+        "name": "Hwy 407 Bus Terminal",
+        "lat": 43.7830713234851,
+        "lon": -79.5244458372792
+      },
+      "to": {
+        "code": "02775",
+        "name": "Port Credit GO Bus",
+        "lat": 43.555999,
+        "lon": -79.586881
+      }
+    },
+    {
+      "id": "guelph-central-milton",
+      "headline": "Guelph Central \u2194 Milton",
+      "note": "1 h 36 min by transit \u00b7 3 transfers \u00b7 ~25 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 30.7,
+      "freeFlowMin": 25,
+      "current": {
+        "minutes": 96,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.39,
+      "demandLabel": "moderate",
+      "score": 1.127,
+      "from": {
+        "code": "02519",
+        "name": "Guelph Central GO Bus",
+        "lat": 43.544353,
+        "lon": -80.246917
+      },
+      "to": {
+        "code": "00194",
+        "name": "Milton GO Bus",
+        "lat": 43.52364,
+        "lon": -79.867172
+      }
+    },
+    {
+      "id": "appleby-streetsville",
+      "headline": "Appleby \u2194 Streetsville",
+      "note": "1 h 35 min by transit \u00b7 3 transfers \u00b7 ~18 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 22.2,
+      "freeFlowMin": 18,
+      "current": {
+        "minutes": 95,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.32,
+      "demandLabel": "moderate",
+      "score": 1.127,
+      "from": {
+        "code": "00263",
+        "name": "Appleby GO Bus",
+        "lat": 43.379429,
+        "lon": -79.760991
+      },
+      "to": {
+        "code": "00148",
+        "name": "Streetsville GO Bus",
+        "lat": 43.575584,
+        "lon": -79.70882
+      }
+    },
+    {
+      "id": "aldershot-milton",
+      "headline": "Aldershot \u2194 Milton",
+      "note": "1 h 16 min by transit \u00b7 2 transfers \u00b7 ~19 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 23.4,
+      "freeFlowMin": 19,
+      "current": {
+        "minutes": 76,
+        "transfers": 2,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.43,
+      "demandLabel": "moderate",
+      "score": 1.125,
+      "from": {
+        "code": "00180",
+        "name": "Aldershot GO Bus",
+        "lat": 43.313385,
+        "lon": -79.855659
+      },
+      "to": {
+        "code": "00194",
+        "name": "Milton GO Bus",
+        "lat": 43.52364,
+        "lon": -79.867172
+      }
+    },
+    {
+      "id": "mount-joy-whitby",
+      "headline": "Mount Joy \u2194 Whitby",
+      "note": "1 h 38 min by transit \u00b7 3 transfers \u00b7 ~21 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 26.3,
+      "freeFlowMin": 21,
+      "current": {
+        "minutes": 98,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.34,
+      "demandLabel": "moderate",
+      "score": 1.12,
+      "from": {
+        "code": "00121",
+        "name": "Mount Joy GO Bus",
+        "lat": 43.900521,
+        "lon": -79.26313
+      },
+      "to": {
+        "code": "00031",
+        "name": "Whitby GO Bus",
+        "lat": 43.86484,
+        "lon": -78.93818
+      }
+    },
+    {
+      "id": "cooksville-georgetown",
+      "headline": "Cooksville \u2194 Georgetown",
+      "note": "1 h 19 min by transit \u00b7 3 transfers \u00b7 ~20 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 25.1,
+      "freeFlowMin": 20,
+      "current": {
+        "minutes": 79,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.34,
+      "demandLabel": "moderate",
+      "score": 1.064,
+      "from": {
+        "code": "02751",
+        "name": "Cooksville GO Bus",
+        "lat": 43.582973,
+        "lon": -79.623695
+      },
+      "to": {
+        "code": "02413",
+        "name": "Georgetown GO Bus",
+        "lat": 43.655373,
+        "lon": -79.919054
+      }
+    },
+    {
+      "id": "cornell-maple",
+      "headline": "Cornell \u2194 Maple",
+      "note": "1 h 32 min by transit \u00b7 3 transfers \u00b7 ~18 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 22.1,
+      "freeFlowMin": 18,
+      "current": {
+        "minutes": 92,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.27,
+      "demandLabel": "light",
+      "score": 1.06,
+      "from": {
+        "code": "02815",
+        "name": "Cornell Bus Terminal",
+        "lat": 43.879761,
+        "lon": -79.232535
+      },
+      "to": {
+        "code": "02157",
+        "name": "Maple GO Bus",
+        "lat": 43.859481,
+        "lon": -79.506984
+      }
+    },
+    {
+      "id": "ajax-old-elm",
+      "headline": "Ajax \u2194 Old Elm",
+      "note": "1 h 52 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 22.3,
+      "freeFlowMin": 18,
+      "current": {
+        "minutes": 112,
+        "transfers": 2,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.26,
+      "demandLabel": "light",
+      "score": 1.051,
+      "from": {
+        "code": "00161",
+        "name": "Ajax GO Bus",
+        "lat": 43.847766,
+        "lon": -79.041372
+      },
+      "to": {
+        "code": "02830",
+        "name": "Old Elm GO Bus",
+        "lat": 43.990395,
+        "lon": -79.237098
+      }
+    },
+    {
+      "id": "confederation-streetsville",
+      "headline": "Confederation \u2194 Streetsville",
+      "note": "2 h 03 min by transit \u00b7 3 transfers \u00b7 ~30 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 37.3,
+      "freeFlowMin": 30,
+      "current": {
+        "minutes": 123,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.32,
+      "demandLabel": "moderate",
+      "score": 1.043,
+      "from": {
+        "code": "02730",
+        "name": "Confederation GO Bus",
+        "lat": 43.241874,
+        "lon": -79.760331
+      },
+      "to": {
+        "code": "00148",
+        "name": "Streetsville GO Bus",
+        "lat": 43.575584,
+        "lon": -79.70882
+      }
+    },
+    {
+      "id": "milton-port-credit",
+      "headline": "Milton \u2194 Port Credit",
+      "note": "1 h 05 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 22.9,
+      "freeFlowMin": 18,
+      "current": {
+        "minutes": 65,
+        "transfers": 2,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.39,
+      "demandLabel": "moderate",
+      "score": 1.038,
+      "from": {
+        "code": "00194",
+        "name": "Milton GO Bus",
+        "lat": 43.52364,
+        "lon": -79.867172
+      },
+      "to": {
+        "code": "02775",
+        "name": "Port Credit GO Bus",
+        "lat": 43.555999,
+        "lon": -79.586881
+      }
+    },
+    {
+      "id": "malton-milton",
+      "headline": "Malton \u2194 Milton",
+      "note": "1 h 07 min by transit \u00b7 3 transfers \u00b7 ~22 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 27.3,
+      "freeFlowMin": 22,
+      "current": {
+        "minutes": 67,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.37,
+      "demandLabel": "moderate",
+      "score": 1.024,
+      "from": {
+        "code": "00228",
+        "name": "Malton GO Bus",
+        "lat": 43.705153,
+        "lon": -79.63823
+      },
+      "to": {
+        "code": "00194",
+        "name": "Milton GO Bus",
+        "lat": 43.52364,
+        "lon": -79.867172
+      }
+    },
+    {
+      "id": "bradford-old-elm",
+      "headline": "Bradford \u2194 Old Elm",
+      "note": "2 h 19 min by transit \u00b7 2 transfers \u00b7 ~23 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 29.0,
+      "freeFlowMin": 23,
+      "current": {
+        "minutes": 139,
+        "transfers": 2,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.25,
+      "demandLabel": "light",
+      "score": 1.017,
+      "from": {
+        "code": "02160",
+        "name": "Bradford GO Bus",
+        "lat": 44.116513,
+        "lon": -79.555394
+      },
+      "to": {
+        "code": "02830",
+        "name": "Old Elm GO Bus",
+        "lat": 43.990395,
+        "lon": -79.237098
+      }
+    },
+    {
+      "id": "bronte-georgetown",
+      "headline": "Bronte \u2194 Georgetown",
+      "note": "1 h 41 min by transit \u00b7 2 transfers \u00b7 ~25 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 30.9,
+      "freeFlowMin": 25,
+      "current": {
+        "minutes": 101,
+        "transfers": 2,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.34,
+      "demandLabel": "moderate",
+      "score": 1.016,
+      "from": {
+        "code": "00264",
+        "name": "Bronte GO Bus",
+        "lat": 43.416774,
+        "lon": -79.722294
+      },
+      "to": {
+        "code": "02413",
+        "name": "Georgetown GO Bus",
+        "lat": 43.655373,
+        "lon": -79.919054
+      }
+    },
+    {
+      "id": "bradford-gormley",
+      "headline": "Bradford \u2194 Gormley",
+      "note": "2 h 12 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 23.1,
+      "freeFlowMin": 18,
+      "current": {
+        "minutes": 132,
+        "transfers": 2,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.18,
+      "demandLabel": "light",
+      "score": 0.988,
+      "from": {
+        "code": "02160",
+        "name": "Bradford GO Bus",
+        "lat": 44.116513,
+        "lon": -79.555394
+      },
+      "to": {
+        "code": "02629",
+        "name": "Gormley GO Bus",
+        "lat": 43.941617,
+        "lon": -79.399033
+      }
+    },
+    {
+      "id": "kitchener-milton",
+      "headline": "Kitchener \u2194 Milton",
+      "note": "1 h 56 min by transit \u00b7 3 transfers \u00b7 ~41 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 51.1,
+      "freeFlowMin": 41,
+      "current": {
+        "minutes": 116,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.36,
+      "demandLabel": "moderate",
+      "score": 0.986,
+      "from": {
+        "code": "02186",
+        "name": "Kitchener GO Bus",
+        "lat": 43.455686,
+        "lon": -80.49313
+      },
+      "to": {
+        "code": "00194",
+        "name": "Milton GO Bus",
+        "lat": 43.52364,
+        "lon": -79.867172
+      }
+    },
+    {
+      "id": "bradford-hwy-407",
+      "headline": "Bradford \u2194 Hwy 407",
+      "note": "2 h 13 min by transit \u00b7 3 transfers \u00b7 ~30 min if direct",
+      "mode": "bus",
+      "priority": false,
+      "straightLineKm": 37.2,
+      "freeFlowMin": 30,
+      "current": {
+        "minutes": 133,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.25,
+      "demandLabel": "light",
+      "score": 0.984,
+      "from": {
+        "code": "02160",
+        "name": "Bradford GO Bus",
+        "lat": 44.116513,
+        "lon": -79.555394
+      },
+      "to": {
+        "code": "02673",
+        "name": "Hwy 407 Bus Terminal",
+        "lat": 43.7830713234851,
+        "lon": -79.5244458372792
+      }
+    }
+  ]
+}

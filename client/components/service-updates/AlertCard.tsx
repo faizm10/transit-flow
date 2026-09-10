@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
 import type { ServiceAlert, AlertType } from "@/lib/serviceUpdates";
 import { useState } from "react";
@@ -18,12 +17,14 @@ function formatDate(iso: string): string {
 }
 
 /** Only delays and cancellations get a word — notices are self-evident in context. */
-function severityLabel(type: AlertType): { label: string; className: string } | null {
+function severity(
+  type: AlertType,
+): { label: string; color: string } | null {
   switch (type) {
     case "delay":
-      return { label: "Delay", className: "text-amber-600" };
+      return { label: "Delay", color: "var(--landing-amber)" };
     case "cancellation":
-      return { label: "Cancelled", className: "text-red-600" };
+      return { label: "Cancelled", color: "var(--landing-red)" };
     default:
       return null;
   }
@@ -34,7 +35,7 @@ const BODY_CLAMP_LENGTH = 180;
 export function AlertCard({ alert }: { alert: ServiceAlert }) {
   const [expanded, setExpanded] = useState(false);
 
-  const sev = severityLabel(alert.type);
+  const sev = severity(alert.type);
   const lines = alert.routes.map((code) => GO_RAIL_LINES[code]).filter(Boolean);
   const primary = lines[0];
   const mapRoute = alert.routes[0];
@@ -46,48 +47,62 @@ export function AlertCard({ alert }: { alert: ServiceAlert }) {
       : alert.body;
 
   return (
-    <article className="rounded-xl border border-gray-100 bg-white p-5 transition-colors hover:border-gray-200">
-      {/* Meta: which line · severity · when */}
-      <div className="flex items-center gap-2 text-xs">
+    <article className="border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-5 transition-colors hover:border-[var(--landing-border-2)]">
+      {/* Severity stripe as a small square — state reads at a glance */}
+      <div className="flex items-center gap-2 font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.05em]">
+        {sev && (
+          <span
+            className="h-2 w-2 shrink-0"
+            style={{ backgroundColor: sev.color }}
+            aria-hidden
+          />
+        )}
         {primary ? (
-          <span className="flex items-center gap-1.5 font-medium text-gray-500">
+          <span className="flex items-center gap-1.5 text-[var(--landing-muted)]">
             <span
               className="h-2 w-2 shrink-0 rounded-full"
               style={{ backgroundColor: primary.color }}
             />
             {primary.name.replace(" Line", "")}
             {lines.length > 1 && (
-              <span className="text-gray-400">+{lines.length - 1}</span>
+              <span className="text-[var(--landing-faint)]">
+                +{lines.length - 1}
+              </span>
             )}
           </span>
         ) : (
-          <span className="font-medium text-gray-400">GO Transit</span>
+          <span className="text-[var(--landing-faint)]">GO Transit</span>
         )}
 
         {sev && (
-          <span className={`font-semibold ${sev.className}`}>{sev.label}</span>
+          <span style={{ color: sev.color }} className="font-medium">
+            {sev.label}
+          </span>
         )}
 
         {alert.postedAt && (
-          <time dateTime={alert.postedAt} className="ml-auto shrink-0 text-gray-400">
+          <time
+            dateTime={alert.postedAt}
+            className="ml-auto shrink-0 text-[var(--landing-faint)]"
+          >
             {formatDate(alert.postedAt)}
           </time>
         )}
       </div>
 
       {/* Title */}
-      <h3 className="mt-2.5 text-[15px] font-semibold leading-snug tracking-[-0.01em] text-gray-900">
+      <h3 className="mt-3 font-[family-name:var(--font-hanken)] text-[1.0625rem] font-medium leading-snug tracking-[-0.01em] text-[var(--landing-ink)]">
         {alert.title}
       </h3>
 
       {/* Body */}
       {alert.body && (
-        <p className="mt-1.5 whitespace-pre-line text-sm leading-[1.65] text-gray-600">
+        <p className="mt-1.5 whitespace-pre-line text-sm leading-[1.65] text-[var(--landing-muted)]">
           {displayBody}
           {isLong && (
             <button
               onClick={() => setExpanded((e) => !e)}
-              className="ml-1 font-medium text-gray-500 underline decoration-gray-300 underline-offset-2 hover:text-gray-800"
+              className="ml-1 font-medium text-[var(--landing-fg)] underline decoration-[var(--landing-border-2)] underline-offset-2 hover:text-[var(--landing-ink)]"
             >
               {expanded ? "less" : "more"}
             </button>
@@ -99,10 +114,9 @@ export function AlertCard({ alert }: { alert: ServiceAlert }) {
       {mapRoute && (
         <Link
           href={`/map?mode=browse&goRoute=${mapRoute}`}
-          className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#007A33] hover:text-[#005c26]"
+          className="mt-3.5 inline-flex items-center gap-1 font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.08em] text-[var(--landing-accent)] transition-opacity hover:opacity-70"
         >
-          View on map
-          <ArrowRight className="h-3.5 w-3.5" />
+          View on map →
         </Link>
       )}
     </article>

@@ -21,7 +21,7 @@ interface AddCityFeedModalProps {
   onAdded: (meta: CityFeedMeta) => void;
 }
 
-const GO_BLUE = "#155ba0";
+const GO_BLUE = "var(--landing-accent)";
 
 function fmtBytes(n: number): string {
   if (n >= 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
@@ -135,7 +135,7 @@ export default function AddCityFeedModal({
         {/* ── Header band: transit-sign blue with faint route map ── */}
         <div
           className="relative overflow-hidden px-5 pb-4 pt-4 text-white"
-          style={{ background: `linear-gradient(135deg, ${GO_BLUE} 0%, #0d3f73 100%)` }}
+          style={{ background: `linear-gradient(135deg, ${GO_BLUE} 0%, var(--landing-accent) 100%)` }}
         >
           {/* decorative route lines */}
           <svg
@@ -153,13 +153,13 @@ export default function AddCityFeedModal({
 
           <div className="relative flex items-start justify-between gap-3">
             <div>
-              <p className="font-mono text-[9px] font-medium uppercase tracking-[0.22em] text-blue-200">
+              <p className="font-mono text-[9px] font-medium uppercase tracking-[0.22em] text-white/60">
                 Network import
               </p>
               <DialogTitle className="mt-0.5 text-[17px] font-semibold tracking-tight text-white">
                 Add a city&apos;s GTFS
               </DialogTitle>
-              <p className="mt-1 max-w-[19rem] text-[11px] leading-relaxed text-blue-100/90">
+              <p className="mt-1 max-w-[19rem] text-[11px] leading-relaxed text-white/80">
                 Drop in any agency&apos;s GTFS zip — it&apos;s processed in your browser and
                 reduced to a compact summary before anything is stored.
               </p>
@@ -168,7 +168,7 @@ export default function AddCityFeedModal({
               type="button"
               onClick={handleClose}
               aria-label="Close"
-              className="rounded-md p-1 text-blue-100 transition-colors hover:bg-white/15 hover:text-white"
+              className="rounded-md p-1 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
@@ -197,8 +197,8 @@ export default function AddCityFeedModal({
                 }}
                 className={`group relative w-full overflow-hidden rounded-xl border-2 border-dashed px-4 py-9 transition-all duration-200 ${
                   dragOver
-                    ? "scale-[1.01] border-[#155ba0] bg-blue-50/70"
-                    : "border-slate-200 bg-slate-50/50 hover:border-[#155ba0]/50 hover:bg-blue-50/30"
+                    ? "scale-[1.01] border-[var(--landing-accent)] bg-[var(--landing-wash)]/70"
+                    : "border-[var(--landing-border-2)] bg-[var(--landing-wash)] hover:border-[var(--landing-accent)]/50 hover:bg-[var(--landing-wash)]/30"
                 } ${parsing ? "cursor-default" : "cursor-pointer"}`}
                 style={MAP_GRID_BG}
               >
@@ -207,7 +207,7 @@ export default function AddCityFeedModal({
                     {/* route-line progress */}
                     <div className="relative mx-auto mb-5 h-5 w-56">
                       {/* track + fill */}
-                      <div className="absolute left-0 right-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-slate-200" />
+                      <div className="absolute left-0 right-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-[var(--landing-border-2)]" />
                       <div
                         className="absolute left-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full transition-[width] duration-500 ease-out"
                         style={{ width: `${pct * 100}%`, backgroundColor: GO_BLUE }}
@@ -216,10 +216,10 @@ export default function AddCityFeedModal({
                       {ROUTE_STOPS.map((s) => (
                         <span
                           key={s}
-                          className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-white transition-colors duration-300"
+                          className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-[var(--landing-elevated)] transition-colors duration-300"
                           style={{
                             left: `${s * 100}%`,
-                            borderColor: pct >= s ? GO_BLUE : "#cbd5e1",
+                            borderColor: pct >= s ? GO_BLUE : "var(--landing-border-2)",
                           }}
                         />
                       ))}
@@ -229,34 +229,34 @@ export default function AddCityFeedModal({
                         style={{ left: `${pct * 100}%`, backgroundColor: GO_BLUE }}
                       />
                     </div>
-                    <p className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-[#155ba0]">
+                    <p className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--landing-accent)]">
                       {parseProgress.phase}
-                      <span className="ml-2 tabular-nums text-slate-400">
+                      <span className="ml-2 tabular-nums text-[var(--landing-faint)]">
                         {Math.round(pct * 100)}%
                       </span>
                     </p>
-                    <p className="mt-1 truncate font-mono text-[10px] text-slate-400">{fileName}</p>
+                    <p className="mt-1 truncate font-mono text-[10px] text-[var(--landing-faint)]">{fileName}</p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2.5">
                     <span
-                      className="flex h-11 w-11 items-center justify-center rounded-full border-2 text-[#155ba0] transition-transform duration-200 group-hover:-translate-y-0.5"
+                      className="flex h-11 w-11 items-center justify-center rounded-full border-2 text-[var(--landing-accent)] transition-transform duration-200 group-hover:-translate-y-0.5"
                       style={{ borderColor: GO_BLUE, backgroundColor: "white" }}
                     >
                       <CloudUpload className="h-5 w-5" aria-hidden />
                     </span>
-                    <p className="text-[13px] font-medium text-slate-800">
+                    <p className="text-[13px] font-medium text-[var(--landing-ink)]">
                       Drop a GTFS <span className="font-mono text-[12px]">.zip</span> here
                     </p>
-                    <p className="text-[11px] text-slate-400">
-                      or <span className="font-medium text-[#155ba0] underline decoration-dotted underline-offset-2">browse files</span> — large feeds are fine
+                    <p className="text-[11px] text-[var(--landing-faint)]">
+                      or <span className="font-medium text-[var(--landing-accent)] underline decoration-dotted underline-offset-2">browse files</span> — large feeds are fine
                     </p>
                   </div>
                 )}
               </button>
-              <p className="mt-2.5 text-center text-[10px] text-slate-400">
+              <p className="mt-2.5 text-center text-[10px] text-[var(--landing-faint)]">
                 Find feeds on your city&apos;s open-data portal or{" "}
-                <span className="font-medium text-slate-500">mobilitydatabase.org</span>
+                <span className="font-medium text-[var(--landing-muted)]">mobilitydatabase.org</span>
               </p>
               <input
                 ref={fileInputRef}
@@ -276,7 +276,7 @@ export default function AddCityFeedModal({
           {parsed && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
               {/* ticket card */}
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50/80">
+              <div className="overflow-hidden rounded-xl border border-[var(--landing-border-2)] bg-[var(--landing-wash)]">
                 <div className="flex items-stretch">
                   {/* live accent bar */}
                   <span
@@ -285,16 +285,16 @@ export default function AddCityFeedModal({
                     aria-hidden
                   />
                   <div className="min-w-0 flex-1 px-3.5 py-2.5">
-                    <p className="font-mono text-[9px] font-medium uppercase tracking-[0.2em] text-slate-400">
+                    <p className="font-mono text-[9px] font-medium uppercase tracking-[0.2em] text-[var(--landing-faint)]">
                       Agency
                     </p>
-                    <p className="truncate text-[14px] font-semibold tracking-tight text-slate-900">
+                    <p className="truncate text-[14px] font-semibold tracking-tight text-[var(--landing-ink)]">
                       {parsed.agency ?? fileName}
                     </p>
                     {parsed.stats.serviceStart && parsed.stats.serviceEnd && (
-                      <p className="mt-0.5 flex items-center gap-1 font-mono text-[10px] tabular-nums text-slate-500">
+                      <p className="mt-0.5 flex items-center gap-1 font-mono text-[10px] tabular-nums text-[var(--landing-muted)]">
                         {parsed.stats.serviceStart}
-                        <ArrowRight className="h-2.5 w-2.5 text-slate-300" aria-hidden />
+                        <ArrowRight className="h-2.5 w-2.5 text-[var(--landing-faint)]" aria-hidden />
                         {parsed.stats.serviceEnd}
                       </p>
                     )}
@@ -303,13 +303,13 @@ export default function AddCityFeedModal({
 
                 {/* perforation */}
                 <div className="relative mx-0 flex items-center" aria-hidden>
-                  <span className="absolute -left-2 h-4 w-4 rounded-full border border-slate-200 bg-white" />
-                  <span className="mx-4 h-px flex-1 border-t border-dashed border-slate-300" />
-                  <span className="absolute -right-2 h-4 w-4 rounded-full border border-slate-200 bg-white" />
+                  <span className="absolute -left-2 h-4 w-4 rounded-full border border-[var(--landing-border-2)] bg-[var(--landing-elevated)]" />
+                  <span className="mx-4 h-px flex-1 border-t border-dashed border-[var(--landing-border-2)]" />
+                  <span className="absolute -right-2 h-4 w-4 rounded-full border border-[var(--landing-border-2)] bg-[var(--landing-elevated)]" />
                 </div>
 
                 {/* stat row */}
-                <div className="grid grid-cols-4 divide-x divide-slate-200/80 px-1.5 py-2.5">
+                <div className="grid grid-cols-4 divide-x divide-[var(--landing-border)]/80 px-1.5 py-2.5">
                   {(
                     [
                       ["Routes", fmtCount(parsed.stats.routes)],
@@ -319,10 +319,10 @@ export default function AddCityFeedModal({
                     ] as const
                   ).map(([label, value]) => (
                     <div key={label} className="px-2 text-center">
-                      <p className="font-mono text-[13px] font-semibold tabular-nums tracking-tight text-slate-900">
+                      <p className="font-mono text-[13px] font-semibold tabular-nums tracking-tight text-[var(--landing-ink)]">
                         {value}
                       </p>
-                      <p className="mt-px font-mono text-[8.5px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                      <p className="mt-px font-mono text-[8.5px] font-medium uppercase tracking-[0.18em] text-[var(--landing-faint)]">
                         {label}
                       </p>
                     </div>
@@ -334,7 +334,7 @@ export default function AddCityFeedModal({
               <div className="mt-4">
                 <label
                   htmlFor="city-feed-name"
-                  className="font-mono text-[9px] font-medium uppercase tracking-[0.2em] text-slate-500"
+                  className="font-mono text-[9px] font-medium uppercase tracking-[0.2em] text-[var(--landing-muted)]"
                 >
                   Display name
                 </label>
@@ -344,13 +344,13 @@ export default function AddCityFeedModal({
                   maxLength={60}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. TTC"
-                  className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-900 outline-none transition-shadow placeholder:font-normal placeholder:text-slate-300 focus:border-[#155ba0] focus:ring-2 focus:ring-[#155ba0]/15"
+                  className="mt-1 h-9 w-full rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-3 text-[13px] font-medium text-[var(--landing-ink)] outline-none transition-shadow placeholder:font-normal placeholder:text-[var(--landing-faint)] focus:border-[var(--landing-accent)] focus:ring-2 focus:ring-[var(--landing-accent)]/15"
                 />
               </div>
 
               {/* line colour */}
               <div className="mt-3.5">
-                <p className="font-mono text-[9px] font-medium uppercase tracking-[0.2em] text-slate-500">
+                <p className="font-mono text-[9px] font-medium uppercase tracking-[0.2em] text-[var(--landing-muted)]">
                   Line colour
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-2">
@@ -379,18 +379,18 @@ export default function AddCityFeedModal({
               </div>
 
               {/* actions */}
-              <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-3.5">
+              <div className="mt-5 flex items-center justify-between gap-2 border-t border-[var(--landing-border)] pt-3.5">
                 <button
                   type="button"
                   onClick={reset}
-                  className="text-[11px] font-medium text-slate-400 transition-colors hover:text-slate-600"
+                  className="text-[11px] font-medium text-[var(--landing-faint)] transition-colors hover:text-[var(--landing-ink)]"
                 >
                   ← Choose another file
                 </button>
                 {isAuthenticated ? (
                   <Button
                     size="sm"
-                    className="h-8 bg-[#155ba0] px-4 text-xs font-semibold hover:bg-[#12518f]"
+                    className="h-8 bg-[var(--landing-accent)] px-4 text-xs font-semibold hover:opacity-90"
                     disabled={!name.trim() || saving}
                     onClick={() => void handleAdd(true)}
                   >
@@ -408,7 +408,7 @@ export default function AddCityFeedModal({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 border-slate-200 text-xs font-medium text-slate-600"
+                      className="h-8 border-[var(--landing-border-2)] text-xs font-medium text-[var(--landing-muted)]"
                       disabled={!name.trim()}
                       onClick={() => void handleAdd(false)}
                     >
@@ -416,7 +416,7 @@ export default function AddCityFeedModal({
                     </Button>
                     <Button
                       size="sm"
-                      className="h-8 bg-[#155ba0] px-4 text-xs font-semibold hover:bg-[#12518f]"
+                      className="h-8 bg-[var(--landing-accent)] px-4 text-xs font-semibold hover:opacity-90"
                       onClick={() => signIn()}
                     >
                       Sign in to save
@@ -429,7 +429,7 @@ export default function AddCityFeedModal({
 
           {error && (
             <p
-              className="mt-3 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[11px] font-medium text-red-600"
+              className="mt-3 rounded-lg border border-[color-mix(in_oklab,var(--landing-red)_24%,transparent)] bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] px-3 py-2 text-[11px] font-medium text-[var(--landing-red)]"
               role="alert"
             >
               {error}

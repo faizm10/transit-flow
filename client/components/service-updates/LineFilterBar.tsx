@@ -3,19 +3,20 @@ import { GO_RAIL_LINES } from "@/lib/routeColors";
 
 const LINES = Object.entries(GO_RAIL_LINES);
 
-const INACTIVE =
-  "inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-medium bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors";
+const BASE =
+  "inline-flex items-center px-3 py-1.5 font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.06em] transition-colors";
+const INACTIVE = `${BASE} border border-[var(--landing-border)] text-[var(--landing-muted)] hover:border-[var(--landing-border-2)] hover:text-[var(--landing-ink)]`;
 
 export function LineFilterBar({ activeLine }: { activeLine?: string }) {
   const active = activeLine?.toUpperCase();
 
   return (
-    <div className="flex flex-wrap gap-2 mb-8">
+    <div className="mb-10 flex flex-wrap gap-2">
       <Link
         href="/service-updates"
         className={
           !active
-            ? "inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-medium bg-[#007A33] text-white transition-colors"
+            ? `${BASE} bg-[var(--landing-accent)] text-white`
             : INACTIVE
         }
       >
@@ -28,12 +29,12 @@ export function LineFilterBar({ activeLine }: { activeLine?: string }) {
           <Link
             key={code}
             href={`/service-updates?line=${code}`}
-            className={
+            className={isActive ? BASE : INACTIVE}
+            style={
               isActive
-                ? "inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors"
-                : INACTIVE
+                ? { backgroundColor: info.color, color: info.textColor }
+                : undefined
             }
-            style={isActive ? { backgroundColor: info.color, color: info.textColor } : undefined}
           >
             {info.name.replace(" Line", "")}
           </Link>

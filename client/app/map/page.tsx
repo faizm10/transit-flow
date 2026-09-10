@@ -20,19 +20,22 @@ import VehicleInfoPopup from "@/components/overlays/VehicleInfoPopup";
 import DrawGuide from "@/components/overlays/DrawGuide";
 import ServiceStatusPill from "@/components/overlays/ServiceStatusPill";
 import OpenRailwayMapOverlayControls from "@/components/overlays/OpenRailwayMapOverlayControls";
-import { OPENRAILWAYMAP_OVERLAY_ENABLED } from "@/lib/features";
+import { OPENRAILWAYMAP_OVERLAY_ENABLED, GAP_FINDER_BETA_ENABLED } from "@/lib/features";
 import { useRoutes } from "@/hooks/useRoutes";
 import { useStations } from "@/hooks/useStations";
 import { useSimulation } from "@/hooks/useSimulation";
 import { useCityFeeds } from "@/hooks/useCityFeeds";
 import { useServiceAlerts } from "@/hooks/useServiceAlerts";
 import { isRailCode } from "@/lib/mapServiceAlerts";
+import GapFinderBeta from "@/components/overlays/GapFinderBeta";
+import type { NetworkGap } from "@/lib/networkGaps";
 import AddCityFeedModal from "@/components/panels/AddCityFeedModal";
 import type { CityFeedMeta } from "@/lib/cityGtfs";
 import { networkRouteFilters } from "@/lib/mapEntry";
-import { type CustomRoute, type CustomSchedule, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
+import { type CustomRoute, type CustomSchedule, type CustomStop, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
 import { formatSimDate } from "@/lib/simulation";
 import BugReportButton from "@/components/BugReportButton";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
 // Dynamically import Map to avoid SSR issues with mapbox-gl
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
@@ -135,6 +138,10 @@ function MapPageContent() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnGeometry, setDrawnGeometry] = useState<[number, number][] | null>(null);
   const [editingRoute, setEditingRoute] = useState<CustomRoute | undefined>();
+  /** Endpoints handed to the builder from Gap Finder. */
+  const [gapSeed, setGapSeed] = useState<
+    { stops: CustomStop[]; key: string; mode: "bus" | "train" } | null
+  >(null);
   const [designTab, setDesignTab] = useState<DesignTab>(() => {
     if (typeof window === "undefined") return "new";
     const sp = new URLSearchParams(window.location.search);
@@ -443,6 +450,17 @@ function MapPageContent() {
       setShowAlertsOnMap(false);
     }
   }, [showAlertsOnMap, railAlerts.length, serviceAlertsLoaded]);
+
+  // Drop the Gap Finder seed once we've actually left the builder (not before
+  // build mode has had a chance to activate).
+  const gapSeedConsumedRef = useRef(false);
+  useEffect(() => {
+    if (mode === "build" && gapSeed) gapSeedConsumedRef.current = true;
+    else if (mode !== "build" && gapSeedConsumedRef.current) {
+      gapSeedConsumedRef.current = false;
+      setGapSeed(null);
+    }
+  }, [mode, gapSeed]);
 
   // ── Sync route visibility filters to map layers ─────────────────────────
   useEffect(() => {
@@ -833,12 +851,33 @@ function MapPageContent() {
     requestDeleteCustomRoute(clickedRoute.variantId, clickedRoute.shortName);
   }
 
+  const handleDesignFromGap = useCallback(
+    (gap: NetworkGap) => {
+      const toStop = (e: NetworkGap["from"], seq: number): CustomStop => ({
+        id: uuidv4(),
+        name: e.name.replace(/\s+Bus$/, ""),
+        lat: e.lat,
+        lon: e.lon,
+        sequence: seq,
+      });
+      setGapSeed({
+        stops: [toStop(gap.from, 1), toStop(gap.to, 2)],
+        key: `gap-${gap.id}-${Date.now()}`,
+        mode: gap.mode,
+      });
+      setDesignTab("new");
+      patchSearch({ mode: "build", design: "new", entry: "fresh", goRoute: null });
+      toast.success(`${gap.headline}: endpoints added — draw the alignment and add stops between.`);
+    },
+    [patchSearch]
+  );
+
   const panelOpen = mode === "browse" || mode === "build";
   // Hide info card when browse panel is open (panel shows richer info)
   const showInfoCard = clickedRoute && !isDrawing && mode !== "browse";
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-slate-100">
+    <div className="relative w-screen h-screen overflow-hidden bg-[var(--landing-band)]">
       {/* ── Full-screen map ─────────────────────────────────────────────── */}
       <div className="absolute inset-0">
         <Map
@@ -852,34 +891,45 @@ function MapPageContent() {
           onVehicleHover={handleVehicleHover}
           isTrainDesignMode={isTrainDesignMode}
         />
+        {/* Dark-mode map tint — a light dim so the light Mapbox basemap reads
+            as muted in dark mode without hiding routes or labels. Sits above
+            the canvas, below every panel. Opacity is the knob to tune. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 hidden bg-[#0a1512]/35 dark:block"
+        />
       </div>
 
       {/* ── Top nav bar ─────────────────────────────────────────────────── */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-1 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-lg px-2 py-1.5">
+        <div className="tf-map-panel pointer-events-auto flex items-center gap-0.5 px-1.5 py-1.5">
           <Link
             href="/"
-            className="flex items-center gap-1.5 mr-2 pl-1.5 pr-3 border-r border-slate-100"
+            className="mr-1.5 flex items-center gap-2 border-r border-[var(--landing-border)] py-1 pl-1 pr-3"
           >
-            <div className="w-6 h-6 rounded-lg bg-[#155ba0] flex items-center justify-center">
-              <Train className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="text-sm font-semibold text-slate-900">TransitFlow</span>
+            <span className="flex h-6 w-6 items-center justify-center bg-[var(--landing-accent)]">
+              <Train className="h-3.5 w-3.5 text-white" />
+            </span>
+            <span className="tf-map-label font-medium text-[var(--landing-ink)]">
+              TransitFlow
+            </span>
           </Link>
           {NAV_ITEMS.map(({ mode: m, icon: Icon, label }) => (
             <button
               key={m}
               onClick={() => handleModeToggle(m)}
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium transition-all ${
+              className={`tf-map-label flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
                 mode === m
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-[var(--landing-inverse)] text-[var(--landing-inverse-fg)]"
+                  : "text-[var(--landing-muted)] hover:bg-[var(--landing-wash)] hover:text-[var(--landing-ink)]"
               }`}
             >
-              <Icon className="w-3.5 h-3.5" />
+              <Icon className="h-3.5 w-3.5" />
               {label}
             </button>
           ))}
+          <span className="mx-1 h-5 w-px bg-[var(--landing-border)]" aria-hidden />
+          <AnimatedThemeToggler className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-ink)] [&_svg]:h-3.5 [&_svg]:w-3.5" />
         </div>
       </div>
 
@@ -902,6 +952,20 @@ function MapPageContent() {
         />
       )}
 
+      {GAP_FINDER_BETA_ENABLED && (
+        <GapFinderBeta
+          mapRef={mapRef}
+          mapLoaded={mapLoaded}
+          hidden={isDrawing}
+          onDesignRoute={handleDesignFromGap}
+          onOpenChange={(gapOpen) => {
+            if (gapOpen && (mode === "browse" || mode === "build")) {
+              patchSearch({ mode: null, design: null, goRoute: null, entry: null });
+            }
+          }}
+        />
+      )}
+
       {/* ── Left side panel ─────────────────────────────────────────────── */}
       {panelOpen && (
         <div
@@ -914,8 +978,8 @@ function MapPageContent() {
           <div
             className={
               mode === "browse"
-                ? "flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-xl"
-                : "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-xl"
+                ? "tf-map-panel flex min-h-0 flex-col overflow-hidden"
+                : "tf-map-panel flex h-full min-h-0 flex-col overflow-hidden"
             }
           >
             {mode === "browse" && (
@@ -943,6 +1007,9 @@ function MapPageContent() {
                 <DesignPanel
                   activeTab={designTab}
                   onActiveTabChange={handleDesignTabChange}
+                  newSeedStops={gapSeed?.stops}
+                  newWizardKey={gapSeed?.key}
+                  newLockRouteType={gapSeed?.mode}
                   extendInitialRoute={extendSeedRoute}
                   extendWizardKey={
                     extendSeedRoute?.route_id
@@ -1070,10 +1137,13 @@ function MapPageContent() {
       {!mode
         && !clickedRoute
         && mapLoaded && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none max-w-[min(360px,calc(100vw-32px))] text-center">
-          <div className="rounded-xl border border-slate-100 bg-white/90 px-4 py-2.5 text-sm leading-snug text-slate-500 shadow-md backdrop-blur-md">
-            Tap a coloured line for details — open <strong className="font-semibold text-slate-700">Explore</strong>{" "}
-            for the route list, or <strong className="font-semibold text-slate-700">Design</strong> to model corridors.
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none max-w-[min(380px,calc(100vw-32px))] text-center">
+          <div className="tf-map-panel px-4 py-2.5 text-sm leading-snug text-[var(--landing-muted)]">
+            Tap a coloured line for details — open{" "}
+            <strong className="font-semibold text-[var(--landing-ink)]">Explore</strong>{" "}
+            for the route list, or{" "}
+            <strong className="font-semibold text-[var(--landing-ink)]">Design</strong>{" "}
+            to model corridors.
           </div>
         </div>
       )}
@@ -1092,9 +1162,9 @@ function MapPageContent() {
                 goRoute: null,
               });
             }}
-            className="bg-white/95 backdrop-blur-xl rounded-xl border border-slate-200 shadow-md px-3 py-2 text-xs font-medium text-slate-700 flex items-center gap-1.5 hover:shadow-lg transition-shadow"
+            className="tf-map-panel tf-map-label flex items-center gap-1.5 px-3 py-2 text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-ink)]"
           >
-            <Pencil className="w-3.5 h-3.5 text-slate-400" />
+            <Pencil className="h-3.5 w-3.5 text-[var(--landing-faint)]" />
             {customRoutes.length} saved route{customRoutes.length !== 1 ? "s" : ""}
           </button>
           <div className="relative">
@@ -1106,28 +1176,28 @@ function MapPageContent() {
                   setSharePickerOpen((o) => !o);
                 }
               }}
-              className="bg-[#007A33] backdrop-blur-xl rounded-xl border border-[#007A33] shadow-md px-3 py-2 text-xs font-semibold text-white flex items-center gap-1.5 hover:bg-[#005f28] hover:shadow-lg transition-all"
+              className="tf-map-label flex items-center gap-1.5 border border-[var(--landing-accent)] bg-[var(--landing-accent)] px-3 py-2 text-white shadow-[0_1px_2px_rgba(19,36,27,0.06),0_14px_34px_-14px_rgba(19,36,27,0.2)] transition-opacity hover:opacity-90"
             >
-              <Share2 className="w-3.5 h-3.5" />
+              <Share2 className="h-3.5 w-3.5" />
               Share
             </button>
             {sharePickerOpen && (
-              <div className="absolute bottom-full right-0 mb-2 w-56 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden z-30">
-                <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100">
+              <div className="tf-map-panel absolute bottom-full right-0 z-30 mb-2 w-56 overflow-hidden">
+                <p className="tf-map-label border-b border-[var(--landing-border)] px-3 py-2 text-[var(--landing-faint)]">
                   Pick a route to share
                 </p>
                 <ul>
                   {customRoutes.map((r) => (
                     <li key={r.id}>
                       <button
-                        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-slate-800 hover:bg-slate-50 transition-colors"
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-[var(--landing-ink)] transition-colors hover:bg-[var(--landing-wash)]"
                         onClick={() => {
                           setShareTarget(r);
                           setSharePickerOpen(false);
                         }}
                       >
                         <span
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[9px] font-bold text-white"
+                          className="flex h-6 w-6 shrink-0 items-center justify-center text-[9px] font-bold text-white"
                           style={{ backgroundColor: r.color }}
                         >
                           {r.type === "train" ? "R" : "B"}
@@ -1171,7 +1241,7 @@ export default function MapPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-screen w-screen items-center justify-center bg-slate-100 text-sm text-slate-500">
+        <div className="flex h-screen w-screen items-center justify-center bg-[var(--landing-band)] text-sm text-[var(--landing-muted)]">
           Loading map…
         </div>
       }

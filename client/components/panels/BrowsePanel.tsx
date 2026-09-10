@@ -51,7 +51,7 @@ function tripsLabel(route: EnrichedRoute) {
 
 /** Caps list height on large screens; panel shrink-wraps when the list is short. */
 const ROUTE_LIST_BOX =
-  "mt-1 max-h-[min(26rem,calc(100dvh-11rem))] overflow-y-auto rounded-lg border border-slate-100 bg-white";
+  "mt-1 max-h-[min(26rem,calc(100dvh-11rem))] overflow-y-auto rounded-lg border border-[var(--landing-border)] bg-[var(--landing-elevated)]";
 
 export default function BrowsePanel({
   onRouteSelect,
@@ -140,27 +140,27 @@ export default function BrowsePanel({
   return (
     <div className="flex flex-col">
       <header
-        className="flex shrink-0 items-center gap-1.5 border-b border-slate-100 px-2 py-1"
+        className="flex shrink-0 items-center gap-1.5 border-b border-[var(--landing-border)] px-2 py-1"
         title="Row highlights on the map; checkboxes toggle route visibility."
       >
-        <h2 className="min-w-0 flex-1 truncate text-xs font-semibold tracking-tight text-slate-900">
+        <h2 className="min-w-0 flex-1 truncate font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.08em] font-medium text-[var(--landing-ink)]">
           GO Transit routes
         </h2>
-        <span className="shrink-0 text-[10px] tabular-nums text-slate-400">
+        <span className="shrink-0 text-[10px] tabular-nums text-[var(--landing-faint)]">
           {totalRouteCount === 0 ? "…" : `${visibleRouteCount}/${totalRouteCount}`}
         </span>
-        <div className="flex shrink-0 items-center gap-0.5 rounded bg-slate-100 p-px text-[10px] font-semibold">
+        <div className="flex shrink-0 items-center gap-0.5 bg-[var(--landing-wash)] p-px text-[10px] font-semibold">
           <button
             type="button"
-            className="rounded px-1 py-px text-[#155ba0] hover:bg-white"
+            className="rounded px-1 py-px text-[var(--landing-accent)] hover:bg-[var(--landing-bg)]"
             onClick={() => onRouteFilterChange({ goRouteShortNames: null, customRouteIds: null })}
           >
             All
           </button>
-          <span className="text-slate-300">|</span>
+          <span className="text-[var(--landing-faint)]">|</span>
           <button
             type="button"
-            className="rounded px-1 py-px text-slate-600 hover:bg-white"
+            className="rounded px-1 py-px text-[var(--landing-muted)] hover:bg-[var(--landing-bg)]"
             onClick={() => onRouteFilterChange({ goRouteShortNames: [], customRouteIds: [] })}
           >
             None
@@ -170,31 +170,31 @@ export default function BrowsePanel({
 
       <Tabs defaultValue="trains" className="flex flex-col">
         <div className="shrink-0 space-y-1 px-2 pb-1 pt-1">
-          <TabsList className="grid h-7 w-full grid-cols-4 gap-0 bg-slate-100 p-px">
-            <TabsTrigger value="trains" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
+          <TabsList className="grid h-7 w-full grid-cols-4 gap-0 rounded-none bg-[var(--landing-wash)] p-px [&_[data-slot=tabs-trigger]]:rounded-none">
+            <TabsTrigger value="trains" className="gap-0.5 px-0 text-[10px] font-medium">
               <Train className="h-3 w-3 shrink-0" aria-hidden />
               Train
             </TabsTrigger>
-            <TabsTrigger value="buses" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
+            <TabsTrigger value="buses" className="gap-0.5 px-0 text-[10px] font-medium">
               <Bus className="h-3 w-3 shrink-0" aria-hidden />
               Bus
             </TabsTrigger>
-            <TabsTrigger value="mine" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
+            <TabsTrigger value="mine" className="gap-0.5 px-0 text-[10px] font-medium">
               <Pencil className="h-3 w-3 shrink-0" aria-hidden />
               Mine
             </TabsTrigger>
-            <TabsTrigger value="cities" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
+            <TabsTrigger value="cities" className="gap-0.5 px-0 text-[10px] font-medium">
               <Building2 className="h-3 w-3 shrink-0" aria-hidden />
               Cities
             </TabsTrigger>
           </TabsList>
           <div className="relative">
-            <Search className="pointer-events-none absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" aria-hidden />
+            <Search className="pointer-events-none absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-[var(--landing-faint)]" aria-hidden />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Filter…"
-              className="h-6 border-slate-200 bg-slate-50/80 pl-7 text-[11px] placeholder:text-slate-400"
+              className="h-6 border-[var(--landing-border-2)] bg-[var(--landing-wash)] pl-7 text-[11px] placeholder:text-[var(--landing-faint)]"
               aria-label="Filter routes by name"
             />
           </div>
@@ -207,7 +207,7 @@ export default function BrowsePanel({
             <EmptyFilter />
           ) : (
             <div className={ROUTE_LIST_BOX}>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-[var(--landing-border)]">
                 {filteredRail.map((route) => {
                   const lineInfo = GO_RAIL_LINES[route.short_name];
                   const title = lineInfo?.name ?? route.long_name;
@@ -219,13 +219,13 @@ export default function BrowsePanel({
                     <li key={route.short_name}>
                       <div
                         className={`flex min-h-9 items-stretch ${
-                          visible ? "" : "bg-slate-50/80 opacity-60"
+                          visible ? "" : "bg-[var(--landing-wash)] opacity-60"
                         }`}
                       >
                         <button
                           type="button"
                           aria-expanded={isExpanded}
-                          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 pr-1 text-left transition-colors hover:bg-slate-50"
+                          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 pr-1 text-left transition-colors hover:bg-[var(--landing-wash)]"
                           onClick={() => {
                             if (isExpanded) {
                               setExpandedCard(null);
@@ -244,16 +244,16 @@ export default function BrowsePanel({
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="flex min-w-0 items-baseline gap-1.5">
-                              <span className="truncate text-xs font-medium text-slate-900">{title}</span>
-                              <span className="shrink-0 tabular-nums text-[10px] text-slate-400">
+                              <span className="truncate text-xs font-medium text-[var(--landing-ink)]">{title}</span>
+                              <span className="shrink-0 tabular-nums text-[10px] text-[var(--landing-faint)]">
                                 {tripsLabel(route)}
                               </span>
                             </span>
                           </span>
                           {isExpanded ? (
-                            <ChevronUp className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+                            <ChevronUp className="h-3.5 w-3.5 shrink-0 text-[var(--landing-faint)]" aria-hidden />
                           ) : (
-                            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+                            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--landing-faint)]" aria-hidden />
                           )}
                         </button>
                         <VisibilityCheckbox
@@ -263,32 +263,32 @@ export default function BrowsePanel({
                         />
                       </div>
                       {isExpanded && (route.variants.length > 0 || (route.from_stop && route.to_stop)) && (
-                        <div className="border-t border-slate-50 bg-slate-50/50 px-2 py-1.5">
+                        <div className="border-t border-[var(--landing-border)] bg-[var(--landing-wash)] px-2 py-1.5">
                           {route.from_stop && route.to_stop && (
-                            <p className="mb-1.5 truncate text-[10px] text-slate-500">
+                            <p className="mb-1.5 truncate text-[10px] text-[var(--landing-muted)]">
                               {route.from_stop} → {route.to_stop}
                             </p>
                           )}
                           {route.variants.length > 0 && (
                             <>
-                              <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                              <p className="mb-0.5 font-[family-name:var(--landing-mono)] text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--landing-faint)]">
                                 Variants
                               </p>
                               <ul className="space-y-0.5">
                                 {route.variants.slice(0, 8).map((v) => (
                                   <li
                                     key={v.variant_id}
-                                    className="flex items-center justify-between gap-2 rounded px-1.5 py-0.5 text-[11px] text-slate-600"
+                                    className="flex items-center justify-between gap-2 rounded px-1.5 py-0.5 text-[11px] text-[var(--landing-muted)]"
                                   >
                                     <span className="min-w-0 truncate">{v.label}</span>
-                                    <span className="shrink-0 tabular-nums text-[10px] text-slate-400">
+                                    <span className="shrink-0 tabular-nums text-[10px] text-[var(--landing-faint)]">
                                       {(v.weekly_trip_count ?? v.trip_count).toLocaleString()}/wk
                                     </span>
                                   </li>
                                 ))}
                               </ul>
                               {route.variants.length > 8 && (
-                                <p className="mt-1 px-1.5 text-[10px] text-slate-400">
+                                <p className="mt-1 px-1.5 text-[10px] text-[var(--landing-faint)]">
                                   +{route.variants.length - 8} more
                                 </p>
                               )}
@@ -311,7 +311,7 @@ export default function BrowsePanel({
             <EmptyFilter />
           ) : (
             <div className={ROUTE_LIST_BOX}>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-[var(--landing-border)]">
                 {filteredBus.map((route) => {
                   const variantIds = route.variants.map((v) => v.variant_id);
                   const visible = isGoRouteVisible(route.short_name);
@@ -322,13 +322,13 @@ export default function BrowsePanel({
                     <li key={route.short_name}>
                       <div
                         className={`flex min-h-9 items-stretch ${
-                          visible ? "" : "bg-slate-50/80 opacity-60"
+                          visible ? "" : "bg-[var(--landing-wash)] opacity-60"
                         }`}
                       >
                         <button
                           type="button"
                           aria-expanded={isExpanded}
-                          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 pr-1 text-left transition-colors hover:bg-slate-50"
+                          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 pr-1 text-left transition-colors hover:bg-[var(--landing-wash)]"
                           onClick={() => {
                             if (isExpanded) {
                               setExpandedCard(null);
@@ -339,21 +339,21 @@ export default function BrowsePanel({
                             }
                           }}
                         >
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-600/10 text-[10px] font-bold text-blue-800">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--landing-wash)] text-[10px] font-bold text-[var(--landing-ink)]">
                             {route.short_name.slice(0, 3)}
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="flex min-w-0 items-baseline gap-1.5">
-                              <span className="truncate text-xs font-medium text-slate-900">{title}</span>
-                              <span className="shrink-0 tabular-nums text-[10px] text-slate-400">
+                              <span className="truncate text-xs font-medium text-[var(--landing-ink)]">{title}</span>
+                              <span className="shrink-0 tabular-nums text-[10px] text-[var(--landing-faint)]">
                                 {tripsLabel(route)}
                               </span>
                             </span>
                           </span>
                           {isExpanded ? (
-                            <ChevronUp className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+                            <ChevronUp className="h-3.5 w-3.5 shrink-0 text-[var(--landing-faint)]" aria-hidden />
                           ) : (
-                            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+                            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--landing-faint)]" aria-hidden />
                           )}
                         </button>
                         <VisibilityCheckbox
@@ -363,32 +363,32 @@ export default function BrowsePanel({
                         />
                       </div>
                       {isExpanded && (route.variants.length > 0 || (route.from_stop && route.to_stop)) && (
-                        <div className="border-t border-slate-50 bg-slate-50/50 px-2 py-1.5">
+                        <div className="border-t border-[var(--landing-border)] bg-[var(--landing-wash)] px-2 py-1.5">
                           {route.from_stop && route.to_stop && (
-                            <p className="mb-1.5 truncate text-[10px] text-slate-500">
+                            <p className="mb-1.5 truncate text-[10px] text-[var(--landing-muted)]">
                               {route.from_stop} → {route.to_stop}
                             </p>
                           )}
                           {route.variants.length > 0 && (
                             <>
-                              <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                              <p className="mb-0.5 font-[family-name:var(--landing-mono)] text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--landing-faint)]">
                                 Variants
                               </p>
                               <ul className="space-y-0.5">
                                 {route.variants.slice(0, 8).map((v) => (
                                   <li
                                     key={v.variant_id}
-                                    className="flex items-center justify-between gap-2 rounded px-1.5 py-0.5 text-[11px] text-slate-600"
+                                    className="flex items-center justify-between gap-2 rounded px-1.5 py-0.5 text-[11px] text-[var(--landing-muted)]"
                                   >
                                     <span className="min-w-0 truncate">{v.label}</span>
-                                    <span className="shrink-0 tabular-nums text-[10px] text-slate-400">
+                                    <span className="shrink-0 tabular-nums text-[10px] text-[var(--landing-faint)]">
                                       {(v.weekly_trip_count ?? v.trip_count).toLocaleString()}/wk
                                     </span>
                                   </li>
                                 ))}
                               </ul>
                               {route.variants.length > 8 && (
-                                <p className="mt-1 px-1.5 text-[10px] text-slate-400">
+                                <p className="mt-1 px-1.5 text-[10px] text-[var(--landing-faint)]">
                                   +{route.variants.length - 8} more
                                 </p>
                               )}
@@ -406,14 +406,14 @@ export default function BrowsePanel({
 
         <TabsContent value="mine" className="mt-0 px-2 pb-2">
           {customRoutes.length === 0 ? (
-            <div className="mt-2 rounded-lg border border-dashed border-slate-200 px-3 py-3 text-center text-[11px] leading-relaxed text-slate-500">
-              Custom routes from <span className="font-medium text-slate-600">Design</span> appear here.
+            <div className="mt-2 rounded-lg border border-dashed border-[var(--landing-border-2)] px-3 py-3 text-center text-[11px] leading-relaxed text-[var(--landing-muted)]">
+              Custom routes from <span className="font-medium text-[var(--landing-muted)]">Design</span> appear here.
             </div>
           ) : filteredCustom.length === 0 ? (
             <EmptyFilter />
           ) : (
             <div className={ROUTE_LIST_BOX}>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-[var(--landing-border)]">
                 {filteredCustom.map((route) => {
                   const visible = isCustomRouteVisible(route.id);
 
@@ -421,12 +421,12 @@ export default function BrowsePanel({
                     <li
                       key={route.id}
                       className={`flex min-h-9 items-center ${
-                        visible ? "" : "bg-slate-50/80 opacity-60"
+                        visible ? "" : "bg-[var(--landing-wash)] opacity-60"
                       }`}
                     >
                       <button
                         type="button"
-                        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 pr-1 text-left transition-colors hover:bg-slate-50"
+                        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 pr-1 text-left transition-colors hover:bg-[var(--landing-wash)]"
                         onClick={() => onRouteSelect(route.name || "Custom route", [])}
                       >
                         <span
@@ -435,7 +435,7 @@ export default function BrowsePanel({
                         >
                           {route.type === "train" ? "R" : "B"}
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-900">
+                        <span className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--landing-ink)]">
                           {route.name || "Custom route"}
                         </span>
                       </button>
@@ -445,7 +445,7 @@ export default function BrowsePanel({
                           event.stopPropagation();
                           onShareCustomRoute(route.id);
                         }}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--landing-faint)] transition-colors hover:bg-[var(--landing-wash)] hover:text-[var(--landing-accent)]"
                         aria-label={`Share ${route.name || "custom route"} to community`}
                         title="Share to community"
                       >
@@ -457,7 +457,7 @@ export default function BrowsePanel({
                           event.stopPropagation();
                           onDeleteCustomRoute(route.id, route.name || "Custom route");
                         }}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--landing-faint)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] hover:text-[var(--landing-red)]"
                         aria-label={`Delete ${route.name || "custom route"}`}
                       >
                         <Trash2 className="h-3 w-3" />
@@ -478,20 +478,20 @@ export default function BrowsePanel({
           <button
             type="button"
             onClick={onAddCityFeed}
-            className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-[11px] font-medium text-slate-600 transition-colors hover:border-[#155ba0] hover:text-[#155ba0]"
+            className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-[var(--landing-border-2)] px-3 py-2 text-[11px] font-medium text-[var(--landing-muted)] transition-colors hover:border-[var(--landing-accent)] hover:text-[var(--landing-accent)]"
           >
             <Plus className="h-3 w-3" aria-hidden />
             Add a city&apos;s GTFS
           </button>
 
           {cityFeeds.length === 0 ? (
-            <div className="mt-2 rounded-lg border border-dashed border-slate-200 px-3 py-3 text-center text-[11px] leading-relaxed text-slate-500">
+            <div className="mt-2 rounded-lg border border-dashed border-[var(--landing-border-2)] px-3 py-3 text-center text-[11px] leading-relaxed text-[var(--landing-muted)]">
               Upload another agency&apos;s GTFS zip to overlay its network on the map.
               Saved feeds stay on your account.
             </div>
           ) : (
             <div className={ROUTE_LIST_BOX}>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-[var(--landing-border)]">
                 {cityFeeds.map((feed) => {
                   const visible = visibleCityFeedIds.has(feed.id);
                   const loading = loadingCityFeedIds.has(feed.id);
@@ -499,12 +499,12 @@ export default function BrowsePanel({
                     <li
                       key={feed.id}
                       className={`flex min-h-9 items-center ${
-                        visible ? "" : "bg-slate-50/80 opacity-60"
+                        visible ? "" : "bg-[var(--landing-wash)] opacity-60"
                       }`}
                     >
                       <button
                         type="button"
-                        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 pr-1 text-left transition-colors hover:bg-slate-50"
+                        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 pr-1 text-left transition-colors hover:bg-[var(--landing-wash)]"
                         onClick={() => onZoomCityFeed(feed)}
                         title="Zoom to this network"
                       >
@@ -520,22 +520,22 @@ export default function BrowsePanel({
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex min-w-0 items-baseline gap-1.5">
-                            <span className="truncate text-xs font-medium text-slate-900">
+                            <span className="truncate text-xs font-medium text-[var(--landing-ink)]">
                               {feed.name}
                             </span>
                             {!feed.saved && (
-                              <span className="shrink-0 rounded bg-amber-100 px-1 text-[9px] font-semibold uppercase text-amber-700">
+                              <span className="shrink-0 bg-[color-mix(in_oklab,var(--landing-amber)_16%,transparent)] px-1 text-[9px] font-semibold uppercase text-[var(--landing-amber)]">
                                 unsaved
                               </span>
                             )}
                           </span>
-                          <span className="block truncate text-[10px] tabular-nums text-slate-400">
+                          <span className="block truncate text-[10px] tabular-nums text-[var(--landing-faint)]">
                             {feed.stats.routes.toLocaleString()} routes ·{" "}
                             {feed.stats.stops.toLocaleString()} stops ·{" "}
                             {feed.stats.trips.toLocaleString()} trips
                           </span>
                         </span>
-                        <Locate className="h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden />
+                        <Locate className="h-3.5 w-3.5 shrink-0 text-[var(--landing-faint)]" aria-hidden />
                       </button>
                       <button
                         type="button"
@@ -543,7 +543,7 @@ export default function BrowsePanel({
                           event.stopPropagation();
                           onDeleteCityFeed(feed.id, feed.name);
                         }}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--landing-faint)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] hover:text-[var(--landing-red)]"
                         aria-label={`Delete ${feed.name}`}
                       >
                         <Trash2 className="h-3 w-3" />
@@ -568,9 +568,9 @@ export default function BrowsePanel({
 function EmptyFilter() {
   return (
     <div className="mt-4 flex flex-col items-center gap-1 py-6 text-center">
-      <Search className="h-6 w-6 text-slate-200" aria-hidden />
-      <p className="text-xs font-medium text-slate-500">No routes match</p>
-      <p className="text-[10px] text-slate-400">Try a shorter search</p>
+      <Search className="h-6 w-6 text-[var(--landing-faint)]" aria-hidden />
+      <p className="text-xs font-medium text-[var(--landing-muted)]">No routes match</p>
+      <p className="text-[10px] text-[var(--landing-faint)]">Try a shorter search</p>
     </div>
   );
 }
@@ -586,7 +586,7 @@ function VisibilityCheckbox({
 }) {
   return (
     <label
-      className="flex cursor-pointer items-center self-stretch px-2 hover:bg-slate-50/80"
+      className="flex cursor-pointer items-center self-stretch px-2 hover:bg-[var(--landing-wash)]"
       onClick={(event) => event.stopPropagation()}
     >
       <span className="sr-only">{label}</span>
@@ -594,7 +594,7 @@ function VisibilityCheckbox({
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.currentTarget.checked)}
-        className="h-3.5 w-3.5 rounded border-slate-300 accent-[#155ba0]"
+        className="h-3.5 w-3.5 rounded border-[var(--landing-border-2)] accent-[var(--landing-accent)]"
       />
     </label>
   );
@@ -604,7 +604,7 @@ function SkeletonList({ count }: { count: number }) {
   return (
     <div className="mt-1 space-y-1.5">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="h-9 animate-pulse rounded-lg bg-slate-100" />
+        <div key={i} className="h-9 animate-pulse bg-[var(--landing-wash)]" />
       ))}
     </div>
   );

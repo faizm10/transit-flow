@@ -65,9 +65,21 @@ function toStatus(data: ServiceUpdatesResult | null): Status {
 }
 
 const TONE_STYLES: Record<Tone, { dot: string; text: string; Icon: typeof Info }> = {
-  clear: { dot: "bg-emerald-500", text: "text-slate-700", Icon: CheckCircle2 },
-  alert: { dot: "bg-amber-500", text: "text-slate-900", Icon: AlertTriangle },
-  unknown: { dot: "bg-slate-300", text: "text-slate-500", Icon: Info },
+  clear: {
+    dot: "bg-[var(--landing-accent)]",
+    text: "text-[var(--landing-ink)]",
+    Icon: CheckCircle2,
+  },
+  alert: {
+    dot: "bg-[var(--landing-amber)]",
+    text: "text-[var(--landing-ink)]",
+    Icon: AlertTriangle,
+  },
+  unknown: {
+    dot: "bg-[var(--landing-faint)]",
+    text: "text-[var(--landing-muted)]",
+    Icon: Info,
+  },
 };
 
 interface ServiceStatusPillProps {
@@ -100,38 +112,43 @@ export default function ServiceStatusPill({
   const { dot, text, Icon } = TONE_STYLES[tone];
 
   return (
-    <div className="absolute right-4 top-20 z-20 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white/95 shadow-lg backdrop-blur-xl">
+    <div className="tf-map-panel absolute right-4 top-20 z-20 w-64 overflow-hidden">
       <Link
         href="/service-updates"
         title={detail}
-        className="flex items-center gap-2 px-3 py-2.5 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#155ba0]"
+        className="flex items-center gap-2 px-3 py-2.5 transition-colors hover:bg-[var(--landing-wash)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--landing-accent)]"
       >
         <span className="relative flex h-2 w-2 shrink-0">
           {tone === "alert" && (
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-60 motion-reduce:hidden" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--landing-amber)] opacity-50 motion-reduce:hidden" />
           )}
           <span className={`relative inline-flex h-2 w-2 rounded-full ${dot}`} />
         </span>
-        <span className={`flex-1 truncate text-xs font-semibold tracking-tight ${text}`}>
+        <span
+          className={`flex-1 truncate font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.06em] font-semibold ${text}`}
+        >
           {label}
         </span>
-        <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
-        <ChevronRight className="-mr-1 h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden />
+        <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--landing-faint)]" aria-hidden />
+        <ChevronRight
+          className="-mr-1 h-3.5 w-3.5 shrink-0 text-[var(--landing-faint)]"
+          aria-hidden
+        />
         <span className="sr-only">{detail}. Open service updates.</span>
       </Link>
 
       {canToggle && (
-        <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2">
+        <div className="flex items-center gap-2 border-t border-[var(--landing-border)] px-3 py-2">
           <AlertTriangle
             className={`h-3.5 w-3.5 shrink-0 ${
-              showOnMap ? "text-amber-600" : "text-slate-400"
+              showOnMap ? "text-[var(--landing-amber)]" : "text-[var(--landing-faint)]"
             }`}
             aria-hidden
           />
           <label
             htmlFor="service-alerts-on-map"
-            className={`flex-1 cursor-pointer text-xs font-medium ${
-              showOnMap ? "text-amber-800" : "text-slate-500"
+            className={`flex-1 cursor-pointer font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.06em] font-medium ${
+              showOnMap ? "text-[var(--landing-amber)]" : "text-[var(--landing-muted)]"
             }`}
           >
             Show on map

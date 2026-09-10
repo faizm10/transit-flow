@@ -19,8 +19,8 @@ const TYPE_ICONS = {
 } as const;
 
 const TYPE_COLORS = {
-  train: "text-blue-600 bg-blue-50",
-  bus: "text-emerald-600 bg-emerald-50",
+  train: "text-[var(--landing-accent)] bg-[var(--landing-wash)]",
+  bus: "text-[var(--landing-ink)] bg-[var(--landing-wash)]",
   mixed: "text-purple-600 bg-purple-50",
 } as const;
 
@@ -108,8 +108,8 @@ export default function StationsPanel({
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-800">Custom Stations</p>
-          <p className="text-xs text-slate-400 leading-snug">
+          <p className="font-[family-name:var(--font-hanken)] text-sm font-medium text-[var(--landing-ink)]">Custom Stations</p>
+          <p className="text-xs text-[var(--landing-faint)] leading-snug">
             Reusable across any route or extension
           </p>
         </div>
@@ -118,8 +118,8 @@ export default function StationsPanel({
           disabled={pendingStation !== null}
           className={`flex-shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
             placingMode
-              ? "bg-amber-100 text-amber-700 border border-amber-200"
-              : "bg-[#007A33] text-white hover:bg-[#005f28]"
+              ? "bg-[color-mix(in_oklab,var(--landing-amber)_16%,transparent)] text-[var(--landing-amber)] border border-[color-mix(in_oklab,var(--landing-amber)_30%,transparent)]"
+              : "bg-[var(--landing-accent)] text-white hover:opacity-90"
           }`}
         >
           {placingMode ? (
@@ -132,16 +132,16 @@ export default function StationsPanel({
 
       {/* Pin instruction banner */}
       {placingMode && !pendingStation && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
+        <div className="border border-[color-mix(in_oklab,var(--landing-amber)_28%,transparent)] bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] px-3 py-2.5 text-xs text-[var(--landing-amber)]">
           <p className="font-medium">Click on the map to place the station</p>
-          <p className="text-amber-600 mt-0.5">The station will appear exactly where you click</p>
+          <p className="text-[var(--landing-amber)] opacity-80 mt-0.5">The station will appear exactly where you click</p>
         </div>
       )}
 
       {/* New station form (shown after pin placed) */}
       {pendingStation && (
-        <div className="rounded-xl border border-[#007A33]/30 bg-emerald-50 p-3 flex flex-col gap-2.5">
-          <p className="text-xs font-semibold text-[#007A33] flex items-center gap-1.5">
+        <div className="border border-[var(--landing-border-2)] bg-[var(--landing-wash)] p-3 flex flex-col gap-2.5">
+          <p className="font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.06em] font-semibold text-[var(--landing-accent)] flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="truncate">{pendingStation.lat.toFixed(4)}, {pendingStation.lon.toFixed(4)}</span>
           </p>
@@ -156,24 +156,24 @@ export default function StationsPanel({
               setNewName(e.target.value);
               if (!newCode) setNewCode(stationCode(e.target.value));
             }}
-            className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/30"
+            className="w-full rounded-lg border border-[var(--landing-border-2)] bg-white px-2.5 py-2 text-sm text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
           />
 
           {/* Code + type on the same row */}
           <div className="flex items-center gap-2">
             <div className="flex flex-col gap-0.5">
-              <label className="text-[10px] text-slate-400 font-medium px-0.5">Code</label>
+              <label className="text-[10px] text-[var(--landing-faint)] font-medium px-0.5">Code</label>
               <input
                 type="text"
                 maxLength={4}
                 placeholder="UN"
                 value={newCode}
                 onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 font-mono uppercase text-center outline-none focus:ring-2 focus:ring-[#007A33]/30"
+                className="w-16 rounded-lg border border-[var(--landing-border-2)] bg-white px-2 py-1.5 text-sm text-[var(--landing-ink)] font-mono uppercase text-center outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
               />
             </div>
             <div className="flex flex-col gap-0.5 flex-1">
-              <label className="text-[10px] text-slate-400 font-medium px-0.5">Type</label>
+              <label className="text-[10px] text-[var(--landing-faint)] font-medium px-0.5">Type</label>
               <div className="flex gap-1">
                 {(["train", "bus", "mixed"] as const).map((t) => {
                   const Icon = TYPE_ICONS[t];
@@ -184,8 +184,8 @@ export default function StationsPanel({
                       title={TYPE_LABELS[t]}
                       className={`flex-1 flex items-center justify-center gap-1 rounded-lg border py-1.5 text-[11px] font-medium transition-colors ${
                         newType === t
-                          ? "bg-slate-900 text-white border-slate-900"
-                          : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+                          ? "bg-[var(--landing-inverse)] text-[var(--landing-inverse-fg)] border-[var(--landing-inverse)]"
+                          : "bg-[var(--landing-bg)] text-[var(--landing-muted)] border-[var(--landing-border-2)] hover:border-[var(--landing-ink)]"
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
@@ -201,14 +201,14 @@ export default function StationsPanel({
           <div className="flex gap-2 pt-0.5">
             <button
               onClick={() => { setPendingStation(null); setNewName(""); setNewCode(""); }}
-              className="flex-1 rounded-lg border border-slate-200 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              className="flex-1 rounded-lg border border-[var(--landing-border-2)] py-1.5 text-xs font-medium text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
             >
               Cancel
             </button>
             <button
               onClick={savePending}
               disabled={!newName.trim()}
-              className="flex-1 rounded-lg bg-[#007A33] py-1.5 text-xs font-medium text-white hover:bg-[#005f28] disabled:opacity-50"
+              className="flex-1 bg-[var(--landing-accent)] py-1.5 font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.06em] font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               Save station
             </button>
@@ -219,11 +219,11 @@ export default function StationsPanel({
       {/* Station list */}
       {stations.length === 0 && !pendingStation && !placingMode && (
         <div className="flex flex-col items-center justify-center py-12 text-center gap-2">
-          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
-            <MapPin className="w-5 h-5 text-slate-400" />
+          <div className="w-10 h-10 bg-[var(--landing-wash)] flex items-center justify-center">
+            <MapPin className="w-5 h-5 text-[var(--landing-faint)]" />
           </div>
-          <p className="text-sm font-medium text-slate-600">No custom stations yet</p>
-          <p className="text-xs text-slate-400 max-w-[200px]">
+          <p className="text-sm font-medium text-[var(--landing-muted)]">No custom stations yet</p>
+          <p className="text-xs text-[var(--landing-faint)] max-w-[200px]">
             Place stations on the map to reuse them in any route or extension
           </p>
         </div>
@@ -237,7 +237,7 @@ export default function StationsPanel({
           return (
             <div
               key={station.id}
-              className="rounded-xl border border-slate-100 bg-white p-2.5"
+              className="border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-2.5"
             >
               {isEditing ? (
                 <div className="flex flex-col gap-2">
@@ -246,7 +246,7 @@ export default function StationsPanel({
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/30"
+                    className="w-full rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-wash)] px-2.5 py-1.5 text-sm text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
                   />
                   <div className="flex items-center gap-2">
                     <input
@@ -255,7 +255,7 @@ export default function StationsPanel({
                       value={editCode}
                       onChange={(e) => setEditCode(e.target.value.toUpperCase())}
                       placeholder="Code"
-                      className="w-16 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm font-mono uppercase text-center text-slate-800 outline-none focus:ring-2 focus:ring-[#007A33]/30"
+                      className="w-16 rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-wash)] px-2 py-1.5 text-sm font-mono uppercase text-center text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
                     />
                     <div className="flex gap-1 flex-1">
                       {(["train", "bus", "mixed"] as const).map((t) => {
@@ -267,8 +267,8 @@ export default function StationsPanel({
                             onClick={() => setEditType(t)}
                             className={`flex-1 flex items-center justify-center rounded-lg border py-1.5 text-[10px] font-medium transition-colors ${
                               editType === t
-                                ? "bg-slate-900 text-white border-slate-900"
-                                : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
+                                ? "bg-[var(--landing-inverse)] text-[var(--landing-inverse-fg)] border-[var(--landing-inverse)]"
+                                : "bg-[var(--landing-bg)] text-[var(--landing-muted)] border-[var(--landing-border-2)] hover:border-[var(--landing-ink)]"
                             }`}
                           >
                             <TIcon className="w-3.5 h-3.5" />
@@ -280,14 +280,14 @@ export default function StationsPanel({
                   <div className="flex gap-2">
                     <button
                       onClick={() => setEditingId(null)}
-                      className="flex-1 rounded-lg border border-slate-200 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1"
+                      className="flex-1 rounded-lg border border-[var(--landing-border-2)] py-1.5 text-xs font-medium text-[var(--landing-muted)] hover:bg-[var(--landing-wash)] flex items-center justify-center gap-1"
                     >
                       <X className="w-3 h-3" /> Cancel
                     </button>
                     <button
                       onClick={() => saveEdit(station)}
                       disabled={!editName.trim()}
-                      className="flex-1 rounded-lg bg-[#007A33] py-1.5 text-xs font-medium text-white hover:bg-[#005f28] disabled:opacity-50 flex items-center justify-center gap-1"
+                      className="flex-1 bg-[var(--landing-accent)] py-1.5 font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.06em] font-medium text-white hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1"
                     >
                       <Check className="w-3 h-3" /> Save
                     </button>
@@ -301,8 +301,8 @@ export default function StationsPanel({
                     <Icon className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-800 truncate">{station.name}</p>
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-xs font-semibold text-[var(--landing-ink)] truncate">{station.name}</p>
+                    <p className="text-[10px] text-[var(--landing-faint)]">
                       {station.code && <span className="font-mono mr-1.5">{station.code}</span>}
                       {station.lat.toFixed(3)}, {station.lon.toFixed(3)}
                     </p>
@@ -310,13 +310,13 @@ export default function StationsPanel({
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => startEditing(station)}
-                      className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                      className="p-1 hover:bg-[var(--landing-wash)] text-[var(--landing-faint)] hover:text-[var(--landing-ink)] transition-colors"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => onDeleteStation(station.id)}
-                      className="p-1 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                      className="p-1 hover:bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] text-[var(--landing-faint)] hover:text-[var(--landing-red)] transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

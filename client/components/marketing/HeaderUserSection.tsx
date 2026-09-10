@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, UserCircle } from "lucide-react";
+import { UserCircle } from "lucide-react";
+import { CornerButton } from "@/components/marketing/spec";
 
 const MAP = "/map";
 
@@ -32,40 +33,32 @@ export default function HeaderUserSection() {
 
   // Invisible placeholder prevents layout shift while loading
   if (!ready) {
-    return <div style={{ width: 120, height: 36 }} aria-hidden />;
+    return <div style={{ width: 132, height: 38 }} aria-hidden />;
   }
 
   if (user) {
-    // Signed-in visitors used to get an avatar and nothing else, so the one
-    // thing they came to do had no button anywhere in the header — the only
-    // way into the app was the "Simulation" nav link, which opened a single
-    // mode. Signed-out visitors already had this button; now both do.
     return (
       <div className="flex items-center gap-2">
-        <Link
-          href={MAP}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--landing-accent)] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-[color,background-color,box-shadow] hover:bg-[#006b2d] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
-        >
-          Open map
-          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-        </Link>
+        <CornerButton href={MAP} solid>
+          Open map →
+        </CornerButton>
         <Link
           href="/account"
           aria-label={`Account — ${user.name ?? "signed in"}`}
-          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
+          className="flex items-center gap-2 border border-[var(--landing-border)] px-2.5 py-[0.55rem] font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.06em] text-[var(--landing-fg)] transition-colors hover:border-[var(--landing-border-2)]"
         >
           {user.image ? (
             <Image
               src={user.image}
               alt=""
-              width={24}
-              height={24}
-              className="h-6 w-6 rounded-full object-cover"
+              width={20}
+              height={20}
+              className="h-5 w-5 object-cover"
             />
           ) : (
-            <UserCircle className="h-5 w-5 text-slate-500" />
+            <UserCircle className="h-4 w-4 text-[var(--landing-faint)]" />
           )}
-          <span className="hidden sm:inline max-w-[120px] truncate">{user.name}</span>
+          <span className="hidden max-w-[110px] truncate sm:inline">{user.name}</span>
         </Link>
       </div>
     );
@@ -73,19 +66,10 @@ export default function HeaderUserSection() {
 
   return (
     <div className="flex items-center gap-2">
-      <Link
-        href="/auth/signin"
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--landing-border)] bg-transparent px-3.5 py-2 text-sm font-semibold text-[var(--landing-fg)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-fg)_5%,var(--landing-bg))] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
-      >
-        Sign in
-      </Link>
-      <Link
-        href={MAP}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--landing-accent)] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-[color,background-color,box-shadow] hover:bg-[#006b2d] outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--landing-bg)]"
-      >
-        Open map
-        <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-      </Link>
+      <CornerButton href="/auth/signin">Sign in</CornerButton>
+      <CornerButton href={MAP} solid>
+        Open map →
+      </CornerButton>
     </div>
   );
 }

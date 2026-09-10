@@ -128,25 +128,173 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 
-  /* Public marketing — light editorial (inspired by modern B2B landings e.g. reducto.ai) */
-  --landing-bg: oklch(0.995 0.002 264);
-  --landing-fg: oklch(0.16 0.02 264);
-  --landing-muted: oklch(0.44 0.02 256);
-  --landing-border: oklch(0.9 0.01 256);
-  --landing-accent: #007a33;
-  --landing-elevated: oklch(1 0 0);
-  --landing-band: oklch(0.97 0.004 264);
-  --landing-ink: oklch(0.14 0.02 264);
-  /* Slightly recessed / inset surfaces */
-  --landing-mixed-bg: oklch(0.98 0.004 264);
-  --landing-mixed-fg: oklch(0.16 0.02 264);
-  --landing-mixed-muted: oklch(0.44 0.02 256);
-  --landing-mixed-border: oklch(0.88 0.01 256);
+  /* Public marketing — "Spec Sheet": white + light green, mono metadata,
+     hairline grid, one green accent. See /blog and the design-system doc. */
+  --landing-bg: #ffffff;
+  --landing-paper-2: #f1f8f3;      /* soft light-green surface */
+  --landing-wash: #e7f3ec;         /* hover / spotlight fill */
+  --landing-fg: #1a2b21;           /* general foreground (logo, nav, body-strong) */
+  --landing-ink: #13241b;          /* headings, emphasis */
+  --landing-muted: rgba(19, 36, 27, 0.58);
+  --landing-faint: rgba(19, 36, 27, 0.42);   /* metadata, captions */
+  --landing-border: rgba(19, 36, 27, 0.12);
+  --landing-border-2: rgba(19, 36, 27, 0.22);
+  --landing-accent: #0e7d40;
+  --landing-elevated: #ffffff;
+  --landing-band: #f1f8f3;
+  --landing-amber: #8a5a00;
+  --landing-red: #a5271c;
+  --landing-inverse: #13241b;      /* neutral inverted chip (selected nav, toggles) */
+  --landing-inverse-fg: #ffffff;
+  --landing-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  /* Legacy aliases still referenced by a few pages */
+  --landing-mixed-bg: #f1f8f3;
+  --landing-mixed-fg: #13241b;
+  --landing-mixed-muted: rgba(19, 36, 27, 0.58);
+  --landing-mixed-border: rgba(19, 36, 27, 0.12);
 }
 
 .marketing-shell {
   background-color: var(--landing-bg);
   color: var(--landing-fg);
+  font-family: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+}
+.marketing-shell ::selection {
+  background: var(--landing-wash);
+}
+
+/* ── Spec Sheet components ─────────────────────────────────────────────────── */
+
+/* slash-delimited monospace metadata line */
+.tf-meta {
+  font-family: var(--landing-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  color: var(--landing-faint);
+  line-height: 1.6;
+}
+.tf-meta .sl {
+  color: var(--landing-accent);
+  margin: 0 0.5em;
+}
+
+/* corner-bracket eyebrow label */
+.tf-eyebrow {
+  position: relative;
+  display: inline-block;
+  align-self: flex-start;
+  padding: 0.42rem 0.85rem;
+  font-family: var(--landing-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--landing-ink);
+  border: 1px solid var(--landing-border);
+}
+.tf-eyebrow > i {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.tf-eyebrow::before,
+.tf-eyebrow::after,
+.tf-eyebrow > i::before,
+.tf-eyebrow > i::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--landing-accent);
+}
+.tf-eyebrow::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.tf-eyebrow::after { top: -1px; right: -1px; border-left: 0; border-bottom: 0; }
+.tf-eyebrow > i::before { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
+.tf-eyebrow > i::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+
+/* outline button with corner ticks that fade in on hover */
+.tf-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.72rem 1.15rem;
+  font-family: var(--landing-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--landing-ink);
+  background: transparent;
+  border: 1px solid var(--landing-border-2);
+  cursor: pointer;
+  transition: border-color 0.18s ease, color 0.18s ease, background-color 0.18s ease;
+}
+.tf-btn > span.tf-c {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--landing-accent);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.tf-btn > span.tf-c1 { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.tf-btn > span.tf-c2 { top: -1px; right: -1px; border-left: 0; border-bottom: 0; }
+.tf-btn > span.tf-c3 { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
+.tf-btn > span.tf-c4 { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+.tf-btn:hover { border-color: var(--landing-accent); color: var(--landing-accent); }
+.tf-btn:hover > span.tf-c { opacity: 1; }
+.tf-btn.tf-btn--solid {
+  background: var(--landing-accent);
+  color: #fff;
+  border-color: var(--landing-accent);
+}
+.tf-btn.tf-btn--solid:hover { color: #fff; opacity: 0.9; }
+
+/* spotlight list — no fill; hovered row lit, siblings recede */
+.tf-spotlight { border-top: 1px solid var(--landing-border); }
+.tf-spotlight > * {
+  display: block;
+  position: relative;
+  padding: 1.65rem clamp(1rem, 4vw, 2rem);
+  border-bottom: 1px solid var(--landing-border);
+  color: inherit;
+  text-decoration: none;
+  transition: opacity 0.32s ease, background-color 0.32s ease,
+    transform 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@media (hover: hover) {
+  .tf-spotlight:hover > * { opacity: 0.38; }
+  .tf-spotlight > *:hover {
+    opacity: 1;
+    background: var(--landing-wash);
+    transform: translateX(7px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tf-spotlight > *:hover { transform: none; }
+}
+
+/* ── Map chrome — Spec Sheet floating surfaces over the Mapbox canvas ─────── */
+.tf-map-panel {
+  background: color-mix(in oklab, var(--landing-bg) 96%, transparent);
+  border: 1px solid var(--landing-border-2);
+  box-shadow:
+    0 1px 2px rgba(19, 36, 27, 0.06),
+    0 14px 34px -14px rgba(19, 36, 27, 0.2);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.dark .tf-map-panel {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 16px 38px -14px rgba(0, 0, 0, 0.62);
+}
+/* uppercase monospace label used across map chrome */
+.tf-map-label {
+  font-family: var(--landing-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 /* Dotted canvas (product / features bands) */
@@ -256,7 +404,33 @@
   --danger-subtle: oklch(0.28 0.07 25);
   --info: oklch(0.71 0.13 255);
   --info-subtle: oklch(0.27 0.06 255);
+
+  /* Spec Sheet — dark: near-black with a green tint, lifted accent. */
+  --landing-bg: #0c1310;
+  --landing-paper-2: #121c17;
+  --landing-wash: #18271f;
+  --landing-fg: #d9e3dc;
+  --landing-ink: #f1f6f2;
+  --landing-muted: rgba(241, 246, 242, 0.6);
+  --landing-faint: rgba(241, 246, 242, 0.42);
+  --landing-border: rgba(241, 246, 242, 0.14);
+  --landing-border-2: rgba(241, 246, 242, 0.26);
+  --landing-accent: #43b071;
+  --landing-elevated: #141e18;
+  --landing-band: #111a15;
+  --landing-amber: #d9a441;
+  --landing-red: #e0685c;
+  --landing-inverse: #f1f6f2;
+  --landing-inverse-fg: #0c1310;
+  --landing-mixed-bg: #121c17;
+  --landing-mixed-fg: #f1f6f2;
+  --landing-mixed-muted: rgba(241, 246, 242, 0.6);
+  --landing-mixed-border: rgba(241, 246, 242, 0.14);
 }
+
+/* The no-flash script in layout.tsx adds `.dark` on load (stored choice, or
+   system preference when there's no choice), so `.dark` above is the single
+   source of truth — no separate prefers-color-scheme block needed. */
 
 /* ── Vehicle hover tooltip ─────────────────────────────────────────────────── */
 .vehicle-hover-popup .mapboxgl-popup-content {
@@ -454,6 +628,62 @@
   cursor: pointer;
 }
 
+/* ── Dark mode: Mapbox controls + popups + HUD slider ───────────────────────
+   Mapbox renders its own DOM (zoom buttons, attribution) with baked-in light
+   styles, and the popup CSS above hard-codes white. Re-skin under `.dark`. */
+.dark .mapboxgl-ctrl-group {
+  background: var(--landing-elevated);
+  border: 1px solid var(--landing-border-2);
+}
+.dark .mapboxgl-ctrl-group button + button {
+  border-top-color: var(--landing-border);
+}
+.dark .mapboxgl-ctrl-group button .mapboxgl-ctrl-icon {
+  filter: invert(1) hue-rotate(180deg) brightness(1.1);
+}
+.dark .mapboxgl-ctrl-group button:not(:disabled):hover {
+  background: var(--landing-wash);
+}
+.dark .mapboxgl-ctrl-attrib {
+  background: color-mix(in oklab, var(--landing-bg) 78%, transparent) !important;
+}
+.dark .mapboxgl-ctrl-attrib a {
+  color: var(--landing-muted);
+}
+.dark .mapboxgl-ctrl-attrib-button {
+  filter: invert(1) brightness(1.1);
+}
+
+.dark .vehicle-hover-popup .mapboxgl-popup-content,
+.dark .alert-line-popup .mapboxgl-popup-content {
+  background: var(--landing-elevated);
+  border-color: var(--landing-border-2);
+}
+.dark .vehicle-hover-popup .mapboxgl-popup-tip,
+.dark .alert-line-popup .mapboxgl-popup-tip {
+  border-top-color: var(--landing-elevated) !important;
+}
+.dark .vhp-dest,
+.dark .vhp-next-name,
+.dark .vhp-eta {
+  color: var(--landing-ink);
+}
+.dark .vhp-meta,
+.dark .vhp-timing,
+.dark .vhp-row {
+  color: var(--landing-muted);
+}
+
+.dark .sim-hud-slider::-webkit-slider-runnable-track,
+.dark .sim-hud-slider::-moz-range-track {
+  background: var(--landing-border-2);
+}
+.dark .sim-hud-slider::-webkit-slider-thumb,
+.dark .sim-hud-slider::-moz-range-thumb {
+  background: var(--landing-accent);
+  border-color: var(--landing-elevated);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -464,4 +694,9 @@
   html {
     @apply font-sans;
   }
+}
+
+::view-transition-old(root), ::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
 }
