@@ -6,10 +6,9 @@ import BugReportButton from "@/components/BugReportButton";
 const MAP = "/map";
 
 const NAV = [
-  { label: "Explore", href: MAP },
-  { label: "Community", href: "/community" },
+  { label: "Service alerts", href: "/service-updates" },
+  { label: "Map", href: MAP },
   { label: "Blog", href: "/blog" },
-  { label: "About", href: "/about" },
 ] as const;
 
 export default function MarketingHeader() {

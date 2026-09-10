@@ -138,7 +138,9 @@ function MapPageContent() {
   const [drawnGeometry, setDrawnGeometry] = useState<[number, number][] | null>(null);
   const [editingRoute, setEditingRoute] = useState<CustomRoute | undefined>();
   /** Endpoints handed to the builder from Gap Finder. */
-  const [gapSeed, setGapSeed] = useState<{ stops: CustomStop[]; key: string } | null>(null);
+  const [gapSeed, setGapSeed] = useState<
+    { stops: CustomStop[]; key: string; mode: "bus" | "train" } | null
+  >(null);
   const [designTab, setDesignTab] = useState<DesignTab>(() => {
     if (typeof window === "undefined") return "new";
     const sp = new URLSearchParams(window.location.search);
@@ -860,6 +862,7 @@ function MapPageContent() {
       setGapSeed({
         stops: [toStop(gap.from, 1), toStop(gap.to, 2)],
         key: `gap-${gap.id}-${Date.now()}`,
+        mode: gap.mode,
       });
       setDesignTab("new");
       patchSearch({ mode: "build", design: "new", entry: "fresh", goRoute: null });
@@ -994,6 +997,7 @@ function MapPageContent() {
                   onActiveTabChange={handleDesignTabChange}
                   newSeedStops={gapSeed?.stops}
                   newWizardKey={gapSeed?.key}
+                  newLockRouteType={gapSeed?.mode}
                   extendInitialRoute={extendSeedRoute}
                   extendWizardKey={
                     extendSeedRoute?.route_id

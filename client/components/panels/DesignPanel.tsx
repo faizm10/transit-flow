@@ -42,6 +42,8 @@ interface DesignPanelProps {
   newSeedStops?: CustomStop[];
   /** Create tab: remount the wizard when a new seed arrives. */
   newWizardKey?: string;
+  /** Create tab: lock the route type and skip the type-picker step. */
+  newLockRouteType?: "bus" | "train";
 }
 
 export default function DesignPanel({
@@ -67,6 +69,7 @@ export default function DesignPanel({
   extendTabLoading,
   newSeedStops,
   newWizardKey,
+  newLockRouteType,
 }: DesignPanelProps) {
   const extendKey = extendWizardKey ?? extendInitialRoute?.route_id ?? "pick";
   const stationsOpen = activeTab === "stations";
@@ -159,6 +162,7 @@ export default function DesignPanel({
           <BuilderWizard
             key={newWizardKey}
             seedStops={newSeedStops}
+            lockRouteType={newLockRouteType}
             onSave={onSaveRoute}
             onDrawRequest={onDrawRequest}
             onEditRequest={onEditRequest}

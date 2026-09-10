@@ -38,6 +38,8 @@ interface BuilderWizardProps {
   onTrainModeChange?: (isTrain: boolean) => void;
   /** Pre-fill the stop list (e.g. the two endpoints of a Gap Finder corridor). Used only for a fresh route. */
   seedStops?: CustomStop[];
+  /** Lock the route type and skip the "what are you building?" step (Gap Finder is bus-only). Fresh route only. */
+  lockRouteType?: "bus" | "train";
   /** Custom stations available as searchable stops. */
   customStations?: CustomStation[];
   /** Map pin mode: user clicks the map to choose coordinates (same as Stations panel). */
@@ -93,6 +95,133 @@ function geometryDistanceKm(coords: [number, number][]): number | null {
   return Math.round(metres / 100) / 10;
 }
 
+/** Insertion index for a new stop that adds the least total detour. */
+function bestInsertIndex(stops: CustomStop[], s: CustomStop): number {
+  if (stops.length < 2) return stops.length;
+  const at = (p: CustomStop): [number, number] => [p.lon, p.lat];
+  const here = at(s);
+  let best = stops.length;
+  let bestCost = Infinity;
+  for (let k = 0; k <= stops.length; k++) {
+    let cost: number;
+    if (k === 0) cost = distanceM(here, at(stops[0]));
+    else if (k === stops.length) cost = distanceM(at(stops[stops.length - 1]), here);
+    else {
+      cost =
+        distanceM(at(stops[k - 1]), here) +
+        distanceM(here, at(stops[k])) -
+        distanceM(at(stops[k - 1]), at(stops[k]));
+    }
+    if (cost < bestCost) {
+      bestCost = cost;
+      best = k;
+    }
+  }
+  return best;
+}
+
+/**
+ * Draggable stop list. Uses native HTML5 drag, so a plain click never starts a
+ * reorder — you have to press and move. Reordering while hovering; commits on
+ * drop.
+ */
+function StopList({
+  stops,
+  color,
+  noun,
+  disabled,
+  onReorder,
+  onRemove,
+}: {
+  stops: CustomStop[];
+  color: string;
+  noun: "stops" | "stations";
+  disabled?: boolean;
+  onReorder: (from: number, to: number) => void;
+  onRemove: (id: string) => void;
+}) {
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+
+  const clearDrag = () => {
+    dragIndexRef.current = null;
+    setDragIndex(null);
+    setOverIndex(null);
+  };
+
+  if (stops.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <p className="text-xs font-medium text-slate-500 mb-0.5">
+        {stops.length} {noun}
+        {stops.length > 2 && (
+          <span className="ml-1.5 font-normal text-slate-400">· drag the handle to reorder</span>
+        )}
+      </p>
+      {stops.map((s, i) => (
+        <div
+          key={s.id}
+          draggable={!disabled}
+          onDragStart={(e) => {
+            if ((e.target as HTMLElement).closest("button")) {
+              e.preventDefault();
+              return;
+            }
+            dragIndexRef.current = i;
+            setDragIndex(i);
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", s.id); // Firefox needs a payload
+          }}
+          onDragEnter={() => {
+            const from = dragIndexRef.current;
+            if (from !== null && from !== i) setOverIndex(i);
+          }}
+          onDragOver={(e) => {
+            if (dragIndexRef.current !== null) e.preventDefault();
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const from = dragIndexRef.current;
+            if (from !== null && from !== i) onReorder(from, i);
+            clearDrag();
+          }}
+          onDragEnd={clearDrag}
+          className={`flex items-center gap-2 rounded-lg px-2 py-2 transition-colors ${
+            dragIndex === i
+              ? "opacity-40"
+              : overIndex === i
+                ? "bg-emerald-50 ring-1 ring-[#007A33]/30"
+                : "hover:bg-slate-50"
+          }`}
+        >
+          <GripVertical
+            className={`h-4 w-4 shrink-0 text-slate-300 ${
+              disabled ? "" : "cursor-grab active:cursor-grabbing"
+            }`}
+          />
+          <div
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+            style={{ backgroundColor: color }}
+          >
+            {i + 1}
+          </div>
+          <span className="flex-1 truncate text-sm text-slate-700">{s.name}</span>
+          <button
+            type="button"
+            onClick={() => onRemove(s.id)}
+            disabled={disabled}
+            className="text-slate-300 transition-colors hover:text-red-400 disabled:opacity-40"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Mapbox Directions allows up to 25 coordinates; match our stop-routing stride. */
 function sampleCoordsForMapboxDirections(coords: [number, number][]): [number, number][] {
   if (coords.length <= 25) return coords;
@@ -144,15 +273,20 @@ export default function BuilderWizard({
   existingRoute,
   onTrainModeChange,
   seedStops,
+  lockRouteType,
   customStations = [],
   onStartPinMode,
   onStopPinMode,
   onSaveStation,
   onOpenSavedStations,
 }: BuilderWizardProps) {
-  const [step, setStep] = useState<Step>(existingRoute ? "review" : "type");
+  /** Fresh route with a locked type (from Gap Finder) — skip the type-picker step. */
+  const typeLocked = !existingRoute && !!lockRouteType;
+  const [step, setStep] = useState<Step>(
+    existingRoute ? "review" : typeLocked ? "stops" : "type"
+  );
   const [routeType, setRouteType] = useState<"bus" | "train">(
-    existingRoute?.type ?? "bus"
+    existingRoute?.type ?? lockRouteType ?? "bus"
   );
   const [name, setName] = useState(existingRoute?.name ?? "");
   const [description, setDescription] = useState(existingRoute?.description ?? "");
@@ -619,7 +753,12 @@ export default function BuilderWizard({
   }, [stops.length, customStations]);
 
   function addStop(s: CustomStop) {
-    setStops((prev) => [...prev, { ...s, sequence: prev.length + 1 }]);
+    setStops((prev) => {
+      const k = bestInsertIndex(prev, s);
+      const next = [...prev];
+      next.splice(k, 0, { ...s, sequence: k + 1 });
+      return next.map((x, i) => ({ ...x, sequence: i + 1 }));
+    });
     setStopQuery("");
     setStopResults([]);
     lastFetchKeyRef.current = "";
@@ -630,6 +769,17 @@ export default function BuilderWizard({
     setStops((prev) =>
       prev.filter((s) => s.id !== id).map((s, i) => ({ ...s, sequence: i + 1 }))
     );
+    lastFetchKeyRef.current = "";
+    lastBusStopDirectionsKeyRef.current = "";
+  }
+
+  function reorderStops(from: number, to: number) {
+    setStops((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next.map((s, i) => ({ ...s, sequence: i + 1 }));
+    });
     lastFetchKeyRef.current = "";
     lastBusStopDirectionsKeyRef.current = "";
   }
@@ -678,9 +828,12 @@ export default function BuilderWizard({
     onCancel();
   }
 
-  const steps: Step[] = routeType === "train"
+  const allSteps: Step[] = routeType === "train"
     ? ["type", "draw", "stops", "schedule", "review"]
     : ["type", "stops", "schedule", "review"];
+  const steps: Step[] = typeLocked
+    ? allSteps.filter((s) => s !== "type")
+    : allSteps;
   const stepIndex = steps.indexOf(step);
 
   // ── Step renderer ────────────────────────────────────────────────────────
@@ -1140,31 +1293,14 @@ export default function BuilderWizard({
                     </p>
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-1">
-                    <p className="text-xs font-medium text-slate-500 mb-0.5">{stops.length} stops</p>
-                    {stops.map((s, i) => (
-                      <div
-                        key={s.id}
-                        className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-slate-50"
-                      >
-                        <GripVertical className="w-4 h-4 text-slate-300 cursor-grab" />
-                        <div
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-                          style={{ backgroundColor: color }}
-                        >
-                          {i + 1}
-                        </div>
-                        <span className="text-sm text-slate-700 flex-1 truncate">{s.name}</span>
-                        <button
-                          onClick={() => removeStop(s.id)}
-                          className="text-slate-300 hover:text-red-400 transition-colors"
-                          disabled={isEditing}
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                  <StopList
+                    stops={stops}
+                    color={color}
+                    noun="stops"
+                    disabled={isEditing}
+                    onReorder={reorderStops}
+                    onRemove={removeStop}
+                  />
                 )}
 
                 {/* Route status + adjust button */}
@@ -1339,24 +1475,13 @@ export default function BuilderWizard({
                 )}
 
                 {stops.length > 0 && (
-                  <div className="flex flex-col gap-1">
-                    <p className="text-xs font-medium text-slate-500 mb-0.5">{stops.length} stations</p>
-                    {stops.map((s, i) => (
-                      <div key={s.id} className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-slate-50">
-                        <GripVertical className="w-4 h-4 text-slate-300 cursor-grab" />
-                        <div
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-                          style={{ backgroundColor: color }}
-                        >
-                          {i + 1}
-                        </div>
-                        <span className="text-sm text-slate-700 flex-1 truncate">{s.name}</span>
-                        <button onClick={() => removeStop(s.id)} className="text-slate-300 hover:text-red-400 transition-colors">
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                  <StopList
+                    stops={stops}
+                    color={color}
+                    noun="stations"
+                    onReorder={reorderStops}
+                    onRemove={removeStop}
+                  />
                 )}
 
                 <div className="flex flex-col gap-2 pt-1">
@@ -1805,7 +1930,7 @@ export default function BuilderWizard({
 
       {/* ── Footer navigation ─────────────────────────────────────────────── */}
       <div className="px-4 pb-4 pt-3 border-t border-slate-100 flex gap-2">
-        {step !== "type" && (
+        {stepIndex > 0 && (
           <Button
             variant="outline"
             className="rounded-xl flex-1"
