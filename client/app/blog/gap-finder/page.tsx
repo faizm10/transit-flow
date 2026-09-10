@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { corridorImageUrl } from "@/lib/blogMaps";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://transit-flow-two.vercel.app";
@@ -8,165 +9,383 @@ const SITE_URL =
 export const metadata: Metadata = {
   title: "Where should the next route go?",
   description:
-    "TransitFlow's Gap Finder ranks the GO corridors that are worst served today — how it's worked out, how to try the beta, and what's coming next.",
+    "TransitFlow's Gap Finder ranks the GO corridors that are served worst today. Two worked examples — the 407 corridor and a weekend Waterloo–Niagara line — plus how it works and what's next.",
   alternates: { canonical: `${SITE_URL}/blog/gap-finder` },
   openGraph: {
     title: "Where should the next route go? — TransitFlow",
     description:
-      "How TransitFlow finds the GO corridors that are worst served today.",
+      "How TransitFlow ranks the GO corridors that are served worst today.",
     url: `${SITE_URL}/blog/gap-finder`,
   },
 };
 
-const serifH = "font-[family-name:var(--font-serif)]";
+// ── Worked-example corridors ──────────────────────────────────────────────────
+
+const corridor407 = {
+  path: [
+    [-79.68224, 43.45559], // Oakville GO
+    [-79.63321, 43.51313], // Clarkson GO
+    [-79.71088, 43.65214], // Hurontario @ Hwy 407 park & ride
+    [-79.6, 43.72], // 407 alignment
+    [-79.52445, 43.78307], // Hwy 407 Bus Terminal
+  ] as [number, number][],
+  fromLabel: "Oakville GO",
+  toLabel: "Hwy 407 Bus Terminal",
+};
+
+const corridorNiagara = {
+  path: [
+    [-80.54055, 43.47444], // University of Waterloo Terminal
+    [-79.92257, 43.26173], // McMaster University
+    [-79.86919, 43.25328], // Hamilton GO Centre
+    [-79.06332, 43.10888], // Niagara Falls GO
+  ] as [number, number][],
+  fromLabel: "University of Waterloo",
+  toLabel: "Niagara Falls GO",
+};
+
+const img407 = corridorImageUrl(corridor407, { accent: "0b7a3d" });
+const imgNiagara = corridorImageUrl(corridorNiagara, { accent: "8b0a31" });
+
+// ── Small pieces ──────────────────────────────────────────────────────────────
+
+function StatRow({ items }: { items: [string, string][] }) {
+  return (
+    <dl className="my-6 grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-5 sm:grid-cols-3">
+      {items.map(([k, v]) => (
+        <div key={k}>
+          <dt className="text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--landing-muted)]">
+            {k}
+          </dt>
+          <dd className="mt-1 text-[15px] font-medium tabular-nums text-[var(--landing-ink)]">
+            {v}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function Figure({
+  src,
+  alt,
+  caption,
+}: {
+  src: string | null;
+  alt: string;
+  caption: string;
+}) {
+  return (
+    <figure className="my-7">
+      <div className="overflow-hidden rounded-xl border border-[var(--landing-border)] bg-[var(--landing-band)]">
+        {src ? (
+          <Image
+            src={src}
+            alt={alt}
+            width={1280}
+            height={620}
+            className="h-auto w-full"
+            unoptimized
+          />
+        ) : (
+          <div className="flex aspect-[2/1] items-center justify-center text-sm text-[var(--landing-muted)]">
+            map preview unavailable
+          </div>
+        )}
+      </div>
+      <figcaption className="mt-2 text-[13.5px] leading-relaxed text-[var(--landing-muted)]">
+        {caption}
+      </figcaption>
+    </figure>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function GapFinderPost() {
   return (
-    <article className="mx-auto max-w-[40rem] px-5 pb-28 pt-14 lg:px-8">
+    <article className="mx-auto max-w-[48rem] px-6 pb-32 pt-14 lg:px-8">
       <Link
         href="/blog"
-        className="inline-flex items-center gap-1.5 text-sm text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-fg)]"
+        className="text-[14px] text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-fg)]"
       >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Blog
+        ← Blog
       </Link>
 
-      <header className="mt-10 mb-12 text-center">
-        <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--landing-muted)]">
-          Product <span className="mx-1.5 opacity-50">·</span> September 2026
-        </p>
-        <h1
-          className={`${serifH} mx-auto mt-4 max-w-[15ch] text-[2.4rem] font-light leading-[1.08] tracking-tight text-[var(--landing-ink)] sm:text-[3rem]`}
-        >
+      <header className="mb-10 mt-8 border-b border-[var(--landing-border)] pb-10">
+        <div className="flex flex-wrap items-center gap-3 text-[13px] text-[var(--landing-muted)]">
+          <span className="font-medium uppercase tracking-[0.12em] text-[var(--landing-accent)]">
+            Product
+          </span>
+          <span aria-hidden>·</span>
+          <span>September 2026</span>
+          <span aria-hidden>·</span>
+          <span>6 min read</span>
+        </div>
+        <h1 className="mt-4 text-[2.5rem] font-semibold leading-[1.05] tracking-[-0.022em] text-[var(--landing-ink)] sm:text-[3rem]">
           Where should the next route go?
         </h1>
-        <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-[var(--landing-border)] bg-[var(--landing-elevated)] px-3 py-1 text-xs font-medium text-[var(--landing-muted)]">
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-          Gap Finder · Beta
-        </div>
+        <p className="mt-5 text-[19px] leading-[1.6] text-[var(--landing-muted)]">
+          TransitFlow has always let you draw a route anywhere. Now it can tell
+          you where a route is worth drawing.
+        </p>
       </header>
 
-      <div className="space-y-6 text-[1.075rem] leading-[1.75] text-[var(--landing-fg)]/85">
-        <p className={`${serifH} text-[1.4rem] font-light leading-[1.5] text-[var(--landing-ink)]`}>
-          TransitFlow lets anyone design a GO Transit route on a map. The new
-          part tells you which routes are worth designing.
+      <div className="space-y-6 text-[17px] leading-[1.78] text-[var(--landing-fg)]/90 [&_a]:font-medium [&_a]:text-[var(--landing-accent)] [&_a:hover]:underline [&_strong]:font-semibold [&_strong]:text-[var(--landing-ink)]">
+        <p>
+          Right now the map is a blank cheque. You can extend the Kitchener line
+          to Cambridge, spin up a Brampton circulator, or connect two suburbs
+          that already have four buses between them — and the tool treats all of
+          it the same. There has never been a signal for <em>this corridor is
+          badly served and a lot of people travel it</em>.
         </p>
+        <p>
+          That signal is computable. The GO network is a graph, the timetables
+          are exact, and &ldquo;how long does it take to get from A to B, and how
+          does that compare to a straight line&rdquo; is a shortest-path problem,
+          not a judgement call. The new <strong>Gap Finder</strong> panel ranks
+          the worst-served corridors and hands you a starting point in the route
+          builder.
+        </p>
+
+        <h2 className="!mt-14 text-[1.7rem] font-semibold tracking-[-0.018em] text-[var(--landing-ink)]">
+          How it works
+        </h2>
+        <p>
+          Every GO station and terminal is a node. Every scheduled trip between
+          two stops on a typical weekday becomes an edge, weighted by how long
+          the ride takes. Add a flat penalty for each transfer, cap the trip at
+          three legs, and you can compute the fastest journey between any two
+          points on the network.
+        </p>
+        <p>
+          Compare that journey to the straight-line distance at highway speed.
+          When transit takes more than roughly twice as long, and a lot of
+          service already runs through both endpoints, the corridor scores
+          highly. Near-duplicate corridors collapse to one, radial trips that
+          naturally route through Union are dropped, and — since this phase only
+          proposes bus routes — both endpoints have to be places a bus can
+          actually stop.
+        </p>
+        <p>
+          It&apos;s arithmetic over the schedule data TransitFlow already ships.
+          No model, no inference. The <Link href="/blog">methodology</Link> is
+          open, and the numbers below come straight out of it.
+        </p>
+
+        <h2 className="!mt-14 text-[1.7rem] font-semibold tracking-[-0.018em] text-[var(--landing-ink)]">
+          Two corridors it surfaces
+        </h2>
+
+        <h3 className="!mt-9 text-[1.3rem] font-semibold text-[var(--landing-ink)]">
+          Oakville and Clarkson to the 407
+        </h3>
+        <p>
+          The Lakeshore West line runs a fast, frequent service into downtown
+          Toronto. It has almost nothing going the other way. To reach the{" "}
+          <a
+            href="https://www.metrolinx.com/en/projects-and-programs/407-transitway"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            407 Transitway
+          </a>{" "}
+          corridor — the east–west busway that links Brampton, Vaughan and
+          Markham — a rider from Oakville or Clarkson today goes inbound to a
+          hub, transfers, and doubles back north. The tool flags the pair
+          because the fastest path it can find is several times longer than the
+          drive.
+        </p>
+
+        <Figure
+          src={img407}
+          alt="Map of a proposed express bus from Oakville and Clarkson GO stations north via Hurontario Street to the Hwy 407 Bus Terminal."
+          caption="A candidate alignment: Oakville and Clarkson GO, up Hurontario to the 407 Transitway, ending at the Hwy 407 Bus Terminal."
+        />
+
+        <StatRow
+          items={[
+            ["Straight line", "~31 km"],
+            ["Best transit today", "3 transfers"],
+            ["A direct 407 express", "~35 min"],
+          ]}
+        />
 
         <p>
-          Across the GTA there are pairs of places that are close on a map but
-          painful to travel between on transit — a trip that takes ten minutes
-          by car and well over an hour by GO, with two or three transfers. Those
-          are the corridors where a new route would help the most.{" "}
-          <strong className="font-semibold text-[var(--landing-ink)]">Gap Finder</strong>{" "}
-          ranks them for you.
+          A single bus up Hurontario and onto the 407 would put the whole
+          Transitway network — and the 400-series park-and-ride lots along it —
+          within one seat of the Lakeshore West stations. It&apos;s the kind of
+          tangential connection a hub-and-spoke network structurally can&apos;t
+          provide, and exactly what{" "}
+          <a
+            href="https://www.metrolinx.com/en/projects-and-programs/go-expansion"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GO Expansion
+          </a>{" "}
+          keeps identifying as a gap.
         </p>
 
-        <hr className="my-10 border-[var(--landing-border)]" />
+        <h3 className="!mt-12 text-[1.3rem] font-semibold text-[var(--landing-ink)]">
+          Waterloo to Niagara — the weekend case
+        </h3>
+        <p>
+          Kitchener–Waterloo, Hamilton and Niagara are three of the busiest
+          leisure-travel markets in the region: two university towns and a
+          destination that draws millions of visitors a year. On a weekend,
+          getting between them on transit means a transfer at Union and the
+          better part of an afternoon.
+        </p>
 
-        <h2 className={`${serifH} pt-2 text-[1.5rem] font-normal text-[var(--landing-ink)]`}>
-          What it does
+        <Figure
+          src={imgNiagara}
+          alt="Map of a proposed weekend regional bus from the University of Waterloo through McMaster University and Hamilton GO Centre to Niagara Falls GO."
+          caption="A weekend regional line: University of Waterloo → McMaster University → Hamilton GO Centre → Niagara Falls GO."
+        />
+
+        <StatRow
+          items={[
+            ["Straight line", "~126 km"],
+            ["Best transit today", "3+ transfers · 3½–4 h"],
+            ["Direct via Hwy 403/QEW", "~2 h"],
+          ]}
+        />
+
+        <p>
+          This example also shows the tool&apos;s current blind spot. Gap Finder
+          only looks at a weekday timetable, so it can&apos;t see that the demand
+          here is a Saturday pattern, not a Tuesday one. A route serving
+          students and visitors between the three campuses and the falls would
+          barely register on the current score — and it&apos;s one of the
+          clearest opportunities on the map. Weekend and time-of-day analysis is
+          the next thing on the list.
+        </p>
+
+        <h2 className="!mt-14 text-[1.7rem] font-semibold tracking-[-0.018em] text-[var(--landing-ink)]">
+          What the panel shows this week
         </h2>
-        <ul className="space-y-3 pl-0">
+        <p>
+          The live ranking is bus-only, cross-regional, and demand-weighted.
+          A few of the corridors near the top:
+        </p>
+        <ul className="my-4 divide-y divide-[var(--landing-border)] rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)]">
           {[
-            "Looks at the whole GO network — every station and every scheduled trip.",
-            "Finds the town-to-town connections that are the slowest compared to how long they should take.",
-            "Lets you jump straight into the route builder for any of them, with the corridor already drawn on the map.",
-          ].map((point) => (
-            <li key={point} className="relative pl-6">
-              <span className="absolute left-0 top-[0.72em] h-1.5 w-1.5 rounded-full bg-[var(--landing-accent)]" />
-              {point}
+            ["Aldershot ↔ Meadowvale", "1 h 41 min · 2 transfers · ~26 min if direct"],
+            ["Guelph Central ↔ Milton", "1 h 36 min · 3 transfers · ~25 min if direct"],
+            ["Cooksville ↔ Georgetown", "1 h 19 min · 3 transfers · ~20 min if direct"],
+            ["Bradford ↔ Gormley", "2 h 12 min · 2 transfers · ~18 min if direct"],
+            ["Kitchener ↔ Milton", "1 h 56 min · 3 transfers · ~41 min if direct"],
+          ].map(([name, note]) => (
+            <li key={name} className="flex flex-col gap-0.5 px-5 py-3.5 sm:flex-row sm:items-baseline sm:justify-between">
+              <span className="text-[15px] font-medium text-[var(--landing-ink)]">{name}</span>
+              <span className="text-[13.5px] tabular-nums text-[var(--landing-muted)]">{note}</span>
             </li>
           ))}
         </ul>
 
-        <h2 className={`${serifH} pt-6 text-[1.5rem] font-normal text-[var(--landing-ink)]`}>
-          How it decides
+        <h2 className="!mt-14 text-[1.7rem] font-semibold tracking-[-0.018em] text-[var(--landing-ink)]">
+          What&apos;s next
         </h2>
-        <p>
-          Think of the network as one big web of connections. For any two
-          stations, Gap Finder works out the fastest trip you could actually
-          take today — riding, waiting, transferring — and compares it to a
-          straight line at highway speed.
-        </p>
-        <p>
-          When the real trip is more than twice as long as the straight line,
-          and a lot of people already travel through both ends, that pair goes
-          near the top of the list. It&apos;s arithmetic over schedule data —
-          no guesswork, and nothing made up.
-        </p>
-
-        <div className="my-8 rounded-2xl border border-[color-mix(in_srgb,var(--landing-accent)_25%,transparent)] bg-[color-mix(in_srgb,var(--landing-accent)_7%,var(--landing-bg))] p-6">
-          <h2 className={`${serifH} text-[1.4rem] font-normal text-[var(--landing-ink)]`}>
-            Try it
-          </h2>
-          <ol className="mt-3 list-decimal space-y-2 pl-5 text-[var(--landing-fg)]/85">
-            <li>
-              Open the map and click{" "}
-              <strong className="font-semibold text-[var(--landing-ink)]">Gap Finder</strong>{" "}
-              in the top-left corner.
-            </li>
-            <li>Pick a corridor. It draws on the map and the numbers explain the case.</li>
-            <li>
-              Hit{" "}
-              <strong className="font-semibold text-[var(--landing-ink)]">Design this route</strong>{" "}
-              — you land in the builder with the two endpoints marked. Draw the
-              alignment, add stops, set a schedule.
-            </li>
-          </ol>
-          <Link
-            href="/map"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[var(--landing-accent)] px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-          >
-            Open the map
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-
-        <h2 className={`${serifH} pt-4 text-[1.5rem] font-normal text-[var(--landing-ink)]`}>
-          What&apos;s coming
-        </h2>
-        <ol className="mt-2 space-y-7">
+        <div className="my-4 space-y-5">
           {[
             {
-              title: "See the gaps and build by hand",
-              tag: "now — beta",
-              body: "The ranked list, the corridor on the map, and a one-click jump into the route builder.",
+              label: "Now",
+              body: "See the ranking, jump into the builder with the corridor's endpoints pre-filled, and design the alignment yourself.",
             },
             {
-              title: "Score your route",
-              tag: "next",
-              body: "After you build a route, the tool re-checks the network and tells you the payoff: minutes saved on that corridor, transfers removed, how many more people get a one-seat ride.",
+              label: "Next",
+              body: "Score the route you build — re-run the network with it added and report the minutes saved, transfers removed, and residents brought within a short walk of a one-seat ride. Plus weekend and peak-hour analysis.",
             },
             {
-              title: "Better inputs, and a co-planner",
-              tag: "later",
-              body: "Real travel-demand data instead of a rough proxy, real driving times instead of a straight line, and an assistant that can draft a first route for you to adjust.",
+              label: "Later",
+              body: "Real travel-demand data in place of the current proxy, real road times in place of a straight line, and an assistant that drafts a first route for you to adjust.",
             },
-          ].map((stage, i) => (
-            <li key={stage.title} className="relative pl-[3.25rem]">
-              <span
-                className={`${serifH} absolute left-0 top-0 grid h-8 w-8 place-items-center rounded-full border border-[var(--landing-border)] bg-[var(--landing-elevated)] text-[0.95rem] text-[var(--landing-accent)]`}
-              >
-                {i + 1}
+          ].map((stage) => (
+            <div
+              key={stage.label}
+              className="flex gap-4 border-l-2 border-[var(--landing-accent)] pl-4"
+            >
+              <span className="w-12 shrink-0 pt-0.5 text-[13px] font-semibold uppercase tracking-[0.06em] text-[var(--landing-accent)]">
+                {stage.label}
               </span>
-              <span className="block font-semibold text-[var(--landing-ink)]">
-                {stage.title}
-                <span className="ml-2 align-[0.1em] text-[0.7rem] font-medium uppercase tracking-[0.06em] text-[var(--landing-accent)]">
-                  {stage.tag}
-                </span>
-              </span>
-              <span className="mt-1 block text-[var(--landing-fg)]/85">{stage.body}</span>
-            </li>
+              <p className="text-[15.5px] leading-relaxed text-[var(--landing-fg)]/85">
+                {stage.body}
+              </p>
+            </div>
           ))}
-        </ol>
+        </div>
 
-        <p className="mt-10 border-t border-[var(--landing-border)] pt-6 text-[0.95rem] text-[var(--landing-muted)]">
-          The numbers are estimates from a first-pass model — it doesn&apos;t yet
-          account for time of day, only suggests bus routes between places that
-          already have a GO bus stop, and treats the region as one system
-          without agency or municipal boundaries. TransitFlow is a what-if
-          sandbox for exploring transit ideas, not a proposal to GO Transit.
+        <h2 className="!mt-14 text-[1.7rem] font-semibold tracking-[-0.018em] text-[var(--landing-ink)]">
+          Caveats
+        </h2>
+        <p className="text-[15.5px] leading-relaxed text-[var(--landing-muted)]">
+          The numbers are estimates from a first-pass model. It uses one weekday
+          timetable, a straight-line stand-in for driving time, and trip counts
+          as a rough proxy for demand — so it under-counts markets that no
+          service exists for yet, and it can&apos;t see weekend or seasonal
+          patterns. It ignores agency and municipal boundaries. TransitFlow is a
+          what-if sandbox for exploring transit ideas, not a proposal to GO
+          Transit or Metrolinx.
         </p>
+      </div>
+
+      <div className="mt-12 flex flex-wrap items-center gap-4 border-t border-[var(--landing-border)] pt-8">
+        <Link
+          href="/map"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--landing-accent)] px-4 py-2.5 text-[15px] font-semibold text-white transition-opacity hover:opacity-90"
+        >
+          Open the Gap Finder →
+        </Link>
+        <span className="text-[14px] text-[var(--landing-muted)]">
+          It&apos;s the panel in the top-left of the map.
+        </span>
+      </div>
+
+      <div className="mt-10 text-[13.5px] leading-relaxed text-[var(--landing-muted)] [&_a]:font-medium [&_a]:text-[var(--landing-accent)] [&_a:hover]:underline">
+        <p className="font-medium uppercase tracking-[0.08em]">References</p>
+        <ul className="mt-2 space-y-1">
+            <li>
+              Metrolinx —{" "}
+              <a
+                href="https://www.metrolinx.com/en/projects-and-programs/407-transitway"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                407 Transitway
+              </a>{" "}
+              and{" "}
+              <a
+                href="https://www.metrolinx.com/en/projects-and-programs/go-expansion"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                GO Expansion
+              </a>
+            </li>
+            <li>
+              GO Transit —{" "}
+              <a
+                href="https://www.gotransit.com/en/trip-planning/schedules"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                system schedules
+              </a>{" "}
+              (the source of the timetable data)
+            </li>
+            <li>
+              Statistics Canada —{" "}
+              <a
+                href="https://www150.statcan.gc.ca/n1/en/subjects/labour/commuting_to_work"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                commuting flows
+              </a>{" "}
+              (the planned demand input)
+            </li>
+        </ul>
       </div>
     </article>
   );
