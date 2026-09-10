@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CustomRoute, CustomStop, CustomSchedule, CustomStation, ServiceBand } from "@/lib/gtfs";
+import { CustomRoute, CustomStop, CustomSchedule, CustomStation, ServiceBand, DaySchedule } from "@/lib/gtfs";
 import { CUSTOM_ROUTE_COLORS } from "@/lib/routeColors";
 import { estimateTrainTravelSecsForPathLengthMeters } from "@/lib/trainRouteEstimate";
 import { v4 as uuidv4 } from "uuid";
@@ -145,12 +145,62 @@ function buildPeakWeekdayBands(opts: {
   return bands;
 }
 
-/** Peak headway from a saved banded schedule, or null if it has no peak bands. */
-function readPeakIntervalFromSchedule(s: CustomSchedule | undefined): number | null {
-  if (!s || s.type !== "banded") return null;
-  const peakBands = (s.weekday?.bands ?? []).filter((b) => /peak/i.test(b.label));
-  if (peakBands.length === 0) return null;
-  return Math.min(...peakBands.map((b) => b.headwayMins));
+/** One "All day" band, or [] when the window is empty/inverted. */
+function singleBand(start: string, end: string, headwayMins: number): ServiceBand[] {
+  const startMin = hmToMinutes(start);
+  const endMin = hmToMinutes(end);
+  if (endMin <= startMin) return [];
+  const s = minutesToHM(startMin);
+  const e = minutesToHM(endMin);
+  return [{
+    id: uuidv4(),
+    label: "All day",
+    startHour: s.h, startMin: s.m,
+    endHour: e.h, endMin: e.m,
+    headwayMins,
+  }];
+}
+
+/** Weekday + weekend bands for one direction, honouring its peak toggle. */
+function buildDirectionBands(p: {
+  start: string;
+  end: string;
+  offPeakInterval: number;
+  peakEnabled: boolean;
+  peakInterval: number;
+}): { weekday: ServiceBand[]; weekend: ServiceBand[] } {
+  const weekday = p.peakEnabled
+    ? buildPeakWeekdayBands({
+        serviceStart: p.start,
+        serviceEnd: p.end,
+        peakInterval: p.peakInterval,
+        offPeakInterval: p.offPeakInterval,
+      })
+    : singleBand(p.start, p.end, p.offPeakInterval);
+  return { weekday, weekend: singleBand(p.start, p.end, p.offPeakInterval * 2) };
+}
+
+/** Recover the wizard's per-direction controls from a saved day's bands. */
+function readBandSettings(day: DaySchedule | undefined): {
+  start: string;
+  end: string;
+  offPeak: number;
+  peak: number | null;
+} | null {
+  const bands = day?.bands ?? [];
+  if (bands.length === 0) return null;
+  const isPeak = (b: ServiceBand) => /peak/i.test(b.label) && !/off-peak/i.test(b.label);
+  const peakBands = bands.filter(isPeak);
+  const offPeakBands = bands.filter((b) => !isPeak(b));
+  const fmt = (h: number, m: number) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return {
+    start: fmt(bands[0].startHour, bands[0].startMin),
+    end: fmt(bands[bands.length - 1].endHour, bands[bands.length - 1].endMin),
+    offPeak: offPeakBands.length
+      ? Math.max(...offPeakBands.map((b) => b.headwayMins))
+      : bands[0].headwayMins,
+    peak: peakBands.length ? Math.min(...peakBands.map((b) => b.headwayMins)) : null,
+  };
 }
 
 /** seconds-since-midnight → "6:00a" / "12:30p" */
@@ -216,113 +266,150 @@ function stopOffsetsSec(stops: CustomStop[], totalDurationSec: number): number[]
 
 const TIMETABLE_ROW_CAP = 16;
 
+interface DirectionConfig {
+  start: string;
+  end: string;
+  offPeakInterval: number;
+  peakEnabled: boolean;
+  peakInterval: number;
+}
+
+/** Weekday departures (seconds since midnight) for one direction's config. */
+function weekdayDepartures(cfg: DirectionConfig): { sec: number; isPeak: boolean }[] {
+  const segments = weekdaySegments({
+    serviceStart: cfg.start,
+    serviceEnd: cfg.end,
+    offPeakInterval: cfg.offPeakInterval,
+    peakEnabled: cfg.peakEnabled,
+    peakInterval: cfg.peakInterval,
+  });
+  const out: { sec: number; isPeak: boolean }[] = [];
+  for (const s of segments) {
+    for (let t = s.startMin; t < s.endMin; t += Math.max(1, s.headway)) {
+      out.push({ sec: t * 60, isPeak: s.isPeak });
+    }
+  }
+  out.sort((a, b) => a.sec - b.sec);
+  return out.filter((d, i) => i === 0 || d.sec !== out[i - 1].sec);
+}
+
 /**
- * A real timetable grid: stops across the top, one row per outbound departure,
- * cells are the time that trip reaches each stop. Scrolls horizontally inside
- * the panel. Times past the first stop are estimated from stop spacing.
+ * A real timetable grid: stops across the top, one row per departure, cells are
+ * the time that trip reaches each stop. Toggle outbound / return; the return
+ * view reverses the stop order and uses the return config. Times past the first
+ * stop are estimated from stop spacing.
  */
 function TimetablePreview({
   stops,
   durationSec,
-  serviceStart,
-  serviceEnd,
-  offPeakInterval,
-  peakEnabled,
-  peakInterval,
+  outbound,
+  ret,
+  twoWay,
 }: {
   stops: CustomStop[];
   durationSec: number | null;
-  serviceStart: string;
-  serviceEnd: string;
-  offPeakInterval: number;
-  peakEnabled: boolean;
-  peakInterval: number;
+  outbound: DirectionConfig;
+  ret: DirectionConfig;
+  twoWay: boolean;
 }) {
-  const segments = weekdaySegments({
-    serviceStart,
-    serviceEnd,
-    offPeakInterval,
-    peakEnabled,
-    peakInterval,
-  });
+  const [view, setView] = useState<"outbound" | "return">("outbound");
+  const dir = view === "return" && twoWay ? "return" : "outbound";
+  const cfg = dir === "return" ? ret : outbound;
 
-  if (segments.length === 0) {
-    return (
-      <p className="text-xs text-[var(--landing-red)]">
-        End time must be after the start time.
-      </p>
-    );
-  }
+  const outboundDeps = weekdayDepartures(outbound);
+  const returnDeps = twoWay ? weekdayDepartures(ret) : [];
+  const deps = dir === "return" ? returnDeps : outboundDeps;
+  const totalPerDay = outboundDeps.length + returnDeps.length;
 
-  const departures: { sec: number; isPeak: boolean }[] = [];
-  for (const s of segments) {
-    for (let t = s.startMin; t < s.endMin; t += Math.max(1, s.headway)) {
-      departures.push({ sec: t * 60, isPeak: s.isPeak });
-    }
-  }
-  departures.sort((a, b) => a.sec - b.sec);
-  const unique = departures.filter((d, i) => i === 0 || d.sec !== departures[i - 1].sec);
-  const rows = unique.slice(0, TIMETABLE_ROW_CAP);
-
-  const offsets = stopOffsetsSec(stops, durationSec ?? 0);
+  const orderedStops = dir === "return" ? [...stops].reverse() : stops;
+  const offsets = stopOffsetsSec(orderedStops, durationSec ?? 0);
   const timed = durationSec != null && stops.length >= 2;
+  const rows = deps.slice(0, TIMETABLE_ROW_CAP);
 
   return (
     <div className="rounded-none border border-[var(--landing-border)] p-3">
-      <div className="mb-2 flex items-baseline justify-between gap-2">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-[var(--landing-muted)]">Weekday timetable</p>
-        <p className="text-[10px] text-[var(--landing-faint)]">outbound · {unique.length * 2} trips/day</p>
-      </div>
-
-      <div className="-mx-3 overflow-x-auto px-3">
-        <table className="border-collapse text-[11px]">
-          <thead>
-            <tr>
-              <th className="sticky left-0 z-10 bg-[var(--landing-elevated)] py-1 pr-2 text-left font-medium text-[var(--landing-faint)]">
-                Trip
-              </th>
-              {stops.map((s) => (
-                <th
-                  key={s.id}
-                  className="max-w-[96px] truncate px-2 py-1 text-left font-medium text-[var(--landing-muted)]"
-                  title={s.name}
-                >
-                  {s.name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((d, i) => (
-              <tr key={i} className="border-t border-[var(--landing-border)]">
-                <td
-                  className={`sticky left-0 z-10 bg-[var(--landing-elevated)] py-1 pr-2 font-mono ${
-                    d.isPeak ? "text-[var(--landing-accent)]" : "text-[var(--landing-faint)]"
-                  }`}
-                >
-                  {i + 1}
-                </td>
-                {stops.map((s, j) => (
-                  <td
-                    key={s.id}
-                    className="whitespace-nowrap px-2 py-1 font-mono tabular-nums text-[var(--landing-ink)]"
-                  >
-                    {timed ? clockLabel(d.sec + offsets[j]) : j === 0 ? clockLabel(d.sec) : "·"}
-                  </td>
-                ))}
-              </tr>
+        {twoWay ? (
+          <div className="flex overflow-hidden rounded-none border border-[var(--landing-border-2)] text-[10px]">
+            {(["outbound", "return"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                className={`px-2 py-0.5 font-medium capitalize transition-colors ${
+                  view === v
+                    ? "bg-[var(--landing-accent)] text-white"
+                    : "text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
+                }`}
+              >
+                {v}
+              </button>
             ))}
-          </tbody>
-        </table>
+          </div>
+        ) : (
+          <p className="text-[10px] text-[var(--landing-faint)]">one-way</p>
+        )}
       </div>
 
-      <p className="mt-2 text-xs text-[var(--landing-faint)]">
-        {unique.length > rows.length && `Showing first ${rows.length} of ${unique.length} trips. `}
-        {!timed && "Times past the first stop appear once the route is drawn. "}
-        {peakEnabled
-          ? `Every ${peakInterval} min peak, ${offPeakInterval} min off-peak.`
-          : `Every ${offPeakInterval} min.`}
-      </p>
+      {deps.length === 0 ? (
+        <p className="text-xs text-[var(--landing-red)]">
+          End time must be after the start time.
+        </p>
+      ) : (
+        <>
+          <div className="-mx-3 overflow-x-auto px-3">
+            <table className="border-collapse text-[11px]">
+              <thead>
+                <tr>
+                  <th className="sticky left-0 z-10 bg-[var(--landing-elevated)] py-1 pr-2 text-left font-medium text-[var(--landing-faint)]">
+                    Trip
+                  </th>
+                  {orderedStops.map((s) => (
+                    <th
+                      key={s.id}
+                      className="max-w-[96px] truncate px-2 py-1 text-left font-medium text-[var(--landing-muted)]"
+                      title={s.name}
+                    >
+                      {s.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((d, i) => (
+                  <tr key={i} className="border-t border-[var(--landing-border)]">
+                    <td
+                      className={`sticky left-0 z-10 bg-[var(--landing-elevated)] py-1 pr-2 font-mono ${
+                        d.isPeak ? "text-[var(--landing-accent)]" : "text-[var(--landing-faint)]"
+                      }`}
+                    >
+                      {i + 1}
+                    </td>
+                    {orderedStops.map((s, j) => (
+                      <td
+                        key={s.id}
+                        className="whitespace-nowrap px-2 py-1 font-mono tabular-nums text-[var(--landing-ink)]"
+                      >
+                        {timed ? clockLabel(d.sec + offsets[j]) : j === 0 ? clockLabel(d.sec) : "·"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="mt-2 text-xs text-[var(--landing-faint)]">
+            {deps.length > rows.length && `Showing first ${rows.length} of ${deps.length}. `}
+            {!timed && "Times past the first stop appear once the route is drawn. "}
+            ≈ {totalPerDay} trips each weekday
+            {cfg.peakEnabled
+              ? ` · this way every ${cfg.peakInterval} min peak, ${cfg.offPeakInterval} min off-peak`
+              : ` · this way every ${cfg.offPeakInterval} min`}
+          </p>
+        </>
+      )}
     </div>
   );
 }
@@ -552,40 +639,33 @@ export default function BuilderWizard({
   const [scheduleType, setScheduleType] = useState<"frequency" | "fixed">(
     existingScheduleType === "fixed" ? "fixed" : "frequency"
   );
-  // A saved "banded" schedule (peak hours) is edited here in frequency mode.
-  const existingBands = existingRoute?.schedule?.type === "banded"
-    ? existingRoute.schedule.weekday?.bands ?? []
-    : [];
-  const existingOffPeakBands = existingBands.filter((b) => !/peak/i.test(b.label));
-  const existingPeakInterval = readPeakIntervalFromSchedule(existingRoute?.schedule);
-  const pad2 = (n: number) => String(n).padStart(2, "0");
-  const bandedServiceStart = existingBands.length
-    ? `${pad2(existingBands[0].startHour)}:${pad2(existingBands[0].startMin)}`
-    : undefined;
-  const bandedServiceEnd = existingBands.length
-    ? `${pad2(existingBands[existingBands.length - 1].endHour)}:${pad2(existingBands[existingBands.length - 1].endMin)}`
-    : undefined;
+  // A saved "banded" schedule is edited here in Frequency mode. Recover the
+  // outbound and return controls from its bands.
+  const savedSchedule = existingRoute?.schedule;
+  const outboundSaved = savedSchedule?.type === "banded"
+    ? readBandSettings(savedSchedule.weekday)
+    : null;
+  const returnSaved = savedSchedule?.type === "banded"
+    ? readBandSettings(savedSchedule.returnWeekday)
+    : null;
 
-  const [frequencyInterval, setFrequencyInterval] = useState(
-    existingRoute?.schedule?.frequency?.weekday?.interval
-      ?? (existingOffPeakBands.length
-        ? Math.max(...existingOffPeakBands.map((b) => b.headwayMins))
-        : 15)
-  );
-  const [serviceStart, setServiceStart] = useState(
-    existingRoute?.schedule?.frequency?.weekday?.start ?? bandedServiceStart ?? "06:00"
-  );
-  const [serviceEnd, setServiceEnd] = useState(
-    existingRoute?.schedule?.frequency?.weekday?.end ?? bandedServiceEnd ?? "23:00"
-  );
+  const freqInit = savedSchedule?.frequency?.weekday?.interval ?? outboundSaved?.offPeak ?? 15;
+  const startInit = savedSchedule?.frequency?.weekday?.start ?? outboundSaved?.start ?? "06:00";
+  const endInit = savedSchedule?.frequency?.weekday?.end ?? outboundSaved?.end ?? "23:00";
+
+  const [frequencyInterval, setFrequencyInterval] = useState(freqInit);
+  const [serviceStart, setServiceStart] = useState(startInit);
+  const [serviceEnd, setServiceEnd] = useState(endInit);
 
   // ── Peak-hours (produces a "banded" schedule on save) ────────────────────
-  const [peakEnabled, setPeakEnabled] = useState(existingPeakInterval !== null);
-  const [peakInterval, setPeakInterval] = useState(existingPeakInterval ?? DEFAULT_PEAK_INTERVAL);
+  const [peakEnabled, setPeakEnabled] = useState((outboundSaved?.peak ?? null) !== null);
+  const [peakInterval, setPeakInterval] = useState(outboundSaved?.peak ?? DEFAULT_PEAK_INTERVAL);
+
   const [fixedDepartures, setFixedDepartures] = useState<string[]>(
     existingRoute?.schedule?.fixedDepartures ?? []
   );
   const [newDeparture, setNewDeparture] = useState("");
+  // Fixed-mode return direction
   const [returnEnabled, setReturnEnabled] = useState(
     (existingRoute?.schedule?.returnDepartures?.length ?? 0) > 0
   );
@@ -593,16 +673,26 @@ export default function BuilderWizard({
     existingRoute?.schedule?.returnDepartures ?? []
   );
   const [newReturnDeparture, setNewReturnDeparture] = useState("");
-  // Frequency-mode return direction
-  const [returnFreqEnabled, setReturnFreqEnabled] = useState(
-    !!existingRoute?.schedule?.returnFrequency
+
+  // ── Frequency-mode return direction: its own hours + frequency + peak ────
+  const [twoWay, setTwoWay] = useState(
+    savedSchedule && savedSchedule.type !== "fixed"
+      ? savedSchedule.direction !== "one-way"
+      : true // new routes run both ways by default
   );
-  const [returnServiceStart, setReturnServiceStart] = useState(
-    existingRoute?.schedule?.returnFrequency?.start ?? "06:00"
-  );
-  const [returnServiceEnd, setReturnServiceEnd] = useState(
-    existingRoute?.schedule?.returnFrequency?.end ?? "23:00"
-  );
+  const [returnStart, setReturnStart] = useState(returnSaved?.start ?? startInit);
+  const [returnEnd, setReturnEnd] = useState(returnSaved?.end ?? endInit);
+  const [returnInterval, setReturnInterval] = useState(returnSaved?.offPeak ?? freqInit);
+  const [returnPeakEnabled, setReturnPeakEnabled] = useState((returnSaved?.peak ?? null) !== null);
+  const [returnPeakInterval, setReturnPeakInterval] = useState(returnSaved?.peak ?? DEFAULT_PEAK_INTERVAL);
+
+  function copyOutboundToReturn() {
+    setReturnStart(serviceStart);
+    setReturnEnd(serviceEnd);
+    setReturnInterval(frequencyInterval);
+    setReturnPeakEnabled(peakEnabled);
+    setReturnPeakInterval(peakInterval);
+  }
 
   // ── Route geometry state ──────────────────────────────────────────────────
   // For bus: computed from Directions API based on stops
@@ -1064,46 +1154,34 @@ export default function BuilderWizard({
         direction: returnEnabled ? "two-way" : "one-way",
       };
     }
-    if (peakEnabled) {
-      const weekdayBands = buildPeakWeekdayBands({
-        serviceStart,
-        serviceEnd,
-        peakInterval,
-        offPeakInterval: frequencyInterval,
-      });
-      const { h: wsH, m: wsM } = minutesToHM(hmToMinutes(serviceStart));
-      const { h: weH, m: weM } = minutesToHM(hmToMinutes(serviceEnd));
-      const weekendBand = (): ServiceBand => ({
-        id: uuidv4(),
-        label: "All day",
-        startHour: wsH,
-        startMin: wsM,
-        endHour: weH,
-        endMin: weM,
-        headwayMins: frequencyInterval * 2,
-      });
-      return {
-        type: "banded",
-        weekday: { active: true, bands: weekdayBands },
-        saturday: { active: true, bands: [weekendBand()] },
-        sunday: { active: true, bands: [weekendBand()] },
-        ...(returnFreqEnabled
-          ? { returnFrequency: { start: returnServiceStart, end: returnServiceEnd } }
-          : {}),
-        direction: "two-way",
-      };
-    }
+    const outbound = buildDirectionBands({
+      start: serviceStart,
+      end: serviceEnd,
+      offPeakInterval: frequencyInterval,
+      peakEnabled,
+      peakInterval,
+    });
+    const ret = buildDirectionBands({
+      start: returnStart,
+      end: returnEnd,
+      offPeakInterval: returnInterval,
+      peakEnabled: returnPeakEnabled,
+      peakInterval: returnPeakInterval,
+    });
 
     return {
-      type: "frequency",
-      frequency: {
-        weekday: { start: serviceStart, end: serviceEnd, interval: frequencyInterval },
-        weekend: { start: serviceStart, end: serviceEnd, interval: frequencyInterval * 2 },
-      },
-      ...(returnFreqEnabled
-        ? { returnFrequency: { start: returnServiceStart, end: returnServiceEnd } }
+      type: "banded",
+      weekday: { active: true, bands: outbound.weekday },
+      saturday: { active: true, bands: outbound.weekend },
+      sunday: { active: true, bands: outbound.weekend },
+      ...(twoWay
+        ? {
+            returnWeekday: { active: true, bands: ret.weekday },
+            returnSaturday: { active: true, bands: ret.weekend },
+            returnSunday: { active: true, bands: ret.weekend },
+          }
         : {}),
-      direction: "two-way",
+      direction: twoWay ? "two-way" : "one-way",
     };
   }
 
@@ -1989,70 +2067,128 @@ export default function BuilderWizard({
                 <TimetablePreview
                   stops={stops}
                   durationSec={routeDurationSecs}
-                  serviceStart={serviceStart}
-                  serviceEnd={serviceEnd}
-                  offPeakInterval={frequencyInterval}
-                  peakEnabled={peakEnabled}
-                  peakInterval={peakInterval}
+                  twoWay={twoWay}
+                  outbound={{
+                    start: serviceStart,
+                    end: serviceEnd,
+                    offPeakInterval: frequencyInterval,
+                    peakEnabled,
+                    peakInterval,
+                  }}
+                  ret={{
+                    start: returnStart,
+                    end: returnEnd,
+                    offPeakInterval: returnInterval,
+                    peakEnabled: returnPeakEnabled,
+                    peakInterval: returnPeakInterval,
+                  }}
                 />
 
                 {/* Return direction */}
                 <div className="rounded-none border border-[var(--landing-border)] p-3">
                   <button
                     type="button"
-                    onClick={() => setReturnFreqEnabled((v) => !v)}
+                    onClick={() => setTwoWay((v) => !v)}
                     className={`flex w-full items-center justify-between text-sm font-medium transition-colors ${
-                      returnFreqEnabled ? "text-[var(--landing-accent)]" : "text-[var(--landing-muted)]"
+                      twoWay ? "text-[var(--landing-accent)]" : "text-[var(--landing-muted)]"
                     }`}
                   >
                     <span className="flex items-center gap-2">
                       <Repeat className="w-4 h-4" />
-                      Return direction
+                      Runs both directions
                     </span>
                     <span className={`text-xs px-2 py-0.5 rounded-none font-medium ${
-                      returnFreqEnabled ? "bg-[var(--landing-wash)] text-[var(--landing-accent)]" : "bg-[var(--landing-wash)] text-[var(--landing-faint)]"
+                      twoWay ? "bg-[var(--landing-wash)] text-[var(--landing-accent)]" : "bg-[var(--landing-wash)] text-[var(--landing-faint)]"
                     }`}>
-                      {returnFreqEnabled ? "On" : "Off"}
+                      {twoWay ? "On" : "Off"}
                     </span>
                   </button>
 
-                  {returnFreqEnabled && (
+                  {!twoWay ? (
+                    <p className="text-xs text-[var(--landing-faint)] mt-2">
+                      One-way only. Turn on to run the return trip.
+                    </p>
+                  ) : (
                     <div className="mt-3 flex flex-col gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReturnServiceStart(serviceStart);
-                          setReturnServiceEnd(serviceEnd);
-                        }}
-                        className="self-start text-xs text-[var(--landing-accent)] underline underline-offset-2 hover:text-[var(--landing-accent)]"
-                      >
-                        Copy from outbound
-                      </button>
-                      <div>
-                        <Label className="text-xs text-[var(--landing-muted)] mb-1.5 block">Return service hours</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-xs text-[var(--landing-faint)]">Start</span>
-                            <Input
-                              type="time"
-                              value={returnServiceStart}
-                              onChange={(e) => setReturnServiceStart(e.target.value)}
-                              className="rounded-none h-9"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-xs text-[var(--landing-faint)]">End</span>
-                            <Input
-                              type="time"
-                              value={returnServiceEnd}
-                              onChange={(e) => setReturnServiceEnd(e.target.value)}
-                              className="rounded-none h-9"
-                            />
-                          </div>
-                        </div>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium text-[var(--landing-muted)]">Return trip</Label>
+                        <button
+                          type="button"
+                          onClick={copyOutboundToReturn}
+                          className="text-xs text-[var(--landing-accent)] underline underline-offset-2"
+                        >
+                          Copy from outbound
+                        </button>
                       </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {FREQUENCY_PRESETS.map(({ label, interval }) => (
+                          <button
+                            key={interval}
+                            onClick={() => setReturnInterval(interval)}
+                            className={`rounded-none border p-2 text-xs font-medium transition-all ${
+                              returnInterval === interval
+                                ? "border-[var(--landing-accent)] bg-[var(--landing-wash)] text-[var(--landing-accent)]"
+                                : "border-[var(--landing-border)] hover:border-[var(--landing-border-2)] text-[var(--landing-ink)]"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={240}
+                          value={returnInterval}
+                          onChange={(e) => setReturnInterval(Math.max(1, Math.min(240, Number(e.target.value))))}
+                          className="rounded-none h-9 w-20"
+                        />
+                        <span className="text-sm text-[var(--landing-muted)]">min between trips</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-[var(--landing-muted)]">from</span>
+                        <Input
+                          type="time"
+                          value={returnStart}
+                          onChange={(e) => setReturnStart(e.target.value)}
+                          className="rounded-none h-9 w-32"
+                        />
+                        <span className="text-sm text-[var(--landing-muted)]">to</span>
+                        <Input
+                          type="time"
+                          value={returnEnd}
+                          onChange={(e) => setReturnEnd(e.target.value)}
+                          className="rounded-none h-9 w-32"
+                        />
+                      </div>
+
+                      <label className="flex items-center gap-2 text-sm text-[var(--landing-muted)] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={returnPeakEnabled}
+                          onChange={(e) => setReturnPeakEnabled(e.target.checked)}
+                          className="rounded-none"
+                        />
+                        Run more often at rush hour ({PEAK_LABEL})
+                      </label>
+                      {returnPeakEnabled && (
+                        <div className="flex items-center gap-2 pl-6">
+                          <span className="text-sm text-[var(--landing-muted)]">Every</span>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={240}
+                            value={returnPeakInterval}
+                            onChange={(e) => setReturnPeakInterval(Math.max(1, Math.min(240, Number(e.target.value))))}
+                            className="rounded-none h-9 w-20"
+                          />
+                          <span className="text-sm text-[var(--landing-muted)]">min at peak</span>
+                        </div>
+                      )}
                       <p className="text-xs text-[var(--landing-faint)]">
-                        Same frequency ({frequencyInterval} min) in the return direction
+                        Weekends run every {returnInterval * 2} min
                       </p>
                     </div>
                   )}
@@ -2231,6 +2367,12 @@ export default function BuilderWizard({
                         : `Every ${frequencyInterval} min`}
                   </span>
                 </div>
+                {scheduleType === "frequency" && (
+                  <div className="flex justify-between text-[var(--landing-muted)]">
+                    <span className="text-[var(--landing-faint)]">Direction</span>
+                    <span className="font-medium">{twoWay ? "Both ways" : "One-way"}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-[var(--landing-muted)]">
                   <span className="text-[var(--landing-faint)]">Route geometry</span>
                   <span className="font-medium">
