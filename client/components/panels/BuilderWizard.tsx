@@ -153,96 +153,175 @@ function readPeakIntervalFromSchedule(s: CustomSchedule | undefined): number | n
   return Math.min(...peakBands.map((b) => b.headwayMins));
 }
 
-/** "6a", "12p", "11p" — compact hour label for the preview axis. */
-function hourLabel(totalMin: number): string {
+/** seconds-since-midnight → "6:00a" / "12:30p" */
+function clockLabel(totalSec: number): string {
+  const totalMin = Math.round(totalSec / 60);
   const h = Math.floor(totalMin / 60) % 24;
+  const m = ((totalMin % 60) + 60) % 60;
   const suffix = h < 12 ? "a" : "p";
   const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h12}${suffix}`;
+  return `${h12}:${String(m).padStart(2, "0")}${suffix}`;
 }
 
+/** Weekday service windows with their headway, honouring the peak toggle. */
+function weekdaySegments(p: {
+  serviceStart: string;
+  serviceEnd: string;
+  offPeakInterval: number;
+  peakEnabled: boolean;
+  peakInterval: number;
+}): { startMin: number; endMin: number; headway: number; isPeak: boolean }[] {
+  const startMin = hmToMinutes(p.serviceStart);
+  const endMin = hmToMinutes(p.serviceEnd);
+  if (endMin <= startMin) return [];
+  if (!p.peakEnabled) {
+    return [{ startMin, endMin, headway: p.offPeakInterval, isPeak: false }];
+  }
+  return buildPeakWeekdayBands({
+    serviceStart: p.serviceStart,
+    serviceEnd: p.serviceEnd,
+    peakInterval: p.peakInterval,
+    offPeakInterval: p.offPeakInterval,
+  })
+    .map((b) => ({
+      startMin: b.startHour * 60 + b.startMin,
+      endMin: b.endHour * 60 + b.endMin,
+      headway: b.headwayMins,
+      isPeak: /peak/i.test(b.label) && !/off-peak/i.test(b.label),
+    }))
+    .filter((s) => s.endMin > s.startMin);
+}
+
+/** Cumulative travel time (seconds) from the first stop to each stop. */
+function stopOffsetsSec(stops: CustomStop[], totalDurationSec: number): number[] {
+  if (stops.length < 2) return stops.map(() => 0);
+  const legs: number[] = [];
+  let total = 0;
+  for (let i = 1; i < stops.length; i++) {
+    const d = distanceM(
+      [stops[i - 1].lon, stops[i - 1].lat],
+      [stops[i].lon, stops[i].lat]
+    );
+    legs.push(d);
+    total += d;
+  }
+  const offsets = [0];
+  let acc = 0;
+  for (const leg of legs) {
+    acc += leg;
+    offsets.push(total > 0 ? (acc / total) * totalDurationSec : 0);
+  }
+  return offsets;
+}
+
+const TIMETABLE_ROW_CAP = 16;
+
 /**
- * A one-day service strip: each band is a bar whose height reflects how often
- * buses run (shorter headway = taller). Peak bars use the accent colour.
+ * A real timetable grid: stops across the top, one row per outbound departure,
+ * cells are the time that trip reaches each stop. Scrolls horizontally inside
+ * the panel. Times past the first stop are estimated from stop spacing.
  */
-function SchedulePreview({
+function TimetablePreview({
+  stops,
+  durationSec,
   serviceStart,
   serviceEnd,
   offPeakInterval,
   peakEnabled,
   peakInterval,
 }: {
+  stops: CustomStop[];
+  durationSec: number | null;
   serviceStart: string;
   serviceEnd: string;
   offPeakInterval: number;
   peakEnabled: boolean;
   peakInterval: number;
 }) {
-  const startMin = hmToMinutes(serviceStart);
-  const endMin = hmToMinutes(serviceEnd);
-  if (endMin <= startMin) {
+  const segments = weekdaySegments({
+    serviceStart,
+    serviceEnd,
+    offPeakInterval,
+    peakEnabled,
+    peakInterval,
+  });
+
+  if (segments.length === 0) {
     return (
       <p className="text-xs text-[var(--landing-red)]">
         End time must be after the start time.
       </p>
     );
   }
-  const span = endMin - startMin;
 
-  const rawBands = peakEnabled
-    ? buildPeakWeekdayBands({ serviceStart, serviceEnd, peakInterval, offPeakInterval })
-    : [];
-  const segments = (rawBands.length
-    ? rawBands.map((b) => ({
-        startMin: b.startHour * 60 + b.startMin,
-        endMin: b.endHour * 60 + b.endMin,
-        headway: b.headwayMins,
-        isPeak: /peak/i.test(b.label) && !/off-peak/i.test(b.label),
-      }))
-    : [{ startMin, endMin, headway: offPeakInterval, isPeak: false }]
-  ).filter((s) => s.endMin > s.startMin);
+  const departures: { sec: number; isPeak: boolean }[] = [];
+  for (const s of segments) {
+    for (let t = s.startMin; t < s.endMin; t += Math.max(1, s.headway)) {
+      departures.push({ sec: t * 60, isPeak: s.isPeak });
+    }
+  }
+  departures.sort((a, b) => a.sec - b.sec);
+  const unique = departures.filter((d, i) => i === 0 || d.sec !== departures[i - 1].sec);
+  const rows = unique.slice(0, TIMETABLE_ROW_CAP);
 
-  const tripsOneWay = segments.reduce(
-    (n, s) => n + Math.max(1, Math.floor((s.endMin - s.startMin) / Math.max(1, s.headway))),
-    0
-  );
-  const barHeight = (headway: number) => {
-    const t = Math.max(0, Math.min(1, (60 - headway) / 55));
-    return Math.round(28 + t * 32); // 28–60px
-  };
-
-  const axisTicks = [startMin, startMin + span / 2, endMin].map(Math.round);
+  const offsets = stopOffsetsSec(stops, durationSec ?? 0);
+  const timed = durationSec != null && stops.length >= 2;
 
   return (
     <div className="rounded-none border border-[var(--landing-border)] p-3">
-      <p className="text-xs font-medium text-[var(--landing-muted)] mb-2">Weekday preview</p>
-      <div className="flex items-end gap-px h-[60px]">
-        {segments.map((s, i) => (
-          <div
-            key={i}
-            title={`${hourLabel(s.startMin)}–${hourLabel(s.endMin)} · every ${s.headway} min`}
-            style={{
-              width: `${((s.endMin - s.startMin) / span) * 100}%`,
-              height: `${barHeight(s.headway)}px`,
-            }}
-            className={
-              s.isPeak
-                ? "bg-[var(--landing-accent)]"
-                : "bg-[color-mix(in_oklab,var(--landing-accent)_28%,transparent)]"
-            }
-          />
-        ))}
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <p className="text-xs font-medium text-[var(--landing-muted)]">Weekday timetable</p>
+        <p className="text-[10px] text-[var(--landing-faint)]">outbound · {unique.length * 2} trips/day</p>
       </div>
-      <div className="mt-1 flex justify-between text-[10px] text-[var(--landing-faint)]">
-        {axisTicks.map((t, i) => (
-          <span key={i}>{hourLabel(t)}</span>
-        ))}
+
+      <div className="-mx-3 overflow-x-auto px-3">
+        <table className="border-collapse text-[11px]">
+          <thead>
+            <tr>
+              <th className="sticky left-0 z-10 bg-[var(--landing-elevated)] py-1 pr-2 text-left font-medium text-[var(--landing-faint)]">
+                Trip
+              </th>
+              {stops.map((s) => (
+                <th
+                  key={s.id}
+                  className="max-w-[96px] truncate px-2 py-1 text-left font-medium text-[var(--landing-muted)]"
+                  title={s.name}
+                >
+                  {s.name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((d, i) => (
+              <tr key={i} className="border-t border-[var(--landing-border)]">
+                <td
+                  className={`sticky left-0 z-10 bg-[var(--landing-elevated)] py-1 pr-2 font-mono ${
+                    d.isPeak ? "text-[var(--landing-accent)]" : "text-[var(--landing-faint)]"
+                  }`}
+                >
+                  {i + 1}
+                </td>
+                {stops.map((s, j) => (
+                  <td
+                    key={s.id}
+                    className="whitespace-nowrap px-2 py-1 font-mono tabular-nums text-[var(--landing-ink)]"
+                  >
+                    {timed ? clockLabel(d.sec + offsets[j]) : j === 0 ? clockLabel(d.sec) : "·"}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      <p className="mt-2 text-xs text-[var(--landing-muted)]">
-        ≈ {tripsOneWay * 2} trips each weekday
-        <span className="text-[var(--landing-faint)]">
-          {" "}· {peakEnabled ? `every ${peakInterval} min peak, ${offPeakInterval} min off-peak` : `every ${offPeakInterval} min`}
-        </span>
+
+      <p className="mt-2 text-xs text-[var(--landing-faint)]">
+        {unique.length > rows.length && `Showing first ${rows.length} of ${unique.length} trips. `}
+        {!timed && "Times past the first stop appear once the route is drawn. "}
+        {peakEnabled
+          ? `Every ${peakInterval} min peak, ${offPeakInterval} min off-peak.`
+          : `Every ${offPeakInterval} min.`}
       </p>
     </div>
   );
@@ -1907,7 +1986,9 @@ export default function BuilderWizard({
                 </div>
 
                 {/* Schedule preview */}
-                <SchedulePreview
+                <TimetablePreview
+                  stops={stops}
+                  durationSec={routeDurationSecs}
                   serviceStart={serviceStart}
                   serviceEnd={serviceEnd}
                   offPeakInterval={frequencyInterval}
