@@ -1000,12 +1000,12 @@ export default function ScheduleModal({
         ref={panelRef}
         role="dialog"
         aria-label="Schedule editor"
-        className="pointer-events-auto relative z-10 flex h-full w-[min(880px,calc(100vw-2rem))] rounded-2xl bg-[var(--landing-elevated)] shadow-2xl overflow-hidden"
+        className="tf-map-panel pointer-events-auto relative z-10 flex h-full w-[min(880px,calc(100vw-2rem))] overflow-hidden"
       >
         {/* Close */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-20 w-8 h-8 rounded-xl flex items-center justify-center text-[var(--landing-faint)] hover:text-[var(--landing-ink)] hover:bg-[var(--landing-wash)] transition-colors"
+          className="absolute top-3 right-3 z-20 w-8 h-8 rounded-none flex items-center justify-center text-[var(--landing-faint)] hover:text-[var(--landing-ink)] hover:bg-[var(--landing-wash)] transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -1171,12 +1171,12 @@ function RouteSidebar({
   return (
     <div className="w-64 flex-shrink-0 border-r border-[var(--landing-border)] flex flex-col bg-[var(--landing-wash)]">
       <div className="px-3 pt-3 pb-2">
-        <h2 className="text-sm font-semibold text-[var(--landing-ink)] tracking-tight">Schedules</h2>
+        <h2 className="font-[family-name:var(--landing-mono)] text-[0.6875rem] font-medium uppercase tracking-[0.1em] text-[var(--landing-ink)]">Schedules</h2>
         <p className="text-[11px] text-[var(--landing-faint)] mt-0.5 leading-snug">Pick a route for times & departures</p>
       </div>
 
       <div className="px-2.5 pb-2">
-        <div className="flex items-center gap-2 bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] rounded-lg px-2.5 py-1.5 shadow-sm">
+        <div className="flex items-center gap-2 bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] rounded-none px-2.5 py-1.5">
           <Search className="w-3.5 h-3.5 text-[var(--landing-faint)] flex-shrink-0" />
           <input
             type="text"
@@ -1193,7 +1193,7 @@ function RouteSidebar({
           <button
             key={tab}
             onClick={() => onFilterChange(tab)}
-            className={`flex-1 rounded-md py-0.5 text-[10px] font-semibold transition-colors capitalize ${
+            className={`flex-1 rounded-none py-1 font-[family-name:var(--landing-mono)] text-[10px] font-medium uppercase tracking-[0.06em] transition-colors ${
               filter === tab ? "bg-[var(--landing-accent)] text-white" : "text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
             }`}
           >
@@ -1212,7 +1212,7 @@ function RouteSidebar({
         {filteredGO.length > 0 && (
           <>
             {filter === "all" && (
-              <p className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wider px-2 pt-2 pb-0.5">GO Transit</p>
+              <p className="font-[family-name:var(--landing-mono)] text-[9px] font-medium text-[var(--landing-faint)] uppercase tracking-wider px-2 pt-2 pb-0.5">GO Transit</p>
             )}
             {filteredGO.map((route) => {
               const lineInfo = GO_RAIL_LINES[route.short_name];
@@ -1238,7 +1238,7 @@ function RouteSidebar({
         {filteredCustom.length > 0 && (
           <>
             {filter === "all" && (
-              <p className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wider px-2 pt-2 pb-0.5">My routes</p>
+              <p className="font-[family-name:var(--landing-mono)] text-[9px] font-medium text-[var(--landing-faint)] uppercase tracking-wider px-2 pt-2 pb-0.5">My routes</p>
             )}
             {filteredCustom.map((route) => {
               const isSel = selected?.kind === "custom" && selected.route.id === route.id;
@@ -1276,12 +1276,12 @@ function RouteListItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors ${
+      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-none text-left transition-colors ${
         isSelected ? "bg-[var(--landing-accent)] text-white" : "hover:bg-[var(--landing-wash)] text-[var(--landing-ink)]"
       }`}
     >
       <div
-        className="w-7 h-7 rounded-md flex-shrink-0 flex items-center justify-center text-white text-[9px] font-bold"
+        className="w-7 h-7 rounded-none flex-shrink-0 flex items-center justify-center text-white text-[9px] font-semibold"
         style={{ backgroundColor: color }}
       >
         {shortName
@@ -1305,11 +1305,11 @@ function RouteListItem({
 function EmptyState() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-8">
-      <div className="w-12 h-12 rounded-2xl bg-[var(--landing-wash)] flex items-center justify-center">
+      <div className="w-12 h-12 rounded-none bg-[var(--landing-wash)] flex items-center justify-center">
         <Clock className="w-5 h-5 text-[var(--landing-faint)]" />
       </div>
       <div>
-        <p className="text-sm font-semibold text-[var(--landing-ink)]">Select a route</p>
+        <p className="font-[family-name:var(--font-hanken)] text-base font-medium text-[var(--landing-ink)]">Select a route</p>
         <p className="text-xs text-[var(--landing-faint)] mt-1 max-w-xs">
           Choose a GO Transit or custom route from the sidebar to view its schedule.
         </p>
@@ -1337,13 +1337,13 @@ function GoEditorHeader({
       <div className="flex items-start justify-between gap-3 pb-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div
-            className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center text-white font-bold text-xs"
+            className="w-9 h-9 rounded-none flex-shrink-0 flex items-center justify-center text-white font-semibold text-xs"
             style={{ backgroundColor: color }}
           >
             {selected.route.short_name}
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-[var(--landing-ink)] truncate leading-tight">{name}</h3>
+            <h3 className="font-[family-name:var(--font-hanken)] text-sm font-medium text-[var(--landing-ink)] truncate leading-tight">{name}</h3>
             {selected.route.from_stop && (
               <p className="text-[11px] text-[var(--landing-faint)] mt-0.5 truncate leading-snug">
                 {selected.route.from_stop} → {selected.route.to_stop}
@@ -1357,7 +1357,7 @@ function GoEditorHeader({
           <select
             value={selected.variantId}
             onChange={(e) => onVariantChange(e.target.value)}
-            className="text-[11px] rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] pl-2.5 pr-6 py-1 text-[var(--landing-ink)] appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--landing-border-2)] max-w-[200px] truncate"
+            className="text-[11px] rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] pl-2.5 pr-6 py-1 text-[var(--landing-ink)] appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--landing-border-2)] max-w-[200px] truncate"
           >
             {[...selected.route.variants]
               .sort((a, b) => (b.weekly_trip_count ?? 0) - (a.weekly_trip_count ?? 0))
@@ -1414,13 +1414,13 @@ function CustomEditorHeader({ route }: { route: CustomRoute }) {
   return (
     <div className="px-4 pt-3 pb-3 border-b border-[var(--landing-border)] flex items-center gap-2.5">
       <div
-        className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center text-white font-bold text-xs"
+        className="w-9 h-9 rounded-none flex-shrink-0 flex items-center justify-center text-white font-semibold text-xs"
         style={{ backgroundColor: route.color }}
       >
         {route.type === "train" ? "TR" : "BU"}
       </div>
       <div className="min-w-0">
-        <h3 className="text-sm font-semibold text-[var(--landing-ink)] truncate leading-tight">{route.name || "Custom route"}</h3>
+        <h3 className="font-[family-name:var(--font-hanken)] text-sm font-medium text-[var(--landing-ink)] truncate leading-tight">{route.name || "Custom route"}</h3>
         <p className="text-[11px] text-[var(--landing-faint)] mt-0.5 leading-snug">{route.stops.length} stops · edit departures below</p>
       </div>
     </div>
@@ -1467,7 +1467,7 @@ function DepartureSelector({
         <div className="flex flex-col gap-2">
           {directions.length > 1 && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">
+              <span className="font-[family-name:var(--landing-mono)] text-[10px] font-medium text-[var(--landing-faint)] uppercase tracking-wide">
                 Direction
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -1479,7 +1479,7 @@ function DepartureSelector({
                       type="button"
                       title={title}
                       onClick={() => onSelectDirection(dir.directionId)}
-                      className={`max-w-[min(100%,14rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                      className={`max-w-[min(100%,14rem)] truncate px-2.5 py-1 rounded-none text-[11px] font-semibold transition-colors ${
                         selectedDirection === dir.directionId
                           ? "bg-[var(--landing-accent)] text-white"
                           : "bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] text-[var(--landing-ink)] hover:bg-[var(--landing-wash)]"
@@ -1494,7 +1494,7 @@ function DepartureSelector({
           )}
           {hasMultipleDestinations && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">
+              <span className="font-[family-name:var(--landing-mono)] text-[10px] font-medium text-[var(--landing-faint)] uppercase tracking-wide">
                 Trip ends at
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -1502,7 +1502,7 @@ function DepartureSelector({
                   type="button"
                   title="Show departures for every branch on this line"
                   onClick={() => onDestinationChange(null)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                  className={`px-2.5 py-1 rounded-none text-[11px] font-semibold transition-colors ${
                     selectedDestination === null
                       ? "bg-[var(--landing-accent)] text-white"
                       : "bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
@@ -1525,7 +1525,7 @@ function DepartureSelector({
                           selectedDestination === dest.headsign ? null : dest.headsign,
                         )
                       }
-                      className={`max-w-[min(100%,12rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                      className={`max-w-[min(100%,12rem)] truncate px-2.5 py-1 rounded-none text-[11px] font-semibold transition-colors ${
                         selectedDestination === dest.headsign
                           ? "bg-[var(--landing-accent)] text-white"
                           : "bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
@@ -1547,14 +1547,14 @@ function DepartureSelector({
       {/* Departure time + route summary */}
       <div className="flex items-center gap-2 flex-wrap">
         <Clock className="w-3 h-3 text-[var(--landing-faint)] shrink-0" />
-        <label className="text-[10px] font-semibold text-[var(--landing-muted)] uppercase tracking-wide whitespace-nowrap">
+        <label className="font-[family-name:var(--landing-mono)] text-[10px] font-medium text-[var(--landing-muted)] uppercase tracking-wide whitespace-nowrap">
           First stop time
         </label>
         <div className="relative">
           <select
             value={selectedDeparture ?? ""}
             onChange={(e) => onSelectDeparture(e.target.value)}
-            className="text-[11px] rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] pl-2.5 pr-6 py-1 text-[var(--landing-ink)] font-mono appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--landing-border-2)] min-w-[100px]"
+            className="text-[11px] rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] pl-2.5 pr-6 py-1 text-[var(--landing-ink)] font-mono appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--landing-border-2)] min-w-[100px]"
           >
             {departures.length === 0 && <option value="">No departures</option>}
             {departures.map((dep) => (
@@ -1569,7 +1569,7 @@ function DepartureSelector({
 
         {originStop && summaryDestination && (
           <div
-            className="flex items-center gap-1 bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] rounded-lg px-2 py-1 max-w-full min-w-0"
+            className="flex items-center gap-1 bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] rounded-none px-2 py-1 max-w-full min-w-0"
             title={
               selectedDestination != null
                 ? `${originStop} → ${selectedDestination}`
@@ -1656,7 +1656,7 @@ function DeparturesView({
               type="button"
               onClick={() => onDayChange(d)}
               disabled={loading || (done && !selectable)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`px-2.5 py-1 rounded-none text-[11px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                 deptDay === d ? "bg-[var(--landing-accent)] text-white" : "bg-[var(--landing-wash)] text-[var(--landing-muted)] hover:bg-[var(--landing-border-2)]"
               }`}
             >
@@ -1671,7 +1671,7 @@ function DeparturesView({
         <div className="px-4 py-2 border-b border-[var(--landing-border)] flex flex-col gap-2">
           {deptState.directions.length > 1 && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">
+              <span className="font-[family-name:var(--landing-mono)] text-[10px] font-medium text-[var(--landing-faint)] uppercase tracking-wide">
                 Direction
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -1690,7 +1690,7 @@ function DeparturesView({
                       type="button"
                       title={tip}
                       onClick={() => onDirectionChange(dir.directionId)}
-                      className={`max-w-[min(100%,14rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                      className={`max-w-[min(100%,14rem)] truncate px-2.5 py-1 rounded-none text-[11px] font-semibold transition-colors ${
                         deptDirection === dir.directionId
                           ? "bg-[var(--landing-accent)] text-white"
                           : "bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] text-[var(--landing-ink)] hover:bg-[var(--landing-wash)]"
@@ -1706,7 +1706,7 @@ function DeparturesView({
 
           {hasMultipleDestinations && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">
+              <span className="font-[family-name:var(--landing-mono)] text-[10px] font-medium text-[var(--landing-faint)] uppercase tracking-wide">
                 Trip ends at
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -1714,7 +1714,7 @@ function DeparturesView({
                   type="button"
                   title="Show every branch in this direction"
                   onClick={() => onDestinationChange(null)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                  className={`px-2.5 py-1 rounded-none text-[11px] font-semibold transition-colors ${
                     selectedDestination === null
                       ? "bg-[var(--landing-accent)] text-white"
                       : "bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
@@ -1737,7 +1737,7 @@ function DeparturesView({
                           selectedDestination === dest.headsign ? null : dest.headsign,
                         )
                       }
-                      className={`max-w-[min(100%,12rem)] truncate px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                      className={`max-w-[min(100%,12rem)] truncate px-2.5 py-1 rounded-none text-[11px] font-semibold transition-colors ${
                         selectedDestination === dest.headsign
                           ? "bg-[var(--landing-accent)] text-white"
                           : "bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
@@ -1760,7 +1760,7 @@ function DeparturesView({
       <div className="px-4 py-2 border-b border-[var(--landing-border)] bg-[var(--landing-wash)] flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-1.5 text-[11px] text-[var(--landing-muted)]">
           <Clock className="w-3 h-3 text-[var(--landing-faint)]" />
-          <span className="font-semibold">Departures</span>
+          <span className="font-[family-name:var(--landing-mono)] text-[0.6875rem] font-medium uppercase tracking-[0.08em]">Departures</span>
           {activeHeadsign && (
             <span className="text-[var(--landing-faint)]">
               ·{" "}
@@ -1776,7 +1776,7 @@ function DeparturesView({
               <button
                 type="button"
                 onClick={onDiscardEdits}
-                className="rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-1 text-[11px] font-semibold text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
+                className="rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-1 text-[11px] font-semibold text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
               >
                 Discard
               </button>
@@ -1784,7 +1784,7 @@ function DeparturesView({
                 type="button"
                 onClick={onSaveEdits}
                 disabled={!canSave}
-                className="rounded-lg bg-[var(--landing-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="rounded-none bg-[var(--landing-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Save
               </button>
@@ -1793,7 +1793,7 @@ function DeparturesView({
           <button
             type="button"
             onClick={onToggleEdit}
-            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+            className={`rounded-none px-2.5 py-1 text-[11px] font-semibold transition-colors ${
               editing ? "bg-[var(--landing-accent)] text-white" : "border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
             }`}
           >
@@ -1805,20 +1805,20 @@ function DeparturesView({
       {editing && (
         <div className="px-4 py-2 border-b border-[var(--landing-border)] bg-[var(--landing-elevated)]">
           <div className="flex items-center gap-2 flex-wrap">
-            <label className="text-[10px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">
+            <label className="font-[family-name:var(--landing-mono)] text-[10px] font-medium text-[var(--landing-faint)] uppercase tracking-wide">
               Add time
             </label>
             <input
               type="time"
               value={newTime}
               onChange={(e) => onNewTimeChange(e.target.value)}
-              className="text-[11px] font-mono rounded-md border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2 py-1 text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)]"
+              className="text-[11px] font-mono rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2 py-1 text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)]"
             />
             <button
               type="button"
               onClick={() => onAddTime(newTime)}
               disabled={!newTime}
-              className="rounded-md bg-[var(--landing-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-none bg-[var(--landing-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Add
             </button>
@@ -1834,7 +1834,7 @@ function DeparturesView({
               </div>
             ) : (
               draftTimes.map((t) => (
-                <div key={t} className="flex items-center gap-1.5 rounded-lg border border-[var(--landing-border)] bg-[var(--landing-wash)] px-2 py-1.5">
+                <div key={t} className="flex items-center gap-1.5 rounded-none border border-[var(--landing-border)] bg-[var(--landing-wash)] px-2 py-1.5">
                   <input
                     type="time"
                     value={t}
@@ -1842,7 +1842,7 @@ function DeparturesView({
                       const next = draftTimes.map((x) => (x === t ? e.target.value : x));
                       onDraftTimesChange(normalizeTimes(next));
                     }}
-                    className="text-[11px] font-mono rounded-md border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 py-0.5 text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)] w-[100px]"
+                    className="text-[11px] font-mono rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 py-0.5 text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)] w-[100px]"
                   />
                   <button
                     type="button"
@@ -1890,7 +1890,7 @@ function DeparturesView({
 
         {deptState.status === "done" && visibleDepartures.length > 0 && (
           <div className="px-4 py-2">
-            <p className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide mb-2">
+            <p className="font-[family-name:var(--landing-mono)] text-[9px] font-medium text-[var(--landing-faint)] uppercase tracking-wide mb-2">
               {visibleDepartures.length} departure{visibleDepartures.length !== 1 ? "s" : ""} · {DAY_FULL[deptDay]}
               {selectedDestination
                 ? ` · ${simplifyTripHeadsign(selectedDestination, route.short_name)}`
@@ -1934,7 +1934,7 @@ function DepartureCard({
 }) {
   return (
     <div
-      className="rounded-lg border border-[var(--landing-border)] bg-[var(--landing-wash)] px-2 py-1.5 text-center"
+      className="rounded-none border border-[var(--landing-border)] bg-[var(--landing-wash)] px-2 py-1.5 text-center"
       title={destinationTitle}
     >
       <p className="text-xs font-semibold text-[var(--landing-ink)] tabular-nums font-mono leading-none">
@@ -1969,9 +1969,9 @@ function StopTimesTable({
       <table className="w-full text-[13px] border-collapse">
         <thead className="sticky top-0 bg-[var(--landing-elevated)] border-b border-[var(--landing-border)] z-10">
           <tr>
-            <th className="text-left text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide px-4 py-2 w-10">#</th>
-            <th className="text-left text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide px-2 py-2">Stop name</th>
-            <th className="text-left text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide px-2 py-2 w-32">
+            <th className="text-left font-[family-name:var(--landing-mono)] text-[9px] font-medium text-[var(--landing-faint)] uppercase tracking-wide px-4 py-2 w-10">#</th>
+            <th className="text-left font-[family-name:var(--landing-mono)] text-[9px] font-medium text-[var(--landing-faint)] uppercase tracking-wide px-2 py-2">Stop name</th>
+            <th className="text-left font-[family-name:var(--landing-mono)] text-[9px] font-medium text-[var(--landing-faint)] uppercase tracking-wide px-2 py-2 w-32">
               Departure
               {isReadOnly && <Lock className="w-2.5 h-2.5 inline ml-1 text-[var(--landing-faint)]" />}
             </th>
@@ -2006,7 +2006,7 @@ function StopRowItem({
       <td className="px-4 py-2 text-[11px] font-medium text-[var(--landing-faint)] tabular-nums">{index + 1}</td>
       <td className="px-2 py-2">
         <div className="flex items-center gap-1.5">
-          <div className={`w-2 h-2 rounded-full border-2 flex-shrink-0 ${index === 0 ? "border-[var(--landing-ink)] bg-[var(--landing-elevated)]" : "border-[var(--landing-border-2)] bg-[var(--landing-elevated)]"}`} />
+          <div className={`w-2 h-2 rounded-none border-2 flex-shrink-0 ${index === 0 ? "border-[var(--landing-ink)] bg-[var(--landing-elevated)]" : "border-[var(--landing-border-2)] bg-[var(--landing-elevated)]"}`} />
           <span className="text-[13px] text-[var(--landing-ink)] leading-snug">{row.name}</span>
         </div>
       </td>
@@ -2020,7 +2020,7 @@ function StopRowItem({
             type="time"
             value={row.timeHHMM ?? ""}
             onChange={(e) => onTimeEdit(index, e.target.value)}
-            className={`text-[13px] font-mono tabular-nums rounded-md border px-1.5 py-0.5 w-[7.25rem] outline-none transition-colors focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)] ${
+            className={`text-[13px] font-mono tabular-nums rounded-none border px-1.5 py-0.5 w-[7.25rem] outline-none transition-colors focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)] ${
               directionsLoading ? "border-[var(--landing-border)] text-[var(--landing-faint)] animate-pulse" : "border-[var(--landing-border-2)] text-[var(--landing-ink)]"
             }`}
           />
@@ -2047,9 +2047,9 @@ function GoStopTimesEditBar({
     <div className="px-4 py-2 border-b border-[var(--landing-border)] bg-[var(--landing-wash)] flex items-center gap-2">
       <div className="flex items-center gap-1.5 text-[11px] text-[var(--landing-muted)]">
         <TableProperties className="w-3 h-3 text-[var(--landing-faint)]" />
-        <span className="font-semibold">Stop times</span>
+        <span className="font-[family-name:var(--landing-mono)] text-[0.6875rem] font-medium uppercase tracking-[0.08em]">Stop times</span>
         {editing && (
-          <span className="text-[9px] font-semibold text-[var(--landing-amber)] bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] border border-[color-mix(in_oklab,var(--landing-amber)_22%,transparent)] rounded px-1 py-0.5">
+          <span className="text-[9px] font-semibold text-[var(--landing-amber)] bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] border border-[color-mix(in_oklab,var(--landing-amber)_22%,transparent)] rounded-none px-1 py-0.5">
             Editing
           </span>
         )}
@@ -2065,7 +2065,7 @@ function GoStopTimesEditBar({
             <button
               type="button"
               onClick={onDiscard}
-              className="rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-1 text-[11px] font-semibold text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
+              className="rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-1 text-[11px] font-semibold text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
             >
               Discard
             </button>
@@ -2073,7 +2073,7 @@ function GoStopTimesEditBar({
               type="button"
               onClick={onSave}
               disabled={!isDirty}
-              className="rounded-lg bg-[var(--landing-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-none bg-[var(--landing-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Save
             </button>
@@ -2082,7 +2082,7 @@ function GoStopTimesEditBar({
         <button
           type="button"
           onClick={onToggle}
-          className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+          className={`rounded-none px-2.5 py-1 text-[11px] font-semibold transition-colors ${
             editing ? "bg-[var(--landing-accent)] text-white" : "border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
           }`}
         >
@@ -2146,12 +2146,12 @@ function CustomDepartureSelector({
     <div className="px-4 py-2 border-b border-[var(--landing-border)] bg-[var(--landing-wash)] flex flex-col gap-2">
       {showLegacySeeds && activeDays.length > 1 && (
         <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide mr-0.5">Day</span>
+          <span className="font-[family-name:var(--landing-mono)] text-[9px] font-medium text-[var(--landing-faint)] uppercase tracking-wide mr-0.5">Day</span>
           {activeDays.map((d) => (
             <button
               key={d}
               onClick={() => onDayChange(d)}
-              className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-colors ${
+              className={`px-2.5 py-0.5 rounded-none text-[11px] font-semibold transition-colors ${
                 deptDay === d
                   ? "bg-[var(--landing-accent)] text-white"
                   : "bg-[var(--landing-wash)] text-[var(--landing-muted)] hover:bg-[var(--landing-border-2)]"
@@ -2165,7 +2165,7 @@ function CustomDepartureSelector({
 
       <div className="flex items-center gap-2 flex-wrap">
         {firstStopName && (
-          <div className="flex items-center gap-1 bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] rounded-md px-2 py-1">
+          <div className="flex items-center gap-1 bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] rounded-none px-2 py-1">
             <MapPin className="w-2.5 h-2.5 text-[var(--landing-faint)] flex-shrink-0" />
             <span className="text-[11px] text-[var(--landing-muted)] font-medium">{firstStopName}</span>
             {lastStopName && lastStopName !== firstStopName && (
@@ -2178,18 +2178,18 @@ function CustomDepartureSelector({
         )}
 
         <div className="flex items-center gap-1.5 ml-auto flex-wrap">
-          <label className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">Add timing</label>
+          <label className="font-[family-name:var(--landing-mono)] text-[9px] font-medium text-[var(--landing-faint)] uppercase tracking-wide">Add timing</label>
           <input
             type="time"
             value={newDeparture}
             onChange={(e) => setNewDeparture(e.target.value)}
-            className="text-[11px] font-mono rounded-md border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 py-1 text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)]"
+            className="text-[11px] font-mono rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 py-1 text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)]"
           />
           <button
             type="button"
             onClick={handleAdd}
             disabled={!newDeparture}
-            className="flex items-center gap-0.5 rounded-md bg-[var(--landing-accent)] px-2 py-1 text-[11px] font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-0.5 rounded-none bg-[var(--landing-accent)] px-2 py-1 text-[11px] font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Plus className="w-3 h-3" /> Add
           </button>
@@ -2197,8 +2197,8 @@ function CustomDepartureSelector({
       </div>
 
       {isFromFreqExpansion && (
-        <div className="flex items-center gap-1.5 rounded-md bg-[var(--landing-wash)] border border-[var(--landing-border)] px-2 py-1.5">
-          <span className="text-[9px] font-semibold text-[var(--landing-accent)] uppercase tracking-wide">Auto-generated</span>
+        <div className="flex items-center gap-1.5 rounded-none bg-[var(--landing-wash)] border border-[var(--landing-border)] px-2 py-1.5">
+          <span className="font-[family-name:var(--landing-mono)] text-[9px] font-medium text-[var(--landing-accent)] uppercase tracking-wide">Auto-generated</span>
           <span className="text-[10px] text-[var(--landing-accent)] leading-snug">
             Timings from your frequency setting — select any trip, adjust stop times, then Save.
           </span>
@@ -2215,7 +2215,7 @@ function CustomDepartureSelector({
                 type="button"
                 key={trip.id}
                 onClick={() => onSelectTrip(trip.id)}
-                className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors whitespace-nowrap ${
+                className={`flex items-center gap-1 rounded-none border px-2 py-1 text-[11px] font-semibold transition-colors whitespace-nowrap ${
                   isSelected
                     ? "border-[var(--landing-accent)] bg-[var(--landing-accent)] text-white"
                     : "border-[var(--landing-border-2)] bg-[var(--landing-elevated)] text-[var(--landing-muted)] hover:border-[var(--landing-border-2)]"
@@ -2235,7 +2235,7 @@ function CustomDepartureSelector({
 
       {showLegacySeeds && (
         <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">
+          <span className="font-[family-name:var(--landing-mono)] text-[9px] font-medium text-[var(--landing-faint)] uppercase tracking-wide">
             Use existing
           </span>
           {legacyDepartures.slice(0, 14).map((time) => (
@@ -2243,7 +2243,7 @@ function CustomDepartureSelector({
               type="button"
               key={time}
               onClick={() => onAddDeparture(time)}
-              className="rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-1 text-[11px] font-mono text-[var(--landing-muted)] hover:border-[var(--landing-border-2)]"
+              className="rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-1 text-[11px] font-mono text-[var(--landing-muted)] hover:border-[var(--landing-border-2)]"
             >
               {toDisplayTime(time)}
             </button>
@@ -2255,19 +2255,19 @@ function CustomDepartureSelector({
       )}
 
       <div className="flex items-center gap-2 flex-wrap border-t border-[var(--landing-border)] pt-2">
-        <label className="text-[9px] font-semibold text-[var(--landing-faint)] uppercase tracking-wide">Selected timing</label>
+        <label className="font-[family-name:var(--landing-mono)] text-[9px] font-medium text-[var(--landing-faint)] uppercase tracking-wide">Selected timing</label>
         <input
           type="time"
           value={selectedTrip ? secToHHMM(selectedTrip.departureSec) : ""}
           onChange={(e) => onUpdateDeparture(e.target.value)}
           disabled={!selectedTrip}
-          className="text-[11px] font-mono rounded-md border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 py-1 text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)] disabled:bg-[var(--landing-wash)] disabled:text-[var(--landing-faint)]"
+          className="text-[11px] font-mono rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 py-1 text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/20 focus:border-[var(--landing-accent)] disabled:bg-[var(--landing-wash)] disabled:text-[var(--landing-faint)]"
         />
         <button
           type="button"
           onClick={() => selectedTrip && onDeleteDeparture(selectedTrip.id)}
           disabled={!selectedTrip}
-          className="flex items-center gap-0.5 rounded-md border border-[color-mix(in_oklab,var(--landing-red)_24%,transparent)] bg-[var(--landing-elevated)] px-2 py-1 text-[11px] font-semibold text-[var(--landing-red)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-0.5 rounded-none border border-[color-mix(in_oklab,var(--landing-red)_24%,transparent)] bg-[var(--landing-elevated)] px-2 py-1 text-[11px] font-semibold text-[var(--landing-red)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Trash2 className="w-3 h-3" /> Delete
         </button>
@@ -2293,7 +2293,7 @@ function EditorFooter({
       <div className="text-[11px] text-[var(--landing-faint)] flex items-center gap-2 flex-wrap min-w-0">
         {editor?.isDirty && (
           <span className="text-[var(--landing-amber)] font-medium flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)]0 inline-block shrink-0" /> Unsaved changes
+            <span className="w-1.5 h-1.5 rounded-none bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)]0 inline-block shrink-0" /> Unsaved changes
           </span>
         )}
         {!editor?.isDirty && hasTimetable && (
@@ -2315,7 +2315,7 @@ function EditorFooter({
       <button
         onClick={onSave}
         disabled={!editor?.isDirty || editor?.isSaving}
-        className="flex items-center gap-1 shrink-0 rounded-lg bg-[var(--landing-accent)] px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="flex items-center gap-1 shrink-0 rounded-none bg-[var(--landing-accent)] px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {editor?.isSaving ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving…</> : "Save schedule"}
       </button>

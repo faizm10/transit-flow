@@ -133,13 +133,13 @@ export default function SimulationHUD({
 
     return (
       <div className={`${baseShellClass} w-[min(480px,calc(100vw-32px))] ${placement === "bottom-right" ? "w-auto sm:w-[min(480px,calc(100vw-32px))]" : ""}`}>
-        <div className="rounded-xl border border-[var(--landing-border-2)]/90 bg-[var(--landing-elevated)] p-4 shadow-lg shadow-black/20 backdrop-blur-xl">
+        <div className="tf-map-panel p-4">
           <div className="flex items-center gap-3 mb-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${noServiceOnDate ? "bg-[color-mix(in_oklab,var(--landing-amber)_16%,transparent)]" : "bg-[var(--landing-wash)]"}`}>
+            <div className={`w-10 h-10 rounded-none flex items-center justify-center ${noServiceOnDate ? "bg-[color-mix(in_oklab,var(--landing-amber)_16%,transparent)]" : "bg-[var(--landing-wash)]"}`}>
               <Train className={`w-5 h-5 ${noServiceOnDate ? "text-[var(--landing-amber)]" : "text-[var(--landing-accent)]"}`} />
             </div>
             <div>
-              <p className="font-semibold text-[var(--landing-ink)] text-sm">
+              <p className="font-[family-name:var(--font-hanken)] font-medium text-[var(--landing-ink)] text-sm">
                 {noServiceOnDate ? "No service on this date" : "Watch GO service in real time"}
               </p>
               <p className="text-xs text-[var(--landing-faint)]">
@@ -153,12 +153,12 @@ export default function SimulationHUD({
           {/* Start time selector */}
           <div className="mb-3">
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs text-[var(--landing-muted)] font-medium">Start time</label>
+              <label className="tf-map-label text-[var(--landing-faint)]">Start time</label>
               {(() => {
                 const { label, nextDay } = formatEndWindow(startHour);
                 return (
                   <span className="text-[10px] text-[var(--landing-faint)]">
-                    ends {label}{nextDay && <span className="ml-1 rounded bg-[color-mix(in_oklab,var(--landing-amber)_16%,transparent)] px-1 py-0.5 text-[9px] font-semibold text-[var(--landing-amber)]">+1 day</span>}
+                    ends {label}{nextDay && <span className="ml-1 rounded-none bg-[color-mix(in_oklab,var(--landing-amber)_16%,transparent)] px-1 py-0.5 text-[9px] font-semibold text-[var(--landing-amber)]">+1 day</span>}
                   </span>
                 );
               })()}
@@ -169,7 +169,7 @@ export default function SimulationHUD({
                 <button
                   key={p.hour}
                   onClick={() => onStartHourChange(p.hour)}
-                  className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+                  className={`rounded-none px-2 py-1 text-[11px] font-medium transition-colors ${
                     startHour === p.hour
                       ? "bg-[var(--landing-accent)] text-white"
                       : "bg-[var(--landing-wash)] text-[var(--landing-muted)] hover:bg-[var(--landing-border-2)]"
@@ -184,39 +184,39 @@ export default function SimulationHUD({
               type="time"
               value={hourToHHMM(startHour)}
               onChange={(e) => onStartHourChange(hhmmToHour(e.target.value))}
-              className="w-full text-xs rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-wash)] px-2.5 py-1.5 text-[var(--landing-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
+              className="w-full text-xs rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-wash)] px-2.5 py-1.5 text-[var(--landing-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
             />
           </div>
 
           {/* Date selector */}
           <div className="flex items-center gap-2 mb-3">
-            <label className="text-xs text-[var(--landing-muted)] font-medium whitespace-nowrap">Date</label>
+            <label className="tf-map-label whitespace-nowrap text-[var(--landing-faint)]">Date</label>
             <input
               type="date"
               value={date}
               min="2026-01-06"
               max="2026-04-24"
               onChange={(e) => onDateChange(e.target.value)}
-              className="flex-1 text-xs rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-wash)] px-2.5 py-1.5 text-[var(--landing-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
+              className="flex-1 text-xs rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-wash)] px-2.5 py-1.5 text-[var(--landing-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
             />
           </div>
 
           {error && (
-            <p className="text-xs text-[var(--landing-red)] mb-3 bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] rounded-lg px-3 py-2">{error}</p>
+            <p className="text-xs text-[var(--landing-red)] mb-3 bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] rounded-none px-3 py-2">{error}</p>
           )}
 
           <Sheet open={routePickerOpen} onOpenChange={setRoutePickerOpen}>
-            <SheetTrigger className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--landing-border-2)] bg-[var(--landing-wash)] px-3 py-2 text-sm font-medium text-[var(--landing-ink)] transition-colors hover:bg-[var(--landing-wash)]">
+            <SheetTrigger className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-wash)] px-3 py-2 text-sm font-medium text-[var(--landing-ink)] transition-colors hover:bg-[var(--landing-wash)]">
               <Bus className="h-4 w-4 text-[var(--landing-muted)]" />
               {selectedRoutes.length} selected route{selectedRoutes.length !== 1 ? "s" : ""}
               <ChevronDown className="h-3.5 w-3.5 text-[var(--landing-faint)]" />
             </SheetTrigger>
             <SheetContent
               side="bottom"
-              className="flex max-h-[min(72vh,640px)] flex-col gap-0 overflow-hidden rounded-t-2xl border-t border-[var(--landing-border-2)]/90 bg-[var(--landing-elevated)]/98 p-0 shadow-2xl supports-backdrop-filter:backdrop-blur-md sm:!bottom-4 sm:!left-1/2 sm:!right-auto sm:!w-[min(480px,calc(100vw-20px))] sm:!-translate-x-1/2 sm:rounded-xl sm:border sm:border-[var(--landing-border-2)]/80"
+              className="flex max-h-[min(72vh,640px)] flex-col gap-0 overflow-hidden rounded-none border-t border-[var(--landing-border-2)]/90 bg-[var(--landing-elevated)]/98 p-0 supports-backdrop-filter:backdrop-blur-md sm:!bottom-4 sm:!left-1/2 sm:!right-auto sm:!w-[min(480px,calc(100vw-20px))] sm:!-translate-x-1/2 sm:rounded-none sm:border sm:border-[var(--landing-border-2)]/80"
             >
               <SheetHeader className="shrink-0 border-b border-[var(--landing-border)] px-4 pb-3 pt-3 text-left">
-                <SheetTitle className="text-base font-semibold tracking-tight text-[var(--landing-ink)]">
+                <SheetTitle className="font-[family-name:var(--font-hanken)] text-base font-medium text-[var(--landing-ink)]">
                   Simulation routes
                 </SheetTitle>
                 <SheetDescription className="text-xs leading-relaxed text-[var(--landing-muted)]">
@@ -236,7 +236,7 @@ export default function SimulationHUD({
           </Sheet>
 
           <Button
-            className="w-full rounded-xl bg-[var(--landing-accent)] hover:opacity-90 text-white h-10"
+            className="w-full rounded-none bg-[var(--landing-accent)] hover:opacity-90 text-white h-10"
             onClick={() => onLoadSimulation({ startHour })}
             disabled={selectedRoutes.length === 0}
           >
@@ -255,7 +255,7 @@ export default function SimulationHUD({
   if (loading) {
     return (
       <div className={baseShellClass}>
-        <div className="flex items-center gap-2.5 rounded-xl border border-[var(--landing-border-2)]/90 bg-[var(--landing-elevated)] px-4 py-2.5 shadow-md shadow-black/20 backdrop-blur-xl">
+        <div className="tf-map-panel flex items-center gap-2.5 px-4 py-2.5">
           <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--landing-accent)]" />
           <span className="text-xs font-medium text-[var(--landing-muted)]">Loading trips…</span>
         </div>
@@ -266,21 +266,21 @@ export default function SimulationHUD({
   // ── Active playback HUD ───────────────────────────────────────────────────
   return (
     <div className={`${baseShellClass} w-[min(500px,calc(100vw-24px))] ${placement === "bottom-right" ? `w-auto ${cardWidthClass}` : ""}`}>
-      <div className="rounded-xl border border-[var(--landing-border-2)]/90 bg-[var(--landing-elevated)] px-3 py-2 shadow-lg shadow-black/20 ring-1 ring-[var(--landing-border)] backdrop-blur-xl">
+      <div className="tf-map-panel px-3 py-2">
         {/* Row 1: routes · clock · controls */}
         <div className="flex items-center gap-2">
           <Sheet open={routePickerOpen} onOpenChange={setRoutePickerOpen}>
-            <SheetTrigger className="inline-flex max-w-[40%] shrink-0 items-center gap-1 rounded-lg border border-[var(--landing-border-2)]/90 bg-[var(--landing-wash)]/90 py-1 pl-2 pr-1.5 text-[11px] font-semibold text-[var(--landing-ink)] shadow-sm transition-colors hover:border-[var(--landing-border-2)] hover:bg-[var(--landing-wash)] sm:max-w-[46%]">
+            <SheetTrigger className="inline-flex max-w-[40%] shrink-0 items-center gap-1 rounded-none border border-[var(--landing-border-2)]/90 bg-[var(--landing-wash)]/90 py-1 pl-2 pr-1.5 text-[11px] font-semibold text-[var(--landing-ink)] transition-colors hover:border-[var(--landing-border-2)] hover:bg-[var(--landing-wash)] sm:max-w-[46%]">
               {selectedHasBus ? <Bus className="h-3.5 w-3.5 text-[var(--landing-muted)]" /> : <Train className="h-3.5 w-3.5 text-[var(--landing-muted)]" />}
               <span className="truncate">{selectedRoutes.length} routes</span>
               <ChevronDown className="h-3 w-3 shrink-0 text-[var(--landing-faint)]" />
             </SheetTrigger>
             <SheetContent
               side="bottom"
-              className="flex max-h-[min(72vh,640px)] flex-col gap-0 overflow-hidden rounded-t-2xl border-t border-[var(--landing-border-2)]/90 bg-[var(--landing-elevated)]/98 p-0 shadow-2xl supports-backdrop-filter:backdrop-blur-md sm:!bottom-4 sm:!left-1/2 sm:!right-auto sm:!w-[min(480px,calc(100vw-20px))] sm:!-translate-x-1/2 sm:rounded-xl sm:border sm:border-[var(--landing-border-2)]/80"
+              className="flex max-h-[min(72vh,640px)] flex-col gap-0 overflow-hidden rounded-none border-t border-[var(--landing-border-2)]/90 bg-[var(--landing-elevated)]/98 p-0 supports-backdrop-filter:backdrop-blur-md sm:!bottom-4 sm:!left-1/2 sm:!right-auto sm:!w-[min(480px,calc(100vw-20px))] sm:!-translate-x-1/2 sm:rounded-none sm:border sm:border-[var(--landing-border-2)]/80"
             >
               <SheetHeader className="shrink-0 border-b border-[var(--landing-border)] px-4 pb-3 pt-3 text-left">
-                <SheetTitle className="text-base font-semibold tracking-tight text-[var(--landing-ink)]">
+                <SheetTitle className="font-[family-name:var(--font-hanken)] text-base font-medium text-[var(--landing-ink)]">
                   Simulation routes
                 </SheetTitle>
                 <SheetDescription className="text-xs leading-relaxed text-[var(--landing-muted)]">
@@ -301,7 +301,7 @@ export default function SimulationHUD({
           </Sheet>
 
           <div className="min-w-0 flex-1 text-center">
-            <p className="font-mono text-xl font-bold leading-none tracking-tight text-[var(--landing-ink)] tabular-nums">
+            <p className="font-[family-name:var(--landing-mono)] text-xl font-medium leading-none text-[var(--landing-ink)] tabular-nums">
               {formatSimTime(currentTime)}
             </p>
           </div>
@@ -309,7 +309,7 @@ export default function SimulationHUD({
           <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
-              className="rounded-full border border-[var(--landing-border-2)]/90 bg-[var(--landing-elevated)] px-2 py-1 text-[10px] font-bold tabular-nums text-[var(--landing-muted)] shadow-sm transition-colors hover:border-[var(--landing-border-2)] hover:bg-[var(--landing-wash)]"
+              className="rounded-none border border-[var(--landing-border-2)]/90 bg-[var(--landing-elevated)] px-2 py-1 text-[10px] font-semibold tabular-nums text-[var(--landing-muted)] transition-colors hover:border-[var(--landing-border-2)] hover:bg-[var(--landing-wash)]"
               onClick={onCycleSpeed}
               title="Playback speed"
             >
@@ -317,7 +317,7 @@ export default function SimulationHUD({
             </button>
             <button
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--landing-accent)] text-white shadow-md shadow-[var(--landing-accent)]/25 transition-transform hover:opacity-90 active:scale-95"
+              className="flex h-9 w-9 items-center justify-center rounded-none bg-[var(--landing-accent)] text-white/25 transition-transform hover:opacity-90 active:scale-95"
               onClick={onTogglePlay}
               title={playing ? "Pause" : "Play"}
             >
@@ -325,7 +325,7 @@ export default function SimulationHUD({
             </button>
             <button
               type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--landing-faint)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] hover:text-[var(--landing-red)]"
+              className="flex h-8 w-8 items-center justify-center rounded-none text-[var(--landing-faint)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] hover:text-[var(--landing-red)]"
               onClick={onClear}
               title="Clear simulation"
             >
@@ -353,7 +353,7 @@ export default function SimulationHUD({
             <span className="flex w-12 shrink-0 items-center justify-end gap-0.5 text-[10px] font-semibold tabular-nums text-[var(--landing-faint)]">
               {formatSimTime(endTime)}
               {endTime > 86400 && (
-                <span className="rounded bg-[color-mix(in_oklab,var(--landing-amber)_16%,transparent)] px-0.5 text-[8px] font-bold text-[var(--landing-amber)]">+1</span>
+                <span className="rounded-none bg-[color-mix(in_oklab,var(--landing-amber)_16%,transparent)] px-0.5 text-[8px] font-semibold text-[var(--landing-amber)]">+1</span>
               )}
             </span>
           </div>
@@ -376,13 +376,13 @@ export default function SimulationHUD({
                   if (e.key === "Enter") handleDateChange((e.target as HTMLInputElement).value);
                   if (e.key === "Escape") setEditingDate(false);
                 }}
-                className="rounded-md border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 py-0.5 text-[11px] text-[var(--landing-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/25"
+                className="rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 py-0.5 text-[11px] text-[var(--landing-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/25"
               />
             ) : (
               <button
                 type="button"
                 onClick={() => setEditingDate(true)}
-                className="rounded-md px-1 py-0.5 font-medium text-[var(--landing-muted)] underline decoration-[var(--landing-border-2)] underline-offset-2 transition-colors hover:bg-[var(--landing-wash)] hover:text-[var(--landing-ink)] hover:decoration-[var(--landing-faint)]"
+                className="rounded-none px-1 py-0.5 font-medium text-[var(--landing-muted)] underline decoration-[var(--landing-border-2)] underline-offset-2 transition-colors hover:bg-[var(--landing-wash)] hover:text-[var(--landing-ink)] hover:decoration-[var(--landing-faint)]"
               >
                 {formatHudDate(date)}
               </button>
@@ -461,7 +461,7 @@ function RoutePicker({
               onAction={() => toggleGroup(railCodes, allRailSelected)}
               disabled={railCodes.length === 0}
             >
-              <div className="divide-y divide-[var(--landing-border)] overflow-hidden rounded-lg border border-[var(--landing-border-2)]/80 bg-[var(--landing-elevated)]">
+              <div className="divide-y divide-[var(--landing-border)] overflow-hidden rounded-none border border-[var(--landing-border-2)]/80 bg-[var(--landing-elevated)]">
                 {railRoutes.map((route) => (
                   <RoutePickerRow
                     key={route.short_name}
@@ -482,7 +482,7 @@ function RoutePicker({
               onAction={() => toggleGroup(busCodes, allBusSelected)}
               disabled={busCodes.length === 0}
             >
-              <div className="max-h-[min(40vh,320px)] divide-y divide-[var(--landing-border)] overflow-y-auto overscroll-contain rounded-lg border border-[var(--landing-border-2)]/80 bg-[var(--landing-elevated)] shadow-[inset_0_1px_0_rgb(255_255_255/0.6)]">
+              <div className="max-h-[min(40vh,320px)] divide-y divide-[var(--landing-border)] overflow-y-auto overscroll-contain rounded-none border border-[var(--landing-border-2)]/80 bg-[var(--landing-elevated)]">
                 {busRoutes.map((route) => (
                   <RoutePickerRow
                     key={route.short_name}
@@ -504,11 +504,11 @@ function RoutePicker({
               disabled={customCodes.length === 0}
             >
               {customRoutes.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-[var(--landing-border-2)] bg-[var(--landing-wash)]/60 px-3 py-2.5 text-center text-[11px] text-[var(--landing-faint)]">
+                <p className="rounded-none border border-dashed border-[var(--landing-border-2)] bg-[var(--landing-wash)]/60 px-3 py-2.5 text-center text-[11px] text-[var(--landing-faint)]">
                   Saved custom routes appear here.
                 </p>
               ) : (
-                <div className="divide-y divide-[var(--landing-border)] overflow-hidden rounded-lg border border-[var(--landing-border-2)]/80 bg-[var(--landing-elevated)]">
+                <div className="divide-y divide-[var(--landing-border)] overflow-hidden rounded-none border border-[var(--landing-border-2)]/80 bg-[var(--landing-elevated)]">
                   {customRoutes.map((route) => {
                     const code = customRouteSelectionId(route.id);
                     return (
@@ -531,7 +531,7 @@ function RoutePicker({
 
       <div className="shrink-0 border-t border-[var(--landing-border)] bg-[var(--landing-wash)]/95 px-3 py-2.5">
         <Button
-          className="h-9 w-full rounded-lg bg-[var(--landing-accent)] text-sm font-semibold text-white shadow-sm hover:opacity-90"
+          className="h-9 w-full rounded-none bg-[var(--landing-accent)] text-sm font-semibold text-white hover:opacity-90"
           onClick={() => onApply(local)}
           disabled={local.length === 0}
         >
@@ -560,13 +560,13 @@ function PickerSection({
   return (
     <section>
       <div className="mb-1 flex items-center justify-between gap-2">
-        <h3 className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--landing-muted)]">
+        <h3 className="inline-flex items-center gap-1.5 font-[family-name:var(--landing-mono)] text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--landing-muted)]">
           <Icon className="h-3 w-3 text-[var(--landing-faint)]" aria-hidden />
           {title}
         </h3>
         <button
           type="button"
-          className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-[var(--landing-accent)] transition-colors hover:bg-[var(--landing-wash)] hover:underline disabled:pointer-events-none disabled:opacity-35"
+          className="rounded-none px-1.5 py-0.5 text-[11px] font-semibold text-[var(--landing-accent)] transition-colors hover:bg-[var(--landing-wash)] hover:underline disabled:pointer-events-none disabled:opacity-35"
           onClick={onAction}
           disabled={disabled}
         >
@@ -603,7 +603,7 @@ function RoutePickerRow({
       )}
     >
       <span
-        className="flex h-5 min-w-[1.5rem] max-w-[2.75rem] shrink-0 items-center justify-center rounded px-0.5 text-[10px] font-bold leading-none text-white tabular-nums shadow-sm"
+        className="flex h-5 min-w-[1.5rem] max-w-[2.75rem] shrink-0 items-center justify-center rounded-none px-0.5 text-[10px] font-semibold leading-none text-white tabular-nums"
         style={{ backgroundColor: color }}
       >
         <span className="truncate">{badgeText}</span>
@@ -613,7 +613,7 @@ function RoutePickerRow({
       </span>
       <span
         className={cn(
-          "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+          "flex h-4 w-4 shrink-0 items-center justify-center rounded-none border transition-colors",
           selected
             ? "border-[var(--landing-accent)] bg-[var(--landing-accent)] text-white"
             : "border-[var(--landing-border-2)] bg-[var(--landing-elevated)]",
@@ -630,7 +630,7 @@ function RoutePickerSkeleton() {
   return (
     <div className="space-y-3">
       {[0, 1].map((block) => (
-        <div key={block} className="overflow-hidden rounded-lg border border-[var(--landing-border)]">
+        <div key={block} className="overflow-hidden rounded-none border border-[var(--landing-border)]">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
