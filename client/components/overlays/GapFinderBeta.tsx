@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type RefObject } from "react";
+import Link from "next/link";
 import { Sparkles, X, ArrowRight, ChevronDown } from "lucide-react";
 import type { MapHandle } from "@/components/Map";
 import { fetchNetworkGaps, type NetworkGap } from "@/lib/networkGaps";
@@ -221,10 +222,17 @@ export default function GapFinderBeta({
         })}
       </div>
 
-      <p className="border-t border-slate-100 px-4 py-2 text-[10.5px] leading-snug text-slate-400">
+      <div className="border-t border-slate-100 px-4 py-2 text-[10.5px] leading-snug text-slate-400">
         Phase&nbsp;1 estimate — fastest scheduled path vs a straight line. Not yet
-        time-of-day aware.
-      </p>
+        time-of-day aware.{" "}
+        <Link
+          href="/blog/gap-finder"
+          target="_blank"
+          className="font-medium text-[#007A33] underline-offset-2 hover:underline"
+        >
+          How it works →
+        </Link>
+      </div>
     </div>
   );
 }
