@@ -20,13 +20,15 @@ import VehicleInfoPopup from "@/components/overlays/VehicleInfoPopup";
 import DrawGuide from "@/components/overlays/DrawGuide";
 import ServiceStatusPill from "@/components/overlays/ServiceStatusPill";
 import OpenRailwayMapOverlayControls from "@/components/overlays/OpenRailwayMapOverlayControls";
-import { OPENRAILWAYMAP_OVERLAY_ENABLED } from "@/lib/features";
+import { OPENRAILWAYMAP_OVERLAY_ENABLED, GAP_FINDER_BETA_ENABLED } from "@/lib/features";
 import { useRoutes } from "@/hooks/useRoutes";
 import { useStations } from "@/hooks/useStations";
 import { useSimulation } from "@/hooks/useSimulation";
 import { useCityFeeds } from "@/hooks/useCityFeeds";
 import { useServiceAlerts } from "@/hooks/useServiceAlerts";
 import { isRailCode } from "@/lib/mapServiceAlerts";
+import GapFinderBeta from "@/components/overlays/GapFinderBeta";
+import type { NetworkGap } from "@/lib/networkGaps";
 import AddCityFeedModal from "@/components/panels/AddCityFeedModal";
 import type { CityFeedMeta } from "@/lib/cityGtfs";
 import { networkRouteFilters } from "@/lib/mapEntry";
@@ -833,6 +835,25 @@ function MapPageContent() {
     requestDeleteCustomRoute(clickedRoute.variantId, clickedRoute.shortName);
   }
 
+  const handleDesignFromGap = useCallback(
+    (gap: NetworkGap) => {
+      setDesignTab("new");
+      patchSearch({ mode: "build", design: "new", entry: "fresh", goRoute: null });
+      toast.success(`${gap.headline}: draw a route between the two points.`);
+      // re-assert the corridor line once the mode switch settles
+      window.setTimeout(() => {
+        mapRef.current?.showPreviewRoute(
+          [
+            [gap.from.lon, gap.from.lat],
+            [gap.to.lon, gap.to.lat],
+          ],
+          "#f59e0b"
+        );
+      }, 450);
+    },
+    [patchSearch]
+  );
+
   const panelOpen = mode === "browse" || mode === "build";
   // Hide info card when browse panel is open (panel shows richer info)
   const showInfoCard = clickedRoute && !isDrawing && mode !== "browse";
@@ -899,6 +920,20 @@ function MapPageContent() {
           isTrainDesignMode={isTrainDesignMode}
           isDrawing={isDrawing}
           mapRef={mapRef}
+        />
+      )}
+
+      {GAP_FINDER_BETA_ENABLED && (
+        <GapFinderBeta
+          mapRef={mapRef}
+          mapLoaded={mapLoaded}
+          hidden={isDrawing}
+          onDesignRoute={handleDesignFromGap}
+          onOpenChange={(gapOpen) => {
+            if (gapOpen && (mode === "browse" || mode === "build")) {
+              patchSearch({ mode: null, design: null, goRoute: null, entry: null });
+            }
+          }}
         />
       )}
 
