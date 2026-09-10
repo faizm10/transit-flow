@@ -4,7 +4,7 @@ import MarketingHeader from "@/components/marketing/MarketingHeader";
 import { AlertCard } from "@/components/service-updates/AlertCard";
 import { LineFilterBar } from "@/components/service-updates/LineFilterBar";
 import { fetchServiceUpdates } from "@/lib/serviceUpdates";
-import type { ServiceUpdatesResult } from "@/lib/serviceUpdates";
+import type { ServiceAlert, ServiceUpdatesResult } from "@/lib/serviceUpdates";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://transit-flow-two.vercel.app";
@@ -62,6 +62,36 @@ function SourceBadge({ source }: { source: ServiceUpdatesResult["source"] }) {
   return null;
 }
 
+function AlertColumn({
+  title,
+  alerts,
+  emptyLabel,
+}: {
+  title: string;
+  alerts: ServiceAlert[];
+  emptyLabel: string;
+}) {
+  return (
+    <section>
+      <h2 className="mb-4 flex items-baseline gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+        {title}
+        <span className="tabular-nums">{alerts.length}</span>
+      </h2>
+      {alerts.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-gray-200 px-4 py-10 text-center text-sm text-gray-400">
+          {emptyLabel}
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {alerts.map((alert) => (
+            <AlertCard key={alert.id} alert={alert} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default async function ServiceUpdatesPage({
   searchParams,
 }: {
@@ -70,9 +100,22 @@ export default async function ServiceUpdatesPage({
   const { line } = await searchParams;
   const { alerts, fetchedAt, source } = await fetchServiceUpdates();
 
-  const filtered = line
-    ? alerts.filter((a) => a.routes.includes(line.toUpperCase()))
-    : alerts;
+  const filtered = (
+    line ? alerts.filter((a) => a.routes.includes(line.toUpperCase())) : alerts
+  )
+    .slice()
+    .sort(
+      (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
+    );
+
+  // Two lanes: things that affect a trip in progress vs. standing notices
+  // (elevator outages, stop relocations, general advisories).
+  const serviceUpdates = filtered.filter(
+    (a) => a.type === "delay" || a.type === "cancellation"
+  );
+  const notices = filtered.filter(
+    (a) => a.type === "information" || a.type === "other"
+  );
 
   const delayCount = alerts.filter((a) => a.type === "delay").length;
   const cancelCount = alerts.filter((a) => a.type === "cancellation").length;
@@ -81,7 +124,7 @@ export default async function ServiceUpdatesPage({
     <div className="min-h-screen bg-white">
       <MarketingHeader />
 
-      <main className="mx-auto max-w-3xl px-5 pb-24 pt-14 lg:px-8">
+      <main className="mx-auto max-w-5xl px-5 pb-24 pt-14 lg:px-8">
         {/* Page header */}
         <div className="mb-10">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -96,32 +139,26 @@ export default async function ServiceUpdatesPage({
             <SourceBadge source={source} />
           </div>
 
-          {/* Stats row */}
-          {alerts.length > 0 && (
-            <div className="mt-5 flex flex-wrap gap-3">
-              <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5 text-center">
-                <p className="text-2xl font-bold text-gray-900">{alerts.length}</p>
-                <p className="text-xs text-gray-500">Active alert{alerts.length !== 1 ? "s" : ""}</p>
-              </div>
-              {delayCount > 0 && (
-                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-center">
-                  <p className="text-2xl font-bold text-red-600">{delayCount}</p>
-                  <p className="text-xs text-red-500">Delay{delayCount !== 1 ? "s" : ""}</p>
-                </div>
+          {/* Quiet summary line: counts + freshness */}
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 text-xs text-gray-400">
+            <span>
+              {alerts.length > 0 ? (
+                <>
+                  <span className="font-semibold text-gray-700">{alerts.length}</span>{" "}
+                  active
+                  {delayCount > 0 &&
+                    ` · ${delayCount} delay${delayCount !== 1 ? "s" : ""}`}
+                  {cancelCount > 0 &&
+                    ` · ${cancelCount} cancellation${cancelCount !== 1 ? "s" : ""}`}
+                </>
+              ) : (
+                "No active alerts"
               )}
-              {cancelCount > 0 && (
-                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-center">
-                  <p className="text-2xl font-bold text-red-700">{cancelCount}</p>
-                  <p className="text-xs text-red-600">Cancellation{cancelCount !== 1 ? "s" : ""}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Last refreshed */}
-          <div className="mt-4 inline-flex items-center gap-1.5 text-xs text-gray-400">
-            <RefreshCw className="h-3 w-3" />
-            <span>Updated at {formatFetchTime(fetchedAt)} · refreshes every 5 min</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <RefreshCw className="h-3 w-3" />
+              Updated {formatFetchTime(fetchedAt)}
+            </span>
           </div>
         </div>
 
@@ -168,10 +205,17 @@ export default async function ServiceUpdatesPage({
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            {filtered.map((alert) => (
-              <AlertCard key={alert.id} alert={alert} />
-            ))}
+          <div className="grid gap-x-6 gap-y-10 md:grid-cols-2">
+            <AlertColumn
+              title="Service updates"
+              alerts={serviceUpdates}
+              emptyLabel="No delays or cancellations right now."
+            />
+            <AlertColumn
+              title="Notices"
+              alerts={notices}
+              emptyLabel="No notices right now."
+            />
           </div>
         )}
 
