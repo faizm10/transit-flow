@@ -100,7 +100,7 @@ export default function DesignPanel({
         ) : (
           <div className="flex flex-col gap-2">
             <div className="flex items-start justify-between gap-2">
-              <TabsList className="grid h-9 min-w-0 flex-1 grid-cols-2">
+              <TabsList className="grid h-9 min-w-0 flex-1 grid-cols-2 rounded-none [&_[data-slot=tabs-trigger]]:rounded-none [&_[data-slot=tabs-trigger]]:font-[family-name:var(--landing-mono)] [&_[data-slot=tabs-trigger]]:text-[10px] [&_[data-slot=tabs-trigger]]:uppercase [&_[data-slot=tabs-trigger]]:tracking-[0.06em]">
                 <TabsTrigger value="existing" className="text-xs gap-1">
                   <Train className="h-3.5 w-3.5 shrink-0" /> Extend
                 </TabsTrigger>

@@ -762,12 +762,12 @@ export default function ExtendRouteWizard({
           <div className="flex min-w-0 items-center gap-2">
             <button
               onClick={onCancel}
-              className="p-1 rounded-lg hover:bg-[var(--landing-wash)] transition-colors text-[var(--landing-faint)] hover:text-[var(--landing-ink)]"
+              className="p-1 rounded-none hover:bg-[var(--landing-wash)] transition-colors text-[var(--landing-faint)] hover:text-[var(--landing-ink)]"
               aria-label="Cancel"
             >
               <X className="w-4 h-4" />
             </button>
-            <h2 className="truncate font-semibold text-[var(--landing-ink)] text-base">Extend a GO Route</h2>
+            <h2 className="truncate font-[family-name:var(--font-hanken)] font-medium text-[var(--landing-ink)] text-base">Extend a GO route</h2>
           </div>
           {onOpenSavedStations && (
             <button
@@ -784,15 +784,15 @@ export default function ExtendRouteWizard({
           {([1, 2, 3] as const).map((s) => (
             <div
               key={s}
-              className={`h-1.5 flex-1 rounded-full transition-colors ${
+              className={`h-1.5 flex-1 rounded-none transition-colors ${
                 s < step ? "bg-[var(--landing-accent)]" : s === step ? "bg-[var(--landing-accent)]" : "bg-[var(--landing-border-2)]"
               }`}
             />
           ))}
         </div>
-        <p className="text-xs text-[var(--landing-faint)] mt-1.5">
-          {step === 1 && "Select a base route"}
-          {step === 2 && "Choose branch & add extension stops"}
+        <p className="font-[family-name:var(--landing-mono)] text-[0.6875rem] uppercase tracking-[0.08em] text-[var(--landing-faint)] mt-1.5">
+          {step === 1 && "Pick a base route"}
+          {step === 2 && "Branch & add stops"}
           {step === 3 && "Name & schedule"}
         </p>
       </div>
@@ -819,10 +819,10 @@ export default function ExtendRouteWizard({
                   <button
                     key={route.route_id}
                     onClick={() => handleSelectRoute(route)}
-                    className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-transparent hover:border-[var(--landing-border-2)] hover:bg-[var(--landing-wash)] text-left transition-colors"
+                    className="w-full flex items-center gap-3 p-2.5 rounded-none border border-transparent hover:border-[var(--landing-border-2)] hover:bg-[var(--landing-wash)] text-left transition-colors"
                   >
                     <div
-                      className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+                      className="w-9 h-9 rounded-none flex items-center justify-center text-white font-semibold text-xs flex-shrink-0"
                       style={{ backgroundColor: route.color }}
                     >
                       {route.short_name}
@@ -851,9 +851,9 @@ export default function ExtendRouteWizard({
         {step === 2 && selectedRoute && (
           <>
             {/* Base route badge */}
-            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[var(--landing-wash)] border border-[var(--landing-border)]">
+            <div className="flex items-center gap-2 p-2.5 rounded-none bg-[var(--landing-wash)] border border-[var(--landing-border)]">
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+                className="w-8 h-8 rounded-none flex items-center justify-center text-white font-semibold text-xs flex-shrink-0"
                 style={{ backgroundColor: selectedRoute.color }}
               >
                 {selectedRoute.short_name}
@@ -867,7 +867,7 @@ export default function ExtendRouteWizard({
             </div>
 
             {/* Base branch + branch stop controls */}
-            <div className="flex flex-col gap-2 rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-2.5">
+            <div className="flex flex-col gap-2 rounded-none border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-2.5">
               <div>
                 <label className="mb-1 block text-xs font-medium text-[var(--landing-muted)]">Base branch</label>
                 <select
@@ -887,7 +887,7 @@ export default function ExtendRouteWizard({
                     onClearPreview();
                   }}
                   disabled={selectedRoute.variants.length === 0}
-                  className="h-9 w-full rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2 text-xs text-[var(--landing-ink)] outline-none focus:border-[var(--landing-accent)]"
+                  className="h-9 w-full rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2 text-xs text-[var(--landing-ink)] outline-none focus:border-[var(--landing-accent)]"
                 >
                   {selectedRoute.variants.map((variant) => (
                     <option key={variant.variant_id} value={variant.variant_id}>
@@ -914,7 +914,7 @@ export default function ExtendRouteWizard({
                     onClearPreview();
                   }}
                   disabled={baseStopsLoading || baseStops.length === 0}
-                  className="h-9 w-full rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2 text-xs text-[var(--landing-ink)] outline-none focus:border-[var(--landing-accent)] disabled:bg-[var(--landing-wash)] disabled:text-[var(--landing-faint)]"
+                  className="h-9 w-full rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2 text-xs text-[var(--landing-ink)] outline-none focus:border-[var(--landing-accent)] disabled:bg-[var(--landing-wash)] disabled:text-[var(--landing-faint)]"
                 >
                   {baseStops.map((stop, index) => (
                     <option key={`${stop.stop_id}-${index}`} value={index}>
@@ -938,7 +938,7 @@ export default function ExtendRouteWizard({
             )}
 
             {isRailExtension && (
-              <div className="flex flex-col gap-2 rounded-lg border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-2.5">
+              <div className="flex flex-col gap-2 rounded-none border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-2.5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-[var(--landing-ink)]">Rail alignment</p>
@@ -955,7 +955,7 @@ export default function ExtendRouteWizard({
                 </div>
 
                 {isEditingGeometry ? (
-                  <div className="flex items-center gap-2 rounded-lg border border-[color-mix(in_oklab,var(--landing-amber)_28%,transparent)] bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] px-3 py-2">
+                  <div className="flex items-center gap-2 rounded-none border border-[color-mix(in_oklab,var(--landing-amber)_28%,transparent)] bg-[color-mix(in_oklab,var(--landing-amber)_10%,transparent)] px-3 py-2">
                     <Move className="h-3.5 w-3.5 shrink-0 text-[var(--landing-amber)]" />
                     <span className="min-w-0 flex-1 text-xs font-medium text-[var(--landing-amber)]">
                       Drag the highlighted points to reshape the extension.
@@ -973,7 +973,7 @@ export default function ExtendRouteWizard({
                     <button
                       type="button"
                       onClick={handleEditExtensionGeometry}
-                      className="flex items-center justify-center gap-2 rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-3 py-2 text-xs font-medium text-[var(--landing-ink)] hover:bg-[var(--landing-wash)]"
+                      className="flex items-center justify-center gap-2 rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-3 py-2 text-xs font-medium text-[var(--landing-ink)] hover:bg-[var(--landing-wash)]"
                     >
                       <Move className="h-3.5 w-3.5 text-[var(--landing-faint)]" />
                       Edit shape
@@ -981,7 +981,7 @@ export default function ExtendRouteWizard({
                     <button
                       type="button"
                       onClick={handleRedrawExtension}
-                      className="flex items-center justify-center gap-2 rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-3 py-2 text-xs font-medium text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
+                      className="flex items-center justify-center gap-2 rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-3 py-2 text-xs font-medium text-[var(--landing-muted)] hover:bg-[var(--landing-wash)]"
                     >
                       <RotateCcw className="h-3.5 w-3.5 text-[var(--landing-faint)]" />
                       Redraw
@@ -991,7 +991,7 @@ export default function ExtendRouteWizard({
                   <button
                     type="button"
                     onClick={handleDrawExtension}
-                    className="flex items-center gap-2 rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-wash)] px-3 py-2 text-xs font-medium text-[var(--landing-accent)] hover:bg-[var(--landing-wash)]"
+                    className="flex items-center gap-2 rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-wash)] px-3 py-2 text-xs font-medium text-[var(--landing-accent)] hover:bg-[var(--landing-wash)]"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                     Draw extension on map
@@ -1003,7 +1003,7 @@ export default function ExtendRouteWizard({
 
             {/* Base stop editor */}
             {!baseStopsLoading && baseStopItems.length > 0 && (
-              <div className="rounded-lg border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-2.5">
+              <div className="rounded-none border border-[var(--landing-border)] bg-[var(--landing-elevated)] p-2.5">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
                     <p className="text-xs font-medium text-[var(--landing-ink)]">Base stops</p>
@@ -1015,7 +1015,7 @@ export default function ExtendRouteWizard({
                     <button
                       type="button"
                       onClick={() => setExcludedBaseStopKeys([])}
-                      className="rounded-md px-2 py-1 text-[11px] font-medium text-[var(--landing-accent)] hover:bg-[var(--landing-wash)]"
+                      className="rounded-none px-2 py-1 text-[11px] font-medium text-[var(--landing-accent)] hover:bg-[var(--landing-wash)]"
                     >
                       Restore all
                     </button>
@@ -1027,7 +1027,7 @@ export default function ExtendRouteWizard({
                     <select
                       value={rangeStart}
                       onChange={(e) => setRangeStartIndex(Number(e.target.value))}
-                      className="h-8 min-w-0 rounded-md border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 text-[11px] text-[var(--landing-ink)] outline-none focus:border-[var(--landing-accent)]"
+                      className="h-8 min-w-0 rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 text-[11px] text-[var(--landing-ink)] outline-none focus:border-[var(--landing-accent)]"
                     >
                       {removableBaseStopItems.map((item) => (
                         <option key={`from-${item.key}`} value={item.index}>
@@ -1038,7 +1038,7 @@ export default function ExtendRouteWizard({
                     <select
                       value={rangeEnd}
                       onChange={(e) => setRangeEndIndex(Number(e.target.value))}
-                      className="h-8 min-w-0 rounded-md border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 text-[11px] text-[var(--landing-ink)] outline-none focus:border-[var(--landing-accent)]"
+                      className="h-8 min-w-0 rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-1.5 text-[11px] text-[var(--landing-ink)] outline-none focus:border-[var(--landing-accent)]"
                     >
                       {removableBaseStopItems.map((item) => (
                         <option key={`to-${item.key}`} value={item.index}>
@@ -1049,14 +1049,14 @@ export default function ExtendRouteWizard({
                     <button
                       type="button"
                       onClick={handleRemoveBaseStopRange}
-                      className="rounded-md bg-[var(--landing-accent)] px-2 text-[11px] font-medium text-white hover:opacity-90"
+                      className="rounded-none bg-[var(--landing-accent)] px-2 text-[11px] font-medium text-white hover:opacity-90"
                     >
                       Skip
                     </button>
                   </div>
                 )}
 
-                <div className="max-h-44 overflow-y-auto rounded-md border border-[var(--landing-border)]">
+                <div className="max-h-44 overflow-y-auto rounded-none border border-[var(--landing-border)]">
                   {baseStopItems.map((item) => (
                     <div
                       key={item.key}
@@ -1078,7 +1078,7 @@ export default function ExtendRouteWizard({
                         <button
                           type="button"
                           onClick={() => handleToggleBaseStop(item.key, item.included)}
-                          className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+                          className={`rounded-none px-2 py-1 text-[11px] font-medium transition-colors ${
                             item.included
                               ? "text-[var(--landing-muted)] hover:bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] hover:text-[var(--landing-red)]"
                               : "text-[var(--landing-accent)] hover:bg-[var(--landing-wash)]"
@@ -1096,7 +1096,7 @@ export default function ExtendRouteWizard({
             {/* Branch point (locked) */}
             <div>
               <p className="text-xs font-medium text-[var(--landing-muted)] mb-1.5">Added stops</p>
-              <div className="flex items-center gap-2 p-2 rounded-lg bg-[var(--landing-wash)] mb-1">
+              <div className="flex items-center gap-2 p-2 rounded-none bg-[var(--landing-wash)] mb-1">
                 <MapPin className="w-3.5 h-3.5 text-[var(--landing-accent)] flex-shrink-0" />
                 <span className="text-xs text-[var(--landing-muted)] truncate">{branchStop?.stop_name ?? "Select a branch stop"}</span>
                 <Badge variant="secondary" className="text-[10px] px-1 py-0 ml-auto">branch point</Badge>
@@ -1104,14 +1104,14 @@ export default function ExtendRouteWizard({
 
               {/* Extension stop list */}
               {extensionStops.map((stop, idx) => (
-                <div key={stop.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-[var(--landing-wash)] group mb-1">
+                <div key={stop.id} className="flex items-center gap-2 p-2 rounded-none hover:bg-[var(--landing-wash)] group mb-1">
                   <MapPin className="w-3.5 h-3.5 text-[var(--landing-faint)] flex-shrink-0" />
                   <span className="text-xs text-[var(--landing-ink)] flex-1 truncate">{stop.name}</span>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleMoveStop(idx, -1)}
                       disabled={idx === 0}
-                      className="p-0.5 rounded hover:bg-[var(--landing-border-2)] disabled:opacity-30"
+                      className="p-0.5 rounded-none hover:bg-[var(--landing-border-2)] disabled:opacity-30"
                       aria-label="Move up"
                     >
                       <ChevronUp className="w-3 h-3 text-[var(--landing-muted)]" />
@@ -1119,14 +1119,14 @@ export default function ExtendRouteWizard({
                     <button
                       onClick={() => handleMoveStop(idx, 1)}
                       disabled={idx === extensionStops.length - 1}
-                      className="p-0.5 rounded hover:bg-[var(--landing-border-2)] disabled:opacity-30"
+                      className="p-0.5 rounded-none hover:bg-[var(--landing-border-2)] disabled:opacity-30"
                       aria-label="Move down"
                     >
                       <ChevronDown className="w-3 h-3 text-[var(--landing-muted)]" />
                     </button>
                     <button
                       onClick={() => handleRemoveStop(stop.id)}
-                      className="p-0.5 rounded hover:bg-[color-mix(in_oklab,var(--landing-red)_16%,transparent)] text-[var(--landing-faint)] hover:text-[var(--landing-red)]"
+                      className="p-0.5 rounded-none hover:bg-[color-mix(in_oklab,var(--landing-red)_16%,transparent)] text-[var(--landing-faint)] hover:text-[var(--landing-red)]"
                       aria-label="Remove stop"
                     >
                       <X className="w-3 h-3" />
@@ -1148,7 +1148,7 @@ export default function ExtendRouteWizard({
                 <Loader2 className="absolute right-2.5 top-2.5 w-4 h-4 animate-spin text-[var(--landing-faint)]" />
               )}
               {stopResults.length > 0 && (
-                <div className="absolute top-full mt-1 left-0 right-0 bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] rounded-xl shadow-lg z-10 overflow-hidden">
+                <div className="absolute top-full mt-1 left-0 right-0 bg-[var(--landing-elevated)] border border-[var(--landing-border-2)] rounded-none z-10 overflow-hidden">
                   {stopResults.map((s) => (
                     <button
                       key={s.stop_id}
@@ -1166,7 +1166,7 @@ export default function ExtendRouteWizard({
             {/* Pin on map button */}
             <button
               onClick={togglePinMode}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-colors ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-none border text-xs font-medium transition-colors ${
                 pinActive
                   ? "bg-[var(--landing-accent)] text-white border-[var(--landing-accent)]"
                   : "bg-[var(--landing-elevated)] text-[var(--landing-ink)] border-[var(--landing-border-2)] hover:border-[var(--landing-accent)] hover:text-[var(--landing-accent)]"
@@ -1182,8 +1182,8 @@ export default function ExtendRouteWizard({
 
             {/* Pin mode banner */}
             {pinActive && (
-              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[var(--landing-accent)]/10 border border-[var(--landing-accent)]/20 text-xs text-[var(--landing-accent)]">
-                <span className="font-medium">Click on the map to pin a stop</span>
+              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-none bg-[var(--landing-accent)]/10 border border-[var(--landing-accent)]/20 text-xs text-[var(--landing-accent)]">
+                <span className="font-medium">Click the map to pin a stop</span>
                 <button
                   onClick={togglePinMode}
                   className="font-semibold hover:text-[var(--landing-accent)] transition-colors"
@@ -1200,7 +1200,7 @@ export default function ExtendRouteWizard({
               </p>
             )}
             {directionInfo && !directionLoading && (
-              <div className="p-2.5 rounded-xl bg-[var(--landing-wash)] border border-[var(--landing-border)] text-xs text-[var(--landing-accent)]">
+              <div className="p-2.5 rounded-none bg-[var(--landing-wash)] border border-[var(--landing-border)] text-xs text-[var(--landing-accent)]">
                 {isRailExtension ? "Custom path" : "Mapbox route"}: ~{Math.round(directionInfo.durationSecs / 60)} min · {(directionInfo.distanceM / 1000).toFixed(1)} km
               </div>
             )}
@@ -1239,7 +1239,7 @@ export default function ExtendRouteWizard({
                   <button
                     key={c}
                     onClick={() => setColor(c)}
-                    className={`w-7 h-7 rounded-lg border-2 transition-all ${
+                    className={`w-7 h-7 rounded-none border transition-all ${
                       color === c ? "border-[var(--landing-ink)] scale-110" : "border-transparent hover:scale-105"
                     }`}
                     style={{ backgroundColor: c }}
@@ -1251,35 +1251,35 @@ export default function ExtendRouteWizard({
 
             <button
               onClick={() => setKeepOriginal((v) => !v)}
-              className={`flex items-center gap-2.5 p-3 rounded-xl border text-sm transition-colors ${
+              className={`flex items-center gap-2.5 p-3 rounded-none border text-sm transition-colors ${
                 keepOriginal
                   ? "border-[var(--landing-accent)] bg-[var(--landing-accent)]/5 text-[var(--landing-accent)]"
                   : "border-[var(--landing-border-2)] bg-[var(--landing-elevated)] text-[var(--landing-muted)]"
               }`}
             >
-              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+              <div className={`w-4 h-4 rounded-none border flex items-center justify-center flex-shrink-0 ${
                 keepOriginal ? "border-[var(--landing-accent)] bg-[var(--landing-accent)]" : "border-[var(--landing-border-2)]"
               }`}>
                 {keepOriginal && <Check className="w-2.5 h-2.5 text-white" />}
               </div>
-              <span>Keep Route {selectedRoute.short_name} running alongside</span>
+              <span>Keep Route {selectedRoute.short_name} running too</span>
             </button>
 
             <div className="my-2 border-t border-[var(--landing-border)] pt-3">
               <p className="text-xs font-medium text-[var(--landing-muted)] mb-2">Schedule</p>
-              <div className="p-3 rounded-xl bg-[var(--landing-wash)] border border-[var(--landing-border)] text-xs text-[var(--landing-muted)]">
+              <div className="p-3 rounded-none bg-[var(--landing-wash)] border border-[var(--landing-border)] text-xs text-[var(--landing-muted)]">
                 Selected branch runs ~
                 <span className="font-semibold"> {parentWeeklyTrips.toLocaleString()}</span> trips/week
               </div>
 
               <div className="mt-3">
-                <label className="text-xs font-medium text-[var(--landing-ink)] mb-1.5 block">Frequency relative to parent</label>
+                <label className="text-xs font-medium text-[var(--landing-ink)] mb-1.5 block">Frequency vs parent</label>
                 <div className="flex gap-2">
                   {(["quarter", "half", "same", "custom"] as FreqChip[]).map((chip) => (
                     <button
                       key={chip}
                       onClick={() => setFreqChip(chip)}
-                      className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                      className={`flex-1 py-1.5 rounded-none border text-xs font-medium transition-colors ${
                         freqChip === chip
                           ? "bg-[var(--landing-accent)] text-white border-[var(--landing-accent)]"
                           : "bg-[var(--landing-elevated)] text-[var(--landing-muted)] border-[var(--landing-border-2)] hover:border-[var(--landing-ink)]"
@@ -1313,7 +1313,7 @@ export default function ExtendRouteWizard({
                     <button
                       key={d}
                       onClick={() => setDirection(d)}
-                      className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                      className={`flex-1 py-1.5 rounded-none border text-xs font-medium transition-colors ${
                         direction === d
                           ? "bg-[var(--landing-accent)] text-white border-[var(--landing-accent)]"
                           : "bg-[var(--landing-elevated)] text-[var(--landing-muted)] border-[var(--landing-border-2)] hover:border-[var(--landing-ink)]"
@@ -1325,7 +1325,7 @@ export default function ExtendRouteWizard({
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-[var(--landing-wash)] border border-[var(--landing-border)] text-xs text-[var(--landing-accent)] mt-3">
+              <div className="p-3 rounded-none bg-[var(--landing-wash)] border border-[var(--landing-border)] text-xs text-[var(--landing-accent)] mt-3">
                 <span className="font-semibold">{selectedRoute.short_name}{branchSuffix}</span> will run ~
                 <span className="font-semibold"> {estimatedWeeklyTrips.toLocaleString()}</span> trips/week
               </div>

@@ -170,20 +170,20 @@ export default function BrowsePanel({
 
       <Tabs defaultValue="trains" className="flex flex-col">
         <div className="shrink-0 space-y-1 px-2 pb-1 pt-1">
-          <TabsList className="grid h-7 w-full grid-cols-4 gap-0 bg-[var(--landing-wash)] p-px">
-            <TabsTrigger value="trains" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
+          <TabsList className="grid h-7 w-full grid-cols-4 gap-0 rounded-none bg-[var(--landing-wash)] p-px [&_[data-slot=tabs-trigger]]:rounded-none">
+            <TabsTrigger value="trains" className="gap-0.5 px-0 text-[10px] font-medium">
               <Train className="h-3 w-3 shrink-0" aria-hidden />
               Train
             </TabsTrigger>
-            <TabsTrigger value="buses" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
+            <TabsTrigger value="buses" className="gap-0.5 px-0 text-[10px] font-medium">
               <Bus className="h-3 w-3 shrink-0" aria-hidden />
               Bus
             </TabsTrigger>
-            <TabsTrigger value="mine" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
+            <TabsTrigger value="mine" className="gap-0.5 px-0 text-[10px] font-medium">
               <Pencil className="h-3 w-3 shrink-0" aria-hidden />
               Mine
             </TabsTrigger>
-            <TabsTrigger value="cities" className="gap-0.5 px-0 text-[10px] font-medium data-[state=active]:shadow-sm">
+            <TabsTrigger value="cities" className="gap-0.5 px-0 text-[10px] font-medium">
               <Building2 className="h-3 w-3 shrink-0" aria-hidden />
               Cities
             </TabsTrigger>
