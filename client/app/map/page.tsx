@@ -35,7 +35,7 @@ import { networkRouteFilters } from "@/lib/mapEntry";
 import { type CustomRoute, type CustomSchedule, type CustomStop, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
 import { formatSimDate } from "@/lib/simulation";
 import BugReportButton from "@/components/BugReportButton";
-import ThemeToggle from "@/components/marketing/ThemeToggle";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
 // Dynamically import Map to avoid SSR issues with mapbox-gl
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
@@ -922,7 +922,7 @@ function MapPageContent() {
             </button>
           ))}
           <span className="mx-1 h-5 w-px bg-[var(--landing-border)]" aria-hidden />
-          <ThemeToggle className="shrink-0" />
+          <AnimatedThemeToggler className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-ink)] [&_svg]:h-3.5 [&_svg]:w-3.5" />
         </div>
       </div>
 

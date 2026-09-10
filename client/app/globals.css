@@ -419,29 +419,9 @@
   --landing-mixed-border: rgba(241, 246, 242, 0.14);
 }
 
-/* System-preference dark, only when the user hasn't made an explicit choice. */
-@media (prefers-color-scheme: dark) {
-  :root:not(.light):not(.dark) {
-    --landing-bg: #0c1310;
-    --landing-paper-2: #121c17;
-    --landing-wash: #18271f;
-    --landing-fg: #d9e3dc;
-    --landing-ink: #f1f6f2;
-    --landing-muted: rgba(241, 246, 242, 0.6);
-    --landing-faint: rgba(241, 246, 242, 0.42);
-    --landing-border: rgba(241, 246, 242, 0.14);
-    --landing-border-2: rgba(241, 246, 242, 0.26);
-    --landing-accent: #43b071;
-    --landing-elevated: #141e18;
-    --landing-band: #111a15;
-    --landing-amber: #d9a441;
-    --landing-red: #e0685c;
-    --landing-mixed-bg: #121c17;
-    --landing-mixed-fg: #f1f6f2;
-    --landing-mixed-muted: rgba(241, 246, 242, 0.6);
-    --landing-mixed-border: rgba(241, 246, 242, 0.14);
-  }
-}
+/* The no-flash script in layout.tsx adds `.dark` on load (stored choice, or
+   system preference when there's no choice), so `.dark` above is the single
+   source of truth — no separate prefers-color-scheme block needed. */
 
 /* ── Vehicle hover tooltip ─────────────────────────────────────────────────── */
 .vehicle-hover-popup .mapboxgl-popup-content {
@@ -649,4 +629,9 @@
   html {
     @apply font-sans;
   }
+}
+
+::view-transition-old(root), ::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
 }

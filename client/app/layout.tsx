@@ -102,10 +102,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <script
-          // No-flash theme init — runs before paint. Pairs with ThemeToggle.
+          // No-flash theme init — runs before paint. Pairs with AnimatedThemeToggler
+          // (localStorage key "theme", toggles the `.dark` class only).
           dangerouslySetInnerHTML={{
             __html:
-              "try{var t=localStorage.getItem('tf-theme');if(t==='dark')document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.add('light');}catch(e){}",
+              "try{if(localStorage.theme==='dark'||(!('theme'in localStorage)&&window.matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')}catch(e){}",
           }}
         />
         <SessionProvider>

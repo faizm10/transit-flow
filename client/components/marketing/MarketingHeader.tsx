@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { Train } from "lucide-react";
 import HeaderUserSection from "./HeaderUserSection";
-import ThemeToggle from "./ThemeToggle";
-import BugReportButton from "@/components/BugReportButton";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
 const NAV = [
   { label: "Map", href: "/map" },
@@ -33,11 +32,10 @@ export default function MarketingHeader() {
               {label}
             </Link>
           ))}
-          <BugReportButton variant="nav" />
         </nav>
 
         <div className="flex items-center gap-3">
-          <ThemeToggle />
+          <AnimatedThemeToggler className="inline-flex h-7 w-7 items-center justify-center text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-ink)] [&_svg]:h-3.5 [&_svg]:w-3.5" />
           <HeaderUserSection />
         </div>
       </div>
