@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Train } from "lucide-react";
 import HeaderUserSection from "./HeaderUserSection";
+import AnnouncementBanner from "./AnnouncementBanner";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
 const NAV = [
@@ -14,7 +15,9 @@ const navLink =
 
 export default function MarketingHeader() {
   return (
-    <header className="sticky top-0 z-50 border-b border-[var(--landing-border)] bg-[color-mix(in_oklab,var(--landing-bg)_90%,transparent)] backdrop-blur-md">
+    <>
+      <AnnouncementBanner />
+      <header className="sticky top-0 z-50 border-b border-[var(--landing-border)] bg-[color-mix(in_oklab,var(--landing-bg)_90%,transparent)] backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-5 lg:px-8">
         <Link
           href="/"
@@ -39,6 +42,7 @@ export default function MarketingHeader() {
           <HeaderUserSection />
         </div>
       </div>
-    </header>
+      </header>
+    </>
   );
 }
