@@ -8,16 +8,19 @@ Reads only the committed GTFS-derived JSON in client/public/gotransit/derived/
 Method (Phase 1, frequency-approximation — no per-departure routing yet):
 
   1. Anchors = GO rail stations and major bus terminals.
-  2. One-seat-ride graph: for a typical weekday's trips, the fastest scheduled
+  2. Phase 1 suggests BUS routes only, so a corridor endpoint must already host
+     a GO bus (rail-only stations like Long Branch are out), and must not be a
+     subway-interchange hub (a suburb->subway trip is what express buses are for).
+  3. One-seat-ride graph: for a typical weekday's trips, the fastest scheduled
      ride between any two anchors a trip serves becomes an edge.
-  3. Best itinerary A->B = Dijkstra over that graph with a flat transfer
+  4. Best itinerary A->B = Dijkstra over that graph with a flat transfer
      penalty, capped at 3 legs.
-  4. Free-flow baseline = straight-line distance / 75 km/h.
-  5. Demand weight = weekly trips serving the weaker endpoint (revealed
+  5. Free-flow baseline = straight-line distance / 75 km/h. Radial trips whose
+     beeline passes near Union are skipped (hub-and-spoke is meant for those).
+  6. Demand weight = weekly trips serving the weaker endpoint (revealed
      preference; StatsCan commute flows are the planned upgrade).
-  6. gap_score rewards a big transit/free-flow ratio, transfers, and demand,
-     with a bonus for having no one-seat ride at all.
-  7. Near-duplicate corridors (same midpoint + bearing) collapse to the best.
+  7. gap_score is demand-dominated, nudged by the transit/free-flow ratio and
+     transfer count. Near-duplicate corridors collapse to the best.
 
 Run:  python3 scripts/build_network_gaps.py
 """
@@ -40,14 +43,28 @@ MAX_LEGS = 3
 FREE_FLOW_KMH = 75.0
 MIN_KM = 22.0             # regional corridors, not neighbourhood hops
 MAX_KM = 90.0
-MIN_RATIO = 2.4          # transit must be > 2.2x worse than free-flow
-KEEP = 24
+MIN_RATIO = 2.4          # transit must be > 2.4x worse than free-flow
+MIN_DEMAND = 0.18
+KEEP = 20
 DEDUP_KM = 6.0
 DEDUP_BEARING_DEG = 28.0
+
+# Radial trips (A -> downtown -> B) are what the hub-and-spoke network is built
+# for — the "gap" there is an illusion of the straight-line comparison. Skip a
+# corridor whose beeline passes close to Union.
+UNION = (43.6453, -79.3806)
+UNION_KEEPOUT_KM = 7.0
 
 GO_SUFFIX = re.compile(r"\s+GO( Bus)?$", re.I)
 TERMINAL = re.compile(r"(Bus Terminal|GO Bus Terminal)$", re.I)
 NOISE = re.compile(r"(Parking Lot|Park & Ride|Transitway|@|Layby|Platform)", re.I)
+
+# Interchange hubs, not destinations — a suburb-to-subway trip is already what
+# GO's express buses are for, so these are poor corridor endpoints.
+HUB_ENDPOINTS = {
+    "Finch", "York Mills", "Yorkdale", "Scarborough Centre", "Hwy 407",
+    "Renforth", "Highway 407", "Union Station",
+}
 
 
 def load(name: str):
@@ -61,6 +78,22 @@ def haversine_km(a_lat, a_lon, b_lat, b_lon) -> float:
     dl = math.radians(b_lon - a_lon)
     h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     return 2 * R * math.asin(math.sqrt(h))
+
+
+def point_to_segment_km(p, a, b) -> float:
+    """Shortest distance from point p to the great-circle-ish segment a->b,
+    approximated in a local equirectangular projection (fine at this scale)."""
+    lat0 = math.radians((a[0] + b[0]) / 2)
+    kx = 111.32 * math.cos(lat0)
+    ky = 110.57
+    px, py = (p[1] * kx, p[0] * ky)
+    ax, ay = (a[1] * kx, a[0] * ky)
+    bx, by = (b[1] * kx, b[0] * ky)
+    dx, dy = bx - ax, by - ay
+    seg2 = dx * dx + dy * dy
+    t = 0.0 if seg2 == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / seg2))
+    cx, cy = ax + t * dx, ay + t * dy
+    return math.hypot(px - cx, py - cy)
 
 
 def bearing_deg(a_lat, a_lon, b_lat, b_lon) -> float:
@@ -111,12 +144,13 @@ def main() -> None:
             for st in variant_stops.get(v["variant_id"], []):
                 weekly_at_code[st["stop_id"]] = weekly_at_code.get(st["stop_id"], 0.0) + wtc
 
-    # One-seat-ride graph + which anchors see rail service.
+    # One-seat-ride graph + which anchors see rail / bus service today.
     ride: dict[str, dict[str, float]] = {}
     rail_anchor: set[str] = set()
+    bus_anchor: set[str] = set()
     served: set[str] = set()
     for t in trips:
-        is_rail = t.get("route_type") == 2
+        rtype = t.get("route_type")
         pts = [
             (anchor_of_code[p["stop_id"]], p["t"])
             for p in t["stops"]
@@ -124,8 +158,10 @@ def main() -> None:
         ]
         for a, _ in pts:
             served.add(a)
-            if is_rail:
+            if rtype == 2:
                 rail_anchor.add(a)
+            elif rtype == 3:
+                bus_anchor.add(a)
         for i in range(len(pts)):
             ai, ti = pts[i]
             for j in range(i + 1, len(pts)):
@@ -147,7 +183,20 @@ def main() -> None:
         a for a in codes_for_anchor
         if a in served and (a in rail_anchor or any(TERMINAL.search(stops[c]["name"]) for c in codes_for_anchor[a]))
     )
-    print(f"{len(anchors)} anchors ({len(rail_anchor & set(anchors))} rail)")
+
+    # Phase 1 only suggests *bus* routes, so both endpoints of a corridor must
+    # be able to physically host a bus: served by a GO bus today, or a named
+    # bus terminal. This drops rail-only stations (Long Branch, Downsview Park,
+    # Mimico, …) where a "bus stop" isn't real.
+    def bus_servable(a: str) -> bool:
+        return a in bus_anchor or any(
+            TERMINAL.search(stops[c]["name"]) for c in codes_for_anchor[a]
+        )
+
+    print(
+        f"{len(anchors)} anchors ({len(rail_anchor & set(anchors))} rail, "
+        f"{sum(bus_servable(a) for a in anchors)} bus-servable)"
+    )
 
     demand_raw = {
         a: sum(weekly_at_code.get(c, 0.0) for c in codes_for_anchor[a]) for a in anchors
@@ -179,25 +228,32 @@ def main() -> None:
             km = haversine_km(alat, alon, blat, blon)
             if km < MIN_KM or km > MAX_KM:
                 continue
+            if not (bus_servable(A) and bus_servable(B)):
+                continue  # a new bus route needs a place to stop at both ends
+            if A in HUB_ENDPOINTS or B in HUB_ENDPOINTS:
+                continue  # interchange hub, not a destination for a new route
             if B in ride.get(A, {}):
                 continue  # a one-seat ride already exists
+            if point_to_segment_km(UNION, (alat, alon), (blat, blon)) < UNION_KEEPOUT_KM:
+                continue  # radial trip — the hub-and-spoke network is meant for this
             free_flow = km / FREE_FLOW_KMH * 60.0
             res = itineraries[A].get(B)
             if res is None:
                 continue  # our sparse weekday graph can't route it — too uncertain to rank
-            minutes, transfers, reachable = res[0], res[1], True
+            minutes, transfers = res[0], res[1]
+            reachable = True
+            if minutes > 185:
+                continue  # our sparse weekday graph is routing this badly — skip
             ratio = minutes / free_flow
-            if reachable and ratio < MIN_RATIO:
+            if ratio < MIN_RATIO:
                 continue
             dem = min(demand[A], demand[B])
-            if dem < 0.05:
+            if dem < MIN_DEMAND:
                 continue
-            both_rail = A in rail_anchor and B in rail_anchor
             score = (
-                0.5 * math.log(ratio)
-                + 0.08 * min(transfers, MAX_LEGS)
-                + 0.85 * dem
-                + (0.25 if both_rail else 0.0)
+                0.32 * math.log(ratio)
+                + 0.06 * min(transfers, MAX_LEGS)
+                + 1.3 * dem
             )
             candidates.append(
                 dict(
@@ -251,6 +307,7 @@ def main() -> None:
                 id=f"{slugify(A)}__{slugify(B)}",
                 headline=f"{A} ↔ {B}",
                 note=note,
+                mode="bus",
                 straightLineKm=round(c["km"], 1),
                 freeFlowMin=round(c["free_flow"]),
                 current=dict(
@@ -272,11 +329,13 @@ def main() -> None:
     payload = dict(
         generatedAt=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         method=(
-            "Phase 1 frequency-approximation. Best itinerary = shortest path over the "
-            "one-seat-ride graph with an 8-min flat transfer penalty (max 3 legs). "
-            "Free-flow = straight line / 75 km/h. Demand = weekly trips serving the "
-            "weaker endpoint. Per-departure-time routing, real road times, and StatsCan "
-            "commute flows are the planned upgrades."
+            "Phase 1 frequency-approximation. Suggests bus routes only, so both "
+            "endpoints must already host a GO bus. Radial trips through downtown are "
+            "excluded. Best itinerary = shortest path over the one-seat-ride graph "
+            "with a 12-min flat transfer penalty (max 3 legs). Free-flow = straight "
+            "line / 75 km/h. Demand = weekly trips serving the weaker endpoint. "
+            "Per-departure-time routing, real road times, and StatsCan commute flows "
+            "are the planned upgrades."
         ),
         count=len(gaps),
         gaps=gaps,

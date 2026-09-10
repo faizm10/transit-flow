@@ -1,124 +1,13 @@
 {
-  "generatedAt": "2026-09-10T06:39:01Z",
-  "method": "Phase 1 frequency-approximation. Best itinerary = shortest path over the one-seat-ride graph with an 8-min flat transfer penalty (max 3 legs). Free-flow = straight line / 75 km/h. Demand = weekly trips serving the weaker endpoint. Per-departure-time routing, real road times, and StatsCan commute flows are the planned upgrades.",
-  "count": 24,
+  "generatedAt": "2026-09-10T06:57:58Z",
+  "method": "Phase 1 frequency-approximation. Suggests bus routes only, so both endpoints must already host a GO bus. Radial trips through downtown are excluded. Best itinerary = shortest path over the one-seat-ride graph with a 12-min flat transfer penalty (max 3 legs). Free-flow = straight line / 75 km/h. Demand = weekly trips serving the weaker endpoint. Per-departure-time routing, real road times, and StatsCan commute flows are the planned upgrades.",
+  "count": 20,
   "gaps": [
-    {
-      "id": "appleby__streetsville",
-      "headline": "Appleby \u2194 Streetsville",
-      "note": "1 h 35 min by transit \u00b7 3 transfers \u00b7 ~18 min if direct",
-      "straightLineKm": 22.2,
-      "freeFlowMin": 18,
-      "current": {
-        "minutes": 95,
-        "transfers": 3,
-        "direct": false,
-        "reachable": true
-      },
-      "demand": 0.32,
-      "demandLabel": "moderate",
-      "score": 1.596,
-      "from": {
-        "code": "00263",
-        "name": "Appleby GO Bus",
-        "lat": 43.379429,
-        "lon": -79.760991
-      },
-      "to": {
-        "code": "00148",
-        "name": "Streetsville GO Bus",
-        "lat": 43.575584,
-        "lon": -79.70882
-      }
-    },
-    {
-      "id": "ajax__old-elm",
-      "headline": "Ajax \u2194 Old Elm",
-      "note": "1 h 52 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
-      "straightLineKm": 22.3,
-      "freeFlowMin": 18,
-      "current": {
-        "minutes": 112,
-        "transfers": 2,
-        "direct": false,
-        "reachable": true
-      },
-      "demand": 0.26,
-      "demandLabel": "light",
-      "score": 1.553,
-      "from": {
-        "code": "00161",
-        "name": "Ajax GO Bus",
-        "lat": 43.847766,
-        "lon": -79.041372
-      },
-      "to": {
-        "code": "02830",
-        "name": "Old Elm GO Bus",
-        "lat": 43.990395,
-        "lon": -79.237098
-      }
-    },
-    {
-      "id": "mount-joy__whitby",
-      "headline": "Mount Joy \u2194 Whitby",
-      "note": "1 h 38 min by transit \u00b7 3 transfers \u00b7 ~21 min if direct",
-      "straightLineKm": 26.3,
-      "freeFlowMin": 21,
-      "current": {
-        "minutes": 98,
-        "transfers": 3,
-        "direct": false,
-        "reachable": true
-      },
-      "demand": 0.34,
-      "demandLabel": "moderate",
-      "score": 1.552,
-      "from": {
-        "code": "00121",
-        "name": "Mount Joy GO Bus",
-        "lat": 43.900521,
-        "lon": -79.26313
-      },
-      "to": {
-        "code": "00031",
-        "name": "Whitby GO Bus",
-        "lat": 43.86484,
-        "lon": -78.93818
-      }
-    },
-    {
-      "id": "bradford__gormley",
-      "headline": "Bradford \u2194 Gormley",
-      "note": "2 h 12 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
-      "straightLineKm": 23.1,
-      "freeFlowMin": 18,
-      "current": {
-        "minutes": 132,
-        "transfers": 2,
-        "direct": false,
-        "reachable": true
-      },
-      "demand": 0.18,
-      "demandLabel": "light",
-      "score": 1.549,
-      "from": {
-        "code": "02160",
-        "name": "Bradford GO Bus",
-        "lat": 44.116513,
-        "lon": -79.555394
-      },
-      "to": {
-        "code": "02629",
-        "name": "Gormley GO Bus",
-        "lat": 43.941617,
-        "lon": -79.399033
-      }
-    },
     {
       "id": "aldershot__meadowvale",
       "headline": "Aldershot \u2194 Meadowvale",
       "note": "1 h 41 min by transit \u00b7 2 transfers \u00b7 ~26 min if direct",
+      "mode": "bus",
       "straightLineKm": 32.6,
       "freeFlowMin": 26,
       "current": {
@@ -129,7 +18,7 @@
       },
       "demand": 0.54,
       "demandLabel": "moderate",
-      "score": 1.547,
+      "score": 1.258,
       "from": {
         "code": "00180",
         "name": "Aldershot GO Bus",
@@ -144,93 +33,68 @@
       }
     },
     {
-      "id": "king-city__stouffville",
-      "headline": "King City \u2194 Stouffville",
-      "note": "1 h 55 min by transit \u00b7 3 transfers \u00b7 ~18 min if direct",
-      "straightLineKm": 22.9,
+      "id": "aurora__cornell",
+      "headline": "Aurora \u2194 Cornell",
+      "note": "1 h 41 min by transit \u00b7 3 transfers \u00b7 ~18 min if direct",
+      "mode": "bus",
+      "straightLineKm": 22.6,
       "freeFlowMin": 18,
       "current": {
-        "minutes": 115,
+        "minutes": 101,
         "transfers": 3,
         "direct": false,
         "reachable": true
       },
-      "demand": 0.14,
-      "demandLabel": "light",
-      "score": 1.529,
+      "demand": 0.33,
+      "demandLabel": "moderate",
+      "score": 1.164,
       "from": {
-        "code": "KC",
-        "name": "King City GO",
-        "lat": 43.920037,
-        "lon": -79.526886
+        "code": "00081",
+        "name": "Aurora GO Bus",
+        "lat": 44.000758,
+        "lon": -79.459725
       },
       "to": {
-        "code": "ST",
-        "name": "Stouffville GO",
-        "lat": 43.970924,
-        "lon": -79.249989
+        "code": "02815",
+        "name": "Cornell Bus Terminal",
+        "lat": 43.879761,
+        "lon": -79.232535
       }
     },
     {
-      "id": "bradford__old-elm",
-      "headline": "Bradford \u2194 Old Elm",
-      "note": "2 h 19 min by transit \u00b7 2 transfers \u00b7 ~23 min if direct",
-      "straightLineKm": 29.0,
-      "freeFlowMin": 23,
+      "id": "mount-pleasant__oakville",
+      "headline": "Mount Pleasant \u2194 Oakville",
+      "note": "1 h 17 min by transit \u00b7 2 transfers \u00b7 ~21 min if direct",
+      "mode": "bus",
+      "straightLineKm": 26.9,
+      "freeFlowMin": 21,
       "current": {
-        "minutes": 139,
+        "minutes": 77,
         "transfers": 2,
         "direct": false,
         "reachable": true
       },
-      "demand": 0.25,
-      "demandLabel": "light",
-      "score": 1.516,
+      "demand": 0.48,
+      "demandLabel": "moderate",
+      "score": 1.147,
       "from": {
-        "code": "02160",
-        "name": "Bradford GO Bus",
-        "lat": 44.116513,
-        "lon": -79.555394
+        "code": "00296",
+        "name": "Mount Pleasant GO Bus",
+        "lat": 43.6749763,
+        "lon": -79.8221817
       },
       "to": {
-        "code": "02830",
-        "name": "Old Elm GO Bus",
-        "lat": 43.990395,
-        "lon": -79.237098
-      }
-    },
-    {
-      "id": "markham__newmarket",
-      "headline": "Markham \u2194 Newmarket",
-      "note": "1 h 57 min by transit \u00b7 3 transfers \u00b7 ~20 min if direct",
-      "straightLineKm": 25.3,
-      "freeFlowMin": 20,
-      "current": {
-        "minutes": 117,
-        "transfers": 3,
-        "direct": false,
-        "reachable": true
-      },
-      "demand": 0.16,
-      "demandLabel": "light",
-      "score": 1.506,
-      "from": {
-        "code": "MR",
-        "name": "Markham GO",
-        "lat": 43.882691,
-        "lon": -79.262469
-      },
-      "to": {
-        "code": "NE",
-        "name": "Newmarket GO",
-        "lat": 44.060426,
-        "lon": -79.459289
+        "code": "00137",
+        "name": "Oakville GO Bus",
+        "lat": 43.455594,
+        "lon": -79.682242
       }
     },
     {
       "id": "guelph-central__milton",
       "headline": "Guelph Central \u2194 Milton",
       "note": "1 h 36 min by transit \u00b7 3 transfers \u00b7 ~25 min if direct",
+      "mode": "bus",
       "straightLineKm": 30.7,
       "freeFlowMin": 25,
       "current": {
@@ -241,7 +105,7 @@
       },
       "demand": 0.39,
       "demandLabel": "moderate",
-      "score": 1.506,
+      "score": 1.127,
       "from": {
         "code": "02519",
         "name": "Guelph Central GO Bus",
@@ -256,65 +120,39 @@
       }
     },
     {
-      "id": "rouge-hill__stouffville",
-      "headline": "Rouge Hill \u2194 Stouffville",
-      "note": "1 h 50 min by transit \u00b7 3 transfers \u00b7 ~19 min if direct",
-      "straightLineKm": 23.2,
-      "freeFlowMin": 19,
+      "id": "appleby__streetsville",
+      "headline": "Appleby \u2194 Streetsville",
+      "note": "1 h 35 min by transit \u00b7 3 transfers \u00b7 ~18 min if direct",
+      "mode": "bus",
+      "straightLineKm": 22.2,
+      "freeFlowMin": 18,
       "current": {
-        "minutes": 110,
+        "minutes": 95,
         "transfers": 3,
         "direct": false,
         "reachable": true
       },
-      "demand": 0.14,
-      "demandLabel": "light",
-      "score": 1.499,
-      "from": {
-        "code": "RO",
-        "name": "Rouge Hill GO",
-        "lat": 43.780375,
-        "lon": -79.130646
-      },
-      "to": {
-        "code": "ST",
-        "name": "Stouffville GO",
-        "lat": 43.970924,
-        "lon": -79.249989
-      }
-    },
-    {
-      "id": "clarkson__mount-pleasant",
-      "headline": "Clarkson \u2194 Mount Pleasant",
-      "note": "1 h 18 min by transit \u00b7 2 transfers \u00b7 ~19 min if direct",
-      "straightLineKm": 23.6,
-      "freeFlowMin": 19,
-      "current": {
-        "minutes": 78,
-        "transfers": 2,
-        "direct": false,
-        "reachable": true
-      },
-      "demand": 0.42,
+      "demand": 0.32,
       "demandLabel": "moderate",
-      "score": 1.476,
+      "score": 1.127,
       "from": {
-        "code": "00181",
-        "name": "Clarkson GO Bus",
-        "lat": 43.513127,
-        "lon": -79.633206
+        "code": "00263",
+        "name": "Appleby GO Bus",
+        "lat": 43.379429,
+        "lon": -79.760991
       },
       "to": {
-        "code": "00296",
-        "name": "Mount Pleasant GO Bus",
-        "lat": 43.6749763,
-        "lon": -79.8221817
+        "code": "00148",
+        "name": "Streetsville GO Bus",
+        "lat": 43.575584,
+        "lon": -79.70882
       }
     },
     {
       "id": "aldershot__milton",
       "headline": "Aldershot \u2194 Milton",
       "note": "1 h 16 min by transit \u00b7 2 transfers \u00b7 ~19 min if direct",
+      "mode": "bus",
       "straightLineKm": 23.4,
       "freeFlowMin": 19,
       "current": {
@@ -325,7 +163,7 @@
       },
       "demand": 0.43,
       "demandLabel": "moderate",
-      "score": 1.475,
+      "score": 1.125,
       "from": {
         "code": "00180",
         "name": "Aldershot GO Bus",
@@ -340,9 +178,39 @@
       }
     },
     {
+      "id": "mount-joy__whitby",
+      "headline": "Mount Joy \u2194 Whitby",
+      "note": "1 h 38 min by transit \u00b7 3 transfers \u00b7 ~21 min if direct",
+      "mode": "bus",
+      "straightLineKm": 26.3,
+      "freeFlowMin": 21,
+      "current": {
+        "minutes": 98,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.34,
+      "demandLabel": "moderate",
+      "score": 1.12,
+      "from": {
+        "code": "00121",
+        "name": "Mount Joy GO Bus",
+        "lat": 43.900521,
+        "lon": -79.26313
+      },
+      "to": {
+        "code": "00031",
+        "name": "Whitby GO Bus",
+        "lat": 43.86484,
+        "lon": -78.93818
+      }
+    },
+    {
       "id": "cooksville__georgetown",
       "headline": "Cooksville \u2194 Georgetown",
       "note": "1 h 19 min by transit \u00b7 3 transfers \u00b7 ~20 min if direct",
+      "mode": "bus",
       "straightLineKm": 25.1,
       "freeFlowMin": 20,
       "current": {
@@ -353,7 +221,7 @@
       },
       "demand": 0.34,
       "demandLabel": "moderate",
-      "score": 1.466,
+      "score": 1.064,
       "from": {
         "code": "02751",
         "name": "Cooksville GO Bus",
@@ -368,9 +236,68 @@
       }
     },
     {
+      "id": "cornell__maple",
+      "headline": "Cornell \u2194 Maple",
+      "note": "1 h 32 min by transit \u00b7 3 transfers \u00b7 ~18 min if direct",
+      "mode": "bus",
+      "straightLineKm": 22.1,
+      "freeFlowMin": 18,
+      "current": {
+        "minutes": 92,
+        "transfers": 3,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.27,
+      "demandLabel": "light",
+      "score": 1.06,
+      "from": {
+        "code": "02815",
+        "name": "Cornell Bus Terminal",
+        "lat": 43.879761,
+        "lon": -79.232535
+      },
+      "to": {
+        "code": "02157",
+        "name": "Maple GO Bus",
+        "lat": 43.859481,
+        "lon": -79.506984
+      }
+    },
+    {
+      "id": "ajax__old-elm",
+      "headline": "Ajax \u2194 Old Elm",
+      "note": "1 h 52 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
+      "mode": "bus",
+      "straightLineKm": 22.3,
+      "freeFlowMin": 18,
+      "current": {
+        "minutes": 112,
+        "transfers": 2,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.26,
+      "demandLabel": "light",
+      "score": 1.051,
+      "from": {
+        "code": "00161",
+        "name": "Ajax GO Bus",
+        "lat": 43.847766,
+        "lon": -79.041372
+      },
+      "to": {
+        "code": "02830",
+        "name": "Old Elm GO Bus",
+        "lat": 43.990395,
+        "lon": -79.237098
+      }
+    },
+    {
       "id": "confederation__streetsville",
       "headline": "Confederation \u2194 Streetsville",
       "note": "2 h 03 min by transit \u00b7 3 transfers \u00b7 ~30 min if direct",
+      "mode": "bus",
       "straightLineKm": 37.3,
       "freeFlowMin": 30,
       "current": {
@@ -381,7 +308,7 @@
       },
       "demand": 0.32,
       "demandLabel": "moderate",
-      "score": 1.466,
+      "score": 1.043,
       "from": {
         "code": "02730",
         "name": "Confederation GO Bus",
@@ -396,104 +323,108 @@
       }
     },
     {
-      "id": "agincourt__bloomington",
-      "headline": "Agincourt \u2194 Bloomington",
-      "note": "1 h 44 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
-      "straightLineKm": 23.0,
+      "id": "milton__port-credit",
+      "headline": "Milton \u2194 Port Credit",
+      "note": "1 h 05 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
+      "mode": "bus",
+      "straightLineKm": 22.9,
       "freeFlowMin": 18,
       "current": {
-        "minutes": 104,
+        "minutes": 65,
         "transfers": 2,
         "direct": false,
         "reachable": true
       },
-      "demand": 0.21,
-      "demandLabel": "light",
-      "score": 1.454,
-      "from": {
-        "code": "AG",
-        "name": "Agincourt GO",
-        "lat": 43.78611,
-        "lon": -79.284385
-      },
-      "to": {
-        "code": "02767",
-        "name": "Bloomington GO Bus",
-        "lat": 43.975949,
-        "lon": -79.397258
-      }
-    },
-    {
-      "id": "aurora__finch",
-      "headline": "Aurora \u2194 Finch",
-      "note": "2 h 06 min by transit \u00b7 3 transfers \u00b7 ~20 min if direct",
-      "straightLineKm": 24.6,
-      "freeFlowMin": 20,
-      "current": {
-        "minutes": 126,
-        "transfers": 3,
-        "direct": false,
-        "reachable": true
-      },
-      "demand": 0.33,
+      "demand": 0.39,
       "demandLabel": "moderate",
-      "score": 1.452,
+      "score": 1.038,
       "from": {
-        "code": "00081",
-        "name": "Aurora GO Bus",
-        "lat": 44.000758,
-        "lon": -79.459725
+        "code": "00194",
+        "name": "Milton GO Bus",
+        "lat": 43.52364,
+        "lon": -79.867172
       },
       "to": {
-        "code": "00013",
-        "name": "Finch Bus Terminal",
-        "lat": 43.7819481,
-        "lon": -79.4159088
+        "code": "02775",
+        "name": "Port Credit GO Bus",
+        "lat": 43.555999,
+        "lon": -79.586881
       }
     },
     {
-      "id": "barrie-south__bloomington",
-      "headline": "Barrie South \u2194 Bloomington",
-      "note": "2 h 49 min by transit \u00b7 3 transfers \u00b7 ~36 min if direct",
-      "straightLineKm": 45.6,
-      "freeFlowMin": 36,
+      "id": "malton__milton",
+      "headline": "Malton \u2194 Milton",
+      "note": "1 h 07 min by transit \u00b7 3 transfers \u00b7 ~22 min if direct",
+      "mode": "bus",
+      "straightLineKm": 27.3,
+      "freeFlowMin": 22,
       "current": {
-        "minutes": 169,
+        "minutes": 67,
         "transfers": 3,
         "direct": false,
         "reachable": true
       },
-      "demand": 0.21,
-      "demandLabel": "light",
-      "score": 1.434,
+      "demand": 0.37,
+      "demandLabel": "moderate",
+      "score": 1.024,
       "from": {
-        "code": "00345",
-        "name": "Barrie South GO Bus",
-        "lat": 44.35112,
-        "lon": -79.627441
+        "code": "00228",
+        "name": "Malton GO Bus",
+        "lat": 43.705153,
+        "lon": -79.63823
       },
       "to": {
-        "code": "02767",
-        "name": "Bloomington GO Bus",
-        "lat": 43.975949,
-        "lon": -79.397258
+        "code": "00194",
+        "name": "Milton GO Bus",
+        "lat": 43.52364,
+        "lon": -79.867172
       }
     },
     {
-      "id": "bronte__mount-pleasant",
-      "headline": "Bronte \u2194 Mount Pleasant",
-      "note": "1 h 31 min by transit \u00b7 2 transfers \u00b7 ~24 min if direct",
-      "straightLineKm": 29.8,
-      "freeFlowMin": 24,
+      "id": "bradford__old-elm",
+      "headline": "Bradford \u2194 Old Elm",
+      "note": "2 h 19 min by transit \u00b7 2 transfers \u00b7 ~23 min if direct",
+      "mode": "bus",
+      "straightLineKm": 29.0,
+      "freeFlowMin": 23,
       "current": {
-        "minutes": 91,
+        "minutes": 139,
         "transfers": 2,
         "direct": false,
         "reachable": true
       },
-      "demand": 0.41,
+      "demand": 0.25,
+      "demandLabel": "light",
+      "score": 1.017,
+      "from": {
+        "code": "02160",
+        "name": "Bradford GO Bus",
+        "lat": 44.116513,
+        "lon": -79.555394
+      },
+      "to": {
+        "code": "02830",
+        "name": "Old Elm GO Bus",
+        "lat": 43.990395,
+        "lon": -79.237098
+      }
+    },
+    {
+      "id": "bronte__georgetown",
+      "headline": "Bronte \u2194 Georgetown",
+      "note": "1 h 41 min by transit \u00b7 2 transfers \u00b7 ~25 min if direct",
+      "mode": "bus",
+      "straightLineKm": 30.9,
+      "freeFlowMin": 25,
+      "current": {
+        "minutes": 101,
+        "transfers": 2,
+        "direct": false,
+        "reachable": true
+      },
+      "demand": 0.34,
       "demandLabel": "moderate",
-      "score": 1.429,
+      "score": 1.016,
       "from": {
         "code": "00264",
         "name": "Bronte GO Bus",
@@ -501,88 +432,91 @@
         "lon": -79.722294
       },
       "to": {
-        "code": "00296",
-        "name": "Mount Pleasant GO Bus",
-        "lat": 43.6749763,
-        "lon": -79.8221817
+        "code": "02413",
+        "name": "Georgetown GO Bus",
+        "lat": 43.655373,
+        "lon": -79.919054
       }
     },
     {
-      "id": "east-gwillimbury__richmond-hill",
-      "headline": "East Gwillimbury \u2194 Richmond Hill",
-      "note": "1 h 42 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
-      "straightLineKm": 22.8,
+      "id": "bradford__gormley",
+      "headline": "Bradford \u2194 Gormley",
+      "note": "2 h 12 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
+      "mode": "bus",
+      "straightLineKm": 23.1,
       "freeFlowMin": 18,
       "current": {
-        "minutes": 102,
+        "minutes": 132,
         "transfers": 2,
         "direct": false,
         "reachable": true
       },
       "demand": 0.18,
       "demandLabel": "light",
-      "score": 1.428,
+      "score": 0.988,
       "from": {
-        "code": "00276",
-        "name": "East Gwillimbury GO Bus",
-        "lat": 44.077996,
-        "lon": -79.455776
+        "code": "02160",
+        "name": "Bradford GO Bus",
+        "lat": 44.116513,
+        "lon": -79.555394
       },
       "to": {
-        "code": "00062",
-        "name": "Richmond Hill GO Bus",
-        "lat": 43.874307,
-        "lon": -79.426167
+        "code": "02629",
+        "name": "Gormley GO Bus",
+        "lat": 43.941617,
+        "lon": -79.399033
       }
     },
     {
-      "id": "bloomington__pickering",
-      "headline": "Bloomington \u2194 Pickering",
-      "note": "1 h 47 min by transit \u00b7 3 transfers \u00b7 ~24 min if direct",
-      "straightLineKm": 29.8,
-      "freeFlowMin": 24,
+      "id": "kitchener__milton",
+      "headline": "Kitchener \u2194 Milton",
+      "note": "1 h 56 min by transit \u00b7 3 transfers \u00b7 ~41 min if direct",
+      "mode": "bus",
+      "straightLineKm": 51.1,
+      "freeFlowMin": 41,
       "current": {
-        "minutes": 107,
+        "minutes": 116,
         "transfers": 3,
         "direct": false,
         "reachable": true
       },
-      "demand": 0.21,
-      "demandLabel": "light",
-      "score": 1.419,
+      "demand": 0.36,
+      "demandLabel": "moderate",
+      "score": 0.986,
       "from": {
-        "code": "02767",
-        "name": "Bloomington GO Bus",
-        "lat": 43.975949,
-        "lon": -79.397258
+        "code": "02186",
+        "name": "Kitchener GO Bus",
+        "lat": 43.455686,
+        "lon": -80.49313
       },
       "to": {
-        "code": "00147",
-        "name": "Pickering GO Bus",
-        "lat": 43.831576,
-        "lon": -79.084594
+        "code": "00194",
+        "name": "Milton GO Bus",
+        "lat": 43.52364,
+        "lon": -79.867172
       }
     },
     {
-      "id": "langstaff__old-elm",
-      "headline": "Langstaff \u2194 Old Elm",
-      "note": "1 h 52 min by transit \u00b7 2 transfers \u00b7 ~18 min if direct",
-      "straightLineKm": 22.5,
-      "freeFlowMin": 18,
+      "id": "maple__old-elm",
+      "headline": "Maple \u2194 Old Elm",
+      "note": "1 h 45 min by transit \u00b7 2 transfers \u00b7 ~21 min if direct",
+      "mode": "bus",
+      "straightLineKm": 26.1,
+      "freeFlowMin": 21,
       "current": {
-        "minutes": 112,
+        "minutes": 105,
         "transfers": 2,
         "direct": false,
         "reachable": true
       },
-      "demand": 0.11,
+      "demand": 0.26,
       "demandLabel": "light",
-      "score": 1.418,
+      "score": 0.981,
       "from": {
-        "code": "LA",
-        "name": "Langstaff GO",
-        "lat": 43.838546,
-        "lon": -79.423139
+        "code": "02157",
+        "name": "Maple GO Bus",
+        "lat": 43.859481,
+        "lon": -79.506984
       },
       "to": {
         "code": "02830",
@@ -592,87 +526,61 @@
       }
     },
     {
-      "id": "finch__long-branch",
-      "headline": "Finch \u2194 Long Branch",
-      "note": "1 h 44 min by transit \u00b7 3 transfers \u00b7 ~19 min if direct",
-      "straightLineKm": 23.6,
-      "freeFlowMin": 19,
+      "id": "bramalea__bronte",
+      "headline": "Bramalea \u2194 Bronte",
+      "note": "1 h 10 min by transit \u00b7 2 transfers \u00b7 ~25 min if direct",
+      "mode": "bus",
+      "straightLineKm": 31.9,
+      "freeFlowMin": 25,
       "current": {
-        "minutes": 104,
-        "transfers": 3,
+        "minutes": 70,
+        "transfers": 2,
         "direct": false,
         "reachable": true
       },
-      "demand": 0.37,
+      "demand": 0.41,
       "demandLabel": "moderate",
-      "score": 1.407,
+      "score": 0.977,
       "from": {
-        "code": "00013",
-        "name": "Finch Bus Terminal",
-        "lat": 43.7819481,
-        "lon": -79.4159088
+        "code": "00225",
+        "name": "Bramalea Bus Terminal",
+        "lat": 43.7022591,
+        "lon": -79.6887512
       },
       "to": {
-        "code": "LO",
-        "name": "Long Branch GO",
-        "lat": 43.591317,
-        "lon": -79.546149
+        "code": "00264",
+        "name": "Bronte GO Bus",
+        "lat": 43.416774,
+        "lon": -79.722294
       }
     },
     {
-      "id": "barrie-south__old-elm",
-      "headline": "Barrie South \u2194 Old Elm",
-      "note": "2 h 45 min by transit \u00b7 3 transfers \u00b7 ~41 min if direct",
-      "straightLineKm": 50.8,
-      "freeFlowMin": 41,
+      "id": "bradford__cornell",
+      "headline": "Bradford \u2194 Cornell",
+      "note": "2 h 06 min by transit \u00b7 3 transfers \u00b7 ~30 min if direct",
+      "mode": "bus",
+      "straightLineKm": 36.9,
+      "freeFlowMin": 30,
       "current": {
-        "minutes": 165,
+        "minutes": 126,
         "transfers": 3,
         "direct": false,
         "reachable": true
       },
       "demand": 0.25,
       "demandLabel": "light",
-      "score": 1.405,
+      "score": 0.969,
       "from": {
-        "code": "00345",
-        "name": "Barrie South GO Bus",
-        "lat": 44.35112,
-        "lon": -79.627441
+        "code": "02160",
+        "name": "Bradford GO Bus",
+        "lat": 44.116513,
+        "lon": -79.555394
       },
       "to": {
-        "code": "02830",
-        "name": "Old Elm GO Bus",
-        "lat": 43.990395,
-        "lon": -79.237098
-      }
-    },
-    {
-      "id": "downsview-park__markham",
-      "headline": "Downsview Park \u2194 Markham",
-      "note": "1 h 18 min by transit \u00b7 3 transfers \u00b7 ~18 min if direct",
-      "straightLineKm": 22.5,
-      "freeFlowMin": 18,
-      "current": {
-        "minutes": 78,
-        "transfers": 3,
-        "direct": false,
-        "reachable": true
-      },
-      "demand": 0.21,
-      "demandLabel": "light",
-      "score": 1.404,
-      "from": {
-        "code": "DW",
-        "name": "Downsview Park GO",
-        "lat": 43.7536333,
-        "lon": -79.47835
-      },
-      "to": {
-        "code": "MR",
-        "name": "Markham GO",
-        "lat": 43.882691,
-        "lon": -79.262469
+        "code": "02815",
+        "name": "Cornell Bus Terminal",
+        "lat": 43.879761,
+        "lon": -79.232535
       }
     }
   ]

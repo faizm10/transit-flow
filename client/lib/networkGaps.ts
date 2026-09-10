@@ -14,6 +14,8 @@ export interface NetworkGap {
   id: string;
   headline: string;
   note: string;
+  /** The route type this corridor is a candidate for. Phase 1 is bus-only. */
+  mode: "bus" | "train";
   straightLineKm: number;
   freeFlowMin: number;
   current: {
