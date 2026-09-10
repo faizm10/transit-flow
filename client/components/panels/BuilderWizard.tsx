@@ -36,6 +36,8 @@ interface BuilderWizardProps {
   existingRoute?: CustomRoute;
   /** Fires whenever the user switches between bus and train mode. */
   onTrainModeChange?: (isTrain: boolean) => void;
+  /** Pre-fill the stop list (e.g. the two endpoints of a Gap Finder corridor). Used only for a fresh route. */
+  seedStops?: CustomStop[];
   /** Custom stations available as searchable stops. */
   customStations?: CustomStation[];
   /** Map pin mode: user clicks the map to choose coordinates (same as Stations panel). */
@@ -141,6 +143,7 @@ export default function BuilderWizard({
   drawGeometry,
   existingRoute,
   onTrainModeChange,
+  seedStops,
   customStations = [],
   onStartPinMode,
   onStopPinMode,
@@ -154,7 +157,9 @@ export default function BuilderWizard({
   const [name, setName] = useState(existingRoute?.name ?? "");
   const [description, setDescription] = useState(existingRoute?.description ?? "");
   const [color, setColor] = useState(existingRoute?.color ?? CUSTOM_ROUTE_COLORS[0]);
-  const [stops, setStops] = useState<CustomStop[]>(existingRoute?.stops ?? []);
+  const [stops, setStops] = useState<CustomStop[]>(
+    existingRoute?.stops ?? seedStops ?? []
+  );
   const [stopQuery, setStopQuery] = useState("");
   const [stopResults, setStopResults] = useState<CustomStop[]>([]);
   const [searching, setSearching] = useState(false);

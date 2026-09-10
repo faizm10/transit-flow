@@ -32,7 +32,7 @@ import type { NetworkGap } from "@/lib/networkGaps";
 import AddCityFeedModal from "@/components/panels/AddCityFeedModal";
 import type { CityFeedMeta } from "@/lib/cityGtfs";
 import { networkRouteFilters } from "@/lib/mapEntry";
-import { type CustomRoute, type CustomSchedule, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
+import { type CustomRoute, type CustomSchedule, type CustomStop, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
 import { formatSimDate } from "@/lib/simulation";
 import BugReportButton from "@/components/BugReportButton";
 
@@ -137,6 +137,8 @@ function MapPageContent() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnGeometry, setDrawnGeometry] = useState<[number, number][] | null>(null);
   const [editingRoute, setEditingRoute] = useState<CustomRoute | undefined>();
+  /** Endpoints handed to the builder from Gap Finder. */
+  const [gapSeed, setGapSeed] = useState<{ stops: CustomStop[]; key: string } | null>(null);
   const [designTab, setDesignTab] = useState<DesignTab>(() => {
     if (typeof window === "undefined") return "new";
     const sp = new URLSearchParams(window.location.search);
@@ -445,6 +447,17 @@ function MapPageContent() {
       setShowAlertsOnMap(false);
     }
   }, [showAlertsOnMap, railAlerts.length, serviceAlertsLoaded]);
+
+  // Drop the Gap Finder seed once we've actually left the builder (not before
+  // build mode has had a chance to activate).
+  const gapSeedConsumedRef = useRef(false);
+  useEffect(() => {
+    if (mode === "build" && gapSeed) gapSeedConsumedRef.current = true;
+    else if (mode !== "build" && gapSeedConsumedRef.current) {
+      gapSeedConsumedRef.current = false;
+      setGapSeed(null);
+    }
+  }, [mode, gapSeed]);
 
   // ── Sync route visibility filters to map layers ─────────────────────────
   useEffect(() => {
@@ -837,19 +850,20 @@ function MapPageContent() {
 
   const handleDesignFromGap = useCallback(
     (gap: NetworkGap) => {
+      const toStop = (e: NetworkGap["from"], seq: number): CustomStop => ({
+        id: uuidv4(),
+        name: e.name.replace(/\s+Bus$/, ""),
+        lat: e.lat,
+        lon: e.lon,
+        sequence: seq,
+      });
+      setGapSeed({
+        stops: [toStop(gap.from, 1), toStop(gap.to, 2)],
+        key: `gap-${gap.id}-${Date.now()}`,
+      });
       setDesignTab("new");
       patchSearch({ mode: "build", design: "new", entry: "fresh", goRoute: null });
-      toast.success(`${gap.headline}: draw a route between the two points.`);
-      // re-assert the corridor line once the mode switch settles
-      window.setTimeout(() => {
-        mapRef.current?.showPreviewRoute(
-          [
-            [gap.from.lon, gap.from.lat],
-            [gap.to.lon, gap.to.lat],
-          ],
-          "#f59e0b"
-        );
-      }, 450);
+      toast.success(`${gap.headline}: endpoints added — draw the alignment and add stops between.`);
     },
     [patchSearch]
   );
@@ -978,6 +992,8 @@ function MapPageContent() {
                 <DesignPanel
                   activeTab={designTab}
                   onActiveTabChange={handleDesignTabChange}
+                  newSeedStops={gapSeed?.stops}
+                  newWizardKey={gapSeed?.key}
                   extendInitialRoute={extendSeedRoute}
                   extendWizardKey={
                     extendSeedRoute?.route_id

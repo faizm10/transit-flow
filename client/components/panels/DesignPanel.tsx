@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BuilderWizard from "@/components/panels/BuilderWizard";
 import ExtendRouteWizard from "@/components/panels/ExtendRouteWizard";
 import StationsPanel from "@/components/panels/StationsPanel";
-import { type CustomRoute, type CustomStation, type EnrichedRoute } from "@/lib/gtfs";
+import { type CustomRoute, type CustomStation, type CustomStop, type EnrichedRoute } from "@/lib/gtfs";
 
 export type DesignTab = "existing" | "new" | "stations";
 
@@ -38,6 +38,10 @@ interface DesignPanelProps {
   extendWizardKey?: string;
   /** Extend tab: block wizard until GO line deep link resolves */
   extendTabLoading?: boolean;
+  /** Create tab: pre-fill the stop list (e.g. a Gap Finder corridor's endpoints). */
+  newSeedStops?: CustomStop[];
+  /** Create tab: remount the wizard when a new seed arrives. */
+  newWizardKey?: string;
 }
 
 export default function DesignPanel({
@@ -61,6 +65,8 @@ export default function DesignPanel({
   extendInitialRoute,
   extendWizardKey,
   extendTabLoading,
+  newSeedStops,
+  newWizardKey,
 }: DesignPanelProps) {
   const extendKey = extendWizardKey ?? extendInitialRoute?.route_id ?? "pick";
   const stationsOpen = activeTab === "stations";
@@ -151,6 +157,8 @@ export default function DesignPanel({
       <TabsContent value="new" className="mt-0 min-h-0 flex-1 overflow-y-auto">
         {activeTab === "new" && (
           <BuilderWizard
+            key={newWizardKey}
+            seedStops={newSeedStops}
             onSave={onSaveRoute}
             onDrawRequest={onDrawRequest}
             onEditRequest={onEditRequest}
