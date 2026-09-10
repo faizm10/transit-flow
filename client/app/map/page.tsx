@@ -972,7 +972,7 @@ function MapPageContent() {
           className={
             mode === "browse"
               ? "absolute left-4 top-20 z-20 w-72 max-h-[calc(100dvh-5.5rem)] overflow-hidden"
-              : "absolute left-4 top-20 bottom-4 z-20 w-72"
+              : "absolute left-4 top-20 bottom-4 z-20 w-[25rem] max-w-[calc(100vw-2rem)]"
           }
         >
           <div
