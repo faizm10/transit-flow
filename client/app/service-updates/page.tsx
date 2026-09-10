@@ -14,12 +14,12 @@ const SITE_URL =
 export const metadata: Metadata = {
   title: "Service Updates — TransitFlow",
   description:
-    "Live GO Transit service alerts — delays, cancellations, and service notices for Lakeshore West, Barrie, Kitchener, Stouffville, Richmond Hill, Milton, and UP Express lines.",
+    "Live GO Transit service alerts: delays, cancellations, and service notices for Lakeshore West, Barrie, Kitchener, Stouffville, Richmond Hill, Milton, and UP Express lines.",
   alternates: { canonical: `${SITE_URL}/service-updates` },
   openGraph: {
     title: "GO Transit Service Updates — TransitFlow",
     description:
-      "Live GO Transit service alerts — delays, cancellations, and service notices for all GO lines.",
+      "Live GO Transit service alerts: delays, cancellations, and service notices for all GO lines.",
     url: `${SITE_URL}/service-updates`,
   },
 };
@@ -123,7 +123,7 @@ export default async function ServiceUpdatesPage({
             What&apos;s running, what isn&apos;t
           </h1>
           <p className="max-w-xl text-[var(--landing-muted)]">
-            Real-time GO Transit alerts — delays, cancellations, and service
+            Real-time GO Transit alerts: delays, cancellations, and service
             notices, newest first.
           </p>
 

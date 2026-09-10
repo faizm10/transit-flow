@@ -15,10 +15,23 @@ export interface Corridor {
 
 export function corridorImageUrl(
   corridor: Corridor,
-  { width = 1280, height = 620, accent = "0b7a3d" } = {}
+  {
+    width = 1280,
+    height = 620,
+    accent = "0b7a3d",
+    theme = "light",
+  }: {
+    width?: number;
+    height?: number;
+    accent?: string;
+    theme?: "light" | "dark";
+  } = {}
 ): string | null {
   const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
   if (!token || corridor.path.length < 2) return null;
+
+  const style = theme === "dark" ? "dark-v11" : "light-v11";
+  const casingColor = theme === "dark" ? "#0c1310" : "#ffffff";
 
   const line = {
     type: "Feature" as const,
@@ -27,7 +40,7 @@ export function corridorImageUrl(
   };
   const casing = {
     type: "Feature" as const,
-    properties: { stroke: "#ffffff", "stroke-width": 8, "stroke-opacity": 0.9 },
+    properties: { stroke: casingColor, "stroke-width": 8, "stroke-opacity": 0.9 },
     geometry: { type: "LineString" as const, coordinates: corridor.path },
   };
 
@@ -44,7 +57,7 @@ export function corridorImageUrl(
   ].join(",");
 
   return (
-    `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${overlay}` +
+    `https://api.mapbox.com/styles/v1/mapbox/${style}/static/${overlay}` +
     `/auto/${width}x${height}@2x?padding=64&access_token=${token}`
   );
 }

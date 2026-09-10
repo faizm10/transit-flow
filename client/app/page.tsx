@@ -131,7 +131,7 @@ export default function LandingPage() {
           <FadeUp delay={0.16}>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--landing-muted)]">
               Explore GO Transit routes, compare schedules, sketch service
-              changes, and simulate network flow — all in one browser-based
+              changes, and simulate network flow, all in one browser-based
               workspace.
             </p>
           </FadeUp>
@@ -199,7 +199,7 @@ export default function LandingPage() {
             </h2>
             <p className="mt-4 text-base leading-relaxed text-[var(--landing-muted)]">
               Explore real GO Transit data, design new routes, analyze
-              schedules, and simulate network flow — without switching tools.
+              schedules, and simulate network flow, without switching tools.
             </p>
           </div>
 
@@ -405,8 +405,8 @@ export default function LandingPage() {
             Start exploring the future of transit planning.
           </h2>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-[var(--landing-muted)]">
-            The full GO Transit network — live GTFS, a drawing canvas, schedule
-            analysis, and a simulation engine — free in your browser.
+            The full GO Transit network, free in your browser: live GTFS, a
+            drawing canvas, schedule analysis, and a simulation engine.
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <CornerButton href={MAP} solid>

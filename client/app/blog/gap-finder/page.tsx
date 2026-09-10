@@ -10,7 +10,7 @@ const SITE_URL =
 export const metadata: Metadata = {
   title: "Where should the next route go?",
   description:
-    "TransitFlow's Gap Finder ranks the GO corridors that are served worst today. Two worked examples — the 407 corridor and a weekend Waterloo–Niagara line — plus how it works and what's next.",
+    "TransitFlow's Gap Finder ranks the GO corridors that are served worst today. Two worked examples (the 407 corridor and a weekend Waterloo-to-Niagara line), plus how it works and what's next.",
   alternates: { canonical: `${SITE_URL}/blog/gap-finder` },
   openGraph: {
     title: "Where should the next route go? — TransitFlow",
@@ -46,7 +46,9 @@ const corridorNiagara = {
 };
 
 const img407 = corridorImageUrl(corridor407, { accent: "0e7d40" });
+const img407Dark = corridorImageUrl(corridor407, { accent: "43b071", theme: "dark" });
 const imgNiagara = corridorImageUrl(corridorNiagara, { accent: "0e7d40" });
+const imgNiagaraDark = corridorImageUrl(corridorNiagara, { accent: "43b071", theme: "dark" });
 
 // ── Pieces ────────────────────────────────────────────────────────────────────
 
@@ -70,10 +72,12 @@ function StatGrid({ items }: { items: [string, string][] }) {
 
 function Figure({
   src,
+  srcDark,
   alt,
   caption,
 }: {
   src: string | null;
+  srcDark?: string | null;
   alt: string;
   caption: string;
 }) {
@@ -81,14 +85,26 @@ function Figure({
     <figure className="my-8">
       <div className="border border-[var(--landing-border)] bg-[var(--landing-band)]">
         {src ? (
-          <Image
-            src={src}
-            alt={alt}
-            width={1280}
-            height={620}
-            className="h-auto w-full"
-            unoptimized
-          />
+          <>
+            <Image
+              src={src}
+              alt={alt}
+              width={1280}
+              height={620}
+              className={`h-auto w-full ${srcDark ? "dark:hidden" : ""}`}
+              unoptimized
+            />
+            {srcDark && (
+              <Image
+                src={srcDark}
+                alt={alt}
+                width={1280}
+                height={620}
+                className="hidden h-auto w-full dark:block"
+                unoptimized
+              />
+            )}
+          </>
         ) : (
           <div className="flex aspect-2/1 items-center justify-center text-sm text-[var(--landing-faint)]">
             map preview unavailable
@@ -134,7 +150,7 @@ export default function GapFinderPost() {
         <p>
           Right now the map is a blank cheque. You can extend the Kitchener line
           to Cambridge, spin up a Brampton circulator, or connect two suburbs
-          that already have four buses between them — and the tool treats all of
+          that already have four buses between them, and the tool treats all of
           it the same. There has never been a signal for <em>this corridor is
           badly served and a lot of people travel it</em>.
         </p>
@@ -163,8 +179,8 @@ export default function GapFinderPost() {
           When transit takes more than roughly twice as long, and a lot of
           service already runs through both endpoints, the corridor scores
           highly. Near-duplicate corridors collapse to one, radial trips that
-          naturally route through Union are dropped, and — since this phase only
-          proposes bus routes — both endpoints have to be places a bus can
+          naturally route through Union are dropped, and, since this phase only
+          proposes bus routes, both endpoints have to be places a bus can
           actually stop.
         </p>
         <p>
@@ -187,13 +203,14 @@ export default function GapFinderPost() {
           >
             407 Transitway
           </a>{" "}
-          corridor — the east–west busway that links Brampton, Vaughan and
-          Markham — a rider from Oakville or Clarkson today goes inbound to a
+          corridor (the east-west busway that links Brampton, Vaughan and
+          Markham), a rider from Oakville or Clarkson today goes inbound to a
           hub, transfers, and doubles back north.
         </p>
 
         <Figure
           src={img407}
+          srcDark={img407Dark}
           alt="Map of a proposed express bus from Oakville and Clarkson GO stations north via Hurontario Street to the Hwy 407 Bus Terminal."
           caption="Candidate alignment · Oakville · Clarkson → Hurontario → Hwy 407 Bus Terminal"
         />
@@ -208,7 +225,7 @@ export default function GapFinderPost() {
 
         <p>
           A single bus up Hurontario and onto the 407 would put the whole
-          Transitway network — and the 400-series park-and-ride lots along it —
+          Transitway network, and the 400-series park-and-ride lots along it,
           within one seat of the Lakeshore West stations. It&apos;s the kind of
           tangential connection a hub-and-spoke network structurally can&apos;t
           provide, and exactly what{" "}
@@ -222,9 +239,9 @@ export default function GapFinderPost() {
           keeps identifying as a gap.
         </p>
 
-        <h3 className={h3}>Waterloo to Niagara — the weekend case</h3>
+        <h3 className={h3}>Waterloo to Niagara: the weekend case</h3>
         <p>
-          Kitchener–Waterloo, Hamilton and Niagara are three of the busiest
+          Kitchener-Waterloo, Hamilton and Niagara are three of the busiest
           leisure-travel markets in the region: two university towns and a
           destination that draws millions of visitors a year. On a weekend,
           getting between them on transit means a transfer at Union and the
@@ -233,6 +250,7 @@ export default function GapFinderPost() {
 
         <Figure
           src={imgNiagara}
+          srcDark={imgNiagaraDark}
           alt="Map of a proposed weekend regional bus from the University of Waterloo through McMaster University and Hamilton GO Centre to Niagara Falls GO."
           caption="Weekend regional line · Waterloo → McMaster → Hamilton → Niagara Falls"
         />
@@ -240,7 +258,7 @@ export default function GapFinderPost() {
         <StatGrid
           items={[
             ["Straight line", "~126 km"],
-            ["Best transit today", "3+ transfers · 3½–4 h"],
+            ["Best transit today", "3+ transfers · 3½ to 4 h"],
             ["Direct via Hwy 403/QEW", "~2 h"],
           ]}
         />
@@ -250,7 +268,7 @@ export default function GapFinderPost() {
           only looks at a weekday timetable, so it can&apos;t see that the demand
           here is a Saturday pattern, not a Tuesday one. A route serving students
           and visitors between the three campuses and the falls would barely
-          register on the current score — and it&apos;s one of the clearest
+          register on the current score, and it&apos;s one of the clearest
           opportunities on the map. Weekend and time-of-day analysis is the next
           thing on the list.
         </p>
@@ -266,7 +284,7 @@ export default function GapFinderPost() {
         <ul className="my-4 border border-[var(--landing-border)]">
           {[
             ["★ Cambridge ↔ Bramalea GO", "no route today"],
-            ["★ Kitchener–Waterloo ↔ Niagara Falls", "3 h 27 · 4 transfers · ~1 h 41 direct"],
+            ["★ Kitchener-Waterloo ↔ Niagara Falls", "3 h 27 · 4 transfers · ~1 h 41 direct"],
             ["★ Guelph ↔ Niagara Falls", "2 h 23 · 3 transfers · ~1 h 26 direct"],
             ["★ Guelph ↔ Highway 407", "1 h 12 · 2 transfers · ~51 min direct"],
             ["Aldershot ↔ Meadowvale", "1 h 41 · 2 transfers · ~26 min direct"],
@@ -298,7 +316,7 @@ export default function GapFinderPost() {
             },
             {
               label: "Next",
-              body: "Score the route you build — re-run the network with it added and report the minutes saved, transfers removed, and residents brought within a short walk of a one-seat ride. Plus weekend and peak-hour analysis.",
+              body: "Score the route you build: re-run the network with it added and report the minutes saved, transfers removed, and residents brought within a short walk of a one-seat ride. Plus weekend and peak-hour analysis.",
             },
             {
               label: "Later",
@@ -322,7 +340,7 @@ export default function GapFinderPost() {
         <p className="text-[0.9375rem] leading-relaxed text-[var(--landing-muted)]">
           The numbers are estimates from a first-pass model. It uses one weekday
           timetable, a straight-line stand-in for driving time, and trip counts
-          as a rough proxy for demand — so it under-counts markets that no
+          as a rough proxy for demand, so it under-counts markets that no
           service exists for yet, and it can&apos;t see weekend or seasonal
           patterns. It ignores agency and municipal boundaries. TransitFlow is a
           what-if sandbox for exploring transit ideas, not a proposal to GO
@@ -345,7 +363,7 @@ export default function GapFinderPost() {
         </p>
         <ul className="mt-2 flex flex-col gap-1 normal-case tracking-normal [&_a]:text-[var(--landing-accent)] [&_a:hover]:underline">
           <li>
-            Metrolinx —{" "}
+            Metrolinx:{" "}
             <a
               href="https://www.metrolinx.com/en/projects-and-programs/407-transitway"
               target="_blank"
@@ -363,7 +381,7 @@ export default function GapFinderPost() {
             </a>
           </li>
           <li>
-            GO Transit —{" "}
+            GO Transit:{" "}
             <a
               href="https://www.gotransit.com/en/trip-planning/schedules"
               target="_blank"
@@ -374,7 +392,7 @@ export default function GapFinderPost() {
             (the timetable data)
           </li>
           <li>
-            Statistics Canada —{" "}
+            Statistics Canada:{" "}
             <a
               href="https://www150.statcan.gc.ca/n1/en/subjects/labour/commuting_to_work"
               target="_blank"

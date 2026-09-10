@@ -101,6 +101,13 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${hankenGrotesk.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <script
+          // No-flash theme init — runs before paint. Pairs with ThemeToggle.
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('tf-theme');if(t==='dark')document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.add('light');}catch(e){}",
+          }}
+        />
         <SessionProvider>
           {children}
           <Toaster richColors closeButton position="top-right" />

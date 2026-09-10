@@ -36,7 +36,7 @@ export const FEATURES = [
   {
     icon: Bell,
     title: "Service Updates",
-    body: "Live alerts from GO Transit — delays, cancellations, and notices, filterable by line.",
+    body: "Live alerts from GO Transit: delays, cancellations, and notices, filterable by line.",
   },
   {
     icon: PlayCircle,
@@ -49,7 +49,7 @@ export const STEPS = [
   {
     n: "01",
     title: "Connect GTFS data",
-    body: "The full GO Transit network loads instantly — stops, trips, shapes, and frequencies — derived from the live GTFS feed.",
+    body: "The full GO Transit network loads instantly: stops, trips, shapes, and frequencies, all derived from the live GTFS feed.",
   },
   {
     n: "02",
@@ -87,12 +87,12 @@ export const CAPABILITIES = [
   {
     icon: Bell,
     title: "Service update visualization",
-    body: "Live GO Transit alerts delivered directly into the workspace — filterable by line, categorized by severity.",
+    body: "Live GO Transit alerts delivered directly into the workspace, filterable by line and categorized by severity.",
   },
   {
     icon: PlayCircle,
     title: "Simulation-ready transit data",
-    body: "The simulation engine animates vehicles across the real network — or any custom route you design.",
+    body: "The simulation engine animates vehicles across the real network, or any custom route you design.",
   },
   {
     icon: Layers,
@@ -106,7 +106,7 @@ export const USE_CASES = [
     icon: Building2,
     tag: "For transit planners",
     title: "Evaluate service changes before they ship.",
-    body: "Sketch a new route, compare it against the existing network, run a simulation, and share the result — all in one workspace.",
+    body: "Sketch a new route, compare it against the existing network, run a simulation, and share the result, all in one workspace.",
   },
   {
     icon: GraduationCap,
@@ -118,7 +118,7 @@ export const USE_CASES = [
     icon: Code2,
     tag: "For civic hackers",
     title: "Build on live GTFS without the overhead.",
-    body: "Pre-processed GeoJSON, derived stop data, and a simulation engine — open source and ready to extend.",
+    body: "Pre-processed GeoJSON, derived stop data, and a simulation engine, all open source and ready to extend.",
   },
   {
     icon: Users,

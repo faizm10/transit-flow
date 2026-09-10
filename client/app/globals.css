@@ -397,6 +397,50 @@
   --danger-subtle: oklch(0.28 0.07 25);
   --info: oklch(0.71 0.13 255);
   --info-subtle: oklch(0.27 0.06 255);
+
+  /* Spec Sheet — dark: near-black with a green tint, lifted accent. */
+  --landing-bg: #0c1310;
+  --landing-paper-2: #121c17;
+  --landing-wash: #18271f;
+  --landing-fg: #d9e3dc;
+  --landing-ink: #f1f6f2;
+  --landing-muted: rgba(241, 246, 242, 0.6);
+  --landing-faint: rgba(241, 246, 242, 0.42);
+  --landing-border: rgba(241, 246, 242, 0.14);
+  --landing-border-2: rgba(241, 246, 242, 0.26);
+  --landing-accent: #43b071;
+  --landing-elevated: #141e18;
+  --landing-band: #111a15;
+  --landing-amber: #d9a441;
+  --landing-red: #e0685c;
+  --landing-mixed-bg: #121c17;
+  --landing-mixed-fg: #f1f6f2;
+  --landing-mixed-muted: rgba(241, 246, 242, 0.6);
+  --landing-mixed-border: rgba(241, 246, 242, 0.14);
+}
+
+/* System-preference dark, only when the user hasn't made an explicit choice. */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not(.dark) {
+    --landing-bg: #0c1310;
+    --landing-paper-2: #121c17;
+    --landing-wash: #18271f;
+    --landing-fg: #d9e3dc;
+    --landing-ink: #f1f6f2;
+    --landing-muted: rgba(241, 246, 242, 0.6);
+    --landing-faint: rgba(241, 246, 242, 0.42);
+    --landing-border: rgba(241, 246, 242, 0.14);
+    --landing-border-2: rgba(241, 246, 242, 0.26);
+    --landing-accent: #43b071;
+    --landing-elevated: #141e18;
+    --landing-band: #111a15;
+    --landing-amber: #d9a441;
+    --landing-red: #e0685c;
+    --landing-mixed-bg: #121c17;
+    --landing-mixed-fg: #f1f6f2;
+    --landing-mixed-muted: rgba(241, 246, 242, 0.6);
+    --landing-mixed-border: rgba(241, 246, 242, 0.14);
+  }
 }
 
 /* ── Vehicle hover tooltip ─────────────────────────────────────────────────── */

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Train } from "lucide-react";
 import HeaderUserSection from "./HeaderUserSection";
+import ThemeToggle from "./ThemeToggle";
 import BugReportButton from "@/components/BugReportButton";
 
 const NAV = [
@@ -35,7 +36,10 @@ export default function MarketingHeader() {
           <BugReportButton variant="nav" />
         </nav>
 
-        <HeaderUserSection />
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <HeaderUserSection />
+        </div>
       </div>
     </header>
   );

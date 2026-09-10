@@ -8,7 +8,7 @@ const SITE_URL =
 export const metadata: Metadata = {
   title: "Blog",
   description:
-    "Notes on how TransitFlow works and where it's going — network analysis, route design, and the ideas behind the tool.",
+    "Notes on how TransitFlow works and where it's going. Network analysis, route design, and the ideas behind the tool.",
   alternates: { canonical: `${SITE_URL}/blog` },
   openGraph: {
     title: "Blog — TransitFlow",
@@ -25,7 +25,7 @@ export const POSTS = [
     readingTime: "6 min",
     tag: "Product",
     excerpt:
-      "TransitFlow can now rank the GO corridors that are served worst today — and hand you a starting point in the route builder.",
+      "TransitFlow can now rank the GO corridors that are served worst today, then hand you a starting point in the route builder.",
   },
 ] as const;
 
