@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronRight, Info } from "lucide-react";
 
 import type { ServiceUpdatesResult } from "@/lib/serviceUpdates";
-
-/** Re-check while the tab stays open. Alerts move on the order of minutes. */
-const REFRESH_MS = 5 * 60 * 1000;
+import { SlateChipSwitch } from "@/components/ui/slate-chip-switch";
 
 type Tone = "clear" | "alert" | "unknown";
 
@@ -45,9 +42,10 @@ function toStatus(data: ServiceUpdatesResult | null): Status {
     return {
       tone: "alert",
       label: count === 1 ? "1 service alert" : `${count} service alerts`,
-      detail: disrupting > 0
-        ? `${disrupting} affecting service`
-        : "No delays or cancellations reported",
+      detail:
+        disrupting > 0
+          ? `${disrupting} affecting service`
+          : "No delays or cancellations reported",
     };
   }
 
@@ -67,40 +65,34 @@ function toStatus(data: ServiceUpdatesResult | null): Status {
 }
 
 const TONE_STYLES: Record<Tone, { dot: string; text: string; Icon: typeof Info }> = {
-  clear:   { dot: "bg-emerald-500", text: "text-slate-700", Icon: CheckCircle2 },
-  alert:   { dot: "bg-amber-500",   text: "text-slate-900", Icon: AlertTriangle },
-  unknown: { dot: "bg-slate-300",   text: "text-slate-500", Icon: Info },
+  clear: { dot: "bg-emerald-500", text: "text-slate-700", Icon: CheckCircle2 },
+  alert: { dot: "bg-amber-500", text: "text-slate-900", Icon: AlertTriangle },
+  unknown: { dot: "bg-slate-300", text: "text-slate-500", Icon: Info },
 };
 
-export default function ServiceStatusPill() {
-  const [data, setData] = useState<ServiceUpdatesResult | null>(null);
-  const [loaded, setLoaded] = useState(false);
+interface ServiceStatusPillProps {
+  data: ServiceUpdatesResult | null;
+  /** Parent's fetch state — nothing renders until the first response lands. */
+  loaded: boolean;
+  /** Show the "Show on map" toggle row (true when rail lines actually have alerts). */
+  canToggle: boolean;
+  showOnMap: boolean;
+  onShowOnMapChange: (next: boolean) => void;
+}
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const res = await fetch("/api/service-updates");
-        if (!res.ok) throw new Error(String(res.status));
-        const json = (await res.json()) as ServiceUpdatesResult;
-        if (!cancelled) setData(json);
-      } catch {
-        if (!cancelled) setData(null);
-      } finally {
-        if (!cancelled) setLoaded(true);
-      }
-    }
-
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, []);
-
-  // Nothing until the first response: a pill that flips from "All clear" to
+/**
+ * One floating card, top-right of the map: the live service-status line (links
+ * to /service-updates) and, when rail lines have alerts, a switch that overlays
+ * them on the map.
+ */
+export default function ServiceStatusPill({
+  data,
+  loaded,
+  canToggle,
+  showOnMap,
+  onShowOnMapChange,
+}: ServiceStatusPillProps) {
+  // Nothing until the first response: a card that flips from "All clear" to
   // "2 alerts" a second after load is worse than one that arrives once.
   if (!loaded) return null;
 
@@ -108,20 +100,51 @@ export default function ServiceStatusPill() {
   const { dot, text, Icon } = TONE_STYLES[tone];
 
   return (
-    <Link
-      href="/service-updates"
-      title={detail}
-      className="absolute right-4 top-20 z-20 flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-xl transition-colors hover:border-slate-300 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#155ba0]"
-    >
-      <span className="relative flex h-2 w-2 shrink-0">
-        {tone === "alert" && (
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-60 motion-reduce:hidden" />
-        )}
-        <span className={`relative inline-flex h-2 w-2 rounded-full ${dot}`} />
-      </span>
-      <span className={`text-xs font-semibold tracking-tight ${text}`}>{label}</span>
-      <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
-      <span className="sr-only">{detail}. Open service updates.</span>
-    </Link>
+    <div className="absolute right-4 top-20 z-20 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white/95 shadow-lg backdrop-blur-xl">
+      <Link
+        href="/service-updates"
+        title={detail}
+        className="flex items-center gap-2 px-3 py-2.5 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#155ba0]"
+      >
+        <span className="relative flex h-2 w-2 shrink-0">
+          {tone === "alert" && (
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-60 motion-reduce:hidden" />
+          )}
+          <span className={`relative inline-flex h-2 w-2 rounded-full ${dot}`} />
+        </span>
+        <span className={`flex-1 truncate text-xs font-semibold tracking-tight ${text}`}>
+          {label}
+        </span>
+        <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+        <ChevronRight className="-mr-1 h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden />
+        <span className="sr-only">{detail}. Open service updates.</span>
+      </Link>
+
+      {canToggle && (
+        <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2">
+          <AlertTriangle
+            className={`h-3.5 w-3.5 shrink-0 ${
+              showOnMap ? "text-amber-600" : "text-slate-400"
+            }`}
+            aria-hidden
+          />
+          <label
+            htmlFor="service-alerts-on-map"
+            className={`flex-1 cursor-pointer text-xs font-medium ${
+              showOnMap ? "text-amber-800" : "text-slate-500"
+            }`}
+          >
+            Show on map
+          </label>
+          <SlateChipSwitch
+            id="service-alerts-on-map"
+            checked={showOnMap}
+            onCheckedChange={onShowOnMapChange}
+            label="Show GO service alerts on the map"
+            className="text-[13px]"
+          />
+        </div>
+      )}
+    </div>
   );
 }

@@ -8,6 +8,16 @@ import { GO_RAIL_LINES, PINK_BUS_COLOR, PURPLE_BUS_COLOR } from "@/lib/routeColo
 import type { CustomStation } from "@/lib/gtfs";
 import { simplifyPolylineForVertexEdit } from "@/lib/polylineSimplify";
 import { OPENRAILWAYMAP_OVERLAY_ENABLED } from "@/lib/features";
+import type { ServiceAlert } from "@/lib/serviceUpdates";
+import {
+  ALERT_BADGE_LAYER,
+  ALERT_GLOW_LAYER,
+  addServiceAlertLayers,
+  applyServiceAlerts,
+  indexRailAlerts,
+  railLineName,
+  type RailAlertIndex,
+} from "@/lib/mapServiceAlerts";
 
 const KITCHENER_BUS_ROUTES = ["30", "31", "32", "33", "34", "35", "36", "37", "38", "39"];
 const BARRIE_BUS_ROUTES = ["65", "68"];
@@ -58,6 +68,11 @@ export interface MapHandle {
     lines: GeoJSON.FeatureCollection,
     stops: GeoJSON.FeatureCollection
   ) => void;
+  /**
+   * Overlay live GO service alerts on the affected rail lines (pulsing glow +
+   * a warning badge you can hover). Pass null to hide the overlay.
+   */
+  setServiceAlerts: (alerts: ServiceAlert[] | null) => void;
 }
 
 function makeVisibilityFilter(propertyName: string, values: string[] | null): LayerFilter {
@@ -136,6 +151,61 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
   const hoveredTripRef = useRef<string | null>(null);
   const hoveredTripNumericIdRef = useRef<number | null>(null);
   const vehiclePopupRef = useRef<mapboxgl.Popup | null>(null);
+
+  // Service-alert overlay state
+  const alertIndexRef = useRef<RailAlertIndex | null>(null);
+  const pendingAlertsRef = useRef<ServiceAlert[] | null | undefined>(undefined);
+  const alertPulseRafRef = useRef<number | null>(null);
+  const alertPopupRef = useRef<mapboxgl.Popup | null>(null);
+  const hoveredAlertCodeRef = useRef<string | null>(null);
+  const alertCloseTimerRef = useRef<number | null>(null);
+
+  /** Pulse the alert-glow opacity while a disrupted line is showing; stop when none are. */
+  function syncAlertPulse(map: mapboxgl.Map): void {
+    const shouldRun =
+      !!alertIndexRef.current && alertIndexRef.current.glowCodes.length > 0;
+
+    if (!shouldRun) {
+      if (alertPulseRafRef.current !== null) {
+        cancelAnimationFrame(alertPulseRafRef.current);
+        alertPulseRafRef.current = null;
+      }
+      return;
+    }
+    if (alertPulseRafRef.current !== null) return; // already running
+
+    const start = performance.now();
+    const tick = (now: number) => {
+      if (!map.getLayer(ALERT_GLOW_LAYER)) {
+        alertPulseRafRef.current = null;
+        return;
+      }
+      // 0.18 → 0.55 → 0.18 over ~2.4s
+      const t = (Math.sin(((now - start) / 2400) * Math.PI * 2) + 1) / 2;
+      map.setPaintProperty(ALERT_GLOW_LAYER, "line-opacity", 0.18 + t * 0.37);
+      alertPulseRafRef.current = requestAnimationFrame(tick);
+    };
+    alertPulseRafRef.current = requestAnimationFrame(tick);
+  }
+
+  /** Retarget or hide the on-map service-alert overlay. */
+  function applyAlertOverlay(map: mapboxgl.Map, alerts: ServiceAlert[] | null): void {
+    const index = alerts && alerts.length > 0 ? indexRailAlerts(alerts) : null;
+    alertIndexRef.current = index && index.codes.length > 0 ? index : null;
+    applyServiceAlerts(map, alertIndexRef.current);
+    syncAlertPulse(map);
+    if (alertIndexRef.current) {
+      // Re-run once the current view's tiles have loaded: the "one badge per
+      // line" pass reads geometry back from the source and needs it present.
+      map.once("idle", () => {
+        if (alertIndexRef.current) applyServiceAlerts(map, alertIndexRef.current);
+      });
+    } else {
+      alertPopupRef.current?.remove();
+      alertPopupRef.current = null;
+      hoveredAlertCodeRef.current = null;
+    }
+  }
 
   // Draw / edit state — stored in refs so handlers don't close over stale values
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -403,6 +473,15 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       stopsSrc.setData(stops);
     },
 
+    setServiceAlerts: (alerts) => {
+      const map = mapRef.current;
+      if (!map || !map.getLayer(ALERT_GLOW_LAYER)) {
+        pendingAlertsRef.current = alerts; // apply once the style finishes loading
+        return;
+      }
+      applyAlertOverlay(map, alerts);
+    },
+
     updateStations: (stations) => {
       const map = mapRef.current;
       if (!map) return;
@@ -624,6 +703,13 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           "line-width": 12,
         },
       });
+
+      // ── Service-alert overlay (hidden until toggled on) ───────────────────
+      addServiceAlertLayers(map);
+      if (pendingAlertsRef.current !== undefined) {
+        applyAlertOverlay(map, pendingAlertsRef.current);
+        pendingAlertsRef.current = undefined;
+      }
 
       // ── Rail network overlay (train design mode) ──────────────────────────
       map.addSource("rail-network-display", {
@@ -893,6 +979,90 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       onRouteClick?.(f.properties?.variant_id as string, f.properties?.route_short_name as string);
     });
 
+    // ── Service-alert badge hover ──────────────────────────────────────────
+    const cancelAlertClose = () => {
+      if (alertCloseTimerRef.current !== null) {
+        window.clearTimeout(alertCloseTimerRef.current);
+        alertCloseTimerRef.current = null;
+      }
+    };
+    const scheduleAlertClose = () => {
+      cancelAlertClose();
+      // Grace period so the pointer can travel from the badge onto the popup
+      // (which holds the "View details" link) without it vanishing.
+      alertCloseTimerRef.current = window.setTimeout(() => {
+        map.getCanvas().style.cursor = "";
+        hoveredAlertCodeRef.current = null;
+        alertPopupRef.current?.remove();
+        alertPopupRef.current = null;
+      }, 260);
+    };
+
+    const showAlertPopup = (e: mapboxgl.MapLayerMouseEvent) => {
+      const index = alertIndexRef.current;
+      if (!index || !e.features?.length) return;
+      const code = e.features[0].properties?.route_short_name as string;
+      const alerts = index.byCode.get(code as (typeof index.codes)[number]);
+      if (!alerts?.length) return;
+
+      cancelAlertClose();
+      map.getCanvas().style.cursor = "pointer";
+      if (code === hoveredAlertCodeRef.current && alertPopupRef.current) return;
+      hoveredAlertCodeRef.current = code;
+
+      const rows = alerts
+        .slice(0, 4)
+        .map((a) => {
+          const dot =
+            a.type === "cancellation"
+              ? "#ef4444"
+              : a.type === "delay"
+                ? "#f59e0b"
+                : "#94a3b8";
+          return `<div class="alp-row"><span class="alp-dot" style="background:${dot}"></span>${escapeHtml(
+            a.title
+          )}</div>`;
+        })
+        .join("");
+      const more =
+        alerts.length > 4 ? `<div class="alp-more">+${alerts.length - 4} more</div>` : "";
+
+      if (!alertPopupRef.current) {
+        alertPopupRef.current = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          offset: 16,
+          anchor: "bottom",
+          className: "alert-line-popup",
+        });
+      }
+      alertPopupRef.current
+        .setLngLat(e.lngLat)
+        .setHTML(
+          `<div class="alp-inner">` +
+            `<div class="alp-head">${escapeHtml(railLineName(code))}` +
+            `<span class="alp-count">${alerts.length} alert${alerts.length !== 1 ? "s" : ""}</span></div>` +
+            rows +
+            more +
+            `<a class="alp-link" href="/service-updates?line=${encodeURIComponent(
+              code
+            )}">View details &rarr;</a>` +
+          `</div>`
+        )
+        .addTo(map);
+
+      // Keep the popup alive while the pointer is over it.
+      const el = alertPopupRef.current.getElement();
+      if (el) {
+        el.addEventListener("mouseenter", cancelAlertClose);
+        el.addEventListener("mouseleave", scheduleAlertClose);
+      }
+    };
+
+    map.on("mouseenter", ALERT_BADGE_LAYER, showAlertPopup);
+    map.on("mousemove", ALERT_BADGE_LAYER, showAlertPopup);
+    map.on("mouseleave", ALERT_BADGE_LAYER, scheduleAlertClose);
+
     // ── Custom route hover/click ───────────────────────────────────────────
     map.on("mousemove", "custom-routes-hit", () => {
       if (isDrawingRef.current) return;
@@ -1021,6 +1191,16 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
 
     return () => {
       onMapDestroy?.();
+      if (alertPulseRafRef.current !== null) {
+        cancelAnimationFrame(alertPulseRafRef.current);
+        alertPulseRafRef.current = null;
+      }
+      if (alertCloseTimerRef.current !== null) {
+        window.clearTimeout(alertCloseTimerRef.current);
+        alertCloseTimerRef.current = null;
+      }
+      alertPopupRef.current?.remove();
+      alertPopupRef.current = null;
       map.remove();
       mapRef.current = null;
     };

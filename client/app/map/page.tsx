@@ -25,6 +25,8 @@ import { useRoutes } from "@/hooks/useRoutes";
 import { useStations } from "@/hooks/useStations";
 import { useSimulation } from "@/hooks/useSimulation";
 import { useCityFeeds } from "@/hooks/useCityFeeds";
+import { useServiceAlerts } from "@/hooks/useServiceAlerts";
+import { isRailCode } from "@/lib/mapServiceAlerts";
 import AddCityFeedModal from "@/components/panels/AddCityFeedModal";
 import type { CityFeedMeta } from "@/lib/cityGtfs";
 import { networkRouteFilters } from "@/lib/mapEntry";
@@ -149,6 +151,13 @@ function MapPageContent() {
   const [isTrainDesignMode, setIsTrainDesignMode] = useState(false);
   const [selectedVehicleTripId, setSelectedVehicleTripId] = useState<string | null>(null);
   const [routeFilters, setRouteFilters] = useState<RouteFilters>(networkRouteFilters());
+
+  // ── Live GO service alerts ───────────────────────────────────────────────
+  const { data: serviceAlerts, loaded: serviceAlertsLoaded } = useServiceAlerts();
+  const [showAlertsOnMap, setShowAlertsOnMap] = useState(false);
+  const railAlerts = (serviceAlerts?.alerts ?? []).filter((a) =>
+    a.routes.some(isRailCode)
+  );
 
   const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
   const { stations: customStations, saveStation, deleteStation } = useStations();
@@ -419,6 +428,21 @@ function MapPageContent() {
     if (!mapLoaded) return;
     mapRef.current?.setCityFeedData(cityFeedsOverlay.lines, cityFeedsOverlay.stops);
   }, [cityFeedsOverlay, mapLoaded]);
+
+  // ── Sync live service alerts to the map overlay ────────────────────────
+  useEffect(() => {
+    if (!mapLoaded) return;
+    mapRef.current?.setServiceAlerts(showAlertsOnMap ? railAlerts : null);
+    // railAlerts is a fresh array each render; key the effect on its contents
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapLoaded, showAlertsOnMap, JSON.stringify(railAlerts.map((a) => a.id))]);
+
+  // Turn the overlay off if the alerts clear out from under it.
+  useEffect(() => {
+    if (showAlertsOnMap && railAlerts.length === 0 && serviceAlertsLoaded) {
+      setShowAlertsOnMap(false);
+    }
+  }, [showAlertsOnMap, railAlerts.length, serviceAlertsLoaded]);
 
   // ── Sync route visibility filters to map layers ─────────────────────────
   useEffect(() => {
@@ -859,7 +883,15 @@ function MapPageContent() {
         </div>
       </div>
 
-      {!isDrawing && <ServiceStatusPill />}
+      {!isDrawing && (
+        <ServiceStatusPill
+          data={serviceAlerts}
+          loaded={serviceAlertsLoaded}
+          canToggle={railAlerts.length > 0}
+          showOnMap={showAlertsOnMap}
+          onShowOnMapChange={setShowAlertsOnMap}
+        />
+      )}
 
       {OPENRAILWAYMAP_OVERLAY_ENABLED && (
         <OpenRailwayMapOverlayControls
