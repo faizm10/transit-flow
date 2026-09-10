@@ -14,6 +14,8 @@ import { CustomRoute, CustomStop, CustomSchedule, CustomStation } from "@/lib/gt
 import { CUSTOM_ROUTE_COLORS } from "@/lib/routeColors";
 import { estimateTrainTravelSecsForPathLengthMeters } from "@/lib/trainRouteEstimate";
 import { v4 as uuidv4 } from "uuid";
+import { computeRouteScore } from "@/lib/routeScoring";
+import RouteScorecard from "@/components/RouteScorecard";
 
 type Step = "type" | "draw" | "stops" | "schedule" | "review";
 
@@ -1709,6 +1711,20 @@ export default function BuilderWizard({
         {/* ── Step 5: Review ──────────────────────────────────────────────── */}
         {step === "review" && (
           <div className="flex flex-col gap-4">
+            {/* ── Route Impact Score ─────────────────────────────────────── */}
+            <RouteScorecard
+              score={computeRouteScore({
+                id: "",
+                name,
+                color,
+                type: routeType,
+                stops,
+                geometry: routeGeometry ?? drawGeometry ?? undefined,
+                schedule: buildSchedule(),
+                createdAt: new Date().toISOString(),
+              })}
+            />
+
             <div className="rounded-xl border border-slate-100 overflow-hidden">
               <div
                 className="flex items-center gap-3 px-4 py-3"
