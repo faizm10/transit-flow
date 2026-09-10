@@ -7,7 +7,7 @@ export default function BlogLayout({ children }: { children: ReactNode }) {
   return (
     <MarketingShell>
       <MarketingHeader />
-      {children}
+      <div className="flex flex-1 flex-col">{children}</div>
       <MarketingFooter />
     </MarketingShell>
   );
