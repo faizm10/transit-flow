@@ -4,8 +4,8 @@ import HeaderUserSection from "./HeaderUserSection";
 import BugReportButton from "@/components/BugReportButton";
 
 const NAV = [
-  { label: "Service alerts", href: "/service-updates" },
   { label: "Map", href: "/map" },
+  { label: "Service alerts", href: "/service-updates" },
   { label: "Blog", href: "/blog" },
 ] as const;
 
