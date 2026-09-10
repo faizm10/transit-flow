@@ -336,34 +336,49 @@ function TimetableGrid({
   onEditTime?: (index: number, value: string) => void;
   onRemove?: (index: number) => void;
 }) {
+  const restStops = orderedStops.slice(1);
+  const headCell =
+    "sticky top-0 z-20 bg-[var(--landing-elevated)] px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--landing-muted)] border-b-2 border-[var(--landing-border-2)]";
   return (
-    <div className="overflow-x-auto">
-      <table className="border-collapse text-[11px]">
+    <div className="min-w-full">
+      <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
-            <th className="sticky left-0 z-10 bg-[var(--landing-elevated)] py-1 pr-2 text-left font-medium text-[var(--landing-faint)]">
+            <th className={`${headCell} left-0 z-30 min-w-[140px]`}>
               {orderedStops[0]?.name ?? "Departs"}
+              <span className="ml-1 font-normal normal-case text-[var(--landing-faint)]">· departs</span>
             </th>
-            {orderedStops.slice(1).map((s) => (
+            {restStops.map((s) => (
               <th
                 key={s.id}
-                className="max-w-[120px] truncate px-2 py-1 text-left font-medium text-[var(--landing-muted)]"
+                className={`${headCell} min-w-[110px] border-l border-[var(--landing-border)]`}
                 title={s.name}
               >
                 {s.name}
               </th>
             ))}
-            {editable && <th className="w-6" />}
+            {editable && <th className={`${headCell} w-10`} aria-label="Remove" />}
           </tr>
         </thead>
         <tbody>
           {rows.map((row, i) => {
             const sec = hhmmToSec(row.time);
             return (
-              <tr key={i} className="border-t border-[var(--landing-border)]">
+              <tr
+                key={i}
+                className={
+                  row.isPeak
+                    ? "bg-[color-mix(in_oklab,var(--landing-accent)_9%,transparent)]"
+                    : i % 2
+                      ? "bg-[color-mix(in_oklab,var(--landing-wash)_45%,transparent)]"
+                      : ""
+                }
+              >
                 <td
-                  className={`sticky left-0 z-10 bg-[var(--landing-elevated)] py-1 pr-2 font-mono tabular-nums ${
-                    row.isPeak ? "text-[var(--landing-accent)]" : "text-[var(--landing-ink)]"
+                  className={`sticky left-0 z-10 px-4 py-2 font-mono tabular-nums border-t border-[var(--landing-border)] ${
+                    row.isPeak
+                      ? "bg-[color-mix(in_oklab,var(--landing-accent)_12%,var(--landing-elevated))] text-[var(--landing-accent)] font-semibold border-l-2 border-l-[var(--landing-accent)]"
+                      : "bg-[var(--landing-elevated)] text-[var(--landing-ink)]"
                   }`}
                 >
                   {editable ? (
@@ -371,29 +386,29 @@ function TimetableGrid({
                       type="time"
                       value={row.time}
                       onChange={(e) => onEditTime?.(i, e.target.value)}
-                      className="w-[92px] rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-bg)] px-1 py-0.5 text-[11px] text-[var(--landing-ink)] outline-none focus:ring-1 focus:ring-[var(--landing-accent)]/40"
+                      className="h-9 w-[140px] rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-bg)] px-2 text-sm text-[var(--landing-ink)] outline-none focus:ring-1 focus:ring-[var(--landing-accent)]/50"
                     />
                   ) : (
                     clockLabel(sec)
                   )}
                 </td>
-                {orderedStops.slice(1).map((s, j) => (
+                {restStops.map((s, j) => (
                   <td
                     key={s.id}
-                    className="whitespace-nowrap px-2 py-1 font-mono tabular-nums text-[var(--landing-muted)]"
+                    className="whitespace-nowrap border-l border-t border-[var(--landing-border)] px-4 py-2 font-mono tabular-nums text-[var(--landing-muted)]"
                   >
                     {timed ? clockLabel(sec + offsets[j + 1]) : "·"}
                   </td>
                 ))}
                 {editable && (
-                  <td className="px-1">
+                  <td className="border-t border-[var(--landing-border)] px-2 text-center">
                     <button
                       type="button"
                       onClick={() => onRemove?.(i)}
-                      className="text-[var(--landing-faint)] hover:text-[var(--landing-red)]"
+                      className="rounded-none p-1 text-[var(--landing-faint)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-red)_12%,transparent)] hover:text-[var(--landing-red)]"
                       title="Remove trip"
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-4 w-4" />
                     </button>
                   </td>
                 )}
@@ -406,10 +421,8 @@ function TimetableGrid({
   );
 }
 
-/** Compact inline timetable: first few trips, opens the full editor. */
+/** Inline summary card that opens the full timetable editor. */
 function TimetablePreview({
-  stops,
-  durationSec,
   outbound,
   ret,
   twoWay,
@@ -417,8 +430,6 @@ function TimetablePreview({
   manualReturn,
   onOpen,
 }: {
-  stops: CustomStop[];
-  durationSec: number | null;
   outbound: DirectionConfig;
   ret: DirectionConfig;
   twoWay: boolean;
@@ -429,42 +440,36 @@ function TimetablePreview({
   const outRows = tripRowsFor(outbound, manualOutbound);
   const retRows = twoWay ? tripRowsFor(ret, manualReturn) : [];
   const total = outRows.length + retRows.length;
-  const offsets = stopOffsetsSec(stops, durationSec ?? 0);
-  const timed = durationSec != null && stops.length >= 2;
   const edited = manualOutbound !== null || manualReturn !== null;
+  const first = outRows[0]?.time;
+  const last = outRows[outRows.length - 1]?.time;
 
   return (
-    <div className="rounded-none border border-[var(--landing-border)] p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-xs font-medium text-[var(--landing-muted)]">
-          Weekday timetable {edited && <span className="text-[var(--landing-accent)]">· edited</span>}
-        </p>
-        <button
-          type="button"
-          onClick={onOpen}
-          className="text-xs font-medium text-[var(--landing-accent)] hover:underline"
-        >
-          View &amp; edit →
-        </button>
+    <button
+      type="button"
+      onClick={onOpen}
+      className="w-full rounded-none border border-[var(--landing-border)] p-3 text-left transition-colors hover:border-[var(--landing-border-2)] hover:bg-[var(--landing-wash)]"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium text-[var(--landing-ink)]">
+          Weekday timetable
+          {edited && <span className="ml-1 text-xs font-normal text-[var(--landing-accent)]">· edited</span>}
+        </span>
+        <span className="text-xs font-medium text-[var(--landing-accent)]">View &amp; edit →</span>
       </div>
       {outRows.length === 0 ? (
-        <p className="text-xs text-[var(--landing-red)]">End time must be after the start time.</p>
+        <p className="mt-1 text-xs text-[var(--landing-red)]">End time must be after the start time.</p>
       ) : (
-        <>
-          <div className="-mx-3 px-3">
-            <TimetableGrid
-              orderedStops={stops}
-              rows={outRows.slice(0, 5)}
-              offsets={offsets}
-              timed={timed}
-            />
-          </div>
-          <p className="mt-2 text-xs text-[var(--landing-faint)]">
-            {outRows.length > 5 && `+${outRows.length - 5} more · `}≈ {total} trips each weekday
-          </p>
-        </>
+        <p className="mt-1 text-xs text-[var(--landing-faint)]">
+          ≈ {total} trips each weekday
+          {first && last && ` · ${clockLabel(hhmmToSec(first))}–${clockLabel(hhmmToSec(last))}`}
+          {!edited &&
+            (outbound.peakEnabled
+              ? ` · every ${outbound.offPeakInterval} min (${outbound.peakInterval} at rush hour)`
+              : ` · every ${outbound.offPeakInterval} min`)}
+        </p>
       )}
-    </div>
+    </button>
   );
 }
 
@@ -525,7 +530,7 @@ function ScheduleTimetableModal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] shadow-xl"
+        className="flex max-h-[88vh] w-fit min-w-[min(640px,92vw)] max-w-[92vw] flex-col rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-[var(--landing-border)] px-4 py-3">
@@ -2325,8 +2330,6 @@ export default function BuilderWizard({
 
                 {/* Schedule preview */}
                 <TimetablePreview
-                  stops={stops}
-                  durationSec={routeDurationSecs}
                   twoWay={twoWay}
                   manualOutbound={manualOutbound}
                   manualReturn={manualReturn}
