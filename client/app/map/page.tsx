@@ -29,6 +29,7 @@ import AddCityFeedModal from "@/components/panels/AddCityFeedModal";
 import type { CityFeedMeta } from "@/lib/cityGtfs";
 import { networkRouteFilters } from "@/lib/mapEntry";
 import { type CustomRoute, type CustomSchedule, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
+import { formatSimDate } from "@/lib/simulation";
 import BugReportButton from "@/components/BugReportButton";
 
 // Dynamically import Map to avoid SSR issues with mapbox-gl
@@ -372,10 +373,11 @@ function MapPageContent() {
           nextStopName: v.nextStopName ?? "",
           secsToNextStop: Math.round(v.secsToNextStop),
           routeType: v.routeType,  // 2=rail, 3=bus
+          serviceDate: formatSimDate(sim.date),
         },
       })),
     });
-  }, [sim.activeVehicles, mapLoaded]);
+  }, [sim.activeVehicles, sim.date, mapLoaded]);
 
   // ── Sync custom routes to map ───────────────────────────────────────────
   useEffect(() => {
@@ -993,6 +995,7 @@ function MapPageContent() {
           <VehicleInfoPopup
             trip={trip}
             currentTime={sim.currentTime}
+            serviceDate={sim.date}
             onClose={() => setSelectedVehicleTripId(null)}
           />
         );

@@ -76,6 +76,14 @@ function applyLayerFilter(map: mapboxgl.Map, layerIds: string[], filter: LayerFi
   }
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 interface MapProps {
   onLoad?: (map: mapboxgl.Map) => void;
   /** Fires before the underlying Map instance is destroyed (Strict Mode remount, navigation). */
@@ -927,6 +935,7 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       const props = feat.properties as {
         color: string; routeName: string; lineName: string; destination: string;
         startTime: string; endTime: string; nextStopName: string; secsToNextStop: number;
+        serviceDate: string;
       };
       const coords = (feat.geometry as GeoJSON.Point).coordinates as [number, number];
 
@@ -951,25 +960,37 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           className: "vehicle-hover-popup",
         });
       }
+      const dest = escapeHtml(props.destination || props.lineName || "");
+      const lineName = escapeHtml(props.lineName || "");
+      const routeName = escapeHtml(props.routeName || "");
+      const serviceDate = escapeHtml(props.serviceDate || "");
+      const nextStop = escapeHtml(props.nextStopName || "");
+      const startTime = escapeHtml(props.startTime || "");
+      const endTime = escapeHtml(props.endTime || "");
       const secsToNext = props.secsToNextStop ?? 0;
-      const minToNext = secsToNext < 60 ? "< 1 min" : `${Math.round(secsToNext / 60)} min`;
-      const nextLine = props.nextStopName
-        ? `<div class="vhp-row vhp-next"><span class="vhp-next-dot"></span>${props.nextStopName}<span class="vhp-eta">${minToNext}</span></div>`
+      const minToNext = secsToNext < 60 ? "&lt; 1 min" : `${Math.round(secsToNext / 60)} min`;
+      const showLine = Boolean(lineName && lineName !== dest);
+      const metaBits = [showLine ? lineName : "", serviceDate].filter(Boolean).join(" · ");
+      const nextLine = nextStop
+        ? `<div class="vhp-row vhp-next"><span class="vhp-next-dot"></span>Next ${nextStop}<span class="vhp-eta">${minToNext}</span></div>`
         : "";
-      const timingLine = props.startTime && props.endTime
-        ? `<div class="vhp-row vhp-timing">${props.startTime} → ${props.endTime}</div>`
+      const timingLine = startTime && endTime
+        ? `<div class="vhp-row vhp-timing">${startTime} → ${endTime}</div>`
         : "";
 
       vehiclePopupRef.current
         .setLngLat(coords)
         .setHTML(
           `<div class="vhp-inner">` +
-            `<span class="vhp-badge" style="background:${props.color}">${props.routeName}</span>` +
-            `<div class="vhp-body">` +
-              `<div class="vhp-dest">${props.destination || props.lineName}</div>` +
-              nextLine +
-              timingLine +
+            `<div class="vhp-top">` +
+              `<span class="vhp-badge" style="background:${escapeHtml(props.color || "#64748b")}">${routeName}</span>` +
+              `<div class="vhp-head">` +
+                `<div class="vhp-dest">${dest}</div>` +
+                (metaBits ? `<div class="vhp-meta">${metaBits}</div>` : "") +
+              `</div>` +
             `</div>` +
+            nextLine +
+            timingLine +
           `</div>`
         )
         .addTo(map);

@@ -2,12 +2,14 @@
 
 import { X, Train, Bus, MapPin, Clock, ArrowRight, Gauge } from "lucide-react";
 import { SimTrip } from "@/lib/simulation";
-import { formatSimTime } from "@/lib/simulation";
+import { formatSimTime, formatSimDate } from "@/lib/simulation";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
 
 interface VehicleInfoPopupProps {
   trip: SimTrip;
   currentTime: number;
+  /** Simulation service date as "YYYY-MM-DD". */
+  serviceDate?: string;
   onClose: () => void;
 }
 
@@ -30,6 +32,7 @@ function secsToMinLabel(s: number): string {
 export default function VehicleInfoPopup({
   trip,
   currentTime,
+  serviceDate,
   onClose,
 }: VehicleInfoPopupProps) {
   const lineInfo = GO_RAIL_LINES[trip.route_short_name];
@@ -75,7 +78,7 @@ export default function VehicleInfoPopup({
                     className="inline-block w-2 h-2 rounded-full animate-pulse"
                     style={{ backgroundColor: color }}
                   />
-                  In service
+                  In service{serviceDate ? ` · ${formatSimDate(serviceDate)}` : ""}
                 </p>
               </div>
             </div>

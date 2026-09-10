@@ -523,6 +523,21 @@ export function formatSimTime(seconds: number): string {
   return secondsToDisplayTime(seconds);
 }
 
+/**
+ * Format a "YYYY-MM-DD" simulation service date as a short, friendly label
+ * (e.g. "Wed, Sep 10"). Parsed as a local calendar date so the weekday never
+ * shifts across time zones. Returns the input unchanged if it isn't a date.
+ */
+export function formatSimDate(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  if (!y || !m || !d) return date;
+  return new Date(y, m - 1, d).toLocaleDateString("en-CA", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function parseSimTime(hhmm: string): number {
   return timeToSeconds(hhmm);
 }
