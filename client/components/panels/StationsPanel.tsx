@@ -156,7 +156,7 @@ export default function StationsPanel({
               setNewName(e.target.value);
               if (!newCode) setNewCode(stationCode(e.target.value));
             }}
-            className="w-full rounded-lg border border-[var(--landing-border-2)] bg-white px-2.5 py-2 text-sm text-[var(--landing-ink)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
+            className="w-full rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2.5 py-2 text-sm text-[var(--landing-ink)] placeholder:text-[var(--landing-faint)] outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
           />
 
           {/* Code + type on the same row */}
@@ -169,7 +169,7 @@ export default function StationsPanel({
                 placeholder="UN"
                 value={newCode}
                 onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                className="w-16 rounded-lg border border-[var(--landing-border-2)] bg-white px-2 py-1.5 text-sm text-[var(--landing-ink)] font-mono uppercase text-center outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
+                className="w-16 rounded-lg border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2 py-1.5 text-sm text-[var(--landing-ink)] placeholder:text-[var(--landing-faint)] font-mono uppercase text-center outline-none focus:ring-2 focus:ring-[var(--landing-accent)]/30"
               />
             </div>
             <div className="flex flex-col gap-0.5 flex-1">
