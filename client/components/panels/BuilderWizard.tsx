@@ -290,6 +290,21 @@ interface DirectionConfig {
   peakInterval: number;
 }
 
+/** A feeder-route direction that serves the interchange stop. */
+interface ConnDirection {
+  dirId: number;
+  variantId: string;
+  label: string;          // "Towards Union Station"
+  feederStopId: string;
+  feederStopName: string;
+  timesSec: number[];     // feeder times at the interchange, sorted
+}
+
+/** "Kitchener GO" → "Kitchener", "Union Station" → "Union Station" */
+function cleanStopName(name: string): string {
+  return name.replace(/\s+GO\s*(Bus|Station|Rail)?$/i, "").trim() || name;
+}
+
 /** Weekday departures (seconds since midnight) for one direction's config. */
 function weekdayDepartures(cfg: DirectionConfig): { sec: number; isPeak: boolean }[] {
   const segments = weekdaySegments({
@@ -925,21 +940,15 @@ export default function BuilderWizard({
   const [connRoutesLoading, setConnRoutesLoading] = useState(false);
   const [connQuery, setConnQuery] = useState("");
   const [connFeederId, setConnFeederId] = useState<string | null>(savedConn?.feederRouteId ?? null);
-  const [connVariantId, setConnVariantId] = useState<string | null>(savedConn?.feederVariantId ?? null);
   const [connStopId, setConnStopId] = useState<string | null>(savedConn?.stopId ?? null);
   const [connHoldMins, setConnHoldMins] = useState(savedConn?.holdMins ?? 10);
   const [connReturnEnabled, setConnReturnEnabled] = useState(!!savedReturnConn);
   const [connBufferMins, setConnBufferMins] = useState(savedReturnConn?.bufferMins ?? savedConn?.bufferMins ?? 5);
   const [connResolving, setConnResolving] = useState(false);
   const [connError, setConnError] = useState<string | null>(null);
-  const [connOutTimes, setConnOutTimes] = useState<string[]>(
-    savedConn ? (existingRoute?.schedule?.fixedDepartures ?? []) : []
-  );
-  const [connReturnTimes, setConnReturnTimes] = useState<string[]>(
-    savedReturnConn ? (existingRoute?.schedule?.returnDepartures ?? []) : []
-  );
-  const [connFeederStopName, setConnFeederStopName] = useState<string | null>(null);
-  const [connFeederStopId, setConnFeederStopId] = useState<string | null>(savedConn?.feederStopId ?? null);
+  // Directions of the feeder that actually serve the interchange stop.
+  const [connDirs, setConnDirs] = useState<ConnDirection[]>([]);
+  const [connDirId, setConnDirId] = useState<number | null>(savedConn?.feederDirectionId ?? null);
 
   function copyOutboundToReturn() {
     setReturnStart(serviceStart);
@@ -1290,50 +1299,69 @@ export default function BuilderWizard({
     }
   }, [scheduleType, connStopId, stops]);
 
-  // ── Connection: resolve feeder times → departures ───────────────────────
+  // ── Connection: find which feeder directions serve the interchange stop ──
   const connFeeder = connGoRoutes.find((r) => r.route_id === connFeederId) ?? null;
   const connStop = stops.find((s) => s.id === connStopId) ?? null;
   useEffect(() => {
-    if (scheduleType !== "connection" || !connFeeder || !connVariantId || !connStop) {
+    if (scheduleType !== "connection" || !connFeeder || !connStop) {
+      setConnDirs([]);
       return;
     }
     let cancelled = false;
     setConnResolving(true);
     setConnError(null);
+    setConnDirs([]);
+
     // A representative weekday (next Monday) for the feeder snapshot.
     const d = new Date();
     d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7));
     const dateStr = d.toISOString().split("T")[0];
 
-    fetch(`/api/variant-schedule?variant_id=${encodeURIComponent(connVariantId)}&date=${dateStr}`)
-      .then((r) => r.json())
-      .then((data) => {
+    // One candidate variant per direction: the one with the most trips (the
+    // full end-to-end run, most likely to serve every stop).
+    const byDir = new Map<number, typeof connFeeder.variants[number]>();
+    for (const v of connFeeder.variants) {
+      const cur = byDir.get(v.direction_id);
+      if (!cur || v.trip_count > cur.trip_count) byDir.set(v.direction_id, v);
+    }
+    const candidates = [...byDir.values()];
+
+    Promise.all(
+      candidates.map((v) =>
+        fetch(`/api/variant-schedule?variant_id=${encodeURIComponent(v.variant_id)}&date=${dateStr}`)
+          .then((r) => r.json())
+          .then((data) => ({ v, trips: (data.trips ?? []) as FeederTrip[] }))
+          .catch(() => ({ v, trips: [] as FeederTrip[] })),
+      ),
+    )
+      .then((results) => {
         if (cancelled) return;
-        const trips: FeederTrip[] = data.trips ?? [];
-        if (trips.length === 0) {
-          setConnError("This feeder has no trips on a weekday. Try another branch.");
-          setConnOutTimes([]);
-          setConnReturnTimes([]);
-          return;
+        const dirs: ConnDirection[] = [];
+        for (const { v, trips } of results) {
+          if (trips.length === 0) continue;
+          const match = matchFeederStop(trips, connStop.name);
+          if (!match) continue;
+          const timesSec = feederTimesAtStop(trips, match.stopId);
+          if (timesSec.length === 0) continue;
+          // Terminal name = last stop of a representative trip.
+          const sample = trips.reduce((a, b) => (b.stops.length > a.stops.length ? b : a), trips[0]);
+          const terminal = sample.stops[sample.stops.length - 1]?.stopName ?? v.label;
+          dirs.push({
+            dirId: v.direction_id,
+            variantId: v.variant_id,
+            label: `Towards ${cleanStopName(terminal)}`,
+            feederStopId: match.stopId,
+            feederStopName: match.stopName,
+            timesSec,
+          });
         }
-        const match = matchFeederStop(trips, connStop.name);
-        if (!match) {
+        dirs.sort((a, b) => a.dirId - b.dirId);
+        setConnDirs(dirs);
+        if (dirs.length === 0) {
           setConnError(`${connFeeder.short_name} doesn't stop at ${connStop.name}.`);
-          setConnFeederStopName(null);
-          setConnFeederStopId(null);
-          setConnOutTimes([]);
-          setConnReturnTimes([]);
-          return;
+        } else if (connDirId == null || !dirs.some((x) => x.dirId === connDirId)) {
+          setConnDirId(dirs[0].dirId);
         }
-        setConnFeederStopName(match.stopName);
-        setConnFeederStopId(match.stopId);
-        const times = feederTimesAtStop(trips, match.stopId);
-        setConnOutTimes(resolveOutboundDepartures(times, connHoldMins));
-        setConnReturnTimes(
-          connReturnEnabled
-            ? resolveReturnDepartures(times, routeDurationSecs ?? 0, connBufferMins)
-            : []
-        );
       })
       .catch(() => {
         if (!cancelled) setConnError("Could not load the feeder schedule");
@@ -1343,10 +1371,18 @@ export default function BuilderWizard({
       });
 
     return () => { cancelled = true; };
-  }, [
-    scheduleType, connFeeder, connVariantId, connStop, connHoldMins,
-    connReturnEnabled, connBufferMins, routeDurationSecs,
-  ]);
+  // connDirId intentionally omitted — selecting a direction shouldn't refetch
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleType, connFeeder, connStop]);
+
+  // Resolved departures for the selected direction (pure, no fetch).
+  const connSelectedDir = connDirs.find((x) => x.dirId === connDirId) ?? connDirs[0] ?? null;
+  const connOutTimes = connSelectedDir
+    ? resolveOutboundDepartures(connSelectedDir.timesSec, connHoldMins)
+    : [];
+  const connReturnTimes = connSelectedDir && connReturnEnabled
+    ? resolveReturnDepartures(connSelectedDir.timesSec, routeDurationSecs ?? 0, connBufferMins)
+    : [];
 
   // ── Edit handlers ─────────────────────────────────────────────────────────
   function handleEditRequest() {
@@ -1486,17 +1522,18 @@ export default function BuilderWizard({
       };
     }
 
-    if (scheduleType === "connection" && connFeeder && connVariantId && connStop && connFeederStopId) {
+    if (scheduleType === "connection" && connFeeder && connStop && connSelectedDir) {
       const now = new Date().toISOString();
       const base: RouteConnection = {
         feederRouteId: connFeeder.route_id,
         feederRouteShortName: connFeeder.short_name,
         feederRouteLongName: connFeeder.long_name,
-        feederVariantId: connVariantId,
+        feederVariantId: connSelectedDir.variantId,
+        feederDirectionId: connSelectedDir.dirId,
         feederIsRail: connFeeder.is_rail,
         stopId: connStop.id,
         stopName: connStop.name,
-        feederStopId: connFeederStopId,
+        feederStopId: connSelectedDir.feederStopId,
         holdMins: connHoldMins,
         generatedAt: now,
         resolvedCount: connOutTimes.length,
@@ -2773,12 +2810,14 @@ export default function BuilderWizard({
                         <p className="truncate text-xs font-medium text-[var(--landing-ink)]">
                           {connFeeder.long_name || connFeeder.short_name}
                         </p>
-                        {connFeederStopName && (
-                          <p className="text-[11px] text-[var(--landing-faint)]">at {connFeederStopName}</p>
+                        {connSelectedDir && (
+                          <p className="text-[11px] text-[var(--landing-faint)]">
+                            at {cleanStopName(connSelectedDir.feederStopName)}
+                          </p>
                         )}
                       </div>
                       <button
-                        onClick={() => { setConnFeederId(null); setConnVariantId(null); setConnFeederStopName(null); }}
+                        onClick={() => { setConnFeederId(null); setConnDirId(null); }}
                         className="text-[var(--landing-faint)] hover:text-[var(--landing-red)]"
                       >
                         <X className="h-4 w-4" />
@@ -2809,7 +2848,7 @@ export default function BuilderWizard({
                                 key={r.route_id}
                                 onClick={() => {
                                   setConnFeederId(r.route_id);
-                                  setConnVariantId(r.variants[0]?.variant_id ?? null);
+                                  setConnDirId(null);
                                   setConnError(null);
                                 }}
                                 className="flex w-full items-center gap-2 rounded-none border border-transparent p-2 text-left hover:border-[var(--landing-border-2)] hover:bg-[var(--landing-wash)]"
@@ -2834,21 +2873,26 @@ export default function BuilderWizard({
                   )}
                 </div>
 
-                {/* Feeder branch / direction */}
-                {connFeeder && connFeeder.variants.length > 1 && (
+                {/* Direction — only shown when the feeder serves the stop both ways */}
+                {connFeeder && connDirs.length > 1 && (
                   <div>
-                    <Label className="text-xs font-medium text-[var(--landing-muted)] mb-1 block">Branch / direction</Label>
-                    <select
-                      value={connVariantId ?? ""}
-                      onChange={(e) => setConnVariantId(e.target.value)}
-                      className="h-9 w-full rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2 text-xs text-[var(--landing-ink)] outline-none focus:border-[var(--landing-accent)]"
-                    >
-                      {connFeeder.variants.map((v) => (
-                        <option key={v.variant_id} value={v.variant_id}>
-                          {v.label || v.route_variant || v.variant_id}
-                        </option>
+                    <Label className="text-xs font-medium text-[var(--landing-muted)] mb-1 block">Direction</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {connDirs.map((dir) => (
+                        <button
+                          key={dir.dirId}
+                          type="button"
+                          onClick={() => setConnDirId(dir.dirId)}
+                          className={`rounded-none border p-2 text-xs font-medium transition-all ${
+                            (connSelectedDir?.dirId ?? -1) === dir.dirId
+                              ? "border-[var(--landing-accent)] bg-[var(--landing-wash)] text-[var(--landing-accent)]"
+                              : "border-[var(--landing-border)] text-[var(--landing-muted)] hover:border-[var(--landing-border-2)]"
+                          }`}
+                        >
+                          {dir.label}
+                        </button>
                       ))}
-                    </select>
+                    </div>
                   </div>
                 )}
 

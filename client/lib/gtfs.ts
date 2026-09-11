@@ -162,6 +162,7 @@ export interface RouteConnection {
   feederRouteShortName: string;
   feederRouteLongName?: string;
   feederVariantId: string;
+  feederDirectionId?: number;
   feederIsRail?: boolean;
   /** Interchange stop, matched into the feeder's stop list. */
   stopId: string;          // this route's stop id
