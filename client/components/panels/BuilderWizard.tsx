@@ -16,7 +16,7 @@ import {
   RouteConnection, EnrichedRoute,
 } from "@/lib/gtfs";
 import {
-  FeederTrip, matchFeederStop, feederTimesAtStop,
+  FeederTrip, FeederStop, matchFeederStop, feederTimesAtStop,
   resolveOutboundDepartures, resolveReturnDepartures,
 } from "@/lib/connections";
 import { CUSTOM_ROUTE_COLORS } from "@/lib/routeColors";
@@ -1316,59 +1316,83 @@ export default function BuilderWizard({
     const d = new Date();
     d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7));
     const dateStr = d.toISOString().split("T")[0];
+    const target = { name: connStop.name, lat: connStop.lat, lon: connStop.lon };
+    const feederName = connFeeder.short_name;
+    const stopLabel = connStop.name;
 
-    // One candidate variant per direction: the one with the most trips (the
-    // full end-to-end run, most likely to serve every stop).
-    const byDir = new Map<number, typeof connFeeder.variants[number]>();
-    for (const v of connFeeder.variants) {
-      const cur = byDir.get(v.direction_id);
-      if (!cur || v.trip_count > cur.trip_count) byDir.set(v.direction_id, v);
-    }
-    const candidates = [...byDir.values()];
+    (async () => {
+      // Phase 1 — cheap stop-list lookup for every variant; keep the ones that
+      // actually serve the interchange (by name or geo).
+      const stopLists = await Promise.all(
+        connFeeder.variants.map((v) =>
+          fetch(`/api/variant-stops?variant_id=${encodeURIComponent(v.variant_id)}`)
+            .then((r) => r.json())
+            .then((data) =>
+              ((data.stops ?? []) as { stop_id: string; stop_name: string; stop_lat: number; stop_lon: number }[])
+                .map((s) => ({ stopId: s.stop_id, stopName: s.stop_name, lat: s.stop_lat, lon: s.stop_lon })),
+            )
+            .catch(() => [] as FeederStop[])
+            .then((feederStops) => ({ v, match: matchFeederStop(feederStops, target) })),
+        ),
+      );
+      if (cancelled) return;
 
-    Promise.all(
-      candidates.map((v) =>
-        fetch(`/api/variant-schedule?variant_id=${encodeURIComponent(v.variant_id)}&date=${dateStr}`)
-          .then((r) => r.json())
-          .then((data) => ({ v, trips: (data.trips ?? []) as FeederTrip[] }))
-          .catch(() => ({ v, trips: [] as FeederTrip[] })),
-      ),
-    )
-      .then((results) => {
-        if (cancelled) return;
-        const dirs: ConnDirection[] = [];
-        for (const { v, trips } of results) {
-          if (trips.length === 0) continue;
-          const match = matchFeederStop(trips, connStop.name);
-          if (!match) continue;
-          const timesSec = feederTimesAtStop(trips, match.stopId);
-          if (timesSec.length === 0) continue;
-          // Terminal name = last stop of a representative trip.
-          const sample = trips.reduce((a, b) => (b.stops.length > a.stops.length ? b : a), trips[0]);
-          const terminal = sample.stops[sample.stops.length - 1]?.stopName ?? v.label;
-          dirs.push({
-            dirId: v.direction_id,
-            variantId: v.variant_id,
-            label: `Towards ${cleanStopName(terminal)}`,
-            feederStopId: match.stopId,
-            feederStopName: match.stopName,
-            timesSec,
-          });
-        }
-        dirs.sort((a, b) => a.dirId - b.dirId);
-        setConnDirs(dirs);
-        if (dirs.length === 0) {
-          setConnError(`${connFeeder.short_name} doesn't stop at ${connStop.name}.`);
-        } else if (connDirId == null || !dirs.some((x) => x.dirId === connDirId)) {
-          setConnDirId(dirs[0].dirId);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setConnError("Could not load the feeder schedule");
-      })
-      .finally(() => {
-        if (!cancelled) setConnResolving(false);
-      });
+      const serving = stopLists.filter((x) => x.match);
+      if (serving.length === 0) {
+        setConnDirs([]);
+        setConnError(`${feederName} doesn't stop at ${stopLabel}.`);
+        setConnResolving(false);
+        return;
+      }
+
+      // One variant per direction — the full-line run (most stops, then most trips).
+      const byDir = new Map<number, (typeof serving)[number]>();
+      for (const x of serving) {
+        const cur = byDir.get(x.v.direction_id);
+        if (!cur || x.v.trip_count > cur.v.trip_count) byDir.set(x.v.direction_id, x);
+      }
+      const winners = [...byDir.values()];
+
+      // Phase 2 — real times only for the winning variants.
+      const withTimes = await Promise.all(
+        winners.map(({ v, match }) =>
+          fetch(`/api/variant-schedule?variant_id=${encodeURIComponent(v.variant_id)}&date=${dateStr}`)
+            .then((r) => r.json())
+            .then((data) => ({ v, match: match!, trips: (data.trips ?? []) as FeederTrip[] }))
+            .catch(() => ({ v, match: match!, trips: [] as FeederTrip[] })),
+        ),
+      );
+      if (cancelled) return;
+
+      const dirs: ConnDirection[] = [];
+      for (const { v, match, trips } of withTimes) {
+        const timesSec = feederTimesAtStop(trips, match.stopId);
+        if (timesSec.length === 0) continue;
+        const sample = trips.reduce((a, b) => (b.stops.length > a.stops.length ? b : a), trips[0]);
+        const terminal = sample?.stops[sample.stops.length - 1]?.stopName ?? v.label;
+        dirs.push({
+          dirId: v.direction_id,
+          variantId: v.variant_id,
+          label: `Towards ${cleanStopName(terminal)}`,
+          feederStopId: match.stopId,
+          feederStopName: match.stopName,
+          timesSec,
+        });
+      }
+      dirs.sort((a, b) => a.dirId - b.dirId);
+      setConnDirs(dirs);
+      if (dirs.length === 0) {
+        setConnError(`${feederName} has no weekday trips through ${stopLabel}.`);
+      } else if (connDirId == null || !dirs.some((x) => x.dirId === connDirId)) {
+        setConnDirId(dirs[0].dirId);
+      }
+      setConnResolving(false);
+    })().catch(() => {
+      if (!cancelled) {
+        setConnError("Could not load the feeder schedule");
+        setConnResolving(false);
+      }
+    });
 
     return () => { cancelled = true; };
   // connDirId intentionally omitted — selecting a direction shouldn't refetch

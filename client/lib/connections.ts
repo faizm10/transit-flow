@@ -18,43 +18,98 @@ export interface FeederTrip {
   stops: { stopId: string; stopName: string; departureSec: number }[];
 }
 
-/** Normalise a stop name for fuzzy matching ("Kitchener GO" ≈ "kitchener"). */
+/**
+ * Normalise a stop name for fuzzy matching. Strips the GO / rail / bus / loop /
+ * platform decorations that differ between a station's train and bus stops
+ * ("Kitchener GO" ≈ "Kitchener GO Bus" ≈ "Kitchener").
+ */
 export function normalizeStopName(name: string): string {
   return name
     .toLowerCase()
+    .replace(/\bgo\s*transit\b/g, "")
     .replace(/\bgo\b/g, "")
-    .replace(/\b(station|bus|terminal|rail)\b/g, "")
+    .replace(/\b(station|stn|bus|terminal|rail|loop|platform|bay|stop)\b/g, "")
+    .replace(/\bplatform\s*\d+\b/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
 
+const EARTH_M = 6371000;
+function haversineM(
+  a: { lat: number; lon: number },
+  b: { lat: number; lon: number },
+): number {
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLon = ((b.lon - a.lon) * Math.PI) / 180;
+  const la1 = (a.lat * Math.PI) / 180;
+  const la2 = (b.lat * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_M * Math.asin(Math.sqrt(h));
+}
+
+/** How close a feeder stop must be to count as "the same interchange". */
+export const INTERCHANGE_RADIUS_M = 450;
+
+export interface FeederStop {
+  stopId: string;
+  stopName: string;
+  lat?: number;
+  lon?: number;
+}
+
 /**
- * Find the feeder stop that best matches `stopName`. Exact-normalised match
- * first, then a containment match. Returns the feeder stopId or null.
+ * Find the feeder stop that is the same interchange as `stop`.
+ *   1. exact normalised-name match
+ *   2. nearest feeder stop within {@link INTERCHANGE_RADIUS_M} (catches the
+ *      train↔bus name split and on-street GO bus stops by the platform)
+ *   3. loose name containment
  */
 export function matchFeederStop(
-  trips: FeederTrip[],
-  stopName: string,
-): { stopId: string; stopName: string } | null {
-  const target = normalizeStopName(stopName);
-  if (!target) return null;
+  feederStops: FeederStop[],
+  stop: { name: string; lat?: number; lon?: number },
+): FeederStop | null {
+  const target = normalizeStopName(stop.name);
 
-  const seen = new Map<string, string>(); // stopId -> stopName
+  // dedupe by stopId
+  const seen = new Map<string, FeederStop>();
+  for (const s of feederStops) if (!seen.has(s.stopId)) seen.set(s.stopId, s);
+  const list = [...seen.values()];
+
+  if (target) {
+    const exact = list.find((s) => normalizeStopName(s.stopName) === target);
+    if (exact) return exact;
+  }
+
+  if (stop.lat != null && stop.lon != null) {
+    let best: { s: FeederStop; dist: number } | null = null;
+    for (const s of list) {
+      if (s.lat == null || s.lon == null) continue;
+      const dist = haversineM({ lat: stop.lat, lon: stop.lon }, { lat: s.lat, lon: s.lon });
+      if (dist <= INTERCHANGE_RADIUS_M && (!best || dist < best.dist)) best = { s, dist };
+    }
+    if (best) return best.s;
+  }
+
+  if (target) {
+    const loose = list.find((s) => {
+      const n = normalizeStopName(s.stopName);
+      return n && (n.includes(target) || target.includes(n));
+    });
+    if (loose) return loose;
+  }
+  return null;
+}
+
+/** Feeder stops as seen in a set of trips (no coords). */
+export function feederStopsFromTrips(trips: FeederTrip[]): FeederStop[] {
+  const seen = new Map<string, FeederStop>();
   for (const trip of trips) {
     for (const s of trip.stops) {
-      if (!seen.has(s.stopId)) seen.set(s.stopId, s.stopName);
+      if (!seen.has(s.stopId)) seen.set(s.stopId, { stopId: s.stopId, stopName: s.stopName });
     }
   }
-
-  let contains: { stopId: string; stopName: string } | null = null;
-  for (const [stopId, name] of seen) {
-    const n = normalizeStopName(name);
-    if (n === target) return { stopId, stopName: name };
-    if (!contains && (n.includes(target) || target.includes(n))) {
-      contains = { stopId, stopName: name };
-    }
-  }
-  return contains;
+  return [...seen.values()];
 }
 
 /** Feeder times at one stop (seconds since midnight), sorted and de-duplicated. */
