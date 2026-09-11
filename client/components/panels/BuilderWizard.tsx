@@ -13,11 +13,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   CustomRoute, CustomStop, CustomSchedule, CustomStation, ServiceBand, DaySchedule,
-  RouteConnection, EnrichedRoute,
+  RouteConnection, EnrichedRoute, CustomTimetableTrip,
 } from "@/lib/gtfs";
 import {
-  FeederTrip, FeederStop, matchFeederStop, feederTimesAtStop,
-  resolveOutboundDepartures, resolveReturnDepartures,
+  FeederTrip, FeederStop, ResolvedTrip, ResolvedConn,
+  matchFeederStop, feederTimesAtStop, resolveOutbound, resolveReturn,
 } from "@/lib/connections";
 import { CUSTOM_ROUTE_COLORS } from "@/lib/routeColors";
 import { estimateTrainTravelSecsForPathLengthMeters } from "@/lib/trainRouteEstimate";
@@ -297,8 +297,12 @@ interface ConnDirection {
   label: string;          // "Towards Union Station"
   feederStopId: string;
   feederStopName: string;
-  timesSec: number[];     // feeder times at the interchange, sorted
+  /** Feeder times at the interchange, per service day (seconds since midnight). */
+  times: { weekday: number[]; sat: number[]; sun: number[] };
 }
+
+type ConnDay = "weekday" | "sat" | "sun";
+const CONN_DAYS: ConnDay[] = ["weekday", "sat", "sun"];
 
 /** "Kitchener GO" → "Kitchener", "Union Station" → "Union Station" */
 function cleanStopName(name: string): string {
@@ -1312,10 +1316,17 @@ export default function BuilderWizard({
     setConnError(null);
     setConnDirs([]);
 
-    // A representative weekday (next Monday) for the feeder snapshot.
-    const d = new Date();
-    d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7));
-    const dateStr = d.toISOString().split("T")[0];
+    // Representative next Monday / Saturday / Sunday for the feeder snapshot.
+    const nextDow = (dow: number) => {
+      const x = new Date();
+      x.setDate(x.getDate() + ((dow - x.getDay() + 7) % 7 || 7));
+      return x.toISOString().split("T")[0];
+    };
+    const dayDates: Record<ConnDay, string> = {
+      weekday: nextDow(1),
+      sat: nextDow(6),
+      sun: nextDow(0),
+    };
     const target = { name: connStop.name, lat: connStop.lat, lon: connStop.lon };
     const feederName = connFeeder.short_name;
     const stopLabel = connStop.name;
@@ -1353,30 +1364,40 @@ export default function BuilderWizard({
       }
       const winners = [...byDir.values()];
 
-      // Phase 2 — real times only for the winning variants.
+      // Phase 2 — real times for the winning variant per direction, per day.
       const withTimes = await Promise.all(
-        winners.map(({ v, match }) =>
-          fetch(`/api/variant-schedule?variant_id=${encodeURIComponent(v.variant_id)}&date=${dateStr}`)
-            .then((r) => r.json())
-            .then((data) => ({ v, match: match!, trips: (data.trips ?? []) as FeederTrip[] }))
-            .catch(() => ({ v, match: match!, trips: [] as FeederTrip[] })),
-        ),
+        winners.map(async ({ v, match }) => {
+          const perDay = await Promise.all(
+            CONN_DAYS.map((day) =>
+              fetch(`/api/variant-schedule?variant_id=${encodeURIComponent(v.variant_id)}&date=${dayDates[day]}`)
+                .then((r) => r.json())
+                .then((data) => ({ day, trips: (data.trips ?? []) as FeederTrip[] }))
+                .catch(() => ({ day, trips: [] as FeederTrip[] })),
+            ),
+          );
+          return { v, match: match!, perDay };
+        }),
       );
       if (cancelled) return;
 
       const dirs: ConnDirection[] = [];
-      for (const { v, match, trips } of withTimes) {
-        const timesSec = feederTimesAtStop(trips, match.stopId);
-        if (timesSec.length === 0) continue;
-        const sample = trips.reduce((a, b) => (b.stops.length > a.stops.length ? b : a), trips[0]);
-        const terminal = sample?.stops[sample.stops.length - 1]?.stopName ?? v.label;
+      for (const { v, match, perDay } of withTimes) {
+        const times = { weekday: [] as number[], sat: [] as number[], sun: [] as number[] };
+        let terminal = v.label;
+        for (const { day, trips } of perDay) {
+          if (trips.length === 0) continue;
+          times[day] = feederTimesAtStop(trips, match.stopId);
+          const sample = trips.reduce((a, b) => (b.stops.length > a.stops.length ? b : a), trips[0]);
+          terminal = sample?.stops[sample.stops.length - 1]?.stopName ?? terminal;
+        }
+        if (times.weekday.length + times.sat.length + times.sun.length === 0) continue;
         dirs.push({
           dirId: v.direction_id,
           variantId: v.variant_id,
           label: `Towards ${cleanStopName(terminal)}`,
           feederStopId: match.stopId,
           feederStopName: match.stopName,
-          timesSec,
+          times,
         });
       }
       dirs.sort((a, b) => a.dirId - b.dirId);
@@ -1399,14 +1420,52 @@ export default function BuilderWizard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleType, connFeeder, connStop]);
 
-  // Resolved departures for the selected direction (pure, no fetch).
+  // ── Resolve the selected direction's feeder times → trips (pure) ────────
   const connSelectedDir = connDirs.find((x) => x.dirId === connDirId) ?? connDirs[0] ?? null;
-  const connOutTimes = connSelectedDir
-    ? resolveOutboundDepartures(connSelectedDir.timesSec, connHoldMins)
-    : [];
-  const connReturnTimes = connSelectedDir && connReturnEnabled
-    ? resolveReturnDepartures(connSelectedDir.timesSec, routeDurationSecs ?? 0, connBufferMins)
-    : [];
+  const connInterchangeIdx = connStop ? stops.findIndex((s) => s.id === connStop.id) : -1;
+  const connOffsets = stopOffsetsSec(stops, routeDurationSecs ?? 0);
+  const connInterchangeOffset = connInterchangeIdx >= 0 ? connOffsets[connInterchangeIdx] : 0;
+  const connDur = routeDurationSecs ?? 0;
+
+  function connTripsFromResolved(rows: ResolvedTrip[], dir: "outbound" | "return"): CustomTimetableTrip[] {
+    const ordered = dir === "return" ? [...stops].reverse() : stops;
+    const first = ordered[0];
+    if (!first) return [];
+    return rows.map((r, i) => {
+      const stopTimes = [
+        { stopId: first.id, stopName: first.name, arrivalSec: Math.round(r.firstStopSec) },
+      ];
+      if (connStop && connStop.id !== first.id) {
+        stopTimes.push({ stopId: connStop.id, stopName: connStop.name, arrivalSec: Math.round(r.interchangeSec) });
+      }
+      return {
+        id: `conn-${dir}-${i}-${secToHHMM(r.firstStopSec)}`,
+        departureSec: Math.round(r.firstStopSec),
+        stopTimes,
+      };
+    });
+  }
+
+  const connResolved = connSelectedDir
+    ? CONN_DAYS.reduce((acc, day) => {
+        acc[day] = {
+          out: resolveOutbound(connSelectedDir.times[day], connHoldMins, connInterchangeOffset),
+          ret: connReturnEnabled
+            ? resolveReturn(connSelectedDir.times[day], connDur, connBufferMins, connInterchangeOffset)
+            : { trips: [], missed: 0 },
+        };
+        return acc;
+      }, {} as Record<ConnDay, { out: ResolvedConn; ret: ResolvedConn }>)
+    : null;
+
+  const connOutCount = connResolved?.weekday.out.trips.length ?? 0;
+  const connReturnCount = connResolved?.weekday.ret.trips.length ?? 0;
+  const connMissedReturns = connResolved
+    ? CONN_DAYS.reduce((n, d) => n + connResolved[d].ret.missed, 0)
+    : 0;
+  const connWeekendMissing =
+    connSelectedDir != null &&
+    (connSelectedDir.times.sat.length === 0 || connSelectedDir.times.sun.length === 0);
 
   // ── Edit handlers ─────────────────────────────────────────────────────────
   function handleEditRequest() {
@@ -1546,7 +1605,7 @@ export default function BuilderWizard({
       };
     }
 
-    if (scheduleType === "connection" && connFeeder && connStop && connSelectedDir) {
+    if (scheduleType === "connection" && connFeeder && connStop && connSelectedDir && connResolved) {
       const now = new Date().toISOString();
       const base: RouteConnection = {
         feederRouteId: connFeeder.route_id,
@@ -1560,22 +1619,29 @@ export default function BuilderWizard({
         feederStopId: connSelectedDir.feederStopId,
         holdMins: connHoldMins,
         generatedAt: now,
-        resolvedCount: connOutTimes.length,
+        resolvedCount: connOutCount,
       };
-      const twoWayConn = connReturnEnabled && connReturnTimes.length > 0;
+      const twoWayConn = connReturnEnabled && connReturnCount > 0;
+      const dayKey: Record<ConnDay, "weekday" | "saturday" | "sunday"> = {
+        weekday: "weekday", sat: "saturday", sun: "sunday",
+      };
+      const timetableByDay: NonNullable<CustomSchedule["timetableByDay"]> = {};
+      for (const day of CONN_DAYS) {
+        const outTrips = connTripsFromResolved(connResolved[day].out.trips, "outbound");
+        if (outTrips.length === 0) continue;
+        timetableByDay[dayKey[day]] = {
+          outbound: outTrips,
+          ...(twoWayConn
+            ? { return: connTripsFromResolved(connResolved[day].ret.trips, "return") }
+            : {}),
+        };
+      }
       return {
-        type: "fixed",
-        fixedDepartures: connOutTimes,
+        type: "timetable",
+        timetableByDay,
         connection: base,
         ...(twoWayConn
-          ? {
-              returnDepartures: connReturnTimes,
-              returnConnection: {
-                ...base,
-                bufferMins: connBufferMins,
-                resolvedCount: connReturnTimes.length,
-              },
-            }
+          ? { returnConnection: { ...base, bufferMins: connBufferMins, resolvedCount: connReturnCount } }
           : {}),
         direction: twoWayConn ? "two-way" : "one-way",
       };
@@ -2984,18 +3050,49 @@ export default function BuilderWizard({
                       </p>
                     ) : connError ? (
                       <p className="text-xs text-[var(--landing-red)]">{connError}</p>
-                    ) : connOutTimes.length > 0 ? (
-                      <>
+                    ) : connOutCount > 0 ? (
+                      <div className="flex flex-col gap-2">
                         <p className="text-xs font-medium text-[var(--landing-muted)]">
-                          {connOutTimes.length} outbound
-                          {connReturnEnabled && connReturnTimes.length > 0 && ` · ${connReturnTimes.length} return`}
-                          {" "}connecting trips
+                          {connOutCount} outbound
+                          {connReturnEnabled && connReturnCount > 0 && ` · ${connReturnCount} return`}
+                          {" "}trips each weekday
                         </p>
-                        <p className="mt-1 font-mono text-[11px] text-[var(--landing-faint)]">
-                          {connOutTimes.slice(0, 8).join("  ")}
-                          {connOutTimes.length > 8 && " …"}
-                        </p>
-                      </>
+
+                        {/* Transfer pairs */}
+                        <div className="flex flex-col gap-0.5">
+                          {(connResolved?.weekday.out.trips ?? []).slice(0, 5).map((t, i) => (
+                            <p key={i} className="font-mono text-[11px] text-[var(--landing-faint)]">
+                              {connFeeder.short_name} arrives {clockLabel(t.feederSec)}
+                              <span className="text-[var(--landing-accent)]"> → depart {clockLabel(t.interchangeSec)}</span>
+                            </p>
+                          ))}
+                          {connOutCount > 5 && (
+                            <p className="text-[11px] text-[var(--landing-faint)]">+{connOutCount - 5} more…</p>
+                          )}
+                        </div>
+
+                        {/* Warnings */}
+                        {connHoldMins < 3 && (
+                          <p className="text-[11px] text-[var(--landing-amber)]">
+                            Tight transfer — riders get {connHoldMins} min to change vehicles.
+                          </p>
+                        )}
+                        {connReturnEnabled && connMissedReturns > 0 && (
+                          <p className="text-[11px] text-[var(--landing-amber)]">
+                            {connMissedReturns} early {connFeeder.short_name} departure{connMissedReturns === 1 ? "" : "s"} can’t be met and {connMissedReturns === 1 ? "is" : "are"} skipped.
+                          </p>
+                        )}
+                        {connWeekendMissing && (
+                          <p className="text-[11px] text-[var(--landing-faint)]">
+                            {connFeeder.short_name} doesn’t run every day — weekend trips only where it does.
+                          </p>
+                        )}
+                        {routeDurationSecs == null && (
+                          <p className="text-[11px] text-[var(--landing-amber)]">
+                            Draw the route to lock in accurate transfer times.
+                          </p>
+                        )}
+                      </div>
                     ) : (
                       <p className="text-xs text-[var(--landing-faint)]">Pick a feeder and stop to see the trips.</p>
                     )}
@@ -3059,8 +3156,9 @@ export default function BuilderWizard({
                   <div className="flex justify-between text-[var(--landing-muted)]">
                     <span className="text-[var(--landing-faint)]">Connecting trips</span>
                     <span className="font-medium">
-                      {connOutTimes.length}
-                      {connReturnEnabled && connReturnTimes.length > 0 && ` + ${connReturnTimes.length} return`}
+                      {connOutCount}
+                      {connReturnEnabled && connReturnCount > 0 && ` + ${connReturnCount} return`}
+                      {" "}/ weekday
                     </span>
                   </div>
                 )}
@@ -3140,7 +3238,7 @@ export default function BuilderWizard({
               (step === "draw" && !routeGeometry)
               || (step === "stops" && stops.length < 2)
               || (step === "schedule" && scheduleType === "connection"
-                  && (connResolving || connOutTimes.length === 0))
+                  && (connResolving || connOutCount === 0))
             }
             onClick={() => {
               if (isEditing) handleEditDone();

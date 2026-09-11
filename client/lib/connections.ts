@@ -123,50 +123,82 @@ export function feederTimesAtStop(trips: FeederTrip[], feederStopId: string): nu
   return times.filter((t, i) => i === 0 || t !== times[i - 1]);
 }
 
-function secToHHMM(sec: number): string {
+/** One resolved connection trip, in seconds since midnight. */
+export interface ResolvedTrip {
+  feederSec: number;       // the feeder time this trip meets
+  firstStopSec: number;    // departure at this direction's first stop
+  interchangeSec: number;  // exact time our vehicle is at the interchange
+}
+
+export interface ResolvedConn {
+  trips: ResolvedTrip[];
+  /** Feeder times we couldn't serve (departure would be before midnight). */
+  missed: number;
+}
+
+function dedupeByFirstStop(rows: ResolvedTrip[], dedupeMins: number): ResolvedTrip[] {
+  const dedupe = Math.max(0, dedupeMins) * 60;
+  const out: ResolvedTrip[] = [];
+  for (const r of rows.sort((a, b) => a.firstStopSec - b.firstStopSec)) {
+    if (out.length === 0 || r.firstStopSec - out[out.length - 1].firstStopSec > dedupe) {
+      out.push(r);
+    }
+  }
+  return out;
+}
+
+/**
+ * Outbound: reach the interchange `holdMins` after the feeder arrives.
+ *   interchangeTime = feederArrival + hold
+ *   firstStopDeparture = interchangeTime − (travel from first stop to interchange)
+ */
+export function resolveOutbound(
+  feederTimesSec: number[],
+  holdMins: number,
+  interchangeOffsetSec: number,
+  dedupeMins = 3,
+): ResolvedConn {
+  const hold = Math.max(0, holdMins) * 60;
+  const off = Math.max(0, interchangeOffsetSec);
+  let missed = 0;
+  const rows: ResolvedTrip[] = [];
+  for (const t of feederTimesSec) {
+    const interchangeSec = t + hold;
+    const firstStopSec = interchangeSec - off;
+    if (firstStopSec < 0) { missed++; continue; }
+    rows.push({ feederSec: t, firstStopSec, interchangeSec });
+  }
+  return { trips: dedupeByFirstStop(rows, dedupeMins), missed };
+}
+
+/**
+ * Return: reach the interchange `bufferMins` before the feeder departs, so
+ * riders can catch it. The interchange sits `routeDurationSec − interchangeOffsetSec`
+ * from the return direction's first stop (the far terminal).
+ */
+export function resolveReturn(
+  feederTimesSec: number[],
+  routeDurationSec: number,
+  bufferMins: number,
+  interchangeOffsetSec: number,
+  dedupeMins = 3,
+): ResolvedConn {
+  const buffer = Math.max(0, bufferMins) * 60;
+  const leadFromFarTerminal = Math.max(0, routeDurationSec) - Math.max(0, interchangeOffsetSec);
+  let missed = 0;
+  const rows: ResolvedTrip[] = [];
+  for (const t of feederTimesSec) {
+    const interchangeSec = t - buffer;
+    const firstStopSec = interchangeSec - Math.max(0, leadFromFarTerminal);
+    if (firstStopSec < 0) { missed++; continue; }
+    rows.push({ feederSec: t, firstStopSec, interchangeSec });
+  }
+  return { trips: dedupeByFirstStop(rows, dedupeMins), missed };
+}
+
+export function secToHHMM(sec: number): string {
   const wrapped = ((Math.round(sec / 60) % 1440) + 1440) % 1440;
   const h = Math.floor(wrapped / 60);
   const m = wrapped % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
-/**
- * Outbound departures: one per feeder arrival, `holdMins` later.
- * Feeder arrivals within `dedupeMins` of each other collapse to one trip.
- */
-export function resolveOutboundDepartures(
-  feederTimesSec: number[],
-  holdMins: number,
-  dedupeMins = 3,
-): string[] {
-  const hold = Math.max(0, holdMins) * 60;
-  const dedupe = Math.max(0, dedupeMins) * 60;
-  const out: number[] = [];
-  for (const t of feederTimesSec) {
-    const dep = t + hold;
-    if (out.length === 0 || dep - out[out.length - 1] > dedupe) out.push(dep);
-  }
-  return out.map(secToHHMM);
-}
-
-/**
- * Return departures: leave our far terminal early enough to reach the
- * interchange `bufferMins` before the feeder departs.
- *   returnDeparture = feederDeparture - travelSec - buffer
- */
-export function resolveReturnDepartures(
-  feederTimesSec: number[],
-  travelSec: number,
-  bufferMins: number,
-  dedupeMins = 3,
-): string[] {
-  const lead = Math.max(0, travelSec) + Math.max(0, bufferMins) * 60;
-  const dedupe = Math.max(0, dedupeMins) * 60;
-  const out: number[] = [];
-  for (const t of feederTimesSec) {
-    const dep = t - lead;
-    if (dep < 0) continue;
-    if (out.length === 0 || dep - out[out.length - 1] > dedupe) out.push(dep);
-  }
-  return out.map(secToHHMM);
 }

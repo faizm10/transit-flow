@@ -211,6 +211,16 @@ export interface CustomSchedule {
   stopTimes?:         StopTimeEntry[];
   firstDepartureSec?: number; // seconds since midnight for simulation seed
   timetableTrips?:    CustomTimetableTrip[];
+  /**
+   * Per-service-day, per-direction timetable trips. Used by connection
+   * schedules, which snapshot a feeder's weekday / Saturday / Sunday times
+   * separately. Takes precedence over `timetableTrips` when present.
+   */
+  timetableByDay?: {
+    weekday?:  { outbound: CustomTimetableTrip[]; return?: CustomTimetableTrip[] };
+    saturday?: { outbound: CustomTimetableTrip[]; return?: CustomTimetableTrip[] };
+    sunday?:   { outbound: CustomTimetableTrip[]; return?: CustomTimetableTrip[] };
+  };
   direction: "one-way" | "two-way";
 }
 

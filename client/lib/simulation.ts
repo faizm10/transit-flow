@@ -315,9 +315,28 @@ function customRouteStops(route: CustomRoute, shape: [number, number][], reverse
   return stops;
 }
 
-function timetableTripsForRoute(route: CustomRoute): CustomTimetableTrip[] {
+function timetableTripsForRoute(
+  route: CustomRoute,
+  date: string,
+  dir: TripDirection = "outbound",
+): CustomTimetableTrip[] {
   const schedule = simulationScheduleForRoute(route);
   if (schedule.type !== "timetable") return [];
+
+  // Per-day, per-direction (connection schedules).
+  if (schedule.timetableByDay) {
+    const day = new Date(`${date}T12:00:00`).getDay();
+    const bucket = day === 0
+      ? schedule.timetableByDay.sunday
+      : day === 6
+        ? schedule.timetableByDay.saturday
+        : schedule.timetableByDay.weekday;
+    if (!bucket) return [];
+    return dir === "return" ? (bucket.return ?? []) : bucket.outbound;
+  }
+
+  // Legacy single-direction timetable (from the ScheduleModal editor).
+  if (dir === "return") return [];
   if (schedule.timetableTrips) return schedule.timetableTrips;
   if (!schedule.stopTimes?.length) return [];
   return [{
@@ -332,13 +351,15 @@ function customRouteTimedStops(
   shape: [number, number][],
   durationSecs: number,
   timetableTrip: CustomTimetableTrip,
+  reverse = false,
 ): SimStop[] {
-  const rawStops = route.stops.length >= 2
+  const baseStops = route.stops.length >= 2
     ? route.stops
     : [
         { id: `${route.id}-start`, name: "Start", lat: shape[0][1], lon: shape[0][0], sequence: 1 },
         { id: `${route.id}-end`, name: "End", lat: shape[shape.length - 1][1], lon: shape[shape.length - 1][0], sequence: 2 },
       ];
+  const rawStops = reverse ? [...baseStops].reverse() : baseStops;
   const departSec = timetableTrip.departureSec;
   const timeByStop = new Map(timetableTrip.stopTimes.map((stopTime) => [stopTime.stopId, stopTime.arrivalSec]));
   const cache = buildShapeCache(shape);
@@ -389,25 +410,33 @@ export function buildCustomSimulationTrips(
 
     const durationSecs = customRouteDurationSecs(route, baseShape);
     const schedule = simulationScheduleForRoute(route);
-    const timetableTrips = timetableTripsForRoute(route);
 
     if (schedule.type === "timetable") {
-      for (const timetableTrip of timetableTrips) {
+      const bothDirections = schedule.direction !== "one-way";
+      const plan = [
+        ...timetableTripsForRoute(route, options.date, "outbound").map((t) => ({ t, reverse: false })),
+        ...(bothDirections
+          ? timetableTripsForRoute(route, options.date, "return").map((t) => ({ t, reverse: true }))
+          : []),
+      ].sort((a, b) => a.t.departureSec - b.t.departureSec);
+
+      for (const { t: timetableTrip, reverse } of plan) {
         if (trips.length >= 300) break;
         const departSec = timetableTrip.departureSec;
-        const stops = customRouteTimedStops(route, baseShape, durationSecs, timetableTrip);
+        const shape = reverse ? [...baseShape].reverse() : baseShape;
+        const stops = customRouteTimedStops(route, shape, durationSecs, timetableTrip, reverse);
         const arriveSec = stops[stops.length - 1]?.t ?? departSec;
         if (departSec >= endSec || arriveSec <= startSec) continue;
 
         trips.push({
-          trip_id: `${CUSTOM_ROUTE_SELECTION_PREFIX}${route.id}-${timetableTrip.id}`,
+          trip_id: `${CUSTOM_ROUTE_SELECTION_PREFIX}${route.id}-${timetableTrip.id}-${reverse ? "rev" : "fwd"}`,
           route_short_name: route.name || "Custom",
           route_long_name: route.description || route.name || "Custom route",
           route_type: route.type === "train" ? 2 : 3,
           color: route.color,
           source: "custom",
           stops,
-          shape: baseShape,
+          shape,
           start_stop_name: stops[0]?.stop_name ?? "",
           end_stop_name: stops[stops.length - 1]?.stop_name ?? "",
           start_time: toHHMM(departSec),
