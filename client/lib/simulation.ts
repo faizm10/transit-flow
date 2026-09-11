@@ -150,11 +150,23 @@ function simulationScheduleForRoute(route: CustomRoute) {
   };
 }
 
-function dayScheduleForDate(route: CustomRoute, date: string): DaySchedule | null {
+type TripDirection = "outbound" | "return";
+
+function dayScheduleForDate(
+  route: CustomRoute,
+  date: string,
+  dir: TripDirection = "outbound",
+): DaySchedule | null {
   const schedule = simulationScheduleForRoute(route);
   if (schedule.type === "fixed" || schedule.type === "timetable") return null;
 
   const day = new Date(`${date}T12:00:00`).getDay();
+  if (dir === "return") {
+    // null => the return direction has no dedicated schedule; mirror outbound.
+    if (day === 0) return schedule.returnSunday ?? null;
+    if (day === 6) return schedule.returnSaturday ?? null;
+    return schedule.returnWeekday ?? null;
+  }
   if (day === 0) return schedule.sunday ?? { active: false, bands: [] };
   if (day === 6) return schedule.saturday ?? { active: false, bands: [] };
   return schedule.weekday ?? { active: false, bands: [] };
@@ -168,10 +180,19 @@ function bandEndSeconds(band: ServiceBand): number {
   return (band.endHour * 60 + band.endMin) * 60;
 }
 
-function getDepartureSeconds(route: CustomRoute, date: string, startSec: number, endSec: number): number[] {
+function getDepartureSeconds(
+  route: CustomRoute,
+  date: string,
+  startSec: number,
+  endSec: number,
+  dir: TripDirection = "outbound",
+): number[] {
   const schedule = simulationScheduleForRoute(route);
   if (schedule.type === "fixed") {
-    return (schedule.fixedDepartures ?? [])
+    const list = dir === "return"
+      ? (schedule.returnDepartures?.length ? schedule.returnDepartures : schedule.fixedDepartures ?? [])
+      : (schedule.fixedDepartures ?? []);
+    return list
       .map(timeToSeconds)
       .filter((departSec) => departSec < endSec && departSec >= startSec - 4 * 3600)
       .sort((a, b) => a - b);
@@ -191,7 +212,11 @@ function getDepartureSeconds(route: CustomRoute, date: string, startSec: number,
       .sort((a, b) => a - b);
   }
 
-  const daySchedule = dayScheduleForDate(route, date);
+  const daySchedule = dayScheduleForDate(route, date, dir);
+  // Return direction with no dedicated schedule → mirror the outbound departures.
+  if (dir === "return" && daySchedule === null) {
+    return getDepartureSeconds(route, date, startSec, endSec, "outbound");
+  }
   if (!daySchedule?.active) return [];
 
   const departures: number[] = [];
@@ -394,35 +419,43 @@ export function buildCustomSimulationTrips(
       continue;
     }
 
-    const departures = getDepartureSeconds(route, options.date, startSec, endSec);
     const bothDirections = schedule.direction !== "one-way";
+    const outboundDeps = getDepartureSeconds(route, options.date, startSec, endSec, "outbound");
+    const returnDeps = bothDirections
+      ? getDepartureSeconds(route, options.date, startSec, endSec, "return")
+      : [];
 
-    for (const departSec of departures) {
+    // Interleave both directions by departure time so the 300-trip cap doesn't
+    // starve one direction.
+    const plan = [
+      ...outboundDeps.map((sec) => ({ sec, reverse: false })),
+      ...returnDeps.map((sec) => ({ sec, reverse: true })),
+    ].sort((a, b) => a.sec - b.sec);
+
+    for (const { sec: departSec, reverse } of plan) {
       if (trips.length >= 300) break;
 
-      for (const reverse of bothDirections ? [false, true] : [false]) {
-        const shape = reverse ? [...baseShape].reverse() : baseShape;
-        const stops = customRouteStops(route, shape, reverse, durationSecs, departSec);
-        const arriveSec = departSec + durationSecs;
-        if (departSec >= endSec || arriveSec <= startSec) continue;
+      const shape = reverse ? [...baseShape].reverse() : baseShape;
+      const stops = customRouteStops(route, shape, reverse, durationSecs, departSec);
+      const arriveSec = departSec + durationSecs;
+      if (departSec >= endSec || arriveSec <= startSec) continue;
 
-        trips.push({
-          trip_id: `${CUSTOM_ROUTE_SELECTION_PREFIX}${route.id}-${departSec}-${reverse ? "rev" : "fwd"}`,
-          route_short_name: route.name || "Custom",
-          route_long_name: route.description || route.name || "Custom route",
-          route_type: route.type === "train" ? 2 : 3,
-          color: route.color,
-          source: "custom",
-          stops,
-          shape,
-          start_stop_name: stops[0]?.stop_name ?? "",
-          end_stop_name: stops[stops.length - 1]?.stop_name ?? "",
-          start_time: toHHMM(departSec),
-          end_time: toHHMM(arriveSec),
-          departSec,
-          arriveSec,
-        });
-      }
+      trips.push({
+        trip_id: `${CUSTOM_ROUTE_SELECTION_PREFIX}${route.id}-${departSec}-${reverse ? "rev" : "fwd"}`,
+        route_short_name: route.name || "Custom",
+        route_long_name: route.description || route.name || "Custom route",
+        route_type: route.type === "train" ? 2 : 3,
+        color: route.color,
+        source: "custom",
+        stops,
+        shape,
+        start_stop_name: stops[0]?.stop_name ?? "",
+        end_stop_name: stops[stops.length - 1]?.stop_name ?? "",
+        start_time: toHHMM(departSec),
+        end_time: toHHMM(arriveSec),
+        departSec,
+        arriveSec,
+      });
     }
   }
 

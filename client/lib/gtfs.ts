@@ -163,10 +163,16 @@ export interface CustomSchedule {
     weekday: { start: string; end: string; interval: number } | null;
     weekend: { start: string; end: string; interval: number } | null;
   };
+  // ── return direction, banded mode ────────────────────────────────────────
+  // When present, the return direction runs on these bands instead of mirroring
+  // the outbound departures. Absent = mirror outbound (legacy behaviour).
+  returnWeekday?: DaySchedule;
+  returnSaturday?: DaySchedule;
+  returnSunday?: DaySchedule;
   // ── fixed mode ────────────────────────────────────────────────────────────
   fixedDepartures?: string[];       // HH:MM outbound
   returnDepartures?: string[];      // HH:MM return direction (optional)
-  // ── return direction hours (frequency mode) ───────────────────────────────
+  // ── return direction hours (legacy frequency mode) ───────────────────────
   returnFrequency?: { start: string; end: string }; // same interval, different window
   // ── timetable mode ───────────────────────────────────────────────────────
   stopTimes?:         StopTimeEntry[];
@@ -212,12 +218,32 @@ export function migrateLegacySchedule(s: CustomSchedule): CustomSchedule {
       },
     ];
   }
+  // Honour a legacy return-direction window: same interval, different hours.
+  const weekdayInterval = s.frequency?.weekday?.interval ?? s.frequency?.weekend?.interval ?? 15;
+  const weekendInterval = s.frequency?.weekend?.interval ?? weekdayInterval;
+  const returnBands = s.returnFrequency
+    ? {
+        returnWeekday: {
+          active: true,
+          bands: freqToBands({ ...s.returnFrequency, interval: weekdayInterval }),
+        },
+        returnSaturday: {
+          active: true,
+          bands: freqToBands({ ...s.returnFrequency, interval: weekendInterval }),
+        },
+        returnSunday: {
+          active: true,
+          bands: freqToBands({ ...s.returnFrequency, interval: weekendInterval }),
+        },
+      }
+    : {};
   return {
     ...s,
     type: "banded",
     weekday: { active: true, bands: freqToBands(s.frequency?.weekday) },
     saturday: { active: true, bands: freqToBands(s.frequency?.weekend) },
     sunday: { active: true, bands: freqToBands(s.frequency?.weekend) },
+    ...returnBands,
   };
 }
 
