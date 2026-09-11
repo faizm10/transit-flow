@@ -5,13 +5,20 @@ import { createPortal } from "react-dom";
 import {
   Train, Bus, Pencil, ArrowRight, ArrowLeft, Check,
   Plus, X, GripVertical, MapPin, Clock, Repeat, Move,
-  Loader2, RotateCcw, Navigation, Crosshair,
+  Loader2, RotateCcw, Navigation, Crosshair, GitMerge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CustomRoute, CustomStop, CustomSchedule, CustomStation, ServiceBand, DaySchedule } from "@/lib/gtfs";
+import {
+  CustomRoute, CustomStop, CustomSchedule, CustomStation, ServiceBand, DaySchedule,
+  RouteConnection, EnrichedRoute,
+} from "@/lib/gtfs";
+import {
+  FeederTrip, matchFeederStop, feederTimesAtStop,
+  resolveOutboundDepartures, resolveReturnDepartures,
+} from "@/lib/connections";
 import { CUSTOM_ROUTE_COLORS } from "@/lib/routeColors";
 import { estimateTrainTravelSecsForPathLengthMeters } from "@/lib/trainRouteEstimate";
 import { v4 as uuidv4 } from "uuid";
@@ -847,8 +854,12 @@ export default function BuilderWizard({
   const [searching, setSearching] = useState(false);
   // "banded" schedules behave like "frequency" inside the wizard
   const existingScheduleType = existingRoute?.schedule?.type;
-  const [scheduleType, setScheduleType] = useState<"frequency" | "fixed">(
-    existingScheduleType === "fixed" ? "fixed" : "frequency"
+  const [scheduleType, setScheduleType] = useState<"frequency" | "fixed" | "connection">(
+    existingRoute?.schedule?.connection
+      ? "connection"
+      : existingScheduleType === "fixed"
+        ? "fixed"
+        : "frequency"
   );
   // A saved "banded" schedule is edited here in Frequency mode. Recover the
   // outbound and return controls from its bands.
@@ -906,6 +917,29 @@ export default function BuilderWizard({
     savedSchedule?.type === "fixed" ? (savedSchedule.returnDepartures ?? null) : null
   );
   const [showTimetable, setShowTimetable] = useState(false);
+
+  // ── Connection mode: derive departures from a feeder route ───────────────
+  const savedConn = existingRoute?.schedule?.connection;
+  const savedReturnConn = existingRoute?.schedule?.returnConnection;
+  const [connGoRoutes, setConnGoRoutes] = useState<EnrichedRoute[]>([]);
+  const [connRoutesLoading, setConnRoutesLoading] = useState(false);
+  const [connQuery, setConnQuery] = useState("");
+  const [connFeederId, setConnFeederId] = useState<string | null>(savedConn?.feederRouteId ?? null);
+  const [connVariantId, setConnVariantId] = useState<string | null>(savedConn?.feederVariantId ?? null);
+  const [connStopId, setConnStopId] = useState<string | null>(savedConn?.stopId ?? null);
+  const [connHoldMins, setConnHoldMins] = useState(savedConn?.holdMins ?? 10);
+  const [connReturnEnabled, setConnReturnEnabled] = useState(!!savedReturnConn);
+  const [connBufferMins, setConnBufferMins] = useState(savedReturnConn?.bufferMins ?? savedConn?.bufferMins ?? 5);
+  const [connResolving, setConnResolving] = useState(false);
+  const [connError, setConnError] = useState<string | null>(null);
+  const [connOutTimes, setConnOutTimes] = useState<string[]>(
+    savedConn ? (existingRoute?.schedule?.fixedDepartures ?? []) : []
+  );
+  const [connReturnTimes, setConnReturnTimes] = useState<string[]>(
+    savedReturnConn ? (existingRoute?.schedule?.returnDepartures ?? []) : []
+  );
+  const [connFeederStopName, setConnFeederStopName] = useState<string | null>(null);
+  const [connFeederStopId, setConnFeederStopId] = useState<string | null>(savedConn?.feederStopId ?? null);
 
   function copyOutboundToReturn() {
     setReturnStart(serviceStart);
@@ -1238,6 +1272,82 @@ export default function BuilderWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Connection: load GO routes once when the mode is first used ──────────
+  useEffect(() => {
+    if (scheduleType !== "connection" || connGoRoutes.length > 0 || connRoutesLoading) return;
+    setConnRoutesLoading(true);
+    fetch("/api/routes")
+      .then((r) => r.json())
+      .then((data) => setConnGoRoutes(Array.isArray(data.routes) ? data.routes : data))
+      .catch(() => setConnError("Could not load GO routes"))
+      .finally(() => setConnRoutesLoading(false));
+  }, [scheduleType, connGoRoutes.length, connRoutesLoading]);
+
+  // ── Connection: default the interchange to this route's first stop ──────
+  useEffect(() => {
+    if (scheduleType === "connection" && !connStopId && stops.length > 0) {
+      setConnStopId(stops[0].id);
+    }
+  }, [scheduleType, connStopId, stops]);
+
+  // ── Connection: resolve feeder times → departures ───────────────────────
+  const connFeeder = connGoRoutes.find((r) => r.route_id === connFeederId) ?? null;
+  const connStop = stops.find((s) => s.id === connStopId) ?? null;
+  useEffect(() => {
+    if (scheduleType !== "connection" || !connFeeder || !connVariantId || !connStop) {
+      return;
+    }
+    let cancelled = false;
+    setConnResolving(true);
+    setConnError(null);
+    // A representative weekday (next Monday) for the feeder snapshot.
+    const d = new Date();
+    d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7));
+    const dateStr = d.toISOString().split("T")[0];
+
+    fetch(`/api/variant-schedule?variant_id=${encodeURIComponent(connVariantId)}&date=${dateStr}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const trips: FeederTrip[] = data.trips ?? [];
+        if (trips.length === 0) {
+          setConnError("This feeder has no trips on a weekday. Try another branch.");
+          setConnOutTimes([]);
+          setConnReturnTimes([]);
+          return;
+        }
+        const match = matchFeederStop(trips, connStop.name);
+        if (!match) {
+          setConnError(`${connFeeder.short_name} doesn't stop at ${connStop.name}.`);
+          setConnFeederStopName(null);
+          setConnFeederStopId(null);
+          setConnOutTimes([]);
+          setConnReturnTimes([]);
+          return;
+        }
+        setConnFeederStopName(match.stopName);
+        setConnFeederStopId(match.stopId);
+        const times = feederTimesAtStop(trips, match.stopId);
+        setConnOutTimes(resolveOutboundDepartures(times, connHoldMins));
+        setConnReturnTimes(
+          connReturnEnabled
+            ? resolveReturnDepartures(times, routeDurationSecs ?? 0, connBufferMins)
+            : []
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setConnError("Could not load the feeder schedule");
+      })
+      .finally(() => {
+        if (!cancelled) setConnResolving(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [
+    scheduleType, connFeeder, connVariantId, connStop, connHoldMins,
+    connReturnEnabled, connBufferMins, routeDurationSecs,
+  ]);
+
   // ── Edit handlers ─────────────────────────────────────────────────────────
   function handleEditRequest() {
     if (!routeGeometry) return;
@@ -1373,6 +1483,40 @@ export default function BuilderWizard({
         fixedDepartures,
         ...(returnEnabled && returnDepartures.length > 0 ? { returnDepartures } : {}),
         direction: returnEnabled ? "two-way" : "one-way",
+      };
+    }
+
+    if (scheduleType === "connection" && connFeeder && connVariantId && connStop && connFeederStopId) {
+      const now = new Date().toISOString();
+      const base: RouteConnection = {
+        feederRouteId: connFeeder.route_id,
+        feederRouteShortName: connFeeder.short_name,
+        feederRouteLongName: connFeeder.long_name,
+        feederVariantId: connVariantId,
+        feederIsRail: connFeeder.is_rail,
+        stopId: connStop.id,
+        stopName: connStop.name,
+        feederStopId: connFeederStopId,
+        holdMins: connHoldMins,
+        generatedAt: now,
+        resolvedCount: connOutTimes.length,
+      };
+      const twoWayConn = connReturnEnabled && connReturnTimes.length > 0;
+      return {
+        type: "fixed",
+        fixedDepartures: connOutTimes,
+        connection: base,
+        ...(twoWayConn
+          ? {
+              returnDepartures: connReturnTimes,
+              returnConnection: {
+                ...base,
+                bufferMins: connBufferMins,
+                resolvedCount: connReturnTimes.length,
+              },
+            }
+          : {}),
+        direction: twoWayConn ? "two-way" : "one-way",
       };
     }
     const outboundCfg: DirectionConfig = {
@@ -2206,22 +2350,23 @@ export default function BuilderWizard({
           <div className="flex flex-col gap-4">
             <p className="text-sm text-[var(--landing-muted)]">How often should this route run?</p>
 
-            <div className="grid grid-cols-2 gap-2">
-              {(["frequency", "fixed"] as const).map((t) => (
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                ["frequency", Repeat, "Frequency"],
+                ["fixed", Clock, "Fixed times"],
+                ["connection", GitMerge, "Connection"],
+              ] as const).map(([t, Icon, label]) => (
                 <button
                   key={t}
                   onClick={() => setScheduleType(t)}
-                  className={`flex items-center gap-2 rounded-none border p-3 text-sm font-medium transition-all ${
+                  className={`flex flex-col items-center gap-1 rounded-none border p-2.5 text-xs font-medium transition-all ${
                     scheduleType === t
                       ? "border-[var(--landing-accent)] bg-[var(--landing-wash)] text-[var(--landing-accent)]"
                       : "border-[var(--landing-border)] text-[var(--landing-muted)] hover:border-[var(--landing-border-2)]"
                   }`}
                 >
-                  {t === "frequency" ? (
-                    <><Repeat className="w-4 h-4" /> Frequency</>
-                  ) : (
-                    <><Clock className="w-4 h-4" /> Fixed times</>
-                  )}
+                  <Icon className="w-4 h-4" />
+                  {label}
                 </button>
               ))}
             </div>
@@ -2583,6 +2728,213 @@ export default function BuilderWizard({
                 </div>
               </div>
             )}
+
+            {scheduleType === "connection" && (
+              <div className="flex flex-col gap-4">
+                <p className="text-xs text-[var(--landing-faint)] leading-snug">
+                  Runs one trip after each arrival of a GO route at a shared stop —
+                  wait, hold, then go. Times are snapshotted from a weekday schedule.
+                </p>
+
+                {/* Interchange stop */}
+                <div>
+                  <Label className="text-sm font-medium text-[var(--landing-ink)] mb-1.5 block">
+                    Interchange stop
+                  </Label>
+                  {stops.length === 0 ? (
+                    <p className="text-xs text-[var(--landing-amber)]">Add stops to this route first.</p>
+                  ) : (
+                    <select
+                      value={connStopId ?? ""}
+                      onChange={(e) => setConnStopId(e.target.value)}
+                      className="h-9 w-full rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2 text-sm text-[var(--landing-ink)] outline-none focus:border-[var(--landing-accent)]"
+                    >
+                      {stops.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Feeder route */}
+                <div>
+                  <Label className="text-sm font-medium text-[var(--landing-ink)] mb-1.5 block">
+                    Connect to
+                  </Label>
+                  {connFeeder ? (
+                    <div className="flex items-center gap-2 rounded-none border border-[var(--landing-border)] bg-[var(--landing-wash)] p-2">
+                      <div
+                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-none text-[11px] font-semibold text-white"
+                        style={{ backgroundColor: connFeeder.color }}
+                      >
+                        {connFeeder.short_name}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-[var(--landing-ink)]">
+                          {connFeeder.long_name || connFeeder.short_name}
+                        </p>
+                        {connFeederStopName && (
+                          <p className="text-[11px] text-[var(--landing-faint)]">at {connFeederStopName}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => { setConnFeederId(null); setConnVariantId(null); setConnFeederStopName(null); }}
+                        className="text-[var(--landing-faint)] hover:text-[var(--landing-red)]"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Input
+                        placeholder="Search GO routes…"
+                        value={connQuery}
+                        onChange={(e) => setConnQuery(e.target.value)}
+                        className="rounded-none h-9 text-sm"
+                      />
+                      {connRoutesLoading ? (
+                        <div className="flex justify-center py-4">
+                          <Loader2 className="h-4 w-4 animate-spin text-[var(--landing-faint)]" />
+                        </div>
+                      ) : (
+                        <div className="mt-1.5 flex max-h-52 flex-col gap-1 overflow-y-auto">
+                          {connGoRoutes
+                            .filter((r) => {
+                              const q = connQuery.trim().toLowerCase();
+                              return !q || `${r.short_name} ${r.long_name}`.toLowerCase().includes(q);
+                            })
+                            .slice(0, 40)
+                            .map((r) => (
+                              <button
+                                key={r.route_id}
+                                onClick={() => {
+                                  setConnFeederId(r.route_id);
+                                  setConnVariantId(r.variants[0]?.variant_id ?? null);
+                                  setConnError(null);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-none border border-transparent p-2 text-left hover:border-[var(--landing-border-2)] hover:bg-[var(--landing-wash)]"
+                              >
+                                <div
+                                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-none text-[10px] font-semibold text-white"
+                                  style={{ backgroundColor: r.color }}
+                                >
+                                  {r.short_name}
+                                </div>
+                                <span className="flex-1 truncate text-xs text-[var(--landing-ink)]">
+                                  {r.long_name || r.short_name}
+                                </span>
+                                {r.is_rail
+                                  ? <Train className="h-3.5 w-3.5 text-[var(--landing-faint)]" />
+                                  : <Bus className="h-3.5 w-3.5 text-[var(--landing-faint)]" />}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Feeder branch / direction */}
+                {connFeeder && connFeeder.variants.length > 1 && (
+                  <div>
+                    <Label className="text-xs font-medium text-[var(--landing-muted)] mb-1 block">Branch / direction</Label>
+                    <select
+                      value={connVariantId ?? ""}
+                      onChange={(e) => setConnVariantId(e.target.value)}
+                      className="h-9 w-full rounded-none border border-[var(--landing-border-2)] bg-[var(--landing-elevated)] px-2 text-xs text-[var(--landing-ink)] outline-none focus:border-[var(--landing-accent)]"
+                    >
+                      {connFeeder.variants.map((v) => (
+                        <option key={v.variant_id} value={v.variant_id}>
+                          {v.label || v.route_variant || v.variant_id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Hold time */}
+                {connFeeder && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-[var(--landing-muted)]">Hold</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={120}
+                      value={connHoldMins}
+                      onChange={(e) => setConnHoldMins(Math.max(0, Math.min(120, Number(e.target.value))))}
+                      className="rounded-none h-9 w-20"
+                    />
+                    <span className="text-sm text-[var(--landing-muted)]">min after arrival, then depart</span>
+                  </div>
+                )}
+
+                {/* Return connection */}
+                {connFeeder && (
+                  <div className="rounded-none border border-[var(--landing-border)] p-3">
+                    <button
+                      type="button"
+                      onClick={() => setConnReturnEnabled((v) => !v)}
+                      className={`flex w-full items-center justify-between text-sm font-medium ${
+                        connReturnEnabled ? "text-[var(--landing-accent)]" : "text-[var(--landing-muted)]"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2"><Repeat className="w-4 h-4" /> Return trip</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-none font-medium ${
+                        connReturnEnabled ? "bg-[var(--landing-wash)] text-[var(--landing-accent)]" : "bg-[var(--landing-wash)] text-[var(--landing-faint)]"
+                      }`}>
+                        {connReturnEnabled ? "On" : "Off"}
+                      </span>
+                    </button>
+                    {connReturnEnabled ? (
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className="text-sm text-[var(--landing-muted)]">Arrive</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={60}
+                          value={connBufferMins}
+                          onChange={(e) => setConnBufferMins(Math.max(0, Math.min(60, Number(e.target.value))))}
+                          className="rounded-none h-9 w-20"
+                        />
+                        <span className="text-sm text-[var(--landing-muted)]">min before the {connFeeder.short_name} leaves</span>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-[var(--landing-faint)]">
+                        Times the return trip so riders can catch the {connFeeder.short_name}.
+                        {routeDurationSecs == null && " Draw the route first for accurate timing."}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Status / preview */}
+                {connFeeder && (
+                  <div className="rounded-none border border-[var(--landing-border)] p-3">
+                    {connResolving ? (
+                      <p className="flex items-center gap-2 text-xs text-[var(--landing-muted)]">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading the {connFeeder.short_name} schedule…
+                      </p>
+                    ) : connError ? (
+                      <p className="text-xs text-[var(--landing-red)]">{connError}</p>
+                    ) : connOutTimes.length > 0 ? (
+                      <>
+                        <p className="text-xs font-medium text-[var(--landing-muted)]">
+                          {connOutTimes.length} outbound
+                          {connReturnEnabled && connReturnTimes.length > 0 && ` · ${connReturnTimes.length} return`}
+                          {" "}connecting trips
+                        </p>
+                        <p className="mt-1 font-mono text-[11px] text-[var(--landing-faint)]">
+                          {connOutTimes.slice(0, 8).join("  ")}
+                          {connOutTimes.length > 8 && " …"}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-[var(--landing-faint)]">Pick a feeder and stop to see the trips.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -2626,13 +2978,24 @@ export default function BuilderWizard({
                 <div className="flex justify-between text-[var(--landing-muted)]">
                   <span className="text-[var(--landing-faint)]">Schedule</span>
                   <span className="font-medium">
-                    {scheduleType === "fixed"
-                      ? `${fixedDepartures.length} departures`
-                      : peakEnabled
-                        ? `Every ${peakInterval} min peak / ${frequencyInterval} min off-peak`
-                        : `Every ${frequencyInterval} min`}
+                    {scheduleType === "connection"
+                      ? `Connects to ${connFeeder?.short_name ?? "route"}`
+                      : scheduleType === "fixed"
+                        ? `${fixedDepartures.length} departures`
+                        : peakEnabled
+                          ? `Every ${peakInterval} min peak / ${frequencyInterval} min off-peak`
+                          : `Every ${frequencyInterval} min`}
                   </span>
                 </div>
+                {scheduleType === "connection" && (
+                  <div className="flex justify-between text-[var(--landing-muted)]">
+                    <span className="text-[var(--landing-faint)]">Connecting trips</span>
+                    <span className="font-medium">
+                      {connOutTimes.length}
+                      {connReturnEnabled && connReturnTimes.length > 0 && ` + ${connReturnTimes.length} return`}
+                    </span>
+                  </div>
+                )}
                 {scheduleType === "frequency" && (
                   <div className="flex justify-between text-[var(--landing-muted)]">
                     <span className="text-[var(--landing-faint)]">Direction</span>
@@ -2708,6 +3071,8 @@ export default function BuilderWizard({
             disabled={
               (step === "draw" && !routeGeometry)
               || (step === "stops" && stops.length < 2)
+              || (step === "schedule" && scheduleType === "connection"
+                  && (connResolving || connOutTimes.length === 0))
             }
             onClick={() => {
               if (isEditing) handleEditDone();

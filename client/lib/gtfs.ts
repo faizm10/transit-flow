@@ -151,6 +151,32 @@ export interface CustomTimetableTrip {
   stopTimes: StopTimeEntry[];
 }
 
+/**
+ * Links one direction of a custom route to a feeder route's schedule at a
+ * shared stop. Outbound: depart `holdMins` after the feeder arrives.
+ * Return: arrive `bufferMins` before the feeder departs (so riders make it).
+ */
+export interface RouteConnection {
+  /** Feeder route + variant (GO GTFS for now). */
+  feederRouteId: string;
+  feederRouteShortName: string;
+  feederRouteLongName?: string;
+  feederVariantId: string;
+  feederIsRail?: boolean;
+  /** Interchange stop, matched into the feeder's stop list. */
+  stopId: string;          // this route's stop id
+  stopName: string;
+  feederStopId: string;    // matched feeder stop id
+  /** Outbound: minutes held after the feeder arrives before departing. */
+  holdMins: number;
+  /** Return: minutes of slack to arrive before the feeder leaves. */
+  bufferMins?: number;
+  /** ISO timestamp of when the feeder times were last snapshotted. */
+  generatedAt: string;
+  /** How many departures the last snapshot produced. */
+  resolvedCount: number;
+}
+
 export interface CustomSchedule {
   /** banded = frequency bands per day; fixed = explicit departure list; timetable = per-stop arrival times */
   type: "banded" | "frequency" | "fixed" | "timetable";
@@ -172,6 +198,12 @@ export interface CustomSchedule {
   // ── fixed mode ────────────────────────────────────────────────────────────
   fixedDepartures?: string[];       // HH:MM outbound
   returnDepartures?: string[];      // HH:MM return direction (optional)
+  // ── connection mode ──────────────────────────────────────────────────────
+  // Departures are derived from a feeder route's times at a shared stop and
+  // snapshotted into fixedDepartures / returnDepartures. These specs let the
+  // wizard re-resolve them later.
+  connection?: RouteConnection;         // drives the outbound departures
+  returnConnection?: RouteConnection;   // drives the return departures
   // ── return direction hours (legacy frequency mode) ───────────────────────
   returnFrequency?: { start: string; end: string }; // same interval, different window
   // ── timetable mode ───────────────────────────────────────────────────────
