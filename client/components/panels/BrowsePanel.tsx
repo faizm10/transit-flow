@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Building2, Bus, ChevronDown, ChevronUp, Loader2, Locate, Pencil, Plus, Search, Share2, Train, Trash2 } from "lucide-react";
+import { Building2, Bus, ChevronDown, ChevronUp, Loader2, Locate, Pencil, Plus, Route as RouteIcon, Search, Share2, Train, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
@@ -17,6 +17,7 @@ interface BrowsePanelProps {
   onRouteFilterChange: (filters: RouteFilters) => void;
   onDeleteCustomRoute: (routeId: string, routeName: string) => void;
   onShareCustomRoute: (routeId: string) => void;
+  onTestCustomRoute: (routeId: string) => void;
   cityFeeds: CityFeedEntry[];
   visibleCityFeedIds: Set<string>;
   loadingCityFeedIds: Set<string>;
@@ -61,6 +62,7 @@ export default function BrowsePanel({
   onRouteFilterChange,
   onDeleteCustomRoute,
   onShareCustomRoute,
+  onTestCustomRoute,
   cityFeeds,
   visibleCityFeedIds,
   loadingCityFeedIds,
@@ -438,6 +440,18 @@ export default function BrowsePanel({
                         <span className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--landing-ink)]">
                           {route.name || "Custom route"}
                         </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onTestCustomRoute(route.id);
+                        }}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--landing-faint)] transition-colors hover:bg-[var(--landing-wash)] hover:text-[var(--landing-accent)]"
+                        aria-label={`Test ${route.name || "custom route"} on a journey`}
+                        title="Test this route"
+                      >
+                        <RouteIcon className="h-3 w-3" />
                       </button>
                       <button
                         type="button"

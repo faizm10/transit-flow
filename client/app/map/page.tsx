@@ -12,6 +12,7 @@ import { MapHandle } from "@/components/Map";
 import BrowsePanel from "@/components/panels/BrowsePanel";
 import DesignPanel, { type DesignTab } from "@/components/panels/DesignPanel";
 import ScheduleModal from "@/components/panels/ScheduleModal";
+import TestRouteModal from "@/components/panels/TestRouteModal";
 import SimulationHUD from "@/components/panels/SimulationHUD";
 import RouteTooltip from "@/components/overlays/RouteTooltip";
 import RouteInfoCard from "@/components/overlays/RouteInfoCard";
@@ -168,6 +169,8 @@ function MapPageContent() {
 
   const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
   const { stations: customStations, saveStation, deleteStation } = useStations();
+  const [testRouteId, setTestRouteId] = useState<string | null>(null);
+  const testRoute = testRouteId ? customRoutes.find((r) => r.id === testRouteId) ?? null : null;
 
   // ── Uploaded city-GTFS overlays ──────────────────────────────────────────
   const {
@@ -994,6 +997,7 @@ function MapPageContent() {
                   const route = customRoutes.find((r) => r.id === id);
                   if (route) setShareTarget(route);
                 }}
+                onTestCustomRoute={setTestRouteId}
                 cityFeeds={cityFeeds}
                 visibleCityFeedIds={visibleCityFeedIds}
                 loadingCityFeedIds={loadingCityFeedIds}
@@ -1048,6 +1052,13 @@ function MapPageContent() {
         customRoutes={customRoutes}
         onSaveSchedule={handleSaveSchedule}
         onClose={() => handleModeToggle("schedule")}
+      />
+
+      {/* ── "Test this route" journey comparison ───────────────────────── */}
+      <TestRouteModal
+        key={testRoute?.id ?? "none"}
+        route={testRoute}
+        onClose={() => setTestRouteId(null)}
       />
 
       {/* ── Route hover tooltip (top-right) ─────────────────────────────── */}
