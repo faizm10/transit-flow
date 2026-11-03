@@ -13,6 +13,9 @@ import BrowsePanel from "@/components/panels/BrowsePanel";
 import DesignPanel, { type DesignTab } from "@/components/panels/DesignPanel";
 import ScheduleModal from "@/components/panels/ScheduleModal";
 import TestRouteModal from "@/components/panels/TestRouteModal";
+import JourneyTestMapBar from "@/components/overlays/JourneyTestMapBar";
+import { journeyOverlay } from "@/lib/journey/mapOverlay";
+import type { Journey } from "@/lib/journey/types";
 import SimulationHUD from "@/components/panels/SimulationHUD";
 import RouteTooltip from "@/components/overlays/RouteTooltip";
 import RouteInfoCard from "@/components/overlays/RouteInfoCard";
@@ -169,8 +172,44 @@ function MapPageContent() {
 
   const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
   const { stations: customStations, saveStation, deleteStation } = useStations();
+  // ── "Test this route" journey comparison ─────────────────────────────────
+  // The modal stays mounted (keeping its results) while the user looks at the
+  // map: "picking" waits for one map click, "map" shows the drawn journeys.
   const [testRouteId, setTestRouteId] = useState<string | null>(null);
+  const [testView, setTestView] = useState<"modal" | "picking" | "map">("modal");
   const testRoute = testRouteId ? customRoutes.find((r) => r.id === testRouteId) ?? null : null;
+
+  const openRouteTest = useCallback((routeId: string) => {
+    mapRef.current?.setJourneyOverlay(null);
+    setTestRouteId(routeId);
+    setTestView("modal");
+  }, []);
+
+  const closeRouteTest = useCallback(() => {
+    mapRef.current?.stopPinMode();
+    mapRef.current?.setJourneyOverlay(null);
+    setTestRouteId(null);
+    setTestView("modal");
+  }, []);
+
+  const pickTestPlaceOnMap = useCallback((onPick: (lat: number, lon: number) => void) => {
+    setTestView("picking");
+    mapRef.current?.startPinMode((lat, lon) => {
+      mapRef.current?.stopPinMode();
+      onPick(lat, lon);
+      setTestView("modal");
+    });
+  }, []);
+
+  const showTestJourneysOnMap = useCallback((base: Journey | null, withRoute: Journey | null) => {
+    mapRef.current?.setJourneyOverlay(
+      journeyOverlay([
+        { scenario: "base", journey: base },
+        { scenario: "with", journey: withRoute },
+      ]),
+    );
+    setTestView("map");
+  }, []);
 
   // ── Uploaded city-GTFS overlays ──────────────────────────────────────────
   const {
@@ -674,6 +713,9 @@ function MapPageContent() {
     patchSearch({ mode: null, design: null, goRoute: null, entry: null });
     setEditingRoute(undefined);
     setDrawnGeometry(null);
+    toast.success(`"${route.name || "Custom route"}" saved`, {
+      action: { label: "Test this route", onClick: () => openRouteTest(route.id) },
+    });
   }
 
   function cleanupDesignTools() {
@@ -997,7 +1039,7 @@ function MapPageContent() {
                   const route = customRoutes.find((r) => r.id === id);
                   if (route) setShareTarget(route);
                 }}
-                onTestCustomRoute={setTestRouteId}
+                onTestCustomRoute={openRouteTest}
                 cityFeeds={cityFeeds}
                 visibleCityFeedIds={visibleCityFeedIds}
                 loadingCityFeedIds={loadingCityFeedIds}
@@ -1058,8 +1100,23 @@ function MapPageContent() {
       <TestRouteModal
         key={testRoute?.id ?? "none"}
         route={testRoute}
-        onClose={() => setTestRouteId(null)}
+        open={testView === "modal"}
+        onClose={closeRouteTest}
+        onPickOnMap={pickTestPlaceOnMap}
+        onShowOnMap={showTestJourneysOnMap}
       />
+      {testRoute && testView !== "modal" && (
+        <JourneyTestMapBar
+          view={testView}
+          routeName={testRoute.name || "Your route"}
+          routeColor={testRoute.color}
+          onBack={() => {
+            mapRef.current?.stopPinMode();
+            setTestView("modal");
+          }}
+          onClose={closeRouteTest}
+        />
+      )}
 
       {/* ── Route hover tooltip (top-right) ─────────────────────────────── */}
       {hoveredRoute && !isDrawing && !clickedRoute && (
@@ -1141,6 +1198,7 @@ function MapPageContent() {
           onDateChange={sim.setDate}
           onStartHourChange={sim.setStartHour}
           onClear={sim.clearSimulation}
+          onTestRoute={openRouteTest}
         />
       )}
 

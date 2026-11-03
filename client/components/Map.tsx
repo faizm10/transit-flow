@@ -9,6 +9,7 @@ import type { CustomStation } from "@/lib/gtfs";
 import { simplifyPolylineForVertexEdit } from "@/lib/polylineSimplify";
 import { OPENRAILWAYMAP_OVERLAY_ENABLED } from "@/lib/features";
 import type { ServiceAlert } from "@/lib/serviceUpdates";
+import { overlayBounds } from "@/lib/journey/mapOverlay";
 import {
   ALERT_BADGE_LAYER,
   ALERT_GLOW_LAYER,
@@ -73,6 +74,11 @@ export interface MapHandle {
    * a warning badge you can hover). Pass null to hide the overlay.
    */
   setServiceAlerts: (alerts: ServiceAlert[] | null) => void;
+  /**
+   * Draw a "Test this route" comparison (see `lib/journey/mapOverlay.ts`) and
+   * fit the map to it. Pass null to clear.
+   */
+  setJourneyOverlay: (data: GeoJSON.FeatureCollection | null) => void;
 }
 
 function makeVisibilityFilter(propertyName: string, values: string[] | null): LayerFilter {
@@ -218,6 +224,7 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
   const pinListenerRef = useRef<((e: mapboxgl.MapMouseEvent) => void) | null>(null);
 
   // City-feed overlay data set before the style finished loading (first paint race)
+  const pendingJourneyOverlayRef = useRef<GeoJSON.FeatureCollection | null>(null);
   const pendingCityFeedDataRef = useRef<{
     lines: GeoJSON.FeatureCollection;
     stops: GeoJSON.FeatureCollection;
@@ -471,6 +478,19 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
       }
       linesSrc.setData(lines);
       stopsSrc.setData(stops);
+    },
+
+    setJourneyOverlay: (data) => {
+      const map = mapRef.current;
+      const src = map?.getSource("journey-test") as mapboxgl.GeoJSONSource | undefined;
+      const fc = data ?? { type: "FeatureCollection" as const, features: [] };
+      if (!map || !src) {
+        pendingJourneyOverlayRef.current = fc;
+        return;
+      }
+      src.setData(fc);
+      const bounds = data ? overlayBounds(data) : null;
+      if (bounds) map.fitBounds(bounds, { padding: 90, maxZoom: 13, duration: 700 });
     },
 
     setServiceAlerts: (alerts) => {
@@ -865,6 +885,58 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
           "line-width": 3.5,
           "line-dasharray": [4, 2.5],
           "line-opacity": 0.95,
+        },
+      });
+
+      // ── Journey test overlay ("Test this route") ───────────────────────────
+      map.addSource("journey-test", {
+        type: "geojson",
+        data: pendingJourneyOverlayRef.current ?? { type: "FeatureCollection", features: [] },
+      });
+      pendingJourneyOverlayRef.current = null;
+      const isLine = ["==", ["geometry-type"], "LineString"] as mapboxgl.FilterSpecification;
+      map.addLayer({
+        id: "journey-test-base",
+        type: "line",
+        source: "journey-test",
+        filter: ["all", isLine, ["==", ["get", "scenario"], "base"]] as mapboxgl.FilterSpecification,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: { "line-color": "#6b7280", "line-width": 4, "line-opacity": 0.55, "line-dasharray": [2, 1.5] },
+      });
+      map.addLayer({
+        id: "journey-test-casing",
+        type: "line",
+        source: "journey-test",
+        filter: ["all", isLine, ["==", ["get", "scenario"], "with"], ["==", ["get", "kind"], "ride"]] as mapboxgl.FilterSpecification,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.9 },
+      });
+      map.addLayer({
+        id: "journey-test-ride",
+        type: "line",
+        source: "journey-test",
+        filter: ["all", isLine, ["==", ["get", "scenario"], "with"], ["==", ["get", "kind"], "ride"]] as mapboxgl.FilterSpecification,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: { "line-color": ["get", "color"], "line-width": 5 },
+      });
+      map.addLayer({
+        id: "journey-test-walk",
+        type: "line",
+        source: "journey-test",
+        filter: ["all", isLine, ["==", ["get", "scenario"], "with"], ["==", ["get", "kind"], "walk"]] as mapboxgl.FilterSpecification,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: { "line-color": "#374151", "line-width": 3, "line-dasharray": [0.5, 2] },
+      });
+      map.addLayer({
+        id: "journey-test-points",
+        type: "circle",
+        source: "journey-test",
+        filter: ["==", ["geometry-type"], "Point"] as mapboxgl.FilterSpecification,
+        paint: {
+          "circle-radius": ["case", ["==", ["get", "scenario"], "with"], 5, 3.5],
+          "circle-color": "#ffffff",
+          "circle-stroke-color": ["case", ["==", ["get", "scenario"], "with"], "#111827", "#6b7280"],
+          "circle-stroke-width": 2,
         },
       });
 

@@ -23,6 +23,18 @@ Notable changes to TransitFlow. The format follows
   - Estimated timings are marked with "≈" and an "Estimated" badge; when no
     journey is found, the result explains which search limit was hit.
   - Routing runs in a web worker, so the map and simulation stay responsive.
+- **Show journey on map.** "Show on map" draws both compared journeys: the
+  journey with your route in service colours (dotted walks) over a dashed grey
+  existing-network journey, and fits the map to them. A floating bar has the
+  legend plus "Back to results".
+- **Pick places on the map.** The pin button in the From / To fields lets you
+  click anywhere on the map; the point is named after the nearest stop.
+- **Departure sweep.** Switch to "Time range" to compare every 10–60 minutes
+  across up to 12 hours. Shows how many departures your route helps, the
+  average and best time saved, a per-departure chart (click a column to open
+  that journey) and a table view.
+- **More ways in.** Saving a route shows a "Test this route" toast action, and
+  the simulation dock has a test button when a custom route is playing.
 
 ### Changed
 
@@ -36,3 +48,5 @@ Notable changes to TransitFlow. The format follows
   holidays and date-specific service changes aren't modelled.
 - Transfer times are flat defaults, not per station.
 - Only the single best journey is shown.
+- Journeys on the map join stops with straight lines rather than following
+  track or road shapes.

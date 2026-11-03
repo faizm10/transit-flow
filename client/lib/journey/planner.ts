@@ -193,6 +193,8 @@ function reconstruct(
 ): Journey {
   const { stops, connections, trips } = network;
   const legs: JourneyLeg[] = [];
+  const at = (i: number): [number, number] => [stops[i].lon, stops[i].lat];
+  const placeAt = (p: { lat: number; lon: number }): [number, number] => [p.lon, p.lat];
 
   // Final walk to the destination.
   const egress = egressWalk.get(egressFrom)!;
@@ -205,6 +207,7 @@ function reconstruct(
       depSec: finalArr,
       arrSec: finalArr + egress.sec,
       distanceM: egress.m,
+      path: [at(egressFrom), placeAt(query.destination)],
     });
   }
 
@@ -229,6 +232,9 @@ function reconstruct(
       depSec: board.dep,
       arrSec: alight.arr,
       stopCount: alight.seq + 1 - board.seq,
+      path: trip.stops
+        .slice(board.seq, alight.seq + 2)
+        .map((ts) => at(network.stopIndex.get(ts.stopId)!)),
     };
     legs.push(ride);
 
@@ -247,6 +253,7 @@ function reconstruct(
           depSec: query.departSec,
           arrSec: query.departSec + access.sec,
           distanceM: access.m,
+          path: [placeAt(query.origin), at(boardStop)],
         });
       }
       k = 0;
@@ -262,6 +269,7 @@ function reconstruct(
           depSec: t,
           arrSec: t + fp.walkSec,
           distanceM: fp.distanceM,
+          path: [at(from), at(boardStop)],
         });
       }
       k = j;
@@ -333,4 +341,76 @@ export function compareJourneys(base: PlanResult, withRoute: PlanResult): Journe
   else if (transfersSaved > 0) verdict = "fewer-transfers";
   else verdict = "same";
   return { verdict, timeSavedSec, transfersSaved };
+}
+
+// ── Departure sweep ──────────────────────────────────────────────────────────
+
+export interface SweepRow {
+  departSec: number;
+  /** Total journey time, or null when no journey was found. */
+  baseTotalSec: number | null;
+  withTotalSec: number | null;
+  baseTransfers: number | null;
+  withTransfers: number | null;
+  verdict: ComparisonVerdict;
+  timeSavedSec: number | null;
+}
+
+export interface SweepSummary {
+  departures: number;
+  /** Departures where the custom route is faster or saves transfers. */
+  improved: number;
+  /** Departures only possible with the custom route. */
+  newConnections: number;
+  /** Mean time saved over departures where both networks find a journey. */
+  avgSavedSec: number | null;
+  maxSavedSec: number | null;
+}
+
+/**
+ * Compare every departure in `departures` on two networks built once for the
+ * whole window (see `buildNetwork`'s window parameters).
+ */
+export function sweepJourneys(
+  baseNetwork: PlannerNetwork,
+  withNetwork: PlannerNetwork,
+  query: Omit<JourneyQuery, "departSec">,
+  departures: number[],
+  limits: SearchLimits = DEFAULT_LIMITS,
+): { rows: SweepRow[]; summary: SweepSummary } {
+  const rows = departures.map((departSec): SweepRow => {
+    const q = { ...query, departSec };
+    const base = planJourney(baseNetwork, q, limits);
+    const withRoute = planJourney(withNetwork, q, limits);
+    const cmp = compareJourneys(base, withRoute);
+    return {
+      departSec,
+      baseTotalSec: base.found ? base.journey.totalSec : null,
+      withTotalSec: withRoute.found ? withRoute.journey.totalSec : null,
+      baseTransfers: base.found ? base.journey.transfers : null,
+      withTransfers: withRoute.found ? withRoute.journey.transfers : null,
+      verdict: cmp.verdict,
+      timeSavedSec: cmp.timeSavedSec,
+    };
+  });
+
+  const comparable = rows.filter((r) => r.timeSavedSec !== null);
+  const saved = comparable.map((r) => r.timeSavedSec!);
+  return {
+    rows,
+    summary: {
+      departures: rows.length,
+      improved: rows.filter((r) => r.verdict === "faster" || r.verdict === "fewer-transfers").length,
+      newConnections: rows.filter((r) => r.verdict === "new-connection").length,
+      avgSavedSec: saved.length ? saved.reduce((a, b) => a + b, 0) / saved.length : null,
+      maxSavedSec: saved.length ? Math.max(...saved) : null,
+    },
+  };
+}
+
+/** Departure times from `startSec` to `endSec` inclusive, every `stepSec`. */
+export function departureTimes(startSec: number, endSec: number, stepSec: number): number[] {
+  const out: number[] = [];
+  for (let t = startSec; t <= endSec && out.length < 200; t += Math.max(60, stepSec)) out.push(t);
+  return out;
 }

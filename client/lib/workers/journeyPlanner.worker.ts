@@ -1,6 +1,6 @@
 /**
- * Compares a journey on the existing GO network against the same network with
- * one custom route added.
+ * Compares journeys on the existing GO network against the same network with
+ * one custom route added — for one departure, or a sweep across a time range.
  *
  * Runs off the main thread: the GO timetable is ~9 MB of JSON, and parsing it
  * plus compiling connections would stall the map. The parsed timetable is kept
@@ -8,8 +8,8 @@
  */
 
 import { buildNetwork, type GoStopsLookup, type GoTripsByDow } from "../journey/network";
-import { compareJourneys, planJourney } from "../journey/planner";
-import type { FeedBasis, JourneyTestRequest, JourneyWorkerMessage } from "../journey/protocol";
+import { compareJourneys, departureTimes, planJourney, sweepJourneys } from "../journey/planner";
+import type { FeedBasis, JourneyRequest, JourneyResult, JourneyWorkerMessage } from "../journey/protocol";
 import { DEFAULT_LIMITS } from "../journey/types";
 
 const post = (msg: JourneyWorkerMessage) =>
@@ -44,7 +44,7 @@ function loadGoData(): Promise<GoData> {
   return goData;
 }
 
-self.onmessage = (event: MessageEvent<JourneyTestRequest>) => {
+self.onmessage = (event: MessageEvent<JourneyRequest>) => {
   const req = event.data;
   void (async () => {
     post({ type: "progress", id: req.id, phase: "Loading GO timetable" });
@@ -52,28 +52,33 @@ self.onmessage = (event: MessageEvent<JourneyTestRequest>) => {
 
     post({ type: "progress", id: req.id, phase: "Finding journeys" });
     const limits = DEFAULT_LIMITS;
+    const firstSec = req.kind === "single" ? req.departSec : req.startSec;
+    const lastSec = req.kind === "single" ? req.departSec : req.endSec;
     const common = {
       date: req.date,
-      windowStartSec: req.departSec,
-      windowEndSec: req.departSec + limits.horizonSec,
+      windowStartSec: firstSec,
+      windowEndSec: lastSec + limits.horizonSec,
       goTrips: go.trips,
       goStops: go.stops,
       maxTransferWalkM: limits.maxTransferWalkM,
       walkSpeedMps: limits.walkSpeedMps,
     };
-    const query = { origin: req.origin, destination: req.destination, departSec: req.departSec };
+    const baseNetwork = buildNetwork(common);
+    const withNetwork = buildNetwork({ ...common, customRoutes: [req.route] });
+    const place = { origin: req.origin, destination: req.destination };
 
-    const base = planJourney(buildNetwork(common), query, limits);
-    const withRoute = planJourney(buildNetwork({ ...common, customRoutes: [req.route] }), query, limits);
-
-    post({
-      type: "result",
-      id: req.id,
-      base,
-      withRoute,
-      comparison: compareJourneys(base, withRoute),
-      feed: go.feed,
-    });
+    let result: JourneyResult;
+    if (req.kind === "single") {
+      const query = { ...place, departSec: req.departSec };
+      const base = planJourney(baseNetwork, query, limits);
+      const withRoute = planJourney(withNetwork, query, limits);
+      result = { kind: "single", base, withRoute, comparison: compareJourneys(base, withRoute), feed: go.feed };
+    } else {
+      const departures = departureTimes(req.startSec, req.endSec, req.stepSec);
+      const { rows, summary } = sweepJourneys(baseNetwork, withNetwork, place, departures, limits);
+      result = { kind: "sweep", rows, summary, limits, feed: go.feed };
+    }
+    post({ type: "result", id: req.id, result });
   })().catch((err: unknown) =>
     post({
       type: "error",

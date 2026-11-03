@@ -9,7 +9,8 @@
  */
 
 import { buildNetwork, dayOfWeek, type GoTripsByDow } from "../../lib/journey/network";
-import { compareJourneys, planJourney } from "../../lib/journey/planner";
+import { compareJourneys, departureTimes, planJourney, sweepJourneys } from "../../lib/journey/planner";
+import { journeyOverlay, overlayBounds } from "../../lib/journey/mapOverlay";
 import {
   DEFAULT_LIMITS,
   type JourneyPlace,
@@ -324,6 +325,67 @@ console.log("custom routes");
   const cmp2 = compareJourneys(base, plan(go, "A", "D", hm(8), { customRoutes: [late] }));
   check("custom route that doesn't help is reported as unused", cmp2.verdict === "unused" && cmp2.timeSavedSec === 0,
     cmp2.verdict);
+}
+
+// ── Map geometry ───────────────────────────────────────────────────────────
+console.log("map geometry");
+{
+  const trips = [
+    trip("t1", "LW", [["A", hm(8)], ["B", hm(8, 5)], ["C", hm(8, 10)], ["D", hm(8, 15)]]),
+  ];
+  const r = plan(trips, "B", "D", hm(8));
+  const ride = rides(r)[0];
+  check("ride path covers boarding to alighting stops only",
+    ride?.path.length === 3 && ride.path[0][0] === -79.48 && ride.path[2][0] === -79.44,
+    JSON.stringify(ride?.path));
+  if (r.found) {
+    const fc = journeyOverlay([{ scenario: "with", journey: r.journey }, { scenario: "base", journey: null }]);
+    const lines = fc.features.filter((f) => f.geometry.type === "LineString");
+    const points = fc.features.filter((f) => f.geometry.type === "Point");
+    check("overlay has one line per leg and start/end points", lines.length === 1 && points.length === 2,
+      `${lines.length} lines, ${points.length} points`);
+    const b = overlayBounds(fc);
+    check("overlay bounds span the journey", b !== null && b[0][0] === -79.48 && b[1][0] === -79.44);
+  }
+  check("empty overlay has no bounds", overlayBounds(journeyOverlay([])) === null);
+}
+
+// ── Departure sweep ────────────────────────────────────────────────────────
+console.log("sweep");
+{
+  check("departure times are inclusive and stepped", departureTimes(hm(8), hm(9), 15 * 60).length === 5);
+  check("departure times are capped", departureTimes(0, hm(24), 60).length === 200);
+
+  const go = [
+    trip("s1", "LW", [["A", hm(8)], ["D", hm(9)]]),
+    trip("s2", "LW", [["A", hm(9)], ["D", hm(10)]]),
+  ];
+  const express: CustomRoute = {
+    id: "ex", name: "Express", color: "#0f0", type: "train", createdAt: "",
+    stops: [
+      { id: "e1", name: "Alpha", lat: LAT, lon: -79.50, sequence: 1 },
+      { id: "e2", name: "Delta", lat: LAT, lon: -79.44, sequence: 2 },
+    ],
+    schedule: { type: "fixed", direction: "one-way", fixedDepartures: ["08:00"] },
+  };
+  const window = { date: DATE, windowStartSec: hm(7, 30), windowEndSec: hm(8, 30) + DEFAULT_LIMITS.horizonSec,
+    extraStops: STOPS, extraTrips: go, maxTransferWalkM: 500, walkSpeedMps: 1.2 };
+  const baseNet = buildNetwork(window);
+  const withNet = buildNetwork({ ...window, customRoutes: [express] });
+  const { rows, summary } = sweepJourneys(baseNet, withNet,
+    { origin: place("A"), destination: place("D") }, departureTimes(hm(7, 30), hm(8, 30), 30 * 60));
+  check("sweep returns one row per departure", rows.length === 3);
+  check("only the 07:30 and 08:00 departures can use the 08:00 express",
+    rows[0].verdict === "faster" && rows[1].verdict === "faster" && rows[2].verdict === "unused",
+    rows.map((r) => r.verdict).join(","));
+  check("summary counts improved departures", summary.improved === 2 && summary.newConnections === 0);
+  check("summary max saving is the biggest single saving",
+    summary.maxSavedSec === Math.max(...rows.map((r) => r.timeSavedSec ?? 0)));
+  const sweepMatchesSingle = rows.every((row) => {
+    const single = plan(go, "A", "D", row.departSec, { customRoutes: [express] });
+    return single.found && single.journey.totalSec === row.withTotalSec;
+  });
+  check("sweep results match individual searches", sweepMatchesSingle);
 }
 
 console.log(`\n${checks - failures}/${checks} checks passed`);

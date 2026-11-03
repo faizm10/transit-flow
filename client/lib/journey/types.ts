@@ -108,6 +108,8 @@ export interface WalkLeg {
   depSec: number;
   arrSec: number;
   distanceM: number;
+  /** [lon, lat] from → to. */
+  path: [number, number][];
 }
 
 export interface RideLeg {
@@ -125,6 +127,8 @@ export interface RideLeg {
   arrSec: number;
   /** Number of stops travelled (alight index − board index). */
   stopCount: number;
+  /** [lon, lat] of every stop from boarding to alighting (straight lines between stops). */
+  path: [number, number][];
 }
 
 export type JourneyLeg = WalkLeg | RideLeg;

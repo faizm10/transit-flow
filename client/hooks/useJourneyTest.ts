@@ -1,28 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CustomRoute } from "@/lib/gtfs";
-import type { JourneyPlace } from "@/lib/journey/types";
-import type { JourneyTestResult, JourneyWorkerMessage } from "@/lib/journey/protocol";
+import type { JourneyRequest, JourneyResult, JourneyWorkerMessage } from "@/lib/journey/protocol";
 
 export type JourneyTestState =
   | { status: "idle" }
   | { status: "running"; phase: string }
-  | { status: "done"; result: JourneyTestResult }
+  | { status: "done"; result: JourneyResult }
   | { status: "error"; message: string };
 
-export interface JourneyTestInput {
-  date: string;
-  departSec: number;
-  origin: JourneyPlace;
-  destination: JourneyPlace;
-  route: CustomRoute;
-}
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+/** A worker request without the id the hook assigns. */
+export type JourneyTestInput = DistributiveOmit<JourneyRequest, "id">;
 
 /**
- * Runs "Test this route" comparisons in a dedicated worker. The worker lives
- * as long as the component so the GO timetable is downloaded once; responses
- * to superseded requests are dropped.
+ * Runs "Test this route" comparisons — one departure or a sweep — in a
+ * dedicated worker. The worker lives as long as the component so the GO
+ * timetable is downloaded once; responses to superseded requests are dropped.
  */
 export function useJourneyTest() {
   const workerRef = useRef<Worker | null>(null);
@@ -42,10 +37,7 @@ export function useJourneyTest() {
       if (msg.id !== latestId.current) return;
       if (msg.type === "progress") setState({ status: "running", phase: msg.phase });
       else if (msg.type === "error") setState({ status: "error", message: msg.message });
-      else {
-        const { type: _type, id: _id, ...result } = msg;
-        setState({ status: "done", result });
-      }
+      else setState({ status: "done", result: msg.result });
     };
     worker.onerror = (e) => {
       setState({ status: "error", message: e.message || "Journey planner crashed" });
