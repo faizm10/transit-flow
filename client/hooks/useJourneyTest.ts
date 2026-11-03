@@ -5,7 +5,7 @@ import type { JourneyRequest, JourneyResult, JourneyWorkerMessage } from "@/lib/
 
 export type JourneyTestState =
   | { status: "idle" }
-  | { status: "running"; phase: string }
+  | { status: "running"; phase: string; fraction?: number }
   | { status: "done"; result: JourneyResult }
   | { status: "error"; message: string };
 
@@ -35,7 +35,7 @@ export function useJourneyTest() {
     worker.onmessage = (e: MessageEvent<JourneyWorkerMessage>) => {
       const msg = e.data;
       if (msg.id !== latestId.current) return;
-      if (msg.type === "progress") setState({ status: "running", phase: msg.phase });
+      if (msg.type === "progress") setState({ status: "running", phase: msg.phase, fraction: msg.fraction });
       else if (msg.type === "error") setState({ status: "error", message: msg.message });
       else setState({ status: "done", result: msg.result });
     };

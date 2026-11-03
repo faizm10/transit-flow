@@ -13,6 +13,7 @@ import BrowsePanel from "@/components/panels/BrowsePanel";
 import DesignPanel, { type DesignTab } from "@/components/panels/DesignPanel";
 import ScheduleModal from "@/components/panels/ScheduleModal";
 import TestRouteModal from "@/components/panels/TestRouteModal";
+import NetworkImpactModal from "@/components/panels/NetworkImpactModal";
 import JourneyTestMapBar from "@/components/overlays/JourneyTestMapBar";
 import { journeyOverlay } from "@/lib/journey/mapOverlay";
 import type { Journey } from "@/lib/journey/types";
@@ -178,6 +179,9 @@ function MapPageContent() {
   const [testRouteId, setTestRouteId] = useState<string | null>(null);
   const [testView, setTestView] = useState<"modal" | "picking" | "map">("modal");
   const testRoute = testRouteId ? customRoutes.find((r) => r.id === testRouteId) ?? null : null;
+
+  const [impactRouteId, setImpactRouteId] = useState<string | null>(null);
+  const impactRoute = impactRouteId ? customRoutes.find((r) => r.id === impactRouteId) ?? null : null;
 
   const openRouteTest = useCallback((routeId: string) => {
     mapRef.current?.setJourneyOverlay(null);
@@ -1040,6 +1044,7 @@ function MapPageContent() {
                   if (route) setShareTarget(route);
                 }}
                 onTestCustomRoute={openRouteTest}
+                onCheckNetworkImpact={setImpactRouteId}
                 cityFeeds={cityFeeds}
                 visibleCityFeedIds={visibleCityFeedIds}
                 loadingCityFeedIds={loadingCityFeedIds}
@@ -1104,6 +1109,16 @@ function MapPageContent() {
         onClose={closeRouteTest}
         onPickOnMap={pickTestPlaceOnMap}
         onShowOnMap={showTestJourneysOnMap}
+        onCheckNetworkImpact={() => {
+          const id = testRouteId;
+          closeRouteTest();
+          setImpactRouteId(id);
+        }}
+      />
+      <NetworkImpactModal
+        key={`impact-${impactRoute?.id ?? "none"}`}
+        route={impactRoute}
+        onClose={() => setImpactRouteId(null)}
       />
       {testRoute && testView !== "modal" && (
         <JourneyTestMapBar

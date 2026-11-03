@@ -10,6 +10,7 @@ import {
   Loader2,
   Map as MapIcon,
   MapPin,
+  Network,
   Train,
   X,
 } from "lucide-react";
@@ -17,7 +18,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useJourneyTest } from "@/hooks/useJourneyTest";
-import { secondsToDisplayTime, timeToSeconds, type CustomRoute } from "@/lib/gtfs";
+import { timeToSeconds, type CustomRoute } from "@/lib/gtfs";
+import { fmtDate, fmtDistance, fmtDuration, fmtTime, todayLocal } from "@/lib/journey/format";
 import { haversineM } from "@/lib/journey/network";
 import type { ComparisonVerdict, JourneyComparison, SweepRow } from "@/lib/journey/planner";
 import type { FeedBasis, JourneySweepResult, JourneyTestResult } from "@/lib/journey/protocol";
@@ -33,6 +35,8 @@ interface TestRouteModalProps {
   onPickOnMap: (onPick: (lat: number, lon: number) => void) => void;
   /** Hide the modal and draw both journeys on the map. */
   onShowOnMap: (base: Journey | null, withRoute: Journey | null) => void;
+  /** Switch to the whole-network impact report for this route. */
+  onCheckNetworkImpact?: () => void;
 }
 
 interface PlaceOption extends JourneyPlace {
@@ -41,32 +45,6 @@ interface PlaceOption extends JourneyPlace {
 }
 
 // ── Formatting ───────────────────────────────────────────────────────────────
-
-function fmtTime(sec: number): string {
-  const day = Math.floor(sec / 86400);
-  const base = secondsToDisplayTime(((sec % 86400) + 86400) % 86400);
-  return day > 0 ? `${base} (+${day}d)` : base;
-}
-
-function fmtDuration(sec: number): string {
-  const mins = Math.round(sec / 60);
-  if (mins < 60) return `${mins} min`;
-  return `${Math.floor(mins / 60)} h ${String(mins % 60).padStart(2, "0")} min`;
-}
-
-function fmtDistance(m: number): string {
-  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m / 10) * 10} m`;
-}
-
-function todayLocal(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function fmtDate(date: string): string {
-  const [y, m, d] = date.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-CA", { weekday: "long", month: "short", day: "numeric" });
-}
 
 function noJourneyText(reason: NoJourneyReason, limits: SearchLimits, departSec: number): string {
   switch (reason) {
@@ -439,7 +417,7 @@ function sweepRowText(r: SweepRow): string {
   }
 }
 
-function StatTile({ label, value }: { label: string; value: string }) {
+export function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-[var(--landing-border)] bg-[var(--landing-elevated)] px-3 py-2">
       <dt className="text-[9px] uppercase tracking-[0.06em] text-[var(--landing-faint)]">{label}</dt>
@@ -454,7 +432,14 @@ type Mode = "single" | "sweep";
 const STEP_OPTIONS = [10, 15, 30, 60];
 const MAX_SWEEP_HOURS = 12;
 
-export default function TestRouteModal({ route, open, onClose, onPickOnMap, onShowOnMap }: TestRouteModalProps) {
+export default function TestRouteModal({
+  route,
+  open,
+  onClose,
+  onPickOnMap,
+  onShowOnMap,
+  onCheckNetworkImpact,
+}: TestRouteModalProps) {
   const { state, run } = useJourneyTest();
   const [goStops, setGoStops] = useState<PlaceOption[]>([]);
   const [date, setDate] = useState(todayLocal);
@@ -578,6 +563,15 @@ export default function TestRouteModal({ route, open, onClose, onPickOnMap, onSh
                 Compares the fastest journey on today&apos;s GO network with the same network plus {name},
                 using real departure times and minimum transfer times.
               </p>
+              {onCheckNetworkImpact && (
+                <button
+                  type="button"
+                  onClick={onCheckNetworkImpact}
+                  className="mt-2 inline-flex items-center gap-1 rounded-md bg-white/15 px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-white/25"
+                >
+                  <Network className="h-3 w-3" aria-hidden /> Check network impact
+                </button>
+              )}
             </div>
             <button
               type="button"

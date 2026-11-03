@@ -33,6 +33,14 @@ Notable changes to TransitFlow. The format follows
   across up to 12 hours. Shows how many departures your route helps, the
   average and best time saved, a per-departure chart (click a column to open
   that journey) and a table view.
+- **Network impact report.** A new "Check network impact" button (route list
+  and journey test) compares every GO rail station and your route's stops with
+  each other, with and without your route, at the same day and departure
+  times. It reports how many journeys get faster, the average saving among
+  them, how many need fewer transfers, which journeys become possible within
+  the tested window, and the ten biggest improvements with the services used
+  before and after. Limits and estimated timings are spelled out, and results
+  describe travel options, not predicted passenger numbers.
 - **More ways in.** Saving a route shows a "Test this route" toast action, and
   the simulation dock has a test button when a custom route is playing.
 

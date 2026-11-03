@@ -39,14 +39,32 @@ const SRC_ACCESS = 1;   // walked (or zero-walk) from the origin
 const SRC_TRANSFER = 2; // alighted at srcStop this round, then changed here
 
 interface Round {
-  /** Earliest arrival at each stop using exactly this round's vehicle. */
+  /** Earliest arrival at each stop using at most this round's number of vehicles. */
   arr: Float64Array;
   arrBoardConn: Int32Array;
   arrAlightConn: Int32Array;
+  /** Round (vehicle count) that produced `arr`; arrivals carry across rounds. */
+  arrRound: Int32Array;
   /** Earliest time a passenger is ready to board at each stop. */
   ready: Float64Array;
   readySrc: Uint8Array;
   readySrcStop: Int32Array;
+}
+
+type WalkMap = Map<number, { sec: number; m: number }>;
+
+/** Stops within `maxAccessWalkM` of a place, with walking time and distance. */
+export function walksNear(
+  network: PlannerNetwork,
+  place: { lat: number; lon: number },
+  limits: SearchLimits,
+): WalkMap {
+  const out: WalkMap = new Map();
+  network.stops.forEach((stop, i) => {
+    const d = haversineM(place, stop);
+    if (d <= limits.maxAccessWalkM) out.set(i, { sec: walkSeconds(d, limits.walkSpeedMps), m: d });
+  });
+  return out;
 }
 
 export function planJourney(
@@ -54,30 +72,57 @@ export function planJourney(
   query: JourneyQuery,
   limits: SearchLimits = DEFAULT_LIMITS,
 ): PlanResult {
-  const { stops, connections, footpaths, trips } = network;
-  const n = stops.length;
-  const departSec = query.departSec;
-  const horizonEnd = departSec + limits.horizonSec;
-
   if (haversineM(query.origin, query.destination) < 1) {
     return { found: false, reason: "same-place", limits };
   }
-
-  // ── Access & egress ──────────────────────────────────────────────────────
-  const accessWalk = new Map<number, { sec: number; m: number }>();
-  const egressWalk = new Map<number, { sec: number; m: number }>();
-  for (let i = 0; i < n; i++) {
-    const dO = haversineM(query.origin, stops[i]);
-    if (dO <= limits.maxAccessWalkM) {
-      accessWalk.set(i, { sec: walkSeconds(dO, limits.walkSpeedMps), m: dO });
-    }
-    const dD = haversineM(stops[i], query.destination);
-    if (dD <= limits.maxAccessWalkM) {
-      egressWalk.set(i, { sec: walkSeconds(dD, limits.walkSpeedMps), m: dD });
-    }
-  }
+  const accessWalk = walksNear(network, query.origin, limits);
+  const egressWalk = walksNear(network, query.destination, limits);
   if (accessWalk.size === 0) return { found: false, reason: "no-stops-near-origin", limits };
   if (egressWalk.size === 0) return { found: false, reason: "no-stops-near-destination", limits };
+
+  const search = searchRounds(network, accessWalk, query.departSec, limits, egressWalk);
+  if (!search) return { found: false, reason: "no-departures", limits };
+  if (search.bestRound < 0) return { found: false, reason: "not-found", limits };
+
+  const journey = reconstruct(
+    network, query, search.rounds, search.bestRound, search.bestEgressFrom, accessWalk, egressWalk,
+  );
+  return { found: true, journey, limits };
+}
+
+/**
+ * Earliest arrival from one origin to *every* stop, one round per vehicle.
+ * `rounds[k].arr[s]` is the earliest arrival at stop s using at most k
+ * vehicles (non-increasing in k). Used by the network impact report, which
+ * needs all destinations from each origin.
+ */
+export function arrivalsFrom(
+  network: PlannerNetwork,
+  origin: { lat: number; lon: number },
+  departSec: number,
+  limits: SearchLimits = DEFAULT_LIMITS,
+): Float64Array[] {
+  const access = walksNear(network, origin, limits);
+  if (access.size === 0) return [];
+  return searchRounds(network, access, departSec, limits, null)?.rounds.map((r) => r.arr) ?? [];
+}
+
+/**
+ * The round-based scan shared by single journeys and one-to-all searches.
+ * With an egress map it tracks the best destination arrival and prunes
+ * connections departing after it; without one it scans the whole horizon.
+ * Returns null when nothing departs near the origin within the horizon.
+ */
+function searchRounds(
+  network: PlannerNetwork,
+  accessWalk: WalkMap,
+  departSec: number,
+  limits: SearchLimits,
+  egressWalk: WalkMap | null,
+): { rounds: Round[]; bestArr: number; bestRound: number; bestEgressFrom: number } | null {
+  const { stops, connections, footpaths, trips } = network;
+  const n = stops.length;
+  const horizonEnd = departSec + limits.horizonSec;
 
   // ── Round 0: walk to nearby stops ────────────────────────────────────────
   const round0: Round = newRound(n);
@@ -92,7 +137,7 @@ export function planJourney(
   for (let c = firstConn; c < connections.length && connections[c].dep <= horizonEnd; c++) {
     if (accessWalk.has(connections[c].from)) { anyDeparture = true; break; }
   }
-  if (!anyDeparture) return { found: false, reason: "no-departures", limits };
+  if (!anyDeparture) return null;
 
   const rounds: Round[] = [round0];
   let bestArr = INF;
@@ -104,6 +149,11 @@ export function planJourney(
     const prev = rounds[k - 1];
     const cur = newRound(n);
     cur.ready.set(prev.ready);
+    // Arrivals are "at most k vehicles": carry the previous round's forward.
+    cur.arr.set(prev.arr);
+    cur.arrBoardConn.set(prev.arrBoardConn);
+    cur.arrAlightConn.set(prev.arrAlightConn);
+    cur.arrRound.set(prev.arrRound);
     tripBoard.fill(-1);
     let improved = false;
 
@@ -117,15 +167,16 @@ export function planJourney(
         cur.arr[c.to] = c.arr;
         cur.arrBoardConn[c.to] = tripBoard[c.trip];
         cur.arrAlightConn[c.to] = ci;
+        cur.arrRound[c.to] = k;
         improved = true;
       }
     }
     if (!improved) break;
 
-    // Transfers out of this round's arrivals become next round's boardings.
+    // Transfers out of this round's new arrivals become next round's boardings.
     for (let s = 0; s < n; s++) {
+      if (cur.arrRound[s] !== k) continue;
       const a = cur.arr[s];
-      if (a === INF) continue;
       const same = a + limits.minTransferSec;
       if (same < cur.ready[s]) {
         cur.ready[s] = same;
@@ -143,21 +194,20 @@ export function planJourney(
     }
     rounds.push(cur);
 
-    for (const [s, w] of egressWalk) {
-      const a = cur.arr[s];
-      if (a === INF) continue;
-      if (a + w.sec < bestArr) {
-        bestArr = a + w.sec;
-        bestRound = k;
-        bestEgressFrom = s;
+    if (egressWalk) {
+      for (const [s, w] of egressWalk) {
+        const a = cur.arr[s];
+        if (a === INF) continue;
+        if (a + w.sec < bestArr) {
+          bestArr = a + w.sec;
+          bestRound = k;
+          bestEgressFrom = s;
+        }
       }
     }
   }
 
-  if (bestRound < 0) return { found: false, reason: "not-found", limits };
-
-  const journey = reconstruct(network, query, rounds, bestRound, bestEgressFrom, accessWalk, egressWalk);
-  return { found: true, journey, limits };
+  return { rounds, bestArr, bestRound, bestEgressFrom };
 }
 
 function newRound(n: number): Round {
@@ -165,6 +215,7 @@ function newRound(n: number): Round {
     arr: new Float64Array(n).fill(INF),
     arrBoardConn: new Int32Array(n).fill(-1),
     arrAlightConn: new Int32Array(n).fill(-1),
+    arrRound: new Int32Array(n).fill(-1),
     ready: new Float64Array(n).fill(INF),
     readySrc: new Uint8Array(n),
     readySrcStop: new Int32Array(n).fill(-1),
@@ -214,6 +265,7 @@ function reconstruct(
   let k = bestRound;
   let stop = egressFrom;
   while (k > 0) {
+    k = rounds[k].arrRound[stop];
     const r = rounds[k];
     const board = connections[r.arrBoardConn[stop]];
     const alight = connections[r.arrAlightConn[stop]];

@@ -8,9 +8,10 @@
  * Run: npm run test:node
  */
 
-import { buildNetwork, dayOfWeek, type GoTripsByDow } from "../../lib/journey/network";
+import { buildNetwork, dayOfWeek, haversineM as haversine, type GoTripsByDow } from "../../lib/journey/network";
 import { compareJourneys, departureTimes, planJourney, sweepJourneys } from "../../lib/journey/planner";
 import { journeyOverlay, overlayBounds } from "../../lib/journey/mapOverlay";
+import { analyzeImpact, impactStations, MIN_PAIR_DISTANCE_M } from "../../lib/journey/impact";
 import {
   DEFAULT_LIMITS,
   type JourneyPlace,
@@ -386,6 +387,109 @@ console.log("sweep");
     return single.found && single.journey.totalSec === row.withTotalSec;
   });
   check("sweep results match individual searches", sweepMatchesSingle);
+}
+
+// ── Network impact ─────────────────────────────────────────────────────────
+console.log("network impact");
+{
+  const st = (lon: number, name: string, dLat = 0) => ({ lat: LAT + dLat, lon, name });
+  const goStops = {
+    AA: st(-79.50, "Alpha GO"),
+    BB: st(-79.48, "Bravo GO"),
+    CC: st(-79.46, "Charlie GO"),
+    DD: st(-79.44, "Delta GO"),
+    DE: st(-79.434, "Delta East GO"), // ~480 m from Delta: walkable, so DD↔DE isn't tested
+    "00001": st(-79.481, "Bravo GO Bus"), // numeric id = bus stop, not a station
+  };
+  const t = (id: string, stops: [string, number][]) => ({
+    trip_id: id, route_short_name: "LW", route_long_name: "LW", route_type: 2,
+    stops: stops.map(([stop_id, time], i) => ({ stop_id, t: time, seq: i + 1 })),
+  });
+  // Alpha → Delta needs a change at Bravo on the existing network.
+  const goTrips: GoTripsByDow = {
+    "2": [
+      t("a1", [["AA", hm(8)], ["BB", hm(8, 20)]]),
+      t("b1", [["BB", hm(8, 25)], ["CC", hm(8, 40)], ["DD", hm(9)]]),
+      t("a2", [["AA", hm(8, 30)], ["BB", hm(8, 50)]]),
+      t("b2", [["BB", hm(8, 55)], ["CC", hm(9, 10)], ["DD", hm(9, 30)]]),
+    ],
+  };
+  // Express Alpha → Delta → New Town (a new place no GO stop reaches).
+  const express: CustomRoute = {
+    id: "imp", name: "Express", color: "#0f0", type: "train", createdAt: "",
+    stops: [
+      { id: "x1", name: "Alpha GO", lat: LAT, lon: -79.50, sequence: 1 },
+      { id: "x2", name: "Delta GO", lat: LAT, lon: -79.44, sequence: 2 },
+      { id: "x3", name: "New Town", lat: LAT + 0.05, lon: -79.44, sequence: 3 },
+    ],
+    schedule: { type: "fixed", direction: "one-way", fixedDepartures: ["08:05", "08:35"] },
+  };
+  const departures = [hm(7, 50), hm(8, 10)];
+  const common = {
+    date: DATE, windowStartSec: departures[0], windowEndSec: departures[1] + DEFAULT_LIMITS.horizonSec,
+    goTrips, goStops, maxTransferWalkM: 500, walkSpeedMps: 1.2,
+  };
+  const baseNet = buildNetwork(common);
+  const withNet = buildNetwork({ ...common, customRoutes: [express] });
+  const stations = impactStations(goStops, express);
+
+  check("stations are GO rail stations plus new route stops",
+    stations.filter((x) => x.source === "go").length === 5 && stations.filter((x) => x.source === "route").map((x) => x.name).join() === "New Town",
+    stations.map((x) => x.name).join(", "));
+
+  let progressCalls = 0;
+  const report = analyzeImpact(baseNet, withNet, stations, departures, DEFAULT_LIMITS, () => progressCalls++);
+  check("reports progress once per origin and departure", progressCalls === stations.length * departures.length);
+  check("skips walkable pairs", report.pairs === 6 * 5 - 2, `${report.pairs} pairs`);
+  check("tests every pair at every departure", report.journeysTested === report.pairs * departures.length);
+
+  // Brute force: plan every pair at every departure and count the same things.
+  let faster = 0, fewer = 0, newly = 0, before = 0, saved = 0;
+  for (const o of stations) for (const d of stations) {
+    if (o === d || haversine(o, d) < MIN_PAIR_DISTANCE_M) continue;
+    for (const dep of departures) {
+      const q = { origin: o, destination: d, departSec: dep };
+      const b = planJourney(baseNet, q);
+      const w = planJourney(withNet, q);
+      if (b.found) before++;
+      if (!b.found && w.found) newly++;
+      if (b.found && w.found) {
+        const s2 = b.journey.arriveSec - w.journey.arriveSec;
+        if (s2 > 0) { faster++; saved += s2; }
+        if (w.journey.transfers < b.journey.transfers) fewer++;
+      }
+    }
+  }
+  check("faster count matches individual searches", report.faster === faster && faster > 0, `${report.faster} vs ${faster}`);
+  check("average saving matches individual searches",
+    report.avgSavedSec !== null && Math.abs(report.avgSavedSec - saved / faster) < 1e-6);
+  check("fewer-transfer count matches individual searches", report.fewerTransfers === fewer && fewer > 0,
+    `${report.fewerTransfers} vs ${fewer}`);
+  check("newly-possible count matches individual searches", report.newlyPossible === newly && newly > 0,
+    `${report.newlyPossible} vs ${newly}`);
+  check("existing-network count matches individual searches", report.journeysPossibleBefore === before);
+
+  const top = report.biggest[0];
+  check("biggest improvement is Alpha → Delta", top?.from === "Alpha GO" && top.to === "Delta GO", `${top?.from} → ${top?.to}`);
+  check("biggest improvement lists services before and after",
+    top?.baseServices.join(">") === "LW" && top.withServices.join(">") === "Express" && top.baseTransfers === 1 && top.withTransfers === 0,
+    `${top?.baseServices.join(">")} → ${top?.withServices.join(">")}`);
+  check("improvements are marked estimated when they use the custom route", top?.estimated === true);
+  check("improvements are sorted by time saved",
+    report.biggest.every((b, i, a) => i === 0 || a[i - 1].savedSec >= b.savedSec));
+  check("one row per station pair in the improvement list",
+    new Set(report.biggest.map((b) => `${b.from}>${b.to}`)).size === report.biggest.length);
+  const toNewTown = report.newConnections.filter((c) => c.to === "New Town").map((c) => c.from).sort();
+  check("journeys to the new stop become possible", toNewTown.includes("Alpha GO") && toNewTown.includes("Delta GO"),
+    toNewTown.join(", "));
+  check("newly-possible rows count departures within the window",
+    report.newConnections.every((c) => c.departures >= 1 && c.departures <= departures.length));
+  check("no journeys from New Town on a one-way route",
+    report.newConnections.every((c) => c.from !== "New Town"));
+
+  const noop = analyzeImpact(baseNet, baseNet, stations, departures);
+  check("a network compared with itself changes nothing",
+    noop.faster === 0 && noop.fewerTransfers === 0 && noop.newlyPossible === 0 && noop.biggest.length === 0);
 }
 
 console.log(`\n${checks - failures}/${checks} checks passed`);

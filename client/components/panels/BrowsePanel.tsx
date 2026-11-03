@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Building2, Bus, ChevronDown, ChevronUp, Loader2, Locate, Pencil, Plus, Route as RouteIcon, Search, Share2, Train, Trash2 } from "lucide-react";
+import { Building2, Bus, ChevronDown, ChevronUp, Loader2, Locate, Network, Pencil, Plus, Route as RouteIcon, Search, Share2, Train, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
@@ -18,6 +18,7 @@ interface BrowsePanelProps {
   onDeleteCustomRoute: (routeId: string, routeName: string) => void;
   onShareCustomRoute: (routeId: string) => void;
   onTestCustomRoute: (routeId: string) => void;
+  onCheckNetworkImpact: (routeId: string) => void;
   cityFeeds: CityFeedEntry[];
   visibleCityFeedIds: Set<string>;
   loadingCityFeedIds: Set<string>;
@@ -63,6 +64,7 @@ export default function BrowsePanel({
   onDeleteCustomRoute,
   onShareCustomRoute,
   onTestCustomRoute,
+  onCheckNetworkImpact,
   cityFeeds,
   visibleCityFeedIds,
   loadingCityFeedIds,
@@ -452,6 +454,18 @@ export default function BrowsePanel({
                         title="Test this route"
                       >
                         <RouteIcon className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onCheckNetworkImpact(route.id);
+                        }}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--landing-faint)] transition-colors hover:bg-[var(--landing-wash)] hover:text-[var(--landing-accent)]"
+                        aria-label={`Check network impact of ${route.name || "custom route"}`}
+                        title="Check network impact"
+                      >
+                        <Network className="h-3 w-3" />
                       </button>
                       <button
                         type="button"

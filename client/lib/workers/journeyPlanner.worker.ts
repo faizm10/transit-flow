@@ -1,6 +1,7 @@
 /**
  * Compares journeys on the existing GO network against the same network with
- * one custom route added — for one departure, or a sweep across a time range.
+ * one custom route added: one departure, a sweep across a time range, or a
+ * whole-network station-to-station impact report.
  *
  * Runs off the main thread: the GO timetable is ~9 MB of JSON, and parsing it
  * plus compiling connections would stall the map. The parsed timetable is kept
@@ -8,6 +9,7 @@
  */
 
 import { buildNetwork, type GoStopsLookup, type GoTripsByDow } from "../journey/network";
+import { analyzeImpact, impactStations } from "../journey/impact";
 import { compareJourneys, departureTimes, planJourney, sweepJourneys } from "../journey/planner";
 import type { FeedBasis, JourneyRequest, JourneyResult, JourneyWorkerMessage } from "../journey/protocol";
 import { DEFAULT_LIMITS } from "../journey/types";
@@ -65,15 +67,32 @@ self.onmessage = (event: MessageEvent<JourneyRequest>) => {
     };
     const baseNetwork = buildNetwork(common);
     const withNetwork = buildNetwork({ ...common, customRoutes: [req.route] });
-    const place = { origin: req.origin, destination: req.destination };
-
     let result: JourneyResult;
-    if (req.kind === "single") {
+    if (req.kind === "impact") {
+      const departures = departureTimes(req.startSec, req.endSec, req.stepSec);
+      let lastPct = -1;
+      const report = analyzeImpact(
+        baseNetwork,
+        withNetwork,
+        impactStations(go.stops, req.route),
+        departures,
+        limits,
+        (done, total) => {
+          const pct = Math.floor((done / total) * 20) * 5;
+          if (pct === lastPct) return;
+          lastPct = pct;
+          post({ type: "progress", id: req.id, phase: "Comparing station-to-station journeys", fraction: done / total });
+        },
+      );
+      result = { kind: "impact", report, feed: go.feed };
+    } else if (req.kind === "single") {
+      const place = { origin: req.origin, destination: req.destination };
       const query = { ...place, departSec: req.departSec };
       const base = planJourney(baseNetwork, query, limits);
       const withRoute = planJourney(withNetwork, query, limits);
       result = { kind: "single", base, withRoute, comparison: compareJourneys(base, withRoute), feed: go.feed };
     } else {
+      const place = { origin: req.origin, destination: req.destination };
       const departures = departureTimes(req.startSec, req.endSec, req.stepSec);
       const { rows, summary } = sweepJourneys(baseNetwork, withNetwork, place, departures, limits);
       result = { kind: "sweep", rows, summary, limits, feed: go.feed };
