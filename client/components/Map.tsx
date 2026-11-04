@@ -123,13 +123,15 @@ interface MapProps {
   onVehicleHover?: (tripId: string | null) => void;
   /** When true, show the full OSM rail network overlay (train design mode). */
   isTrainDesignMode?: boolean;
+  /** The map could not start (no WebGL, missing token). The page shows a fallback. */
+  onError?: (reason: "webgl" | "token") => void;
 }
 
 const TORONTO_CENTER: [number, number] = [-79.385, 43.693];
 const DEFAULT_ZOOM = 9.5;
 
 const Map = forwardRef<MapHandle, MapProps>(function Map(
-  { onLoad, onMapDestroy, onRouteClick, onCustomRouteClick, onRouteHover, onVehicleClick, onVehicleHover, isTrainDesignMode },
+  { onLoad, onMapDestroy, onRouteClick, onCustomRouteClick, onRouteHover, onVehicleClick, onVehicleHover, isTrainDesignMode, onError },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -552,21 +554,31 @@ const Map = forwardRef<MapHandle, MapProps>(function Map(
     const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
     if (!token || token === "your_public_mapbox_token") {
       console.error("Mapbox token missing — set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN in .env.local");
+      onError?.("token");
       return;
     }
     mapboxgl.accessToken = token;
 
-    const map = new mapboxgl.Map({
-      container: containerRef.current,
-      style: "mapbox://styles/mapbox/outdoors-v12",
-      center: TORONTO_CENTER,
-      zoom: DEFAULT_ZOOM,
-      pitch: 40,
-      bearing: -10,
-      minZoom: 7,
-      maxZoom: 18,
-      attributionControl: false,
-    });
+    let map: mapboxgl.Map;
+    try {
+      map = new mapboxgl.Map({
+        container: containerRef.current,
+        style: "mapbox://styles/mapbox/outdoors-v12",
+        center: TORONTO_CENTER,
+        zoom: DEFAULT_ZOOM,
+        pitch: 40,
+        bearing: -10,
+        minZoom: 7,
+        maxZoom: 18,
+        attributionControl: false,
+      });
+    } catch (err) {
+      // Mapbox throws synchronously when WebGL is unavailable; without this
+      // the whole page fails instead of showing a fallback.
+      console.warn("Map failed to start:", err);
+      onError?.("webgl");
+      return;
+    }
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), "bottom-right");
     map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-left");

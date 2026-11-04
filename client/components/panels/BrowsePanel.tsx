@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Building2, Bus, ChevronDown, ChevronUp, Loader2, Locate, Network, Pencil, Plus, Route as RouteIcon, Search, Share2, Train, Trash2 } from "lucide-react";
+import { Building2, Bus, CalendarClock, ChevronDown, ChevronUp, Loader2, Locate, MoreHorizontal, Network, Pencil, Plus, Route as RouteIcon, Search, Share2, Train, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GO_RAIL_LINES } from "@/lib/routeColors";
 import { type CustomRoute, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
@@ -19,6 +26,8 @@ interface BrowsePanelProps {
   onShareCustomRoute: (routeId: string) => void;
   onTestCustomRoute: (routeId: string) => void;
   onCheckNetworkImpact: (routeId: string) => void;
+  /** Open GO and custom-route timetables. */
+  onOpenTimetables?: () => void;
   cityFeeds: CityFeedEntry[];
   visibleCityFeedIds: Set<string>;
   loadingCityFeedIds: Set<string>;
@@ -65,6 +74,7 @@ export default function BrowsePanel({
   onShareCustomRoute,
   onTestCustomRoute,
   onCheckNetworkImpact,
+  onOpenTimetables,
   cityFeeds,
   visibleCityFeedIds,
   loadingCityFeedIds,
@@ -443,53 +453,32 @@ export default function BrowsePanel({
                           {route.name || "Custom route"}
                         </span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onTestCustomRoute(route.id);
-                        }}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--landing-faint)] transition-colors hover:bg-[var(--landing-wash)] hover:text-[var(--landing-accent)]"
-                        aria-label={`Test ${route.name || "custom route"} on a journey`}
-                        title="Test this route"
-                      >
-                        <RouteIcon className="h-3 w-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onCheckNetworkImpact(route.id);
-                        }}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--landing-faint)] transition-colors hover:bg-[var(--landing-wash)] hover:text-[var(--landing-accent)]"
-                        aria-label={`Check network impact of ${route.name || "custom route"}`}
-                        title="Check network impact"
-                      >
-                        <Network className="h-3 w-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onShareCustomRoute(route.id);
-                        }}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--landing-faint)] transition-colors hover:bg-[var(--landing-wash)] hover:text-[var(--landing-accent)]"
-                        aria-label={`Share ${route.name || "custom route"} to community`}
-                        title="Share to community"
-                      >
-                        <Share2 className="h-3 w-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onDeleteCustomRoute(route.id, route.name || "Custom route");
-                        }}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--landing-faint)] transition-colors hover:bg-[color-mix(in_oklab,var(--landing-red)_10%,transparent)] hover:text-[var(--landing-red)]"
-                        aria-label={`Delete ${route.name || "custom route"}`}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--landing-faint)] transition-colors hover:bg-[var(--landing-wash)] hover:text-[var(--landing-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)]"
+                          aria-label={`Actions for ${route.name || "custom route"}`}
+                        >
+                          <MoreHorizontal className="h-3.5 w-3.5" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                          <DropdownMenuItem onClick={() => onTestCustomRoute(route.id)}>
+                            <RouteIcon aria-hidden /> Try a journey
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onCheckNetworkImpact(route.id)}>
+                            <Network aria-hidden /> Check network impact
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onShareCustomRoute(route.id)}>
+                            <Share2 aria-hidden /> Share to community
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => onDeleteCustomRoute(route.id, route.name || "Custom route")}
+                          >
+                            <Trash2 aria-hidden /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <VisibilityCheckbox
                         checked={visible}
                         label={`Show ${route.name || "custom route"} on map`}
@@ -589,6 +578,17 @@ export default function BrowsePanel({
           )}
         </TabsContent>
       </Tabs>
+      {onOpenTimetables && (
+        <footer className="shrink-0 border-t border-[var(--landing-border)] px-2 py-1.5">
+          <button
+            type="button"
+            onClick={onOpenTimetables}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md py-1 text-[11px] font-medium text-[var(--landing-accent)] transition-colors hover:bg-[var(--landing-wash)]"
+          >
+            <CalendarClock className="h-3.5 w-3.5" aria-hidden /> View timetables
+          </button>
+        </footer>
+      )}
     </div>
   );
 }

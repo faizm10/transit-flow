@@ -90,6 +90,8 @@ interface ServiceStatusPillProps {
   canToggle: boolean;
   showOnMap: boolean;
   onShowOnMapChange: (next: boolean) => void;
+  /** Extra classes, e.g. to hide the card on mobile while a panel is open. */
+  className?: string;
 }
 
 /**
@@ -103,6 +105,7 @@ export default function ServiceStatusPill({
   canToggle,
   showOnMap,
   onShowOnMapChange,
+  className,
 }: ServiceStatusPillProps) {
   // Nothing until the first response: a card that flips from "All clear" to
   // "2 alerts" a second after load is worse than one that arrives once.
@@ -112,7 +115,9 @@ export default function ServiceStatusPill({
   const { dot, text, Icon } = TONE_STYLES[tone];
 
   return (
-    <div className="tf-map-panel absolute right-4 top-20 z-20 w-64 overflow-hidden">
+    <div
+      className={`tf-map-panel absolute right-4 top-20 z-20 w-64 overflow-hidden max-md:right-2 max-md:top-2 max-md:w-auto max-md:max-w-[calc(100vw-14rem)] ${className ?? ""}`}
+    >
       <Link
         href="/service-updates"
         title={detail}
@@ -138,7 +143,7 @@ export default function ServiceStatusPill({
       </Link>
 
       {canToggle && (
-        <div className="flex items-center gap-2 border-t border-[var(--landing-border)] px-3 py-2">
+        <div className="flex items-center gap-2 border-t border-[var(--landing-border)] px-3 py-2 max-md:hidden">
           <AlertTriangle
             className={`h-3.5 w-3.5 shrink-0 ${
               showOnMap ? "text-[var(--landing-amber)]" : "text-[var(--landing-faint)]"

@@ -19,7 +19,7 @@ export default function JourneyTestMapBar({ view, routeName, routeColor, onBack,
   return (
     <div
       role="status"
-      className="fixed left-1/2 top-4 z-40 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-3 rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] px-3 py-2 text-xs shadow-lg"
+      className="fixed left-1/2 top-4 z-40 flex max-w-[calc(100%-2rem)] max-md:top-14 -translate-x-1/2 items-center gap-3 rounded-xl border border-[var(--landing-border)] bg-[var(--landing-elevated)] px-3 py-2 text-xs shadow-lg"
     >
       {view === "picking" ? (
         <span className="flex items-center gap-2 text-[var(--landing-ink)]">

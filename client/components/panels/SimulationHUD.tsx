@@ -114,7 +114,7 @@ export default function SimulationHUD({
   // The card keeps its own width — the setup form and the playback scrubber
   // need more room than the 288px route dock — but it starts in the same place.
   const baseShellClass = placement === "dock"
-    ? "absolute left-4 top-20 z-30 max-w-[calc(100vw-2rem)]"
+    ? "absolute left-4 top-20 z-30 max-w-[calc(100vw-2rem)] max-md:inset-x-2 max-md:top-auto max-md:max-w-none max-md:bottom-[calc(3.75rem+env(safe-area-inset-bottom)+0.5rem)]"
     : placement === "bottom-right"
       ? "absolute bottom-4 left-4 right-4 z-30 sm:left-auto sm:right-4 sm:bottom-6"
       : "absolute bottom-6 left-1/2 -translate-x-1/2 z-30";

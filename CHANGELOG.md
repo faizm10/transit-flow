@@ -46,6 +46,23 @@ Notable changes to TransitFlow. The format follows
 
 ### Changed
 
+- **Simpler map page built around Explore → Design → Test → Share.**
+  - The top bar is now the four steps. On phones they move to a bottom tab bar,
+    and panels open as bottom sheets so the map stays visible.
+  - New **Test** step: pick one of your routes and try a journey, check its
+    network impact or simulate it, from one panel. Simulation lives here now.
+  - **Share** is a step with a route picker and a link to community designs;
+    the separate floating "saved routes" and "Share" buttons are gone.
+  - **Schedules** moved out of the top bar into Explore ("View timetables")
+    and Test ("More options").
+  - Each saved route's test, impact, share and delete actions sit in one
+    "⋯" menu instead of a row of icons.
+  - "Report a bug" moved into the top bar instead of floating over the map
+    controls.
+  - Clear loading and error states: a "Loading map…" indicator, and a
+    fallback message (instead of a crashed page) when the browser can't run
+    the map. Panels still work without it.
+
 - Custom-route schedule expansion is now shared between the simulation and the
   journey planner (`buildCustomRouteTrips` in `client/lib/simulation.ts`).
   Simulation output is unchanged.
