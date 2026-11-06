@@ -5,8 +5,8 @@ import { Bug } from "lucide-react";
 import BugReportModal from "./BugReportModal";
 
 interface Props {
-  /** Visual variant — "nav" for header links, "float" for the map overlay */
-  variant?: "nav" | "float";
+  /** Visual variant — "nav" for header links, "float" for a floating pill, "icon" for map chrome */
+  variant?: "nav" | "float" | "icon";
 }
 
 export default function BugReportButton({ variant = "nav" }: Props) {
@@ -14,7 +14,17 @@ export default function BugReportButton({ variant = "nav" }: Props) {
 
   return (
     <>
-      {variant === "float" ? (
+      {variant === "icon" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Report a bug"
+          title="Report a bug"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--landing-accent)]"
+        >
+          <Bug className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      ) : variant === "float" ? (
         <button
           onClick={() => setOpen(true)}
           className="fixed bottom-5 right-5 z-50 flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/90 px-3.5 py-2 text-xs font-medium text-slate-500 shadow-md backdrop-blur-sm transition-colors hover:border-slate-300 hover:text-slate-800"

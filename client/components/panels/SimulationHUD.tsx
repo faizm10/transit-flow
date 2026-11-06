@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
-import { Play, Pause, Loader2, Train, Bus, ChevronDown, Pencil, X, Check } from "lucide-react";
+import { Play, Pause, Loader2, Train, Bus, ChevronDown, Pencil, X, Check, Route as RouteIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,8 @@ interface SimulationHUDProps {
   onDateChange: (date: string) => void;
   onStartHourChange: (hour: number) => void;
   onClear: () => void;
+  /** Open "Test this route" for a custom route in the simulation. */
+  onTestRoute?: (routeId: string) => void;
 }
 
 // Preset start times shown in the time picker
@@ -98,10 +100,12 @@ export default function SimulationHUD({
   onDateChange,
   onStartHourChange,
   onClear,
+  onTestRoute,
 }: SimulationHUDProps) {
   const [routePickerOpen, setRoutePickerOpen] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
   const hasTrips = trips.length > 0;
+  const testableRoute = customRoutes.find((route) => selectedRoutes.includes(customRouteSelectionId(route.id)));
   const selectedHasBus = selectedRoutes.some((route) => /^\d/.test(route))
     || customRoutes.some((route) => route.type === "bus" && selectedRoutes.includes(customRouteSelectionId(route.id)));
   // "dock" anchors to the same corner and top offset as the Explore and Design
@@ -110,7 +114,7 @@ export default function SimulationHUD({
   // The card keeps its own width — the setup form and the playback scrubber
   // need more room than the 288px route dock — but it starts in the same place.
   const baseShellClass = placement === "dock"
-    ? "absolute left-4 top-20 z-30 max-w-[calc(100vw-2rem)]"
+    ? "absolute left-4 top-20 z-30 max-w-[calc(100vw-2rem)] max-md:inset-x-2 max-md:top-auto max-md:max-w-none max-md:bottom-[calc(3.75rem+env(safe-area-inset-bottom)+0.5rem)]"
     : placement === "bottom-right"
       ? "absolute bottom-4 left-4 right-4 z-30 sm:left-auto sm:right-4 sm:bottom-6"
       : "absolute bottom-6 left-1/2 -translate-x-1/2 z-30";
@@ -307,6 +311,17 @@ export default function SimulationHUD({
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
+            {onTestRoute && testableRoute && (
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center rounded-none text-[var(--landing-faint)] transition-colors hover:bg-[var(--landing-wash)] hover:text-[var(--landing-accent)]"
+                onClick={() => onTestRoute(testableRoute.id)}
+                title={`Test ${testableRoute.name || "custom route"} on a journey`}
+                aria-label={`Test ${testableRoute.name || "custom route"} on a journey`}
+              >
+                <RouteIcon className="h-4 w-4" />
+              </button>
+            )}
             <button
               type="button"
               className="rounded-none border border-[var(--landing-border-2)]/90 bg-[var(--landing-elevated)] px-2 py-1 text-[10px] font-semibold tabular-nums text-[var(--landing-muted)] transition-colors hover:border-[var(--landing-border-2)] hover:bg-[var(--landing-wash)]"
