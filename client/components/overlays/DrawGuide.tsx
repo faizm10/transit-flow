@@ -19,7 +19,7 @@ export default function DrawGuide({ onFinish, onCancel, mode = "route" }: DrawGu
   }, []);
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 pointer-events-none max-md:top-14 max-md:w-[calc(100vw-1rem)]">
       <div className="pointer-events-auto flex flex-col items-center gap-3">
         {/* Main instruction banner — ink fill signals "drawing mode is live" */}
         <div className="flex items-center gap-3 bg-[var(--landing-inverse)] px-5 py-3.5 text-[var(--landing-inverse-fg)] shadow-[0_1px_2px_rgba(19,36,27,0.06),0_14px_34px_-14px_rgba(19,36,27,0.35)]">

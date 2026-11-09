@@ -45,8 +45,8 @@ export default function RouteInfoCard({
   const color = colorOverride ?? lineInfo?.color ?? colorForRoute(shortName);
   const displayName = title ?? lineInfo?.name ?? (variantLabel || `Route ${shortName}`);
   const shellClass = placement === "top-left"
-    ? "absolute left-4 top-20 z-30 w-[min(340px,calc(100vw-32px))] pointer-events-auto animate-in fade-in slide-in-from-left-3 duration-200"
-    : "absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-[min(360px,calc(100vw-32px))] pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200";
+    ? "absolute left-4 top-20 z-30 w-[min(340px,calc(100vw-32px))] pointer-events-auto animate-in fade-in slide-in-from-left-3 duration-200 max-md:left-2 max-md:top-14"
+    : "absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-[min(360px,calc(100vw-32px))] pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200 max-md:bottom-[calc(3.75rem+env(safe-area-inset-bottom)+0.5rem)]";
 
   return (
     <div className={shellClass}>

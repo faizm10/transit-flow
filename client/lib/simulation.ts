@@ -27,6 +27,8 @@ export interface SimStop {
   lon: number;
   shapeFrac: number;  // 0-1 fraction along the shape polyline
   stop_name?: string;
+  /** Source stop id (custom routes only; GO trips are keyed by name). */
+  stop_id?: string;
 }
 
 export interface SimTrip {
@@ -298,6 +300,7 @@ function customRouteStops(route: CustomRoute, shape: [number, number][], reverse
       ? projectStopFrac(stop.lon, stop.lat, shape, cache)
       : index / Math.max(1, orderedStops.length - 1),
     stop_name: stop.name,
+    stop_id: stop.id,
   }));
 
   if (stops.length > 0) {
@@ -373,6 +376,7 @@ function customRouteTimedStops(
       lon: stop.lon,
       shapeFrac,
       stop_name: stop.name,
+      stop_id: stop.id,
     };
   });
 
@@ -404,90 +408,103 @@ export function buildCustomSimulationTrips(
 
   for (const route of routes) {
     if (!selectedIds.has(route.id)) continue;
-
-    const baseShape = customRouteShape(route);
-    if (baseShape.length < 2) continue;
-
-    const durationSecs = customRouteDurationSecs(route, baseShape);
-    const schedule = simulationScheduleForRoute(route);
-
-    if (schedule.type === "timetable") {
-      const bothDirections = schedule.direction !== "one-way";
-      const plan = [
-        ...timetableTripsForRoute(route, options.date, "outbound").map((t) => ({ t, reverse: false })),
-        ...(bothDirections
-          ? timetableTripsForRoute(route, options.date, "return").map((t) => ({ t, reverse: true }))
-          : []),
-      ].sort((a, b) => a.t.departureSec - b.t.departureSec);
-
-      for (const { t: timetableTrip, reverse } of plan) {
-        if (trips.length >= 300) break;
-        const departSec = timetableTrip.departureSec;
-        const shape = reverse ? [...baseShape].reverse() : baseShape;
-        const stops = customRouteTimedStops(route, shape, durationSecs, timetableTrip, reverse);
-        const arriveSec = stops[stops.length - 1]?.t ?? departSec;
-        if (departSec >= endSec || arriveSec <= startSec) continue;
-
-        trips.push({
-          trip_id: `${CUSTOM_ROUTE_SELECTION_PREFIX}${route.id}-${timetableTrip.id}-${reverse ? "rev" : "fwd"}`,
-          route_short_name: route.name || "Custom",
-          route_long_name: route.description || route.name || "Custom route",
-          route_type: route.type === "train" ? 2 : 3,
-          color: route.color,
-          source: "custom",
-          stops,
-          shape,
-          start_stop_name: stops[0]?.stop_name ?? "",
-          end_stop_name: stops[stops.length - 1]?.stop_name ?? "",
-          start_time: toHHMM(departSec),
-          end_time: toHHMM(arriveSec),
-          departSec,
-          arriveSec,
-        });
-      }
-      continue;
-    }
-
-    const bothDirections = schedule.direction !== "one-way";
-    const outboundDeps = getDepartureSeconds(route, options.date, startSec, endSec, "outbound");
-    const returnDeps = bothDirections
-      ? getDepartureSeconds(route, options.date, startSec, endSec, "return")
-      : [];
-
-    // Interleave both directions by departure time so the 300-trip cap doesn't
-    // starve one direction.
-    const plan = [
-      ...outboundDeps.map((sec) => ({ sec, reverse: false })),
-      ...returnDeps.map((sec) => ({ sec, reverse: true })),
-    ].sort((a, b) => a.sec - b.sec);
-
-    for (const { sec: departSec, reverse } of plan) {
-      if (trips.length >= 300) break;
-
-      const shape = reverse ? [...baseShape].reverse() : baseShape;
-      const stops = customRouteStops(route, shape, reverse, durationSecs, departSec);
-      const arriveSec = departSec + durationSecs;
-      if (departSec >= endSec || arriveSec <= startSec) continue;
-
-      trips.push({
-        trip_id: `${CUSTOM_ROUTE_SELECTION_PREFIX}${route.id}-${departSec}-${reverse ? "rev" : "fwd"}`,
-        route_short_name: route.name || "Custom",
-        route_long_name: route.description || route.name || "Custom route",
-        route_type: route.type === "train" ? 2 : 3,
-        color: route.color,
-        source: "custom",
-        stops,
-        shape,
-        start_stop_name: stops[0]?.stop_name ?? "",
-        end_stop_name: stops[stops.length - 1]?.stop_name ?? "",
-        start_time: toHHMM(departSec),
-        end_time: toHHMM(arriveSec),
-        departSec,
-        arriveSec,
-      });
-    }
+    if (trips.length >= 300) break;
+    trips.push(
+      ...buildCustomRouteTrips(route, options.date, { startSec, endSec }, 300 - trips.length),
+    );
   }
 
+  return trips;
+}
+
+/**
+ * Expand one custom route's schedule into timed trips for a service date.
+ * Shared by the simulation and the journey planner so both read a route's
+ * frequency bands / fixed departures / timetable the same way.
+ *
+ * Trips are kept when they overlap `[startSec, endSec)`; at most `maxTrips`
+ * are returned, interleaving both directions by departure time.
+ */
+export function buildCustomRouteTrips(
+  route: CustomRoute,
+  date: string,
+  window: { startSec: number; endSec: number },
+  maxTrips = Infinity,
+): SimTrip[] {
+  const { startSec, endSec } = window;
+  const trips: SimTrip[] = [];
+
+  const baseShape = customRouteShape(route);
+  if (baseShape.length < 2) return trips;
+
+  const durationSecs = customRouteDurationSecs(route, baseShape);
+  const schedule = simulationScheduleForRoute(route);
+  const bothDirections = schedule.direction !== "one-way";
+
+  const makeTrip = (
+    idPart: string | number,
+    reverse: boolean,
+    shape: [number, number][],
+    stops: SimStop[],
+    departSec: number,
+    arriveSec: number,
+  ): SimTrip => ({
+    trip_id: `${CUSTOM_ROUTE_SELECTION_PREFIX}${route.id}-${idPart}-${reverse ? "rev" : "fwd"}`,
+    route_short_name: route.name || "Custom",
+    route_long_name: route.description || route.name || "Custom route",
+    route_type: route.type === "train" ? 2 : 3,
+    color: route.color,
+    source: "custom",
+    stops,
+    shape,
+    start_stop_name: stops[0]?.stop_name ?? "",
+    end_stop_name: stops[stops.length - 1]?.stop_name ?? "",
+    start_time: toHHMM(departSec),
+    end_time: toHHMM(arriveSec),
+    departSec,
+    arriveSec,
+  });
+
+  if (schedule.type === "timetable") {
+    const plan = [
+      ...timetableTripsForRoute(route, date, "outbound").map((t) => ({ t, reverse: false })),
+      ...(bothDirections
+        ? timetableTripsForRoute(route, date, "return").map((t) => ({ t, reverse: true }))
+        : []),
+    ].sort((a, b) => a.t.departureSec - b.t.departureSec);
+
+    for (const { t: timetableTrip, reverse } of plan) {
+      if (trips.length >= maxTrips) break;
+      const departSec = timetableTrip.departureSec;
+      const shape = reverse ? [...baseShape].reverse() : baseShape;
+      const stops = customRouteTimedStops(route, shape, durationSecs, timetableTrip, reverse);
+      const arriveSec = stops[stops.length - 1]?.t ?? departSec;
+      if (departSec >= endSec || arriveSec <= startSec) continue;
+      trips.push(makeTrip(timetableTrip.id, reverse, shape, stops, departSec, arriveSec));
+    }
+    return trips;
+  }
+
+  const outboundDeps = getDepartureSeconds(route, date, startSec, endSec, "outbound");
+  const returnDeps = bothDirections
+    ? getDepartureSeconds(route, date, startSec, endSec, "return")
+    : [];
+
+  // Interleave both directions by departure time so the trip cap doesn't
+  // starve one direction.
+  const plan = [
+    ...outboundDeps.map((sec) => ({ sec, reverse: false })),
+    ...returnDeps.map((sec) => ({ sec, reverse: true })),
+  ].sort((a, b) => a.sec - b.sec);
+
+  for (const { sec: departSec, reverse } of plan) {
+    if (trips.length >= maxTrips) break;
+    const shape = reverse ? [...baseShape].reverse() : baseShape;
+    const stops = customRouteStops(route, shape, reverse, durationSecs, departSec);
+    const arriveSec = departSec + durationSecs;
+    if (departSec >= endSec || arriveSec <= startSec) continue;
+    trips.push(makeTrip(departSec, reverse, shape, stops, departSec, arriveSec));
+  }
   return trips;
 }
 

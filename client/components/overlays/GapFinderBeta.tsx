@@ -127,7 +127,7 @@ export default function GapFinderBeta({
     return (
       <button
         onClick={openPanel}
-        className="tf-map-panel tf-map-label pointer-events-auto absolute left-4 top-4 z-30 flex items-center gap-2 px-3 py-2 text-[var(--landing-ink)] transition-colors hover:bg-[var(--landing-wash)]"
+        className="tf-map-panel tf-map-label pointer-events-auto absolute left-4 top-4 z-30 flex items-center gap-2 px-3 py-2 max-md:left-2 max-md:top-14 text-[var(--landing-ink)] transition-colors hover:bg-[var(--landing-wash)]"
       >
         <Sparkles className="h-3.5 w-3.5 text-[var(--landing-amber)]" />
         Gap Finder
@@ -139,7 +139,7 @@ export default function GapFinderBeta({
   }
 
   return (
-    <div className="tf-map-panel pointer-events-auto absolute bottom-4 left-4 top-20 z-30 flex w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden">
+    <div className="tf-map-panel pointer-events-auto absolute bottom-4 left-4 top-20 z-30 flex w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden max-md:inset-x-2 max-md:top-auto max-md:h-[60dvh] max-md:w-auto max-md:max-w-none max-md:bottom-[calc(3.75rem+env(safe-area-inset-bottom)+0.5rem)]">
       {/* header */}
       <div className="flex items-center gap-2 border-b border-[var(--landing-border)] px-4 py-3">
         <Sparkles className="h-4 w-4 shrink-0 text-[var(--landing-amber)]" />

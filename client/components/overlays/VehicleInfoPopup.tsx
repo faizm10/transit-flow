@@ -54,7 +54,7 @@ export default function VehicleInfoPopup({
 
   return (
     // top-20 = below nav bar; bottom-[88px] = above the simulation HUD (never overlap)
-    <div className="absolute top-20 bottom-[88px] right-4 z-30 w-72 flex flex-col justify-start animate-in fade-in slide-in-from-right-3 duration-200">
+    <div className="absolute top-20 bottom-[88px] right-4 z-30 w-72 flex flex-col justify-start animate-in fade-in slide-in-from-right-3 duration-200 max-md:inset-x-2 max-md:top-14 max-md:bottom-auto max-md:w-auto">
       <div className="bg-[var(--landing-elevated)]/97 backdrop-blur-xl rounded-2xl border border-[var(--landing-border-2)] shadow-xl overflow-hidden flex flex-col min-h-0">
         {/* Color header */}
         <div className="h-1.5 w-full" style={{ backgroundColor: color }} />

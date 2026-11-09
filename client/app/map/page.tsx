@@ -5,13 +5,20 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import mapboxgl from "mapbox-gl";
-import { Train, Map as MapIcon, PlayCircle, Pencil, CalendarClock, Share2 } from "lucide-react";
+import { Loader2, MapPinOff } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { MapHandle } from "@/components/Map";
 import BrowsePanel from "@/components/panels/BrowsePanel";
 import DesignPanel, { type DesignTab } from "@/components/panels/DesignPanel";
 import ScheduleModal from "@/components/panels/ScheduleModal";
+import TestRouteModal from "@/components/panels/TestRouteModal";
+import TestPanel from "@/components/panels/TestPanel";
+import MapNav, { MOBILE_NAV_OFFSET, type MapStep } from "@/components/map/MapNav";
+import NetworkImpactModal from "@/components/panels/NetworkImpactModal";
+import JourneyTestMapBar from "@/components/overlays/JourneyTestMapBar";
+import { journeyOverlay } from "@/lib/journey/mapOverlay";
+import type { Journey } from "@/lib/journey/types";
 import SimulationHUD from "@/components/panels/SimulationHUD";
 import RouteTooltip from "@/components/overlays/RouteTooltip";
 import RouteInfoCard from "@/components/overlays/RouteInfoCard";
@@ -33,14 +40,12 @@ import AddCityFeedModal from "@/components/panels/AddCityFeedModal";
 import type { CityFeedMeta } from "@/lib/cityGtfs";
 import { networkRouteFilters } from "@/lib/mapEntry";
 import { type CustomRoute, type CustomSchedule, type CustomStop, type EnrichedRoute, type RouteFilters } from "@/lib/gtfs";
-import { formatSimDate } from "@/lib/simulation";
-import BugReportButton from "@/components/BugReportButton";
-import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import { customRouteSelectionId, formatSimDate } from "@/lib/simulation";
 
 // Dynamically import Map to avoid SSR issues with mapbox-gl
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
-type Mode = "browse" | "build" | "schedule" | "simulate" | null;
+type Mode = "browse" | "build" | "test" | "schedule" | "simulate" | null;
 
 interface ClickedRoute {
   shortName: string;
@@ -54,14 +59,15 @@ interface ClickedRoute {
   isCustom?: boolean;
 }
 
-const NAV_ITEMS = [
-  { mode: "browse" as Mode,   icon: MapIcon,       label: "Explore"   },
-  { mode: "build" as Mode,    icon: Pencil,        label: "Design"    },
-  { mode: "schedule" as Mode, icon: CalendarClock, label: "Schedules" },
-  { mode: "simulate" as Mode, icon: PlayCircle,    label: "Simulate"  },
-];
+/** Which step of Explore → Design → Test → Share a mode belongs to. */
+function stepForMode(mode: Mode): MapStep | null {
+  if (mode === "browse" || mode === "schedule") return "explore";
+  if (mode === "build") return "design";
+  if (mode === "test" || mode === "simulate") return "test";
+  return null;
+}
 
-const VALID_MODES: Mode[] = ["browse", "build", "schedule", "simulate"];
+const VALID_MODES: Mode[] = ["browse", "build", "test", "schedule", "simulate"];
 
 function designParamToTab(d: string | null): DesignTab | null {
   if (d === "new") return "new";
@@ -127,14 +133,7 @@ function MapPageContent() {
   const [hoveredRoute, setHoveredRoute] = useState<{ shortName: string; variantId: string } | null>(null);
   const [clickedRoute, setClickedRoute] = useState<ClickedRoute | null>(null);
   const [shareTarget, setShareTarget] = useState<CustomRoute | null>(null);
-  const [sharePickerOpen, setSharePickerOpen] = useState(false);
-  // Close share picker on outside click
-  useEffect(() => {
-    if (!sharePickerOpen) return;
-    const handler = () => setSharePickerOpen(false);
-    window.addEventListener("click", handler, { capture: true, once: true });
-    return () => window.removeEventListener("click", handler, { capture: true });
-  }, [sharePickerOpen]);
+  const [mapError, setMapError] = useState<"webgl" | "token" | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnGeometry, setDrawnGeometry] = useState<[number, number][] | null>(null);
   const [editingRoute, setEditingRoute] = useState<CustomRoute | undefined>();
@@ -168,6 +167,47 @@ function MapPageContent() {
 
   const { routes: customRoutes, saveRoute, deleteRoute } = useRoutes();
   const { stations: customStations, saveStation, deleteStation } = useStations();
+  // ── "Test this route" journey comparison ─────────────────────────────────
+  // The modal stays mounted (keeping its results) while the user looks at the
+  // map: "picking" waits for one map click, "map" shows the drawn journeys.
+  const [testRouteId, setTestRouteId] = useState<string | null>(null);
+  const [testView, setTestView] = useState<"modal" | "picking" | "map">("modal");
+  const testRoute = testRouteId ? customRoutes.find((r) => r.id === testRouteId) ?? null : null;
+
+  const [impactRouteId, setImpactRouteId] = useState<string | null>(null);
+  const impactRoute = impactRouteId ? customRoutes.find((r) => r.id === impactRouteId) ?? null : null;
+
+  const openRouteTest = useCallback((routeId: string) => {
+    mapRef.current?.setJourneyOverlay(null);
+    setTestRouteId(routeId);
+    setTestView("modal");
+  }, []);
+
+  const closeRouteTest = useCallback(() => {
+    mapRef.current?.stopPinMode();
+    mapRef.current?.setJourneyOverlay(null);
+    setTestRouteId(null);
+    setTestView("modal");
+  }, []);
+
+  const pickTestPlaceOnMap = useCallback((onPick: (lat: number, lon: number) => void) => {
+    setTestView("picking");
+    mapRef.current?.startPinMode((lat, lon) => {
+      mapRef.current?.stopPinMode();
+      onPick(lat, lon);
+      setTestView("modal");
+    });
+  }, []);
+
+  const showTestJourneysOnMap = useCallback((base: Journey | null, withRoute: Journey | null) => {
+    mapRef.current?.setJourneyOverlay(
+      journeyOverlay([
+        { scenario: "base", journey: base },
+        { scenario: "with", journey: withRoute },
+      ]),
+    );
+    setTestView("map");
+  }, []);
 
   // ── Uploaded city-GTFS overlays ──────────────────────────────────────────
   const {
@@ -671,6 +711,9 @@ function MapPageContent() {
     patchSearch({ mode: null, design: null, goRoute: null, entry: null });
     setEditingRoute(undefined);
     setDrawnGeometry(null);
+    toast.success(`"${route.name || "Custom route"}" saved`, {
+      action: { label: "Test this route", onClick: () => openRouteTest(route.id) },
+    });
   }
 
   function cleanupDesignTools() {
@@ -737,6 +780,13 @@ function MapPageContent() {
     if (m === "browse") {
       patchSearch({
         mode: "browse",
+        entry: "network",
+        design: null,
+        goRoute: null,
+      });
+    } else if (m === "test") {
+      patchSearch({
+        mode: "test",
         entry: "network",
         design: null,
         goRoute: null,
@@ -872,14 +922,28 @@ function MapPageContent() {
     [patchSearch]
   );
 
-  const panelOpen = mode === "browse" || mode === "build";
+  const panelOpen = mode === "browse" || mode === "build" || mode === "test";
+  const activeStep = stepForMode(mode);
+
+  const handleStep = (step: MapStep) => {
+    handleModeToggle(step === "explore" ? "browse" : step === "design" ? "build" : "test");
+  };
+
+  // Simulate from the Test panel: add the route to the selection, then open the simulator.
+  const simulateRoute = (routeId: string | null) => {
+    if (routeId) {
+      const code = customRouteSelectionId(routeId);
+      if (!sim.selectedRoutes.includes(code)) sim.setSelectedRoutes([...sim.selectedRoutes, code]);
+    }
+    handleModeToggle("simulate");
+  };
   // Hide info card when browse panel is open (panel shows richer info)
   const showInfoCard = clickedRoute && !isDrawing && mode !== "browse";
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[var(--landing-band)]">
       {/* ── Full-screen map ─────────────────────────────────────────────── */}
-      <div className="absolute inset-0">
+      <div className={`absolute inset-0 ${MOBILE_NAV_OFFSET}`}>
         <Map
           ref={mapRef}
           onLoad={handleMapLoad}
@@ -890,6 +954,7 @@ function MapPageContent() {
           onVehicleClick={handleVehicleClick}
           onVehicleHover={handleVehicleHover}
           isTrainDesignMode={isTrainDesignMode}
+          onError={setMapError}
         />
         {/* Dark-mode map tint — a light dim so the light Mapbox basemap reads
             as muted in dark mode without hiding routes or labels. Sits above
@@ -900,41 +965,39 @@ function MapPageContent() {
         />
       </div>
 
-      {/* ── Top nav bar ─────────────────────────────────────────────────── */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-        <div className="tf-map-panel pointer-events-auto flex items-center gap-0.5 px-1.5 py-1.5">
-          <Link
-            href="/"
-            className="mr-1.5 flex items-center gap-2 border-r border-[var(--landing-border)] py-1 pl-1 pr-3"
-          >
-            <span className="flex h-6 w-6 items-center justify-center bg-[var(--landing-accent)]">
-              <Train className="h-3.5 w-3.5 text-white" />
-            </span>
-            <span className="tf-map-label font-medium text-[var(--landing-ink)]">
-              TransitFlow
-            </span>
-          </Link>
-          {NAV_ITEMS.map(({ mode: m, icon: Icon, label }) => (
-            <button
-              key={m}
-              onClick={() => handleModeToggle(m)}
-              className={`tf-map-label flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
-                mode === m
-                  ? "bg-[var(--landing-inverse)] text-[var(--landing-inverse-fg)]"
-                  : "text-[var(--landing-muted)] hover:bg-[var(--landing-wash)] hover:text-[var(--landing-ink)]"
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </button>
-          ))}
-          <span className="mx-1 h-5 w-px bg-[var(--landing-border)]" aria-hidden />
-          <AnimatedThemeToggler className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-ink)] [&_svg]:h-3.5 [&_svg]:w-3.5" />
+      {/* ── Steps: Explore → Design → Test → Share ──────────────────────── */}
+      <MapNav
+        active={activeStep}
+        onStep={handleStep}
+        customRoutes={customRoutes}
+        onShare={setShareTarget}
+      />
+
+      {/* ── Map loading / failure ───────────────────────────────────────── */}
+      {mapError ? (
+        <div className="absolute inset-0 z-10 flex items-center justify-center p-6">
+          <div role="alert" className="tf-map-panel max-w-sm space-y-2 px-5 py-4 text-center">
+            <MapPinOff className="mx-auto h-6 w-6 text-[var(--landing-faint)]" aria-hidden />
+            <p className="text-sm font-semibold text-[var(--landing-ink)]">The map couldn&apos;t start</p>
+            <p className="text-xs leading-relaxed text-[var(--landing-muted)]">
+              {mapError === "webgl"
+                ? "Your browser has WebGL turned off or unavailable, which the map needs. Try another browser or enable hardware acceleration."
+                : "The map service isn't configured on this deployment."}{" "}
+              Your saved routes are safe, and the panels still work.
+            </p>
+          </div>
         </div>
-      </div>
+      ) : !mapLoaded ? (
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-10 flex justify-center">
+          <p role="status" className="tf-map-panel flex items-center gap-2 px-3 py-2 text-xs text-[var(--landing-muted)]">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading map…
+          </p>
+        </div>
+      ) : null}
 
       {!isDrawing && (
         <ServiceStatusPill
+          className={panelOpen ? "max-md:hidden" : undefined}
           data={serviceAlerts}
           loaded={serviceAlertsLoaded}
           canToggle={railAlerts.length > 0}
@@ -959,7 +1022,7 @@ function MapPageContent() {
           hidden={isDrawing}
           onDesignRoute={handleDesignFromGap}
           onOpenChange={(gapOpen) => {
-            if (gapOpen && (mode === "browse" || mode === "build")) {
+            if (gapOpen && panelOpen) {
               patchSearch({ mode: null, design: null, goRoute: null, entry: null });
             }
           }}
@@ -970,16 +1033,18 @@ function MapPageContent() {
       {panelOpen && (
         <div
           className={
-            mode === "browse"
-              ? "absolute left-4 top-20 z-20 w-72 max-h-[calc(100dvh-5.5rem)] overflow-hidden"
-              : "absolute left-4 top-20 bottom-4 z-20 w-[25rem] max-w-[calc(100vw-2rem)]"
+            `absolute z-20 max-md:inset-x-2 max-md:top-auto max-md:w-auto ${MOBILE_NAV_OFFSET} max-md:mb-2 ${
+              mode === "build"
+                ? "left-4 top-20 bottom-4 w-[25rem] max-w-[calc(100vw-2rem)] max-md:h-[62dvh]"
+                : "left-4 top-20 w-72 max-h-[calc(100dvh-5.5rem)] overflow-hidden max-md:max-h-[55dvh]"
+            }`
           }
         >
           <div
             className={
-              mode === "browse"
-                ? "tf-map-panel flex min-h-0 flex-col overflow-hidden"
-                : "tf-map-panel flex h-full min-h-0 flex-col overflow-hidden"
+              mode === "build"
+                ? "tf-map-panel flex h-full min-h-0 flex-col overflow-hidden"
+                : "tf-map-panel flex min-h-0 flex-col overflow-hidden max-md:max-h-[55dvh]"
             }
           >
             {mode === "browse" && (
@@ -994,6 +1059,9 @@ function MapPageContent() {
                   const route = customRoutes.find((r) => r.id === id);
                   if (route) setShareTarget(route);
                 }}
+                onTestCustomRoute={openRouteTest}
+                onCheckNetworkImpact={setImpactRouteId}
+                onOpenTimetables={() => handleModeToggle("schedule")}
                 cityFeeds={cityFeeds}
                 visibleCityFeedIds={visibleCityFeedIds}
                 loadingCityFeedIds={loadingCityFeedIds}
@@ -1001,6 +1069,16 @@ function MapPageContent() {
                 onDeleteCityFeed={requestDeleteCityFeed}
                 onZoomCityFeed={handleZoomCityFeed}
                 onAddCityFeed={() => setCityFeedModalOpen(true)}
+              />
+            )}
+            {mode === "test" && (
+              <TestPanel
+                customRoutes={customRoutes}
+                onTestJourney={openRouteTest}
+                onCheckImpact={setImpactRouteId}
+                onSimulate={simulateRoute}
+                onEditTimetable={() => handleModeToggle("schedule")}
+                onDesign={() => handleModeToggle("build")}
               />
             )}
             {mode === "build" && (
@@ -1049,6 +1127,38 @@ function MapPageContent() {
         onSaveSchedule={handleSaveSchedule}
         onClose={() => handleModeToggle("schedule")}
       />
+
+      {/* ── "Test this route" journey comparison ───────────────────────── */}
+      <TestRouteModal
+        key={testRoute?.id ?? "none"}
+        route={testRoute}
+        open={testView === "modal"}
+        onClose={closeRouteTest}
+        onPickOnMap={pickTestPlaceOnMap}
+        onShowOnMap={showTestJourneysOnMap}
+        onCheckNetworkImpact={() => {
+          const id = testRouteId;
+          closeRouteTest();
+          setImpactRouteId(id);
+        }}
+      />
+      <NetworkImpactModal
+        key={`impact-${impactRoute?.id ?? "none"}`}
+        route={impactRoute}
+        onClose={() => setImpactRouteId(null)}
+      />
+      {testRoute && testView !== "modal" && (
+        <JourneyTestMapBar
+          view={testView}
+          routeName={testRoute.name || "Your route"}
+          routeColor={testRoute.color}
+          onBack={() => {
+            mapRef.current?.stopPinMode();
+            setTestView("modal");
+          }}
+          onClose={closeRouteTest}
+        />
+      )}
 
       {/* ── Route hover tooltip (top-right) ─────────────────────────────── */}
       {hoveredRoute && !isDrawing && !clickedRoute && (
@@ -1130,86 +1240,19 @@ function MapPageContent() {
           onDateChange={sim.setDate}
           onStartHourChange={sim.setStartHour}
           onClear={sim.clearSimulation}
+          onTestRoute={openRouteTest}
         />
       )}
 
-      {/* ── Empty state hint ────────────────────────────────────────────── */}
-      {!mode
-        && !clickedRoute
-        && mapLoaded && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none max-w-[min(380px,calc(100vw-32px))] text-center">
-          <div className="tf-map-panel px-4 py-2.5 text-sm leading-snug text-[var(--landing-muted)]">
-            Tap a coloured line for details — open{" "}
-            <strong className="font-semibold text-[var(--landing-ink)]">Explore</strong>{" "}
-            for the route list, or{" "}
-            <strong className="font-semibold text-[var(--landing-ink)]">Design</strong>{" "}
-            to model corridors.
-          </div>
-        </div>
-      )}
-
-      {/* ── Saved routes badge ──────────────────────────────────────────── */}
-      {customRoutes.length > 0
-        && !panelOpen
-        && mode !== "simulate" && (
-        <div className="absolute bottom-20 right-4 z-20 flex items-center gap-2">
-          <button
-            onClick={() => {
-              patchSearch({
-                mode: "build",
-                entry: "fresh",
-                design: "new",
-                goRoute: null,
-              });
-            }}
-            className="tf-map-panel tf-map-label flex items-center gap-1.5 px-3 py-2 text-[var(--landing-muted)] transition-colors hover:text-[var(--landing-ink)]"
-          >
-            <Pencil className="h-3.5 w-3.5 text-[var(--landing-faint)]" />
-            {customRoutes.length} saved route{customRoutes.length !== 1 ? "s" : ""}
-          </button>
-          <div className="relative">
-            <button
-              onClick={() => {
-                if (customRoutes.length === 1) {
-                  setShareTarget(customRoutes[0]);
-                } else {
-                  setSharePickerOpen((o) => !o);
-                }
-              }}
-              className="tf-map-label flex items-center gap-1.5 border border-[var(--landing-accent)] bg-[var(--landing-accent)] px-3 py-2 text-white shadow-[0_1px_2px_rgba(19,36,27,0.06),0_14px_34px_-14px_rgba(19,36,27,0.2)] transition-opacity hover:opacity-90"
-            >
-              <Share2 className="h-3.5 w-3.5" />
-              Share
-            </button>
-            {sharePickerOpen && (
-              <div className="tf-map-panel absolute bottom-full right-0 z-30 mb-2 w-56 overflow-hidden">
-                <p className="tf-map-label border-b border-[var(--landing-border)] px-3 py-2 text-[var(--landing-faint)]">
-                  Pick a route to share
-                </p>
-                <ul>
-                  {customRoutes.map((r) => (
-                    <li key={r.id}>
-                      <button
-                        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-[var(--landing-ink)] transition-colors hover:bg-[var(--landing-wash)]"
-                        onClick={() => {
-                          setShareTarget(r);
-                          setSharePickerOpen(false);
-                        }}
-                      >
-                        <span
-                          className="flex h-6 w-6 shrink-0 items-center justify-center text-[9px] font-bold text-white"
-                          style={{ backgroundColor: r.color }}
-                        >
-                          {r.type === "train" ? "R" : "B"}
-                        </span>
-                        <span className="truncate">{r.name || "Custom route"}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
+      {/* ── First-run hint: the flow in one line ───────────────────────── */}
+      {!mode && !clickedRoute && mapLoaded && (
+        <div className={`pointer-events-none absolute bottom-8 left-1/2 z-20 w-max max-w-[min(420px,calc(100vw-32px))] -translate-x-1/2 text-center ${MOBILE_NAV_OFFSET} max-md:mb-3`}>
+          <p className="tf-map-panel px-4 py-2.5 text-sm leading-snug text-[var(--landing-muted)]">
+            <strong className="font-semibold text-[var(--landing-ink)]">Explore</strong> GO lines,{" "}
+            <strong className="font-semibold text-[var(--landing-ink)]">design</strong> a route,{" "}
+            <strong className="font-semibold text-[var(--landing-ink)]">test</strong> it on real trips, then{" "}
+            <strong className="font-semibold text-[var(--landing-ink)]">share</strong> it. Tap any line for details.
+          </p>
         </div>
       )}
 
@@ -1231,8 +1274,6 @@ function MapPageContent() {
         }}
       />
 
-      {/* Report a bug — floating bottom-right */}
-      <BugReportButton variant="float" />
     </div>
   );
 }
