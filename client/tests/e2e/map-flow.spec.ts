@@ -82,6 +82,20 @@ test("saved route actions are grouped in one menu", async ({ page }) => {
   }
 });
 
+test("VIA Rail can be switched on from the Feeds tab", async ({ page }) => {
+  await page.goto("/map?mode=browse");
+  await page.getByRole("tab", { name: /Feeds/ }).click();
+
+  const toggle = page.getByRole("checkbox", { name: "Show VIA Rail on map" });
+  await expect(toggle).not.toBeChecked();
+  await expect(page.getByRole("button", { name: "Delete VIA Rail" })).toHaveCount(0);
+
+  const payload = page.waitForResponse(/\/viarail\/derived\/feed\.json$/);
+  await toggle.check();
+  expect((await payload).ok()).toBe(true);
+  await expect(toggle).toBeChecked();
+});
+
 test("phones get a bottom tab bar and a bottom-sheet panel", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await seedRoutes(page, [ROUTE]);

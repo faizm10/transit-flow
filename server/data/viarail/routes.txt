@@ -1,0 +1,20 @@
+route_id,route_short_name,route_long_name,route_type,route_color,route_text_color,agency_id
+119-93,VIA Rail,Toronto - London,2,FFCB06,000000,1
+226-460,VIA Rail,Montréal - Senneterre,2,FFCB06,000000,1
+226-119,VIA Rail,Montréal - Toronto,2,FFCB06,000000,1
+226-444,VIA Rail,Montréal - Jonquière,2,FFCB06,000000,1
+8-119,VIA Rail,Vancouver - Toronto,2,FFCB06,000000,1
+119-341,VIA Rail,Toronto - Sarnia,2,FFCB06,000000,1
+621-116,VIA Rail,Sudbury - White River,2,FFCB06,000000,1
+388-435,VIA Rail,Winnipeg - Churchill,2,FFCB06,000000,1
+617-628,VIA Rail,Ottawa - Québec,2,FFCB06,000000,1
+119-618,VIA Rail,Toronto - Windsor,2,FFCB06,000000,1
+21-458,VIA Rail,Jasper - Prince Rupert,2,FFCB06,000000,1
+AC,VIA Rail,Air Connect,3,FFCB06,000000,1
+119-120,VIA Rail,Toronto - New York,2,FFCB06,000000,1
+617-226,VIA Rail,Ottawa - Montréal,2,FFCB06,000000,1
+617-119,VIA Rail,Ottawa - Toronto,2,FFCB06,000000,1
+628-576,VIA Rail,Québec - Fallowfield,2,FFCB06,000000,1
+628-226,VIA Rail,Québec - Montréal,2,FFCB06,000000,1
+149-435,VIA Rail,The Pas - Churchill,2,FFCB06,000000,1
+226-620,VIA Rail,Montréal - Halifax,2,FFCB06,000000,1

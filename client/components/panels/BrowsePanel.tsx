@@ -199,7 +199,7 @@ export default function BrowsePanel({
             </TabsTrigger>
             <TabsTrigger value="cities" className="gap-0.5 px-0 text-[10px] font-medium">
               <Building2 className="h-3 w-3 shrink-0" aria-hidden />
-              Cities
+              Feeds
             </TabsTrigger>
           </TabsList>
           <div className="relative">
@@ -501,59 +501,57 @@ export default function BrowsePanel({
             Add a city&apos;s GTFS
           </button>
 
-          {cityFeeds.length === 0 ? (
-            <div className="mt-2 rounded-lg border border-dashed border-[var(--landing-border-2)] px-3 py-3 text-center text-[11px] leading-relaxed text-[var(--landing-muted)]">
-              Upload another agency&apos;s GTFS zip to overlay its network on the map.
-              Saved feeds stay on your account.
-            </div>
-          ) : (
-            <div className={ROUTE_LIST_BOX}>
-              <ul className="divide-y divide-[var(--landing-border)]">
-                {cityFeeds.map((feed) => {
-                  const visible = visibleCityFeedIds.has(feed.id);
-                  const loading = loadingCityFeedIds.has(feed.id);
-                  return (
-                    <li
-                      key={feed.id}
-                      className={`flex min-h-9 items-center ${
-                        visible ? "" : "bg-[var(--landing-wash)] opacity-60"
-                      }`}
+          <div className={ROUTE_LIST_BOX}>
+            <ul className="divide-y divide-[var(--landing-border)]">
+              {cityFeeds.map((feed) => {
+                const visible = visibleCityFeedIds.has(feed.id);
+                const loading = loadingCityFeedIds.has(feed.id);
+                const Icon = feed.builtin ? Train : Building2;
+                return (
+                  <li
+                    key={feed.id}
+                    className={`flex min-h-9 items-center ${
+                      visible ? "" : "bg-[var(--landing-wash)] opacity-60"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 pr-1 text-left transition-colors hover:bg-[var(--landing-wash)]"
+                      onClick={() => onZoomCityFeed(feed)}
+                      title="Zoom to this network"
                     >
-                      <button
-                        type="button"
-                        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 pr-1 text-left transition-colors hover:bg-[var(--landing-wash)]"
-                        onClick={() => onZoomCityFeed(feed)}
-                        title="Zoom to this network"
+                      <span
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md shadow-sm ${
+                          feed.builtin ? "text-black" : "text-white"
+                        }`}
+                        style={{ backgroundColor: feed.color }}
                       >
-                        <span
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white shadow-sm"
-                          style={{ backgroundColor: feed.color }}
-                        >
-                          {loading ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                          ) : (
-                            <Building2 className="h-3.5 w-3.5" aria-hidden />
+                        {loading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                        ) : (
+                          <Icon className="h-3.5 w-3.5" aria-hidden />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex min-w-0 items-baseline gap-1.5">
+                          <span className="truncate text-xs font-medium text-[var(--landing-ink)]">
+                            {feed.name}
+                          </span>
+                          {!feed.saved && (
+                            <span className="shrink-0 bg-[color-mix(in_oklab,var(--landing-amber)_16%,transparent)] px-1 text-[9px] font-semibold uppercase text-[var(--landing-amber)]">
+                              unsaved
+                            </span>
                           )}
                         </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="flex min-w-0 items-baseline gap-1.5">
-                            <span className="truncate text-xs font-medium text-[var(--landing-ink)]">
-                              {feed.name}
-                            </span>
-                            {!feed.saved && (
-                              <span className="shrink-0 bg-[color-mix(in_oklab,var(--landing-amber)_16%,transparent)] px-1 text-[9px] font-semibold uppercase text-[var(--landing-amber)]">
-                                unsaved
-                              </span>
-                            )}
-                          </span>
-                          <span className="block truncate text-[10px] tabular-nums text-[var(--landing-faint)]">
-                            {feed.stats.routes.toLocaleString()} routes ·{" "}
-                            {feed.stats.stops.toLocaleString()} stops ·{" "}
-                            {feed.stats.trips.toLocaleString()} trips
-                          </span>
+                        <span className="block truncate text-[10px] tabular-nums text-[var(--landing-faint)]">
+                          {feed.stats.routes.toLocaleString()} routes ·{" "}
+                          {feed.stats.stops.toLocaleString()} stops ·{" "}
+                          {feed.stats.trips.toLocaleString()} trips
                         </span>
-                        <Locate className="h-3.5 w-3.5 shrink-0 text-[var(--landing-faint)]" aria-hidden />
-                      </button>
+                      </span>
+                      <Locate className="h-3.5 w-3.5 shrink-0 text-[var(--landing-faint)]" aria-hidden />
+                    </button>
+                    {!feed.builtin && (
                       <button
                         type="button"
                         onClick={(event) => {
@@ -565,16 +563,22 @@ export default function BrowsePanel({
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
-                      <VisibilityCheckbox
-                        checked={visible}
-                        label={`Show ${feed.name} on map`}
-                        onChange={(checked) => onToggleCityFeed(feed.id, checked)}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+                    )}
+                    <VisibilityCheckbox
+                      checked={visible}
+                      label={`Show ${feed.name} on map`}
+                      onChange={(checked) => onToggleCityFeed(feed.id, checked)}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          {!cityFeeds.some((feed) => !feed.builtin) && (
+            <p className="mt-2 px-1 text-center text-[10px] leading-relaxed text-[var(--landing-faint)]">
+              Upload another agency&apos;s GTFS zip to overlay its network on the map.
+              Saved feeds stay on your account.
+            </p>
           )}
         </TabsContent>
       </Tabs>

@@ -8,6 +8,7 @@
     "test:e2e": "playwright test",
     "build": "next build",
     "gtfs:derive": "python3 ../scripts/build_gtfs_derived.py",
+    "build:via-feed": "esbuild scripts/build_via_feed.mts --bundle --platform=node --format=esm --outfile=.test-build/build_via_feed.js --log-level=error && node .test-build/build_via_feed.js",
     "start": "next start",
     "video:preview": "remotion studio remotion/index.ts --config remotion.config.ts",
     "video:render": "remotion render remotion/index.ts TransitFlowDemo public/demo.mp4 --codec=h264 --config remotion.config.ts",
