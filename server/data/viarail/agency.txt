@@ -1,0 +1,2 @@
+agency_name,agency_url,agency_timezone,agency_lang,agency_phone,agency_fare_url,agency_id,ticketing_deep_link_id
+VIA Rail,https://www.viarail.ca,America/Toronto,en,1 888 VIA-RAIL,https://reservia.viarail.ca/,1,1

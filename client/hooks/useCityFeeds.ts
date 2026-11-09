@@ -21,6 +21,7 @@ import {
   type CityFeedStats,
   type ParserMessage,
 } from "@/lib/cityGtfs";
+import { BUILTIN_FEEDS } from "@/lib/builtinFeeds";
 
 export interface ParsedFeed {
   agency: string | null;
@@ -36,6 +37,8 @@ export interface ParseProgressState {
 export interface CityFeedEntry extends CityFeedMeta {
   /** false → parsed this session but not persisted (signed out) */
   saved: boolean;
+  /** true → ships with the app; anyone can show it, nobody can delete it */
+  builtin: boolean;
 }
 
 export function useCityFeeds() {
@@ -230,6 +233,15 @@ export function useCityFeeds() {
 
       setLoadingIds((prev) => new Set(prev).add(id));
       try {
+        const builtin = BUILTIN_FEEDS.find((f) => f.id === id);
+        if (builtin) {
+          const res = await fetch(builtin.url);
+          if (!res.ok) throw new Error(`Could not load ${builtin.name}`);
+          payloadCache.current.set(id, (await res.json()) as CityFeedPayload);
+          setCacheVersion((v) => v + 1);
+          return;
+        }
+
         const res = await fetch(`/api/city-feeds/${id}`);
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
@@ -249,8 +261,9 @@ export function useCityFeeds() {
 
   const feeds: CityFeedEntry[] = useMemo(
     () => [
-      ...localFeeds.map((f) => ({ ...f, saved: false })),
-      ...savedFeeds.map((f) => ({ ...f, saved: true })),
+      ...BUILTIN_FEEDS.map((f) => ({ ...f, saved: true, builtin: true })),
+      ...localFeeds.map((f) => ({ ...f, saved: false, builtin: false })),
+      ...savedFeeds.map((f) => ({ ...f, saved: true, builtin: false })),
     ],
     [localFeeds, savedFeeds]
   );

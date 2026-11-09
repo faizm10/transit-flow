@@ -7,6 +7,8 @@ Notable changes to TransitFlow. The format follows
 
 ### Added
 
+- **VIA Rail feed.** Tick **VIA Rail** in **Explore → Feeds** (formerly Cities)
+  to draw its national network on the map, with no upload or account needed.
 - **Test this route.** Every saved route in **Browse → Mine** has a new route
   icon that opens a journey comparison. Pick an origin, destination, date and
   departure time to see the fastest journey on the existing GO network next to

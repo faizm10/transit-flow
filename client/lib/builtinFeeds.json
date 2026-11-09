@@ -1,0 +1,25 @@
+[
+  {
+    "id": "builtin-viarail",
+    "name": "VIA Rail",
+    "agency": "VIA Rail",
+    "color": "#ffcb06",
+    "stats": {
+      "stops": 386,
+      "routes": 19,
+      "trips": 84,
+      "patterns": 66,
+      "bbox": [
+        -130.35224,
+        40.75023,
+        -63.2759,
+        58.76769
+      ],
+      "serviceStart": "2026-01-01",
+      "serviceEnd": "2030-12-31"
+    },
+    "byteSize": 1136708,
+    "createdAt": "2026-11-02T00:00:00Z",
+    "url": "/viarail/derived/feed.json"
+  }
+]

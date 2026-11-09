@@ -1,0 +1,2 @@
+feed_publisher_name,feed_start_date,feed_lang,feed_publisher_url,feed_end_date,feed_contact_email
+VIA Rail Canada inc.,20261102,en,https://www.viarail.ca/,20270303,dev@viarail.ca
